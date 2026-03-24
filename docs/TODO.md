@@ -216,3 +216,90 @@ queued ──> running ──> completed                 │
 - **Web UI** provides visibility and manual feedback capability
 - **Container runtimes** (via ContainerHost) handle the actual sandbox lifecycle
 - **Reverse WebSocket** connects running sandboxes back to the orchestrator for real-time streaming
+
+---
+
+## 6. Environment Management and Sandbox Caching
+
+### Problem
+
+The base sandbox image ships with a common set of packages via Devbox, but different repositories need different toolchains (e.g., a Python ML repo needs CUDA libs, a Go repo needs specific Go versions, a Node repo needs particular Node/npm versions). Installing these on every sandbox spawn is slow and wasteful — especially when the same repo triggers multiple tasks.
+
+### Package Installation: Shell, Not Tools
+
+The agent should install packages via shell commands it already has access to — no special tools needed:
+
+- `devbox add <package>` for Nix-managed packages
+- `apt-get install` for system packages
+- `pip install`, `npm install`, `cargo install`, etc. for language-specific deps
+
+Repos can declare what they need via a **`.codebox.toml`** config file in the repo root:
+
+```toml
+[environment]
+# Devbox packages to add
+devbox_packages = ["python312", "nodejs_20", "ffmpeg"]
+
+# System packages
+apt_packages = ["libpq-dev"]
+
+# Shell commands to run during setup
+setup_commands = [
+    "pip install -r requirements.txt",
+    "npm ci",
+]
+```
+
+The orchestrator reads this file after cloning and runs the setup before handing the sandbox to the agent. This keeps environment setup declarative and version-controlled with the repo.
+
+### Per-Repo Sandbox Caching
+
+To avoid re-doing environment setup for every task, maintain **cached sandbox images per repository**:
+
+#### Strategy: Repo-Specific Base Images
+
+```
+Base Image (codebox-docker)
+    │
+    └── repo-specific layer (cached)
+            │  - repo cloned
+            │  - .codebox.toml setup applied
+            │  - devbox/apt packages installed
+            │  - dependencies installed
+            │
+            └── task sandbox (ephemeral)
+                   - fresh branch for the task
+                   - agent runs here
+```
+
+#### How It Works
+
+1. **First task for a repo**: orchestrator spawns a sandbox from the base image, clones the repo, runs `.codebox.toml` setup. After setup completes, **snapshot the container** as a repo-specific cached image (e.g., `codebox-cache:org/repo:abc123` where `abc123` is the setup config hash).
+
+2. **Subsequent tasks for the same repo**: orchestrator spawns from the cached image instead of the base image. Skip clone and setup — just `git pull` to get latest changes and start the agent. This turns a multi-minute setup into seconds.
+
+3. **Cache invalidation**: re-build the cached image when:
+   - `.codebox.toml` changes (detected via config hash)
+   - Base codebox image is updated
+   - Manual invalidation via orchestrator API/UI
+   - TTL expiry (e.g., rebuild weekly regardless)
+
+#### Implementation per Runtime
+
+| Runtime                   | Caching mechanism                                               |
+| ------------------------- | --------------------------------------------------------------- |
+| **Docker (Local/Remote)** | `docker commit` to create cached image, store in local registry |
+| **Podman**                | Same — `podman commit`, local or remote registry                |
+| **Fargate**               | Push cached image to ECR, reference in task definition          |
+| **Kubernetes**            | Push to container registry, use as pod image                    |
+
+#### Warm Container Pools (Future)
+
+For high-traffic repos, go further and keep **warm containers** pre-provisioned:
+
+- Orchestrator maintains a pool of N ready-to-go sandboxes per repo
+- New task gets assigned an already-running warm container immediately
+- Pool replenishes in the background after a container is claimed
+- Idle containers are recycled after a configurable timeout
+
+This gives near-instant task startup for frequently-used repos.
