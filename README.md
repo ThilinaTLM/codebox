@@ -18,10 +18,11 @@ The CLI spawns a Docker container (built from codebox-docker, which embeds codeb
 ## Requirements
 
 - Python 3.12
+- [uv](https://docs.astral.sh/uv/)
 - Docker
 - Environment variables: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`
 
-Each sub-project has its own `.venv` and `pyproject.toml`.
+Each sub-project has its own `.venv` and `pyproject.toml`, managed with uv.
 
 ## Getting Started
 
@@ -30,5 +31,5 @@ Each sub-project has its own `.venv` and `pyproject.toml`.
 cd codebox-docker && docker build -t codebox .
 
 # Run via CLI
-cd codebox-cli && pip install -e . && codebox run
+cd codebox-cli && uv sync && uv run codebox run
 ```
