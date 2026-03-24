@@ -1,0 +1,10 @@
+{
+  "packages": [
+    "nodejs@20",
+    "go@1.22",
+    "ripgrep",
+    "git",
+    "jq",
+    "curl"
+  ]
+}

@@ -1,0 +1,69 @@
+"""Agent creation and token extraction utilities."""
+
+import os
+
+from langchain_openrouter import ChatOpenRouter
+from deepagents import create_deep_agent
+from deepagents.backends import LocalShellBackend
+
+
+DEFAULT_SYSTEM_PROMPT = (
+    "You are a helpful coding assistant. "
+    "You have access to tools for filesystem operations "
+    "(ls, read_file, write_file, edit_file, glob, grep) "
+    "and shell execution (execute). Use them to help the user with coding tasks."
+)
+
+
+def create_agent(
+    model: str,
+    api_key: str,
+    system_prompt: str | None = None,
+    root_dir: str = "/workspace",
+):
+    """Create a deep agent with the given configuration.
+
+    Args:
+        model: The OpenRouter model identifier.
+        api_key: The OpenRouter API key.
+        system_prompt: Optional custom system prompt.
+        root_dir: Root directory for the shell backend.
+
+    Returns:
+        A compiled LangGraph agent.
+    """
+    llm = ChatOpenRouter(
+        model=model,
+        temperature=0,
+        api_key=api_key,
+    )
+
+    backend = LocalShellBackend(
+        root_dir=root_dir,
+        virtual_mode=True,
+        timeout=120,
+        inherit_env=True,
+    )
+
+    return create_deep_agent(
+        model=llm,
+        tools=[],
+        backend=backend,
+        system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
+    )
+
+
+def extract_token(chunk) -> str:
+    """Extract text content from a streaming chunk.
+
+    Handles both string and list-of-dict content formats.
+    """
+    if isinstance(chunk.content, str):
+        return chunk.content
+    elif isinstance(chunk.content, list):
+        return "".join(
+            b.get("text", "")
+            for b in chunk.content
+            if isinstance(b, dict)
+        )
+    return ""
