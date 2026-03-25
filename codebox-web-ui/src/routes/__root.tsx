@@ -4,6 +4,7 @@ import {
   Scripts,
   createRootRoute,
 } from "@tanstack/react-router"
+import { API_URL, WS_URL } from "@/lib/constants"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
@@ -56,6 +57,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__ENV__=${JSON.stringify({ API_URL, WS_URL })}`,
+          }}
+        />
         <HeadContent />
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased">

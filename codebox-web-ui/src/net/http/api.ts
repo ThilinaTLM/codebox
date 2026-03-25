@@ -1,10 +1,6 @@
 import axios from "axios"
 import type { Container, Task, TaskCreatePayload, TaskEvent } from "./types"
-
-const API_URL =
-  typeof window !== "undefined"
-    ? (import.meta.env.VITE_API_URL ?? "http://localhost:8080")
-    : "http://localhost:8080"
+import { API_URL } from "@/lib/constants"
 
 const client = axios.create({
   baseURL: API_URL,
