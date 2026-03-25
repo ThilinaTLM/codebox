@@ -118,3 +118,117 @@ export function useTaskWebSocket({
 
   return { events, sendMessage, sendCancel, isConnected }
 }
+
+// ── Sandbox WebSocket ──────────────────────────────────────────
+
+interface UseSandboxWebSocketOptions {
+  sandboxId: string | undefined
+  enabled?: boolean
+}
+
+interface UseSandboxWebSocketReturn {
+  events: WSEvent[]
+  sendMessage: (content: string) => void
+  sendExec: (command: string) => void
+  sendCancel: () => void
+  isConnected: boolean
+}
+
+export function useSandboxWebSocket({
+  sandboxId,
+  enabled = true,
+}: UseSandboxWebSocketOptions): UseSandboxWebSocketReturn {
+  const [events, setEvents] = useState<WSEvent[]>([])
+  const [isConnected, setIsConnected] = useState(false)
+  const wsRef = useRef<WebSocket | null>(null)
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reconnectAttemptsRef = useRef(0)
+
+  const connect = useCallback(() => {
+    if (!sandboxId || !enabled) return
+
+    const url = `${WS_URL}/api/sandboxes/${sandboxId}/ws`
+    const ws = new WebSocket(url)
+    wsRef.current = ws
+
+    ws.onopen = () => {
+      setIsConnected(true)
+      reconnectAttemptsRef.current = 0
+    }
+
+    ws.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data) as WSEvent
+        if (event.type === "ping") return
+        setEvents((prev) => [...prev, event])
+      } catch {
+        // ignore malformed messages
+      }
+    }
+
+    ws.onclose = () => {
+      setIsConnected(false)
+      wsRef.current = null
+
+      // Always reconnect for sandboxes (they're long-lived)
+      if (enabled) {
+        const delay = Math.min(
+          1000 * 2 ** reconnectAttemptsRef.current,
+          30000,
+        )
+        reconnectAttemptsRef.current += 1
+        reconnectTimeoutRef.current = setTimeout(connect, delay)
+      }
+    }
+
+    ws.onerror = () => {
+      ws.close()
+    }
+  }, [sandboxId, enabled])
+
+  useEffect(() => {
+    setEvents([])
+    reconnectAttemptsRef.current = 0
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+
+    connect()
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+    }
+  }, [connect])
+
+  const sendMessage = useCallback((content: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "message", content }))
+    }
+  }, [])
+
+  const sendExec = useCallback((command: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "exec", content: command }))
+    }
+  }, [])
+
+  const sendCancel = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "cancel" }))
+    }
+  }, [])
+
+  return { events, sendMessage, sendExec, sendCancel, isConnected }
+}

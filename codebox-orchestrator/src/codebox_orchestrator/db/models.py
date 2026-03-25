@@ -70,6 +70,57 @@ class Task(Base):
     )
 
 
+class SandboxStatus(str, PyEnum):
+    STARTING = "starting"
+    READY = "ready"
+    STOPPED = "stopped"
+    FAILED = "failed"
+
+
+class Sandbox(Base):
+    __tablename__ = "sandboxes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    name: Mapped[str] = mapped_column(String(255))
+    status: Mapped[SandboxStatus] = mapped_column(
+        Enum(SandboxStatus, native_enum=False, length=30),
+        default=SandboxStatus.STARTING,
+    )
+
+    # Container connection info
+    container_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    container_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    host_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    workspace_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    model: Mapped[str] = mapped_column(String(255))
+    auth_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    stopped_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Error tracking
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    events: Mapped[list[SandboxEvent]] = relationship(
+        back_populates="sandbox", cascade="all, delete-orphan", order_by="SandboxEvent.id"
+    )
+
+
+class SandboxEvent(Base):
+    __tablename__ = "sandbox_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sandbox_id: Mapped[str] = mapped_column(String(36), ForeignKey("sandboxes.id"))
+    event_type: Mapped[str] = mapped_column(String(50))
+    data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    sandbox: Mapped[Sandbox] = relationship(back_populates="events")
+
+
 class TaskEvent(Base):
     __tablename__ = "task_events"
 

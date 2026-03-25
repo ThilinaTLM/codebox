@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 const navLinks = [
   { label: "Dashboard", to: "/" },
   { label: "Tasks", to: "/tasks" },
+  { label: "Sandboxes", to: "/sandboxes" },
   { label: "Containers", to: "/containers" },
 ] as const
 
@@ -20,23 +21,20 @@ export function TopNav() {
 
   return (
     <>
-      <header className="flex h-12 items-center justify-between border-b bg-card/50 px-4 backdrop-blur-sm">
+      <header className="flex h-16 items-center justify-between border-b bg-card/50 px-6 backdrop-blur-sm">
         <div className="flex items-center gap-6">
           {/* Brand */}
-          <Link to="/" className="flex items-center gap-1.5">
-            <span className="font-mono text-sm font-semibold tracking-tight text-primary">
-              {">"}_
+          <Link to="/" className="flex items-center gap-2">
+            <span className="text-base font-semibold tracking-tight">
+              Codebox
             </span>
-            <span className="font-mono text-sm font-bold tracking-tight">
-              CODEBOX
-            </span>
-            <span className="hidden text-[10px] text-muted-foreground sm:inline">
+            <span className="hidden text-xs text-muted-foreground sm:inline">
               orchestrator
             </span>
           </Link>
 
           {/* Nav links */}
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-1.5">
             {navLinks.map((link) => {
               const isActive =
                 link.to === "/"
@@ -47,7 +45,7 @@ export function TopNav() {
                   key={link.to}
                   to={link.to}
                   className={cn(
-                    "rounded-md px-3 py-1.5 font-mono text-xs transition-colors",
+                    "rounded-lg px-3.5 py-2 text-sm transition-colors",
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",

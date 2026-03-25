@@ -34,7 +34,6 @@ export function FeedbackInput({
 
   return (
     <div className="flex items-start gap-2">
-      <span className="mt-2.5 font-mono text-sm text-primary">$</span>
       <Textarea
         placeholder="Send a follow-up message..."
         value={message}

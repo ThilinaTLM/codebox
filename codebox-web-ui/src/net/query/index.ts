@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 import { api } from "@/net/http/api"
-import type { TaskCreatePayload } from "@/net/http/types"
+import type { SandboxCreatePayload, TaskCreatePayload } from "@/net/http/types"
 
 // ── Task queries ──────────────────────────────────────────────
 
@@ -89,6 +89,81 @@ export function useStopContainer() {
     mutationFn: (containerId: string) => api.containers.stop(containerId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["containers"] })
+    },
+  })
+}
+
+// ── Sandbox queries ──────────────────────────────────────────
+
+export function useSandboxes() {
+  return useQuery({
+    queryKey: ["sandboxes"],
+    queryFn: () => api.sandboxes.list(),
+    refetchInterval: 5000,
+  })
+}
+
+export function useSandbox(sandboxId: string | undefined) {
+  return useQuery({
+    queryKey: ["sandboxes", sandboxId],
+    queryFn: () => api.sandboxes.get(sandboxId!),
+    enabled: !!sandboxId,
+    refetchInterval: 3000,
+  })
+}
+
+export function useSandboxFiles(
+  sandboxId: string | undefined,
+  path: string,
+) {
+  return useQuery({
+    queryKey: ["sandboxes", sandboxId, "files", path],
+    queryFn: () => api.sandboxes.listFiles(sandboxId!, path),
+    enabled: !!sandboxId,
+  })
+}
+
+export function useSandboxFileContent(
+  sandboxId: string | undefined,
+  path: string | null,
+) {
+  return useQuery({
+    queryKey: ["sandboxes", sandboxId, "file-content", path],
+    queryFn: () => api.sandboxes.readFile(sandboxId!, path!),
+    enabled: !!sandboxId && !!path,
+  })
+}
+
+// ── Sandbox mutations ────────────────────────────────────────
+
+export function useCreateSandbox() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: SandboxCreatePayload) =>
+      api.sandboxes.create(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sandboxes"] })
+    },
+  })
+}
+
+export function useStopSandbox() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (sandboxId: string) => api.sandboxes.stop(sandboxId),
+    onSuccess: (_data, sandboxId) => {
+      qc.invalidateQueries({ queryKey: ["sandboxes", sandboxId] })
+      qc.invalidateQueries({ queryKey: ["sandboxes"] })
+    },
+  })
+}
+
+export function useDeleteSandbox() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (sandboxId: string) => api.sandboxes.delete(sandboxId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sandboxes"] })
     },
   })
 }

@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ContainersRouteImport } from './routes/containers'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
+import { Route as SandboxesIndexRouteImport } from './routes/sandboxes/index'
 import { Route as TasksNewRouteImport } from './routes/tasks/new'
 import { Route as TasksTaskIdRouteImport } from './routes/tasks/$taskId'
+import { Route as SandboxesSandboxIdRouteImport } from './routes/sandboxes/$sandboxId'
 
 const ContainersRoute = ContainersRouteImport.update({
   id: '/containers',
@@ -30,6 +32,11 @@ const TasksIndexRoute = TasksIndexRouteImport.update({
   path: '/tasks/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SandboxesIndexRoute = SandboxesIndexRouteImport.update({
+  id: '/sandboxes/',
+  path: '/sandboxes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TasksNewRoute = TasksNewRouteImport.update({
   id: '/tasks/new',
   path: '/tasks/new',
@@ -40,48 +47,77 @@ const TasksTaskIdRoute = TasksTaskIdRouteImport.update({
   path: '/tasks/$taskId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SandboxesSandboxIdRoute = SandboxesSandboxIdRouteImport.update({
+  id: '/sandboxes/$sandboxId',
+  path: '/sandboxes/$sandboxId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/containers': typeof ContainersRoute
+  '/sandboxes/$sandboxId': typeof SandboxesSandboxIdRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
+  '/sandboxes/': typeof SandboxesIndexRoute
   '/tasks/': typeof TasksIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/containers': typeof ContainersRoute
+  '/sandboxes/$sandboxId': typeof SandboxesSandboxIdRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
+  '/sandboxes': typeof SandboxesIndexRoute
   '/tasks': typeof TasksIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/containers': typeof ContainersRoute
+  '/sandboxes/$sandboxId': typeof SandboxesSandboxIdRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
+  '/sandboxes/': typeof SandboxesIndexRoute
   '/tasks/': typeof TasksIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/containers' | '/tasks/$taskId' | '/tasks/new' | '/tasks/'
+  fullPaths:
+    | '/'
+    | '/containers'
+    | '/sandboxes/$sandboxId'
+    | '/tasks/$taskId'
+    | '/tasks/new'
+    | '/sandboxes/'
+    | '/tasks/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/containers' | '/tasks/$taskId' | '/tasks/new' | '/tasks'
+  to:
+    | '/'
+    | '/containers'
+    | '/sandboxes/$sandboxId'
+    | '/tasks/$taskId'
+    | '/tasks/new'
+    | '/sandboxes'
+    | '/tasks'
   id:
     | '__root__'
     | '/'
     | '/containers'
+    | '/sandboxes/$sandboxId'
     | '/tasks/$taskId'
     | '/tasks/new'
+    | '/sandboxes/'
     | '/tasks/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ContainersRoute: typeof ContainersRoute
+  SandboxesSandboxIdRoute: typeof SandboxesSandboxIdRoute
   TasksTaskIdRoute: typeof TasksTaskIdRoute
   TasksNewRoute: typeof TasksNewRoute
+  SandboxesIndexRoute: typeof SandboxesIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
 }
 
@@ -108,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sandboxes/': {
+      id: '/sandboxes/'
+      path: '/sandboxes'
+      fullPath: '/sandboxes/'
+      preLoaderRoute: typeof SandboxesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tasks/new': {
       id: '/tasks/new'
       path: '/tasks/new'
@@ -122,14 +165,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksTaskIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sandboxes/$sandboxId': {
+      id: '/sandboxes/$sandboxId'
+      path: '/sandboxes/$sandboxId'
+      fullPath: '/sandboxes/$sandboxId'
+      preLoaderRoute: typeof SandboxesSandboxIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ContainersRoute: ContainersRoute,
+  SandboxesSandboxIdRoute: SandboxesSandboxIdRoute,
   TasksTaskIdRoute: TasksTaskIdRoute,
   TasksNewRoute: TasksNewRoute,
+  SandboxesIndexRoute: SandboxesIndexRoute,
   TasksIndexRoute: TasksIndexRoute,
 }
 export const routeTree = rootRouteImport

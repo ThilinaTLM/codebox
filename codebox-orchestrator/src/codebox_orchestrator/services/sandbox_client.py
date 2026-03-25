@@ -115,10 +115,26 @@ class SandboxClient:
         await ws.send(json.dumps({"type": "message", "content": content}))
 
     @staticmethod
+    async def send_exec(
+        ws: websockets.asyncio.client.ClientConnection, command: str
+    ) -> None:
+        await ws.send(json.dumps({"type": "exec", "content": command}))
+
+    @staticmethod
     async def send_cancel(
         ws: websockets.asyncio.client.ClientConnection,
     ) -> None:
         await ws.send(json.dumps({"type": "cancel"}))
+
+    # ------------------------------------------------------------------
+    # File browsing (REST proxy to sandbox)
+    # ------------------------------------------------------------------
+
+    def list_files(self, path: str = "/workspace") -> dict[str, Any]:
+        return self._rest_request("GET", f"/files?path={path}")
+
+    def read_file(self, path: str) -> dict[str, Any]:
+        return self._rest_request("GET", f"/files/read?path={path}")
 
     @staticmethod
     async def receive_events(

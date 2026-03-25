@@ -35,16 +35,16 @@ function TaskHistoryPage() {
   return (
     <div className="flex flex-col">
       {/* Header with tabs */}
-      <div className="flex items-center justify-between border-b px-6 py-3">
+      <div className="flex items-center justify-between border-b px-8 py-4">
         <div className="flex items-center gap-4">
-          <h1 className="font-mono text-sm font-semibold tracking-tight">Tasks</h1>
-          <nav className="flex items-center gap-0.5 rounded-md bg-muted/50 p-0.5">
+          <h1 className="text-xl font-semibold tracking-tight">Tasks</h1>
+          <nav className="flex items-center gap-0.5 rounded-lg bg-muted/50 p-0.5">
             {filterTabs.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => setStatusFilter(tab.value)}
                 className={cn(
-                  "rounded-sm px-2.5 py-1 font-mono text-[11px] transition-colors",
+                  "rounded-md px-3 py-1.5 text-sm transition-colors",
                   statusFilter === tab.value
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -60,9 +60,9 @@ function TaskHistoryPage() {
       {/* Table */}
       <div className="flex-1">
         {isLoading ? (
-          <div className="space-y-1 p-4">
+          <div className="space-y-1 p-6">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
+              <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
         ) : !tasks?.length ? (
@@ -80,39 +80,39 @@ function TaskHistoryPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[72px] font-mono text-[10px]">ID</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead className="font-mono text-[10px]">Model</TableHead>
-                <TableHead className="font-mono text-[10px]">Status</TableHead>
-                <TableHead className="font-mono text-[10px]">Duration</TableHead>
-                <TableHead className="font-mono text-[10px]">Created</TableHead>
+                <TableHead className="w-[80px] text-xs font-medium">ID</TableHead>
+                <TableHead className="text-xs font-medium">Title</TableHead>
+                <TableHead className="text-xs font-medium">Model</TableHead>
+                <TableHead className="text-xs font-medium">Status</TableHead>
+                <TableHead className="text-xs font-medium">Duration</TableHead>
+                <TableHead className="text-xs font-medium">Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tasks.map((task) => (
                 <TableRow key={task.id} className="cursor-pointer">
-                  <TableCell className="font-mono text-[10px] text-muted-foreground/50">
+                  <TableCell className="font-mono text-xs text-muted-foreground/60">
                     {task.id.slice(0, 8)}
                   </TableCell>
                   <TableCell>
                     <Link
                       to="/tasks/$taskId"
                       params={{ taskId: task.id }}
-                      className="font-mono text-sm font-medium hover:text-primary hover:underline"
+                      className="text-sm font-medium hover:text-primary hover:underline"
                     >
                       {task.title}
                     </Link>
                   </TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground">
+                  <TableCell className="font-mono text-xs text-muted-foreground">
                     {task.model}
                   </TableCell>
                   <TableCell>
                     <TaskStatusBadge status={task.status} />
                   </TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground">
+                  <TableCell className="font-mono text-xs text-muted-foreground">
                     {formatDuration(task.started_at, task.completed_at, task.status)}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="text-sm text-muted-foreground">
                     {formatDistanceToNow(new Date(task.created_at), {
                       addSuffix: true,
                     })}

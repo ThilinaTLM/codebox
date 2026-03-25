@@ -16,9 +16,9 @@ export function NewTaskDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="font-mono">New Task</DialogTitle>
+          <DialogTitle>New Task</DialogTitle>
           <DialogDescription>
             Describe what the agent should build or do.
           </DialogDescription>

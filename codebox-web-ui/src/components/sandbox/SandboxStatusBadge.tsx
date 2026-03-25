@@ -1,45 +1,32 @@
 import { Badge } from "@/components/ui/badge"
-import { TaskStatus } from "@/net/http/types"
+import { SandboxStatus } from "@/net/http/types"
 import { cn } from "@/lib/utils"
 
 const statusConfig: Record<
-  TaskStatus,
+  SandboxStatus,
   { label: string; className: string; dot?: boolean }
 > = {
-  [TaskStatus.QUEUED]: {
-    label: "Queued",
-    className: "border-warning/30 bg-warning/10 text-warning",
-  },
-  [TaskStatus.STARTING]: {
+  [SandboxStatus.STARTING]: {
     label: "Starting",
+    className: "border-warning/30 bg-warning/10 text-warning",
+    dot: true,
+  },
+  [SandboxStatus.READY]: {
+    label: "Ready",
     className: "border-success/30 bg-success/10 text-success",
     dot: true,
   },
-  [TaskStatus.RUNNING]: {
-    label: "Running",
-    className: "border-success/30 bg-success/10 text-success",
-    dot: true,
+  [SandboxStatus.STOPPED]: {
+    label: "Stopped",
+    className: "border-muted-foreground/20 bg-muted text-muted-foreground",
   },
-  [TaskStatus.WAITING_FOR_FEEDBACK]: {
-    label: "Waiting",
-    className: "border-warning/30 bg-warning/15 text-warning",
-    dot: true,
-  },
-  [TaskStatus.COMPLETED]: {
-    label: "Completed",
-    className: "border-success/20 bg-success/5 text-success/80",
-  },
-  [TaskStatus.FAILED]: {
+  [SandboxStatus.FAILED]: {
     label: "Failed",
     className: "border-destructive/30 bg-destructive/10 text-destructive",
   },
-  [TaskStatus.CANCELLED]: {
-    label: "Cancelled",
-    className: "border-muted-foreground/20 bg-muted text-muted-foreground",
-  },
 }
 
-export function TaskStatusBadge({ status }: { status: TaskStatus }) {
+export function SandboxStatusBadge({ status }: { status: SandboxStatus }) {
   const config = statusConfig[status] ?? {
     label: status,
     className: "",

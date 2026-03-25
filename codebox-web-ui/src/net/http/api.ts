@@ -1,5 +1,14 @@
 import axios from "axios"
-import type { Container, Task, TaskCreatePayload, TaskEvent } from "./types"
+import type {
+  Container,
+  FileContent,
+  FileListResponse,
+  Sandbox,
+  SandboxCreatePayload,
+  Task,
+  TaskCreatePayload,
+  TaskEvent,
+} from "./types"
 import { API_URL } from "@/lib/constants"
 
 const client = axios.create({
@@ -46,6 +55,49 @@ export const api = {
     },
     stop: async (containerId: string): Promise<void> => {
       await client.post(`/api/containers/${containerId}/stop`)
+    },
+  },
+  sandboxes: {
+    list: async (): Promise<Sandbox[]> => {
+      const { data } = await client.get<Sandbox[]>("/api/sandboxes")
+      return data
+    },
+    get: async (sandboxId: string): Promise<Sandbox> => {
+      const { data } = await client.get<Sandbox>(`/api/sandboxes/${sandboxId}`)
+      return data
+    },
+    create: async (payload: SandboxCreatePayload): Promise<Sandbox> => {
+      const { data } = await client.post<Sandbox>("/api/sandboxes", payload)
+      return data
+    },
+    stop: async (sandboxId: string): Promise<Sandbox> => {
+      const { data } = await client.post<Sandbox>(
+        `/api/sandboxes/${sandboxId}/stop`,
+      )
+      return data
+    },
+    delete: async (sandboxId: string): Promise<void> => {
+      await client.delete(`/api/sandboxes/${sandboxId}`)
+    },
+    listFiles: async (
+      sandboxId: string,
+      path: string = "/workspace",
+    ): Promise<FileListResponse> => {
+      const { data } = await client.get<FileListResponse>(
+        `/api/sandboxes/${sandboxId}/files`,
+        { params: { path } },
+      )
+      return data
+    },
+    readFile: async (
+      sandboxId: string,
+      path: string,
+    ): Promise<FileContent> => {
+      const { data } = await client.get<FileContent>(
+        `/api/sandboxes/${sandboxId}/files/read`,
+        { params: { path } },
+      )
+      return data
     },
   },
 } as const

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
 from codebox_daemon.auth import require_auth
 from codebox_daemon.schemas import (
@@ -13,6 +14,9 @@ from codebox_daemon.schemas import (
     SessionListResponse,
 )
 from codebox_daemon.sessions import SessionManager
+
+_WORKSPACE_ROOT = Path("/workspace")
+_MAX_FILE_SIZE = 1_048_576  # 1 MB
 
 router = APIRouter(prefix="/api/v1")
 
@@ -110,3 +114,71 @@ async def delete_session(
             detail=f"Session not found: {session_id}",
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _validate_workspace_path(raw_path: str) -> Path:
+    """Resolve a path and ensure it lives under /workspace."""
+    resolved = Path(raw_path).resolve()
+    if not (resolved == _WORKSPACE_ROOT or _WORKSPACE_ROOT in resolved.parents):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Path must be under /workspace",
+        )
+    return resolved
+
+
+@router.get("/files", dependencies=[Depends(require_auth)])
+async def list_files(path: str = Query("/workspace")) -> dict:
+    """List directory contents under /workspace."""
+    dir_path = _validate_workspace_path(path)
+
+    if not dir_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+    if not dir_path.is_dir():
+        raise HTTPException(status_code=400, detail=f"Not a directory: {path}")
+
+    entries = []
+    try:
+        for child in sorted(dir_path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+            try:
+                stat = child.stat()
+                entries.append({
+                    "name": child.name,
+                    "path": str(child),
+                    "is_dir": child.is_dir(),
+                    "size": stat.st_size if child.is_file() else None,
+                })
+            except OSError:
+                continue
+    except PermissionError:
+        raise HTTPException(status_code=403, detail=f"Permission denied: {path}")
+
+    return {"path": str(dir_path), "entries": entries}
+
+
+@router.get("/files/read", dependencies=[Depends(require_auth)])
+async def read_file(path: str = Query(...)) -> dict:
+    """Read file content from /workspace."""
+    file_path = _validate_workspace_path(path)
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {path}")
+    if not file_path.is_file():
+        raise HTTPException(status_code=400, detail=f"Not a file: {path}")
+
+    size = file_path.stat().st_size
+    truncated = size > _MAX_FILE_SIZE
+
+    try:
+        content = file_path.read_text(errors="replace")
+        if truncated:
+            content = content[:_MAX_FILE_SIZE]
+    except PermissionError:
+        raise HTTPException(status_code=403, detail=f"Permission denied: {path}")
+
+    return {
+        "path": str(file_path),
+        "content": content,
+        "size": size,
+        "truncated": truncated,
+    }

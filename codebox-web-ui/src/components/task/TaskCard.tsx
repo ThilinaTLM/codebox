@@ -20,23 +20,23 @@ export function TaskCard({ task }: { task: Task }) {
     <Link to="/tasks/$taskId" params={{ taskId: task.id }} className="block">
       <Card
         className={cn(
-          "border-l-2 transition-colors hover:bg-muted/50",
+          "border-l-2 shadow-sm transition-colors hover:bg-muted/50",
           statusBorderColor[task.status] ?? "border-l-border",
         )}
       >
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">
-            <span className="truncate font-mono text-sm font-medium">
+            <span className="truncate text-sm font-medium">
               {task.title}
             </span>
             <TaskStatusBadge status={task.status} />
           </div>
         </CardHeader>
-        <CardContent className="space-y-1">
-          <p className="line-clamp-2 text-xs text-muted-foreground">
+        <CardContent className="space-y-1.5">
+          <p className="line-clamp-2 text-sm text-muted-foreground">
             {task.prompt}
           </p>
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
             <span className="font-mono">{task.id.slice(0, 8)}</span>
             <span>&middot;</span>
             <span>{formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}</span>

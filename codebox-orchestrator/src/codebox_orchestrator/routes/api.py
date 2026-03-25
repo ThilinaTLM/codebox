@@ -11,11 +11,14 @@ from codebox_orchestrator.db.models import TaskStatus
 from codebox_orchestrator.schemas import (
     ContainerResponse,
     FeedbackMessage,
+    SandboxCreate,
+    SandboxResponse,
     TaskCreate,
     TaskEventResponse,
     TaskResponse,
 )
 from codebox_orchestrator.services import docker_service
+from codebox_orchestrator.services.sandbox_service import SandboxService
 from codebox_orchestrator.services.task_service import TaskService
 
 logger = logging.getLogger(__name__)
@@ -25,6 +28,10 @@ router = APIRouter(prefix="/api")
 
 def _ts(request: Request) -> TaskService:
     return request.app.state.task_service
+
+
+def _ss(request: Request) -> SandboxService:
+    return request.app.state.sandbox_service
 
 
 # ── Health ───────────────────────────────────────────────────────
@@ -132,3 +139,78 @@ async def stop_container(container_id: str):
     except docker_service.DockerServiceError as exc:
         raise HTTPException(400, str(exc))
     return {"status": "stopped"}
+
+
+# ── Sandboxes ───────────────────────────────────────────────────
+
+
+@router.post("/sandboxes", status_code=201)
+async def create_sandbox(request: Request, body: SandboxCreate) -> SandboxResponse:
+    """Create and start a new interactive sandbox."""
+    ss = _ss(request)
+    sandbox = await ss.create_sandbox(name=body.name, model=body.model)
+    return SandboxResponse.from_orm_sandbox(sandbox)
+
+
+@router.get("/sandboxes")
+async def list_sandboxes(request: Request) -> list[SandboxResponse]:
+    ss = _ss(request)
+    sandboxes = await ss.list_sandboxes()
+    return [SandboxResponse.from_orm_sandbox(s) for s in sandboxes]
+
+
+@router.get("/sandboxes/{sandbox_id}")
+async def get_sandbox(request: Request, sandbox_id: str) -> SandboxResponse:
+    ss = _ss(request)
+    sandbox = await ss.get_sandbox(sandbox_id)
+    if sandbox is None:
+        raise HTTPException(404, "Sandbox not found")
+    return SandboxResponse.from_orm_sandbox(sandbox)
+
+
+@router.post("/sandboxes/{sandbox_id}/stop")
+async def stop_sandbox(request: Request, sandbox_id: str) -> SandboxResponse:
+    ss = _ss(request)
+    await ss.stop_sandbox(sandbox_id)
+    sandbox = await ss.get_sandbox(sandbox_id)
+    if sandbox is None:
+        raise HTTPException(404, "Sandbox not found")
+    return SandboxResponse.from_orm_sandbox(sandbox)
+
+
+@router.delete("/sandboxes/{sandbox_id}", status_code=204)
+async def delete_sandbox(request: Request, sandbox_id: str):
+    ss = _ss(request)
+    await ss.delete_sandbox(sandbox_id)
+
+
+@router.get("/sandboxes/{sandbox_id}/files")
+async def sandbox_list_files(
+    request: Request, sandbox_id: str, path: str = "/workspace"
+):
+    """List directory contents in a sandbox workspace."""
+    ss = _ss(request)
+    sandbox = await ss.get_sandbox(sandbox_id)
+    if sandbox is None:
+        raise HTTPException(404, "Sandbox not found")
+    try:
+        return await ss.list_files(sandbox_id, path)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(502, f"Sandbox file proxy error: {exc}")
+
+
+@router.get("/sandboxes/{sandbox_id}/files/read")
+async def sandbox_read_file(request: Request, sandbox_id: str, path: str):
+    """Read a file from a sandbox workspace."""
+    ss = _ss(request)
+    sandbox = await ss.get_sandbox(sandbox_id)
+    if sandbox is None:
+        raise HTTPException(404, "Sandbox not found")
+    try:
+        return await ss.read_file(sandbox_id, path)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(502, f"Sandbox file proxy error: {exc}")

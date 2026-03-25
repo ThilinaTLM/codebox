@@ -14,6 +14,7 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from codebox_orchestrator.services.relay_service import RelayService
+from codebox_orchestrator.services.sandbox_service import SandboxService
 from codebox_orchestrator.services.task_service import TaskService
 
 logger = logging.getLogger(__name__)
@@ -140,6 +141,132 @@ async def _receive_commands(
 
         elif msg_type == "cancel":
             await task_service.cancel_task(task_id)
+
+        else:
+            await ws.send_json({"type": "error", "detail": f"Unknown message type: {msg_type}"})
+
+
+# ── Sandbox WebSocket ──────────────────────────────────────────────
+
+
+@router.websocket("/sandboxes/{sandbox_id}/ws")
+async def sandbox_websocket(ws: WebSocket, sandbox_id: str):
+    """Bidirectional WebSocket for an interactive sandbox session.
+
+    Same event protocol as task WebSocket, plus:
+        Client → Server: {"type": "exec", "content": "command"}
+        Server → Client: {"type": "exec_output", "output": "..."}
+        Server → Client: {"type": "exec_done", "output": "exit_code"}
+
+    Unlike task WebSocket, does NOT terminate on "done" events.
+    """
+    await ws.accept()
+
+    relay: RelayService = ws.app.state.relay_service
+    sandbox_service: SandboxService = ws.app.state.sandbox_service
+
+    # Verify sandbox exists
+    sandbox = await sandbox_service.get_sandbox(sandbox_id)
+    if sandbox is None:
+        await ws.send_json({"type": "error", "detail": "Sandbox not found"})
+        await ws.close(code=4004)
+        return
+
+    # Replay persisted events
+    try:
+        events = await sandbox_service.get_sandbox_events(sandbox_id)
+        for event in events:
+            data = event.data
+            if isinstance(data, str):
+                try:
+                    data = json.loads(data)
+                except (json.JSONDecodeError, TypeError):
+                    data = {"type": event.event_type, "raw": data}
+            if isinstance(data, dict):
+                await ws.send_json(data)
+    except Exception as exc:
+        logger.warning("Failed to replay events for sandbox %s: %s", sandbox_id, exc)
+
+    # Subscribe to live events
+    queue = relay.subscribe(sandbox_id)
+
+    try:
+        await asyncio.gather(
+            _forward_sandbox_events(ws, queue),
+            _receive_sandbox_commands(ws, sandbox_id, sandbox_service),
+        )
+    except WebSocketDisconnect:
+        logger.debug("Client disconnected from sandbox %s", sandbox_id)
+    except Exception as exc:
+        logger.warning("WebSocket error for sandbox %s: %s", sandbox_id, exc)
+    finally:
+        relay.unsubscribe(sandbox_id, queue)
+
+
+async def _forward_sandbox_events(
+    ws: WebSocket,
+    queue: asyncio.Queue[dict[str, Any]],
+) -> None:
+    """Forward relay events to client. Does NOT stop on 'done' events."""
+    while True:
+        try:
+            event = await asyncio.wait_for(queue.get(), timeout=30.0)
+        except asyncio.TimeoutError:
+            try:
+                await ws.send_json({"type": "ping"})
+            except Exception:
+                return
+            continue
+
+        try:
+            await ws.send_json(event)
+        except Exception:
+            return
+
+
+async def _receive_sandbox_commands(
+    ws: WebSocket,
+    sandbox_id: str,
+    sandbox_service: SandboxService,
+) -> None:
+    """Receive and route client commands for a sandbox."""
+    while True:
+        try:
+            raw = await ws.receive_text()
+        except WebSocketDisconnect:
+            raise
+        except Exception:
+            return
+
+        try:
+            msg = json.loads(raw)
+        except json.JSONDecodeError:
+            await ws.send_json({"type": "error", "detail": "Invalid JSON"})
+            continue
+
+        msg_type = msg.get("type", "")
+
+        if msg_type == "message":
+            content = msg.get("content", "")
+            if content:
+                try:
+                    await sandbox_service.send_message(sandbox_id, content)
+                except ValueError as exc:
+                    await ws.send_json({"type": "error", "detail": str(exc)})
+
+        elif msg_type == "exec":
+            command = msg.get("content", "")
+            if command:
+                try:
+                    await sandbox_service.send_exec(sandbox_id, command)
+                except ValueError as exc:
+                    await ws.send_json({"type": "error", "detail": str(exc)})
+
+        elif msg_type == "cancel":
+            try:
+                await sandbox_service.send_cancel(sandbox_id)
+            except ValueError as exc:
+                await ws.send_json({"type": "error", "detail": str(exc)})
 
         else:
             await ws.send_json({"type": "error", "detail": f"Unknown message type: {msg_type}"})

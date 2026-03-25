@@ -18,9 +18,9 @@ export function ContainerTable() {
 
   if (isLoading) {
     return (
-      <div className="space-y-1 p-4">
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-full" />
+      <div className="space-y-1 p-6">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
       </div>
     )
   }
@@ -42,25 +42,25 @@ export function ContainerTable() {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[72px] font-mono text-[10px]">ID</TableHead>
-          <TableHead className="font-mono text-[10px]">Name</TableHead>
-          <TableHead className="font-mono text-[10px]">Port</TableHead>
-          <TableHead className="font-mono text-[10px]">Status</TableHead>
-          <TableHead className="w-[100px] font-mono text-[10px]">Actions</TableHead>
+          <TableHead className="w-[80px] text-xs font-medium">ID</TableHead>
+          <TableHead className="text-xs font-medium">Name</TableHead>
+          <TableHead className="text-xs font-medium">Port</TableHead>
+          <TableHead className="text-xs font-medium">Status</TableHead>
+          <TableHead className="w-[100px] text-xs font-medium">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {containers.map((c) => (
           <TableRow key={c.id}>
-            <TableCell className="font-mono text-[10px] text-muted-foreground/50">
+            <TableCell className="font-mono text-xs text-muted-foreground/60">
               {c.id.slice(0, 8)}
             </TableCell>
-            <TableCell className="font-mono text-xs">{c.name}</TableCell>
-            <TableCell className="font-mono text-xs text-muted-foreground">
+            <TableCell className="font-mono text-sm">{c.name}</TableCell>
+            <TableCell className="font-mono text-sm text-muted-foreground">
               {c.port ?? "-"}
             </TableCell>
             <TableCell>
-              <span className="flex items-center gap-1.5 font-mono text-[10px] text-success">
+              <span className="flex items-center gap-1.5 text-xs text-success">
                 <span className="relative flex size-1.5">
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
                   <span className="relative inline-flex size-1.5 rounded-full bg-success" />
@@ -79,7 +79,7 @@ export function ContainerTable() {
                   })
                 }
                 disabled={stopContainer.isPending}
-                className="font-mono text-xs text-destructive hover:text-destructive"
+                className="text-destructive hover:text-destructive"
               >
                 Stop
               </Button>

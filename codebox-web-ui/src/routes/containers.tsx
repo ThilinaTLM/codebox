@@ -12,9 +12,9 @@ function ContainersPage() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center gap-3 border-b px-6 py-3">
-        <h1 className="font-mono text-sm font-semibold tracking-tight">Containers</h1>
-        <span className="font-mono text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 border-b px-8 py-4">
+        <h1 className="text-xl font-semibold tracking-tight">Containers</h1>
+        <span className="text-sm text-muted-foreground">
           {count} running
         </span>
       </div>

@@ -12,6 +12,7 @@ from codebox_orchestrator.db.engine import async_session_factory, engine
 from codebox_orchestrator.db.models import Base
 from codebox_orchestrator.routes import api, ws_relay
 from codebox_orchestrator.services.relay_service import RelayService
+from codebox_orchestrator.services.sandbox_service import SandboxService
 from codebox_orchestrator.services.task_service import TaskService
 
 
@@ -29,13 +30,19 @@ def create_app() -> FastAPI:
             session_factory=async_session_factory,
             relay=relay,
         )
+        sandbox_service = SandboxService(
+            session_factory=async_session_factory,
+            relay=relay,
+        )
         app.state.relay_service = relay
         app.state.task_service = task_service
+        app.state.sandbox_service = sandbox_service
 
         yield
 
-        # Shutdown: cancel all running tasks
+        # Shutdown: cancel all running tasks and sandboxes
         await task_service.shutdown()
+        await sandbox_service.shutdown()
         await engine.dispose()
 
     app = FastAPI(

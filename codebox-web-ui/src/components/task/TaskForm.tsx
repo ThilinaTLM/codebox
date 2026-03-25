@@ -50,41 +50,37 @@ export function TaskForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title" className="font-mono text-xs">Title</Label>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm text-primary">$</span>
-          <Input
-            id="title"
-            placeholder="Task title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="font-mono"
-            required
-          />
-        </div>
+        <Label htmlFor="title" className="text-sm font-medium">Title</Label>
+        <Input
+          id="title"
+          placeholder="Task title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+        />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="prompt" className="font-mono text-xs">Prompt</Label>
+        <Label htmlFor="prompt" className="text-sm font-medium">Prompt</Label>
         <Textarea
           id="prompt"
           placeholder="Describe what the agent should do..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className={compact ? "min-h-[100px] font-mono text-sm" : "min-h-[140px] font-mono text-sm"}
+          className={compact ? "min-h-[100px] text-sm" : "min-h-[140px] text-sm"}
           required
         />
       </div>
 
       <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" type="button" className="font-mono text-xs text-muted-foreground">
-            {showAdvanced ? "[-]" : "[+]"} advanced options
+          <Button variant="ghost" size="sm" type="button" className="text-sm text-muted-foreground">
+            {showAdvanced ? "Hide advanced" : "Show advanced"}
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-2">
           <div className="space-y-2">
-            <Label htmlFor="model" className="font-mono text-xs">Model</Label>
+            <Label htmlFor="model" className="text-sm font-medium">Model</Label>
             <Input
               id="model"
               placeholder="e.g. openai/gpt-4o (leave blank for default)"
@@ -94,13 +90,13 @@ export function TaskForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="system-prompt" className="font-mono text-xs">System Prompt</Label>
+            <Label htmlFor="system-prompt" className="text-sm font-medium">System Prompt</Label>
             <Textarea
               id="system-prompt"
               placeholder="Custom system prompt (optional)"
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
-              className="min-h-[80px] font-mono text-sm"
+              className="min-h-[80px] text-sm"
             />
           </div>
         </CollapsibleContent>

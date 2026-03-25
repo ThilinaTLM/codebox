@@ -57,5 +57,55 @@ export type WSEvent =
   | { type: "model_start" }
   | { type: "done"; content: string }
   | { type: "error"; detail: string }
-  | { type: "status_change"; status: TaskStatus }
+  | { type: "status_change"; status: TaskStatus | SandboxStatus }
   | { type: "ping" }
+  | { type: "exec_output"; output: string }
+  | { type: "exec_done"; output: string }
+
+// ── Sandbox types ────────────────────────────────────────────
+
+export enum SandboxStatus {
+  STARTING = "starting",
+  READY = "ready",
+  STOPPED = "stopped",
+  FAILED = "failed",
+}
+
+export interface Sandbox {
+  id: string
+  name: string
+  status: SandboxStatus
+  container_id: string | null
+  container_name: string | null
+  host_port: number | null
+  session_id: string | null
+  workspace_path: string | null
+  model: string
+  error_message: string | null
+  created_at: string
+  stopped_at: string | null
+}
+
+export interface SandboxCreatePayload {
+  name?: string | null
+  model?: string | null
+}
+
+export interface FileEntry {
+  name: string
+  path: string
+  is_dir: boolean
+  size: number | null
+}
+
+export interface FileListResponse {
+  path: string
+  entries: FileEntry[]
+}
+
+export interface FileContent {
+  path: string
+  content: string
+  size: number
+  truncated: boolean
+}
