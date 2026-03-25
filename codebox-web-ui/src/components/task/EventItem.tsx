@@ -1,7 +1,6 @@
 import { useState } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
@@ -89,9 +88,9 @@ export function EventItem({ block }: { block: EventBlock }) {
     case "user_exec":
       return (
         <div className="flex justify-end">
-          <div className="max-w-[85%] rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
+          <div className="max-w-[85%] rounded-2xl border border-warning/20 bg-warning/5 px-4 py-3">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-yellow-500/30 text-xs text-yellow-600 dark:text-yellow-400">
+              <Badge variant="outline" className="border-warning/30 text-xs text-warning">
                 shell
               </Badge>
               <code className="font-mono text-sm">{block.command}</code>

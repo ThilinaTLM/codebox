@@ -73,10 +73,11 @@ export function TaskForm({
       </div>
 
       <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" type="button" className="text-sm text-muted-foreground">
-            {showAdvanced ? "Hide advanced" : "Show advanced"}
-          </Button>
+        <CollapsibleTrigger
+          render={<Button variant="ghost" size="sm" type="button" />}
+          className="text-sm text-muted-foreground"
+        >
+          {showAdvanced ? "Hide advanced" : "Show advanced"}
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-2">
           <div className="space-y-2">

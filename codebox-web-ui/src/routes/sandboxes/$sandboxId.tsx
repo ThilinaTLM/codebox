@@ -40,7 +40,7 @@ function SandboxDetailPage() {
   const { events, sendMessage, sendExec, sendCancel, isConnected } =
     useSandboxWebSocket({
       sandboxId,
-      enabled: true,
+      enabled: isActive,
     })
 
   const localEventsRef = useRef<WSEvent[]>([])
@@ -73,8 +73,8 @@ function SandboxDetailPage() {
     return (
       <div className="flex h-svh flex-col items-center justify-center gap-4">
         <p className="text-sm text-muted-foreground">Sandbox not found</p>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/">Go home</Link>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/" />}>
+          Go home
         </Button>
       </div>
     )
@@ -118,28 +118,24 @@ function SandboxDetailPage() {
         <div className="flex items-center gap-1.5">
           <Button
             variant={fileExplorerOpen ? "secondary" : "ghost"}
-            size="sm"
+            size="xs"
             onClick={() => setFileExplorerOpen(!fileExplorerOpen)}
-            className="h-7 px-2 text-xs"
           >
             Files
           </Button>
           {isActive && (
             <Button
               variant="outline"
-              size="sm"
+              size="xs"
               onClick={handleStop}
               disabled={stopMutation.isPending}
-              className="h-7 px-2 text-xs"
             >
               Stop
             </Button>
           )}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-7">
-                <HugeiconsIcon icon={MoreHorizontalCircle01Icon} size={14} />
-              </Button>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" />}>
+              <HugeiconsIcon icon={MoreHorizontalCircle01Icon} size={14} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem

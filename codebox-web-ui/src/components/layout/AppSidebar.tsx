@@ -62,11 +62,9 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Codebox">
-              <Link to="/">
-                <span className="text-sm font-semibold tracking-tight">C</span>
-                <span className="text-sm font-semibold tracking-tight">Codebox</span>
-              </Link>
+            <SidebarMenuButton render={<Link to="/" />} tooltip="Codebox">
+              <span className="text-sm font-semibold tracking-tight">C</span>
+              <span className="text-sm font-semibold tracking-tight">Codebox</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
@@ -100,22 +98,22 @@ export function AppSidebar() {
                   return (
                     <SidebarMenuItem key={sandbox.id}>
                       <SidebarMenuButton
-                        asChild
+                        render={
+                          <Link
+                            to="/sandboxes/$sandboxId"
+                            params={{ sandboxId: sandbox.id }}
+                          />
+                        }
                         isActive={isActive}
                         tooltip={sandbox.name}
                       >
-                        <Link
-                          to="/sandboxes/$sandboxId"
-                          params={{ sandboxId: sandbox.id }}
-                        >
-                          <span
-                            className={cn(
-                              "size-2 shrink-0 rounded-full",
-                              statusDot[sandbox.status] ?? "bg-muted-foreground/40",
-                            )}
-                          />
-                          <span>{sandbox.name}</span>
-                        </Link>
+                        <span
+                          className={cn(
+                            "size-2 shrink-0 rounded-full",
+                            statusDot[sandbox.status] ?? "bg-muted-foreground/40",
+                          )}
+                        />
+                        <span>{sandbox.name}</span>
                       </SidebarMenuButton>
                       <SidebarMenuAction
                         showOnHover
@@ -141,24 +139,18 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={currentPath === "/"} tooltip="Home">
-                  <Link to="/">
-                    <span>Home</span>
-                  </Link>
+                <SidebarMenuButton render={<Link to="/" />} isActive={currentPath === "/"} tooltip="Home">
+                  <span>Home</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={currentPath.startsWith("/tasks")} tooltip="Tasks">
-                  <Link to="/tasks">
-                    <span>Tasks</span>
-                  </Link>
+                <SidebarMenuButton render={<Link to="/tasks" />} isActive={currentPath.startsWith("/tasks")} tooltip="Tasks">
+                  <span>Tasks</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={currentPath === "/containers"} tooltip="Containers">
-                  <Link to="/containers">
-                    <span>Containers</span>
-                  </Link>
+                <SidebarMenuButton render={<Link to="/containers" />} isActive={currentPath === "/containers"} tooltip="Containers">
+                  <span>Containers</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

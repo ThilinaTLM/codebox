@@ -37,9 +37,6 @@ function HomePage() {
     )
   }
 
-  const activeSandboxes = sandboxes?.filter(
-    (s) => s.status === SandboxStatus.STARTING || s.status === SandboxStatus.READY,
-  )
   const recentSandboxes = sandboxes?.slice(0, 9)
 
   return (
@@ -79,8 +76,7 @@ function HomePage() {
               />
               <div className="absolute right-3 bottom-3">
                 <Button
-                  size="icon"
-                  className="size-8 rounded-xl"
+                  size="icon-sm"
                   onClick={handleCreate}
                   disabled={createMutation.isPending}
                 >
@@ -119,8 +115,8 @@ function HomePage() {
           )}
 
           <div className="mt-4 flex justify-center">
-            <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground">
-              <Link to="/tasks">View all tasks</Link>
+            <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/tasks" />} className="text-xs text-muted-foreground">
+              View all tasks
             </Button>
           </div>
         </div>

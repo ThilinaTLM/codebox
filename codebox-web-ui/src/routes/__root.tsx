@@ -4,9 +4,11 @@ import {
   Scripts,
   createRootRoute,
 } from "@tanstack/react-router"
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
+import { TanStackDevtools } from "@tanstack/react-devtools"
 import { API_URL, WS_URL } from "@/lib/constants"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { TooltipProvider } from "../components/ui/tooltip"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
@@ -67,6 +69,17 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
+        <TanStackDevtools
+          config={{
+            position: "bottom-right",
+          }}
+          plugins={[
+            {
+              name: "Tanstack Router",
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+          ]}
+        />
         <Scripts />
       </body>
     </html>

@@ -36,7 +36,7 @@ export function SandboxInput({
     <div className="relative rounded-2xl border bg-card shadow-sm">
       {isExecMode && (
         <div className="absolute left-3 top-3 z-10">
-          <Badge variant="outline" className="border-yellow-500/30 text-xs text-yellow-600 dark:text-yellow-400">
+          <Badge variant="outline" className="border-warning/30 text-xs text-warning">
             shell
           </Badge>
         </div>
@@ -64,8 +64,7 @@ export function SandboxInput({
       />
       <div className="absolute right-3 bottom-3">
         <Button
-          size="icon"
-          className="size-8 rounded-xl"
+          size="icon-sm"
           onClick={handleSend}
           disabled={disabled || !input.trim()}
         >

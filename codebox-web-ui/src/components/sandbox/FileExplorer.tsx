@@ -36,10 +36,9 @@ export function FileExplorer({ sandboxId }: { sandboxId: string }) {
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
-            size="sm"
+            size="xs"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="h-6 px-2 text-xs"
           >
             <HugeiconsIcon
               icon={Loading03Icon}
@@ -51,9 +50,8 @@ export function FileExplorer({ sandboxId }: { sandboxId: string }) {
           {selectedFile && (
             <Button
               variant="ghost"
-              size="sm"
+              size="xs"
               onClick={() => setSelectedFile(null)}
-              className="h-6 px-2 text-xs"
             >
               <HugeiconsIcon icon={Cancel01Icon} size={12} />
             </Button>

@@ -41,8 +41,8 @@ function TaskDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12">
         <p className="text-sm text-muted-foreground">Task not found</p>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/tasks">Back to tasks</Link>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/tasks" />}>
+          Back to tasks
         </Button>
       </div>
     )
