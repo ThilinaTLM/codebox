@@ -23,8 +23,10 @@ from codebox_orchestrator.db.migrations import run_migrations
 from codebox_orchestrator.db.models import Base
 from codebox_orchestrator.routes import api, ws_relay
 from codebox_orchestrator.routes import ws_callback
+from codebox_orchestrator.routes import ws_global
 from codebox_orchestrator.routes import github as github_routes
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
+from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
 from codebox_orchestrator.services.relay_service import RelayService
 from codebox_orchestrator.services.box_service import BoxService
 
@@ -48,10 +50,12 @@ def create_app() -> FastAPI:
         # Initialize services
         relay = RelayService()
         registry = CallbackRegistry()
+        global_broadcast = GlobalBroadcastService()
         box_service = BoxService(
             session_factory=async_session_factory,
             relay=relay,
             registry=registry,
+            global_broadcast=global_broadcast,
         )
 
         # Initialize GitHub service if configured
@@ -71,6 +75,7 @@ def create_app() -> FastAPI:
 
         app.state.relay_service = relay
         app.state.callback_registry = registry
+        app.state.global_broadcast = global_broadcast
         app.state.box_service = box_service
         app.state.github_service = github_service
         # Expose session factory for ws_callback route
@@ -100,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(api.router)
     app.include_router(ws_relay.router)
     app.include_router(ws_callback.router)
+    app.include_router(ws_global.router)
     app.include_router(github_routes.router)
 
     return app

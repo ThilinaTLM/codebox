@@ -15,6 +15,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from codebox_orchestrator.db.models import Box, BoxEvent, BoxStatus
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
+from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
 from codebox_orchestrator.services.relay_service import RelayService
 
 logger = logging.getLogger(__name__)
@@ -72,8 +73,10 @@ async def sandbox_callback(ws: WebSocket) -> None:
     # Store connection in registry
     registry.set_connection(entity_id, ws)
 
+    global_broadcast: GlobalBroadcastService = ws.app.state.global_broadcast
+
     try:
-        await _handle_box(ws, entity_id, session_id, registry, relay)
+        await _handle_box(ws, entity_id, session_id, registry, relay, global_broadcast)
     except WebSocketDisconnect:
         logger.info("Box %s disconnected", entity_id)
     except Exception:
@@ -93,6 +96,7 @@ async def _handle_box(
     session_id: str,
     registry: CallbackRegistry,
     relay: RelayService,
+    global_broadcast: GlobalBroadcastService,
 ) -> None:
     """Handle a unified box callback connection."""
     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -118,6 +122,11 @@ async def _handle_box(
     await relay.broadcast(
         box_id, {"type": "status_change", "status": status.value}
     )
+    await global_broadcast.broadcast({
+        "type": "box_status_changed",
+        "box_id": box_id,
+        "status": status.value,
+    })
     logger.info("Box %s is %s (session %s)", box_id, status.value, session_id)
 
     if has_initial_prompt:
@@ -125,7 +134,7 @@ async def _handle_box(
         ready = await registry.wait_for_prompt_ready(box_id, timeout=300)
         if not ready:
             logger.error("Box %s: pre-start setup timed out", box_id)
-            await _set_box_failed(sf, relay, box_id, "Pre-start setup timed out")
+            await _set_box_failed(sf, relay, global_broadcast, box_id, "Pre-start setup timed out")
             return
 
         # Send the initial prompt
@@ -155,16 +164,16 @@ async def _handle_box(
         if event_type == "done":
             if auto_stop:
                 content = event.get("content", "")
-                await _set_box_completed(sf, relay, box_id, content)
+                await _set_box_completed(sf, relay, global_broadcast, box_id, content)
                 registry.remove_fully(box_id)
                 return
             else:
                 # Go to IDLE — box stays alive for follow-up
-                await _set_box_idle(sf, relay, box_id)
+                await _set_box_idle(sf, relay, global_broadcast, box_id)
 
         elif event_type == "error":
             detail = event.get("detail", "Unknown error")
-            await _set_box_failed(sf, relay, box_id, detail)
+            await _set_box_failed(sf, relay, global_broadcast, box_id, detail)
             registry.remove_fully(box_id)
             return
 
@@ -187,7 +196,10 @@ async def _persist_box_event(
         await db.commit()
 
 
-async def _set_box_completed(sf: Any, relay: RelayService, box_id: str, result: str) -> None:
+async def _set_box_completed(
+    sf: Any, relay: RelayService, global_broadcast: GlobalBroadcastService,
+    box_id: str, result: str,
+) -> None:
     from datetime import datetime, timezone
     async with sf() as db:
         box = await db.get(Box, box_id)
@@ -199,9 +211,17 @@ async def _set_box_completed(sf: Any, relay: RelayService, box_id: str, result: 
     await relay.broadcast(
         box_id, {"type": "status_change", "status": BoxStatus.COMPLETED.value}
     )
+    await global_broadcast.broadcast({
+        "type": "box_status_changed",
+        "box_id": box_id,
+        "status": BoxStatus.COMPLETED.value,
+    })
 
 
-async def _set_box_idle(sf: Any, relay: RelayService, box_id: str) -> None:
+async def _set_box_idle(
+    sf: Any, relay: RelayService, global_broadcast: GlobalBroadcastService,
+    box_id: str,
+) -> None:
     async with sf() as db:
         box = await db.get(Box, box_id)
         if box:
@@ -210,9 +230,17 @@ async def _set_box_idle(sf: Any, relay: RelayService, box_id: str) -> None:
     await relay.broadcast(
         box_id, {"type": "status_change", "status": BoxStatus.IDLE.value}
     )
+    await global_broadcast.broadcast({
+        "type": "box_status_changed",
+        "box_id": box_id,
+        "status": BoxStatus.IDLE.value,
+    })
 
 
-async def _set_box_failed(sf: Any, relay: RelayService, box_id: str, error: str) -> None:
+async def _set_box_failed(
+    sf: Any, relay: RelayService, global_broadcast: GlobalBroadcastService,
+    box_id: str, error: str,
+) -> None:
     from datetime import datetime, timezone
     async with sf() as db:
         box = await db.get(Box, box_id)
@@ -227,3 +255,8 @@ async def _set_box_failed(sf: Any, relay: RelayService, box_id: str, error: str)
     await relay.broadcast(
         box_id, {"type": "error", "detail": error}
     )
+    await global_broadcast.broadcast({
+        "type": "box_status_changed",
+        "box_id": box_id,
+        "status": BoxStatus.FAILED.value,
+    })

@@ -26,6 +26,7 @@ from codebox_orchestrator.config import (
 from codebox_orchestrator.db.models import Box, BoxEvent, BoxStatus
 from codebox_orchestrator.services import docker_service
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
+from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
 from codebox_orchestrator.services.relay_service import RelayService
 
 logger = logging.getLogger(__name__)
@@ -42,10 +43,12 @@ class BoxService:
         session_factory: async_sessionmaker[AsyncSession],
         relay: RelayService,
         registry: CallbackRegistry,
+        global_broadcast: GlobalBroadcastService,
     ) -> None:
         self._sf = session_factory
         self._relay = relay
         self._registry = registry
+        self._global_broadcast = global_broadcast
         self._running: dict[str, asyncio.Task[None]] = {}
         # Injected by app.py when GitHub is configured
         self._github_service: Any = None
@@ -98,6 +101,14 @@ class BoxService:
         await self._relay.broadcast(
             box.id, {"type": "status_change", "status": BoxStatus.STARTING.value}
         )
+        await self._global_broadcast.broadcast({
+            "type": "box_created",
+            "box_id": box.id,
+            "name": box.name,
+            "status": BoxStatus.STARTING.value,
+            "model": box.model,
+            "created_at": box.created_at.isoformat(),
+        })
         bg = asyncio.create_task(self._run_box(box.id))
         self._running[box.id] = bg
         return box
@@ -143,6 +154,10 @@ class BoxService:
                         pass
                 await db.delete(box)
                 await db.commit()
+        await self._global_broadcast.broadcast({
+            "type": "box_deleted",
+            "box_id": box_id,
+        })
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -180,6 +195,11 @@ class BoxService:
                 await self._relay.broadcast(
                     box_id, {"type": "status_change", "status": BoxStatus.STOPPED.value}
                 )
+                await self._global_broadcast.broadcast({
+                    "type": "box_status_changed",
+                    "box_id": box_id,
+                    "status": BoxStatus.STOPPED.value,
+                })
 
     async def cancel_box(self, box_id: str) -> None:
         """Cancel a running box operation."""
@@ -424,3 +444,8 @@ class BoxService:
         await self._relay.broadcast(
             box_id, {"type": "error", "detail": error}
         )
+        await self._global_broadcast.broadcast({
+            "type": "box_status_changed",
+            "box_id": box_id,
+            "status": BoxStatus.FAILED.value,
+        })

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { WSEvent } from "@/net/http/types"
 import { WS_URL } from "@/lib/constants"
 
+export { useGlobalWebSocket } from "./useGlobalWebSocket"
+
 interface UseBoxWebSocketOptions {
   boxId: string | undefined
   enabled?: boolean

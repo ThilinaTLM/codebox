@@ -7,6 +7,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import { API_URL, WS_URL } from "@/lib/constants"
+import { useGlobalWebSocket } from "@/net/ws/useGlobalWebSocket"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TooltipProvider } from "../components/ui/tooltip"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
@@ -37,20 +38,27 @@ export const Route = createRootRoute({
   component: RootComponent,
 })
 
+function GlobalWebSocketProvider({ children }: { children: React.ReactNode }) {
+  useGlobalWebSocket()
+  return <>{children}</>
+}
+
 function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <div className="flex min-h-svh flex-col">
-            <TopBar />
-            <main className="flex-1">
-              <Outlet />
-            </main>
-          </div>
-          <Toaster />
-        </TooltipProvider>
-      </ThemeProvider>
+      <GlobalWebSocketProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            <div className="flex min-h-svh flex-col">
+              <TopBar />
+              <main className="flex-1">
+                <Outlet />
+              </main>
+            </div>
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
+      </GlobalWebSocketProvider>
     </QueryClientProvider>
   )
 }

@@ -87,6 +87,13 @@ export interface FileContent {
   truncated: boolean
 }
 
+// Global WebSocket event types (platform-level)
+export type GlobalWSEvent =
+  | { type: "box_created"; box_id: string; name: string; status: string; model: string; created_at: string }
+  | { type: "box_status_changed"; box_id: string; status: string }
+  | { type: "box_deleted"; box_id: string }
+  | { type: "ping" }
+
 // ── GitHub types ────────────────────────────────────────────
 
 export interface GitHubStatus {

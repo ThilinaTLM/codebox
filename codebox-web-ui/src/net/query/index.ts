@@ -12,7 +12,6 @@ export function useBoxes(status?: string, trigger?: string) {
   return useQuery({
     queryKey: ["boxes", status ?? "all", trigger ?? "all"],
     queryFn: () => api.boxes.list(status, trigger),
-    refetchInterval: 5000,
   })
 }
 
@@ -21,7 +20,6 @@ export function useBox(boxId: string | undefined) {
     queryKey: ["boxes", boxId],
     queryFn: () => api.boxes.get(boxId!),
     enabled: !!boxId,
-    refetchInterval: 3000,
   })
 }
 
