@@ -1,0 +1,40 @@
+services:
+  orchestrator:
+    build:
+      context: ./codebox-orchestrator
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - orchestrator-data:/data
+      - /tmp/codebox-workspaces:/tmp/codebox-workspaces
+    env_file:
+      - ./codebox-orchestrator/.env
+      - ./codebox-orchestrator/.env.local
+    environment:
+      CORS_ORIGINS: "http://localhost:3000"
+    networks:
+      - codebox-net
+
+  web-ui:
+    build:
+      context: ./codebox-web-ui
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_URL: "http://localhost:8080"
+      VITE_WS_URL: "ws://localhost:8080"
+    depends_on:
+      - orchestrator
+    networks:
+      - codebox-net
+
+networks:
+  codebox-net:
+    name: codebox-net
+    driver: bridge
+
+volumes:
+  orchestrator-data:
