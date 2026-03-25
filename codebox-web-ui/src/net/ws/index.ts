@@ -27,9 +27,11 @@ export function useBoxWebSocket({
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectAttemptsRef = useRef(0)
   const activeRef = useRef(false)
+  const enabledRef = useRef(enabled)
+  enabledRef.current = enabled
 
   const connect = useCallback(() => {
-    if (!boxId || !enabled || !activeRef.current) return
+    if (!boxId || !enabledRef.current || !activeRef.current) return
 
     setEvents([]) // Clear stale events — server will replay from DB
 
@@ -62,7 +64,7 @@ export function useBoxWebSocket({
       // told us the box doesn't exist (close code 4004).
       if (!activeRef.current || e.code === 4004) return
 
-      if (enabled) {
+      if (enabledRef.current) {
         const delay = Math.min(
           1000 * 2 ** reconnectAttemptsRef.current,
           30000,
@@ -75,7 +77,7 @@ export function useBoxWebSocket({
     ws.onerror = () => {
       ws.close()
     }
-  }, [boxId, enabled])
+  }, [boxId])
 
   useEffect(() => {
     activeRef.current = true
@@ -92,7 +94,9 @@ export function useBoxWebSocket({
       wsRef.current = null
     }
 
-    connect()
+    if (enabled) {
+      connect()
+    }
 
     return () => {
       activeRef.current = false
@@ -103,7 +107,7 @@ export function useBoxWebSocket({
         wsRef.current.close()
       }
     }
-  }, [connect])
+  }, [boxId, enabled])
 
   const sendMessage = useCallback((content: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

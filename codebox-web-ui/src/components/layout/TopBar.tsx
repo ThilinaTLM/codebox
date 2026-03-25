@@ -55,13 +55,15 @@ export function TopBar() {
           <span className="font-display max-w-[200px] truncate text-sm font-medium">
             {box.name}
           </span>
-          <BoxStatusBadge status={box.status} />
-          {boxPageActions?.isConnected && boxPageActions?.isActive && (
-            <span className="relative flex size-1.5">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
-              <span className="relative inline-flex size-1.5 rounded-full bg-success" />
+          {box.container_name && (
+            <span className="max-w-[150px] truncate font-mono text-xs text-muted-foreground">
+              {box.container_name}
             </span>
           )}
+          <BoxStatusBadge
+            status={box.status}
+            isActive={boxPageActions?.isConnected && boxPageActions?.isActive}
+          />
         </div>
       ) : (
         <>

@@ -157,14 +157,12 @@ function BoxDetailPage() {
       {/* Floating file explorer panel */}
       {fileExplorerOpen && (
         <div
-          className={`absolute left-3 top-3 bottom-12 z-30 overflow-hidden rounded-xl border bg-card shadow-lg ${
-            explorerSize === "full"
-              ? "right-3"
-              : explorerSize === "lg"
-                ? "w-[44rem]"
-                : explorerSize === "md"
-                  ? "w-[36rem]"
-                  : "w-[28rem]"
+          className={`absolute left-3 top-3 bottom-12 z-30 overflow-hidden rounded-lg border bg-card shadow-lg ${
+            explorerSize === "lg"
+              ? "w-[44rem]"
+              : explorerSize === "md"
+                ? "w-[36rem]"
+                : "w-[28rem]"
           }`}
         >
           {canShowFiles ? (

@@ -9,33 +9,8 @@ export function useGlobalWebSocket() {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectAttemptsRef = useRef(0)
   const activeRef = useRef(false)
-
-  const handleEvent = useCallback(
-    (event: GlobalWSEvent) => {
-      if (event.type === "ping") return
-
-      if (event.type === "box_created") {
-        qc.invalidateQueries({ queryKey: ["boxes"] })
-      }
-
-      if (event.type === "box_status_changed") {
-        // Optimistically update the specific box in cache
-        qc.setQueriesData<Box>(
-          { queryKey: ["boxes", event.box_id] },
-          (old) =>
-            old ? { ...old, status: event.status as Box["status"] } : old,
-        )
-        // Invalidate the list to reflect status changes in filtering/sorting
-        qc.invalidateQueries({ queryKey: ["boxes"] })
-      }
-
-      if (event.type === "box_deleted") {
-        qc.removeQueries({ queryKey: ["boxes", event.box_id] })
-        qc.invalidateQueries({ queryKey: ["boxes"] })
-      }
-    },
-    [qc],
-  )
+  const qcRef = useRef(qc)
+  qcRef.current = qc
 
   const connect = useCallback(() => {
     if (!activeRef.current) return
@@ -47,7 +22,7 @@ export function useGlobalWebSocket() {
     ws.onopen = () => {
       // Invalidate all box queries on reconnect to sync any missed events
       if (reconnectAttemptsRef.current > 0) {
-        qc.invalidateQueries({ queryKey: ["boxes"] })
+        qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
       }
       reconnectAttemptsRef.current = 0
     }
@@ -55,7 +30,25 @@ export function useGlobalWebSocket() {
     ws.onmessage = (e) => {
       try {
         const event = JSON.parse(e.data) as GlobalWSEvent
-        handleEvent(event)
+        if (event.type === "ping") return
+
+        if (event.type === "box_created") {
+          qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
+        }
+
+        if (event.type === "box_status_changed") {
+          qcRef.current.setQueriesData<Box>(
+            { queryKey: ["boxes", event.box_id] },
+            (old) =>
+              old ? { ...old, status: event.status as Box["status"] } : old,
+          )
+          qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
+        }
+
+        if (event.type === "box_deleted") {
+          qcRef.current.removeQueries({ queryKey: ["boxes", event.box_id] })
+          qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
+        }
       } catch {
         // ignore malformed messages
       }
@@ -76,7 +69,7 @@ export function useGlobalWebSocket() {
     ws.onerror = () => {
       ws.close()
     }
-  }, [handleEvent, qc])
+  }, [])
 
   useEffect(() => {
     activeRef.current = true

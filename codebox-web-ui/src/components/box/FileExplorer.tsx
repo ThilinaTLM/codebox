@@ -7,9 +7,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { TreeView, type TreeDataItem } from "@/components/tree-view"
 import { useBoxFiles, useBoxFileContent } from "@/net/query"
 import type { FileEntry } from "@/net/http/types"
-import { Folder, File, ArrowLeft, RefreshCw, X } from "lucide-react"
+import { Folder, File, ArrowLeft, RotateCw, XCircle, Download } from "lucide-react"
 
-export type ExplorerSize = "sm" | "md" | "lg" | "full"
+export type ExplorerSize = "sm" | "md" | "lg"
 
 function entriesToTreeItems(entries: FileEntry[]): TreeDataItem[] {
   return entries.map((entry) => ({
@@ -37,14 +37,17 @@ export function FileExplorer({
   const [treeData, setTreeData] = useState<TreeDataItem[]>([])
   const queryClient = useQueryClient()
 
-  const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(boxId, "")
+  const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(boxId, "/workspace")
   const { data: fileContent, isLoading: isLoadingContent } =
     useBoxFileContent(boxId, selectedFile)
 
-  // Initialize tree data from root files
+  // Initialize tree data from root files, skipping the /workspace root entry if present
   useEffect(() => {
     if (rootFiles?.entries) {
-      setTreeData(entriesToTreeItems(rootFiles.entries))
+      const filtered = rootFiles.entries.filter(
+        (e) => !(e.is_dir && e.path === "/workspace"),
+      )
+      setTreeData(entriesToTreeItems(filtered))
     }
   }, [rootFiles])
 
@@ -75,67 +78,85 @@ export function FileExplorer({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-3 py-1.5">
-        <span className="text-sm font-medium text-muted-foreground">Files</span>
-        <div className="flex items-center gap-1.5">
-          {onSizeChange && (
-            <ToggleGroup
-              value={[size]}
-              onValueChange={(values) => {
-                // With multiple=true, clicking a new item adds it to the array.
-                // Pick the newly added value; ignore deselection of current.
-                const next = values.find((v) => v !== size) as ExplorerSize | undefined
-                if (next) onSizeChange(next)
-              }}
-              multiple
-              variant="outline"
-              size="sm"
-              className="h-6"
-            >
-              {(["sm", "md", "lg", "full"] as const).map((s) => (
-                <ToggleGroupItem
-                  key={s}
-                  value={s}
-                  className="h-6 px-1.5 text-[10px] font-medium uppercase"
-                >
-                  {s === "full" ? "F" : s.toUpperCase()}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          )}
+      <div className="flex items-center gap-1.5 border-b px-2 py-1">
+        {onClose && (
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            title="Refresh files"
+            className="h-5 w-5 rounded-full"
+            onClick={onClose}
+            title="Close file explorer"
           >
-            <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
+            <XCircle size={12} />
           </Button>
-          {onClose && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onClose}
-              title="Close file explorer"
-            >
-              <X size={13} />
-            </Button>
-          )}
-        </div>
+        )}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="h-5 w-5 rounded-full"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          title="Refresh files"
+        >
+          <RotateCw size={12} className={isRefreshing ? "animate-spin" : ""} />
+        </Button>
+        <span className="mr-auto text-xs font-medium text-muted-foreground">Files</span>
+        {onSizeChange && (
+          <ToggleGroup
+            value={[size]}
+            onValueChange={(values) => {
+              const next = values.find((v) => v !== size) as ExplorerSize | undefined
+              if (next) onSizeChange(next)
+            }}
+            multiple
+            variant="outline"
+            size="sm"
+            className="h-5"
+          >
+            {(["sm", "md", "lg"] as const).map((s) => (
+              <ToggleGroupItem
+                key={s}
+                value={s}
+                className="h-5 px-1.5 text-[10px] font-medium uppercase"
+              >
+                {s.toUpperCase()}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
       </div>
 
       {selectedFile ? (
         /* File content viewer */
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center gap-1.5 border-b px-2 py-2">
+          <div className="flex items-center gap-1.5 border-b px-2 py-1">
             <Button
               variant="ghost"
               size="icon-sm"
+              className="h-5 w-5"
               onClick={() => setSelectedFile(null)}
               title="Back to file tree"
             >
-              <ArrowLeft size={15} />
+              <ArrowLeft size={12} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="h-5 w-5"
+              onClick={() => {
+                if (!fileContent?.content) return
+                const blob = new Blob([fileContent.content], { type: "application/octet-stream" })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement("a")
+                a.href = url
+                a.download = selectedFile.split("/").pop() ?? "file"
+                a.click()
+                URL.revokeObjectURL(url)
+              }}
+              disabled={isLoadingContent || !fileContent?.content}
+              title="Download file"
+            >
+              <Download size={12} />
             </Button>
             <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
               {selectedFile.split("/").pop()}
@@ -144,7 +165,7 @@ export function FileExplorer({
               <span className="flex-shrink-0 text-xs text-warning">(truncated)</span>
             )}
           </div>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="min-h-0 flex-1">
             {isLoadingContent ? (
               <div className="space-y-1 p-3">
                 <Skeleton className="h-4 w-full" />
@@ -152,7 +173,7 @@ export function FileExplorer({
                 <Skeleton className="h-4 w-1/2" />
               </div>
             ) : (
-              <pre className="p-3 font-mono text-sm leading-relaxed text-foreground/80">
+              <pre className="overflow-auto p-3 font-mono text-sm leading-relaxed text-foreground/80">
                 {fileContent?.content ?? "Unable to read file"}
               </pre>
             )}
@@ -160,7 +181,7 @@ export function FileExplorer({
         </div>
       ) : (
         /* Tree view */
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 flex-1">
           {treeData.length > 0 ? (
             <LazyTreeView
               boxId={boxId}

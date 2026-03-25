@@ -24,9 +24,10 @@ const statusDot: Record<BoxStatus, string> = {
   [BoxStatus.STOPPED]: "bg-muted-foreground/40",
 }
 
-export function BoxStatusBadge({ status }: { status: BoxStatus }) {
-  const config = statusConfig[status] ?? { label: status, variant: "outline" as const }
-  const dot = statusDot[status] ?? "bg-muted-foreground/40"
+export function BoxStatusBadge({ status, isActive }: { status: BoxStatus; isActive?: boolean }) {
+  const effectiveStatus = isActive ? BoxStatus.RUNNING : status
+  const config = statusConfig[effectiveStatus] ?? { label: effectiveStatus, variant: "outline" as const }
+  const dot = statusDot[effectiveStatus] ?? "bg-muted-foreground/40"
 
   return (
     <Badge variant={config.variant} className="gap-1.5 text-xs">
