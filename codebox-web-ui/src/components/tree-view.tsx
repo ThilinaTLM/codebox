@@ -5,7 +5,7 @@ import { cva } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const treeVariants = cva(
-    'group hover:before:opacity-100 before:absolute before:rounded-lg before:left-0 px-2 before:w-full before:opacity-0 before:bg-accent/70 before:h-[2rem] before:-z-10'
+    'group hover:before:opacity-100 before:absolute before:rounded-lg before:left-0 px-2 before:w-full before:opacity-0 before:bg-accent/70 before:h-[1.5rem] before:-z-10'
 )
 
 const selectedTreeVariants = cva(
@@ -125,7 +125,7 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeProps>(
         }, [data, expandAll, initialSelectedItemId])
 
         return (
-            <div className={cn('overflow-hidden relative p-2', className)}>
+            <div className={cn('overflow-hidden relative p-1', className)}>
                 <TreeItem
                     data={data}
                     ref={ref}
@@ -142,7 +142,7 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeProps>(
                     {...props}
                 />
                 <div
-                    className='w-full h-[48px]'
+                    className='w-full h-[24px]'
                     onDrop={() => { handleDrop({id: '', name: 'parent_div'})}}>
                 </div>
             </div>
@@ -421,7 +421,7 @@ const TreeLeaf = React.forwardRef<
             <div
                 ref={ref}
                 className={cn(
-                    'ml-5 flex text-left items-center py-2 cursor-pointer before:right-1',
+                    'ml-5 flex text-left items-center py-1 cursor-pointer before:right-1',
                     treeVariants(),
                     className,
                     isSelected && selectedTreeVariants(),
@@ -479,7 +479,7 @@ const AccordionTrigger = React.forwardRef<
         <AccordionPrimitive.Trigger
             ref={ref}
             className={cn(
-                'flex flex-1 w-full items-center py-2 transition-all first:[&[data-state=open]>svg]:first-of-type:rotate-90',
+                'flex flex-1 w-full items-center py-1 transition-all first:[&[data-state=open]>svg]:first-of-type:rotate-90',
                 className
             )}
             {...props}
@@ -503,7 +503,7 @@ const AccordionContent = React.forwardRef<
         )}
         {...props}
     >
-        <div className="pb-1 pt-0">{children}</div>
+        <div className="pb-0 pt-0">{children}</div>
     </AccordionPrimitive.Content>
 ))
 AccordionContent.displayName = AccordionPrimitive.Content.displayName

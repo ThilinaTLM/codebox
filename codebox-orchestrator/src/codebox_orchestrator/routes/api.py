@@ -124,7 +124,7 @@ async def delete_box(request: Request, box_id: str):
 
 @router.get("/boxes/{box_id}/files")
 async def box_list_files(
-    request: Request, box_id: str, path: str = "/workspace"
+    request: Request, box_id: str, path: str = ""
 ):
     """List directory contents in a box workspace."""
     bs = _bs(request)

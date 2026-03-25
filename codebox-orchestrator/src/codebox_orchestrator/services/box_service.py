@@ -235,7 +235,7 @@ class BoxService:
     # File browsing (via callback WS)
     # ------------------------------------------------------------------
 
-    async def list_files(self, box_id: str, path: str = "/workspace") -> dict[str, Any]:
+    async def list_files(self, box_id: str, path: str = "") -> dict[str, Any]:
         ws = self._registry.get_connection(box_id)
         if ws is None:
             raise ValueError("No active connection for this box")

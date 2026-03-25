@@ -37,15 +37,14 @@ export function FileExplorer({
   const [treeData, setTreeData] = useState<TreeDataItem[]>([])
   const queryClient = useQueryClient()
 
-  const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(boxId, "/workspace")
+  const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(boxId, "")
   const { data: fileContent, isLoading: isLoadingContent } =
     useBoxFileContent(boxId, selectedFile)
 
-  // Initialize tree data from root files, filtering out the /workspace root entry
+  // Initialize tree data from root files
   useEffect(() => {
     if (rootFiles?.entries) {
-      const filtered = rootFiles.entries.filter((e) => e.path !== "/workspace")
-      setTreeData(entriesToTreeItems(filtered))
+      setTreeData(entriesToTreeItems(rootFiles.entries))
     }
   }, [rootFiles])
 
@@ -76,7 +75,7 @@ export function FileExplorer({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-3 py-2.5">
+      <div className="flex items-center justify-between border-b px-3 py-1.5">
         <span className="text-sm font-medium text-muted-foreground">Files</span>
         <div className="flex items-center gap-1.5">
           {onSizeChange && (
@@ -111,7 +110,7 @@ export function FileExplorer({
             disabled={isRefreshing}
             title="Refresh files"
           >
-            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+            <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
           </Button>
           {onClose && (
             <Button
@@ -120,7 +119,7 @@ export function FileExplorer({
               onClick={onClose}
               title="Close file explorer"
             >
-              <X size={14} />
+              <X size={13} />
             </Button>
           )}
         </div>

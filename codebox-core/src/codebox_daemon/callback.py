@@ -175,7 +175,7 @@ async def _connect_and_run(
                     logger.info("Cancelled running task for session %s", session_id)
 
             elif msg_type == "list_files":
-                path = msg.get("path", "/workspace")
+                path = msg.get("path", "")
                 request_id = msg.get("request_id", "")
                 await handle_list_files(send, path, request_id)
 

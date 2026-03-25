@@ -142,8 +142,13 @@ async def run_exec(
 
 
 def _validate_workspace_path(raw_path: str) -> Path:
-    """Resolve a path and ensure it lives under /workspace."""
-    resolved = Path(raw_path).resolve()
+    """Resolve a path and ensure it lives under /workspace.
+
+    Accepts both absolute paths (e.g. /workspace/foo) and relative paths
+    (e.g. foo or subdir/bar) which are resolved relative to /workspace.
+    """
+    raw = Path(raw_path)
+    resolved = (raw if raw.is_absolute() else _WORKSPACE_ROOT / raw).resolve()
     if not (resolved == _WORKSPACE_ROOT or _WORKSPACE_ROOT in resolved.parents):
         raise ValueError("Path must be under /workspace")
     return resolved
@@ -179,7 +184,7 @@ async def handle_list_files(
                 stat = child.stat()
                 entries.append({
                     "name": child.name,
-                    "path": str(child),
+                    "path": str(child.relative_to(_WORKSPACE_ROOT)),
                     "is_dir": child.is_dir(),
                     "size": stat.st_size if child.is_file() else None,
                 })
@@ -189,7 +194,7 @@ async def handle_list_files(
         await send({
             "type": "list_files_result",
             "request_id": request_id,
-            "data": {"path": str(dir_path), "entries": entries},
+            "data": {"path": str(dir_path.relative_to(_WORKSPACE_ROOT)), "entries": entries},
         })
 
     except Exception as exc:
