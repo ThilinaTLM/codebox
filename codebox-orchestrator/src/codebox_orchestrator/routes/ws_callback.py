@@ -13,8 +13,11 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
 from codebox_orchestrator.db.models import Box, BoxEvent, BoxStatus
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
+from codebox_orchestrator.services.callback_token import decode_callback_token
 from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
 from codebox_orchestrator.services.relay_service import RelayService
 
@@ -31,13 +34,25 @@ async def sandbox_callback(ws: WebSocket) -> None:
     registry: CallbackRegistry = ws.app.state.callback_registry
     relay: RelayService = ws.app.state.relay_service
 
-    # Validate callback token
-    result = registry.resolve(token)
+    # Validate JWT callback token
+    result = decode_callback_token(token)
     if result is None:
         await ws.close(code=4001, reason="Invalid callback token")
         return
 
     entity_id, entity_type = result
+
+    # Reject connections for boxes in terminal states
+    sf: async_sessionmaker = ws.app.state._sf
+    async with sf() as db:
+        box = await db.get(Box, entity_id)
+        if box is None or box.status in (
+            BoxStatus.COMPLETED, BoxStatus.FAILED,
+            BoxStatus.CANCELLED, BoxStatus.STOPPED,
+        ):
+            await ws.close(code=4003, reason="Box is in terminal state")
+            return
+
     await ws.accept()
     logger.info("Callback accepted for %s %s", entity_type, entity_id)
 
@@ -52,8 +67,7 @@ async def sandbox_callback(ws: WebSocket) -> None:
         registry.remove(entity_id)
 
     # Re-create connected/prompt_ready events for this connection
-    registry._connected_events[entity_id] = asyncio.Event()
-    registry._prompt_ready_events[entity_id] = asyncio.Event()
+    registry.init_connection_state(entity_id)
 
     # Wait for register message
     try:
@@ -99,7 +113,6 @@ async def _handle_box(
     global_broadcast: GlobalBroadcastService,
 ) -> None:
     """Handle a unified box callback connection."""
-    from sqlalchemy.ext.asyncio import async_sessionmaker
     sf: async_sessionmaker = ws.app.state._sf
 
     # Load box to determine behaviour

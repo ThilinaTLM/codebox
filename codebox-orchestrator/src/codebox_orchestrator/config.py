@@ -37,6 +37,26 @@ GITHUB_APP_SLUG: str = os.environ.get("GITHUB_APP_SLUG", "codebox")
 GITHUB_BOT_NAME: str = os.environ.get("GITHUB_BOT_NAME", "") or GITHUB_APP_SLUG
 GITHUB_DEFAULT_BASE_BRANCH: str = os.environ.get("GITHUB_DEFAULT_BASE_BRANCH", "main")
 
+# Callback JWT signing secret
+CALLBACK_SECRET: str = os.environ.get("CALLBACK_SECRET", "")
+
+_fallback_secret: str = ""
+
+
+def get_callback_secret() -> str:
+    """Return the callback JWT signing secret, generating an ephemeral one if not configured."""
+    global _fallback_secret
+    if CALLBACK_SECRET:
+        return CALLBACK_SECRET
+    if not _fallback_secret:
+        import secrets as _secrets
+        _fallback_secret = _secrets.token_urlsafe(64)
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "CALLBACK_SECRET not set -- using ephemeral secret (tokens won't survive restart)"
+        )
+    return _fallback_secret
+
 
 def github_enabled() -> bool:
     """Return True if GitHub App credentials are configured."""

@@ -79,7 +79,6 @@ class Box(Base):
     # Container connection info
     container_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     container_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    callback_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
     session_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     workspace_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
 

@@ -6,7 +6,6 @@ import asyncio
 import json
 import logging
 import os
-import secrets
 import tempfile
 from datetime import datetime, timezone
 from typing import Any
@@ -304,9 +303,10 @@ class BoxService:
         os.makedirs(WORKSPACE_BASE_DIR, exist_ok=True)
         workspace = tempfile.mkdtemp(prefix=f"box-{box_id[:8]}-", dir=WORKSPACE_BASE_DIR)
 
-        # Generate callback token
-        callback_token = secrets.token_urlsafe(32)
-        self._registry.register(callback_token, box_id, "box")
+        # Generate JWT callback token
+        from codebox_orchestrator.services.callback_token import create_callback_token
+        callback_token = create_callback_token(box_id, entity_type="box")
+        self._registry.init_connection_state(box_id)
 
         # Build container env vars
         container_name = f"codebox-box-{box_id[:8]}"
@@ -357,7 +357,6 @@ class BoxService:
                 return
             box.container_id = info.id
             box.container_name = info.name
-            box.callback_token = callback_token
             box.workspace_path = workspace
             await db.commit()
 
