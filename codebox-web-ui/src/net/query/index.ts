@@ -122,6 +122,26 @@ export function useStopContainer() {
   })
 }
 
+export function useStartContainer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (containerId: string) => api.containers.start(containerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["containers"] })
+    },
+  })
+}
+
+export function useDeleteContainer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (containerId: string) => api.containers.delete(containerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["containers"] })
+    },
+  })
+}
+
 // ── GitHub queries ──────────────────────────────────────────
 
 export function useGitHubStatus() {

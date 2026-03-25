@@ -82,6 +82,12 @@ export const api = {
     stop: async (containerId: string): Promise<void> => {
       await client.post(`/api/containers/${containerId}/stop`)
     },
+    start: async (containerId: string): Promise<void> => {
+      await client.post(`/api/containers/${containerId}/start`)
+    },
+    delete: async (containerId: string): Promise<void> => {
+      await client.delete(`/api/containers/${containerId}`)
+    },
   },
   github: {
     status: async (): Promise<GitHubStatus> => {

@@ -42,6 +42,8 @@ class ContainerInfo:
     status: str = ""
     model: str = ""
     image: str = ""
+    started_at: str | None = None
+    created_at: str | None = None
 
 
 def _get_client() -> docker.DockerClient:
@@ -146,11 +148,21 @@ def spawn(
 
 def list_running() -> list[ContainerInfo]:
     """List running sandbox containers."""
+    return list_containers(all=False)
+
+
+# Docker returns this sentinel for containers that have never started.
+_DOCKER_ZERO_TIME = "0001-01-01T00:00:00Z"
+
+
+def list_containers(all: bool = True) -> list[ContainerInfo]:
+    """List sandbox containers. When *all* is True, includes stopped containers."""
     client = _get_client()
 
     try:
         containers = client.containers.list(
-            filters={"label": f"{CONTAINER_LABEL}=true"}
+            all=all,
+            filters={"label": f"{CONTAINER_LABEL}=true"},
         )
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Docker API error: {exc}") from exc
@@ -165,6 +177,12 @@ def list_running() -> list[ContainerInfo]:
 
         image = c.image.tags[0] if c.image.tags else c.image.short_id
 
+        state = c.attrs.get("State", {})
+        started_at = state.get("StartedAt")
+        if started_at and started_at.startswith("0001-"):
+            started_at = None
+        created_at = c.attrs.get("Created")
+
         results.append(
             ContainerInfo(
                 id=c.id,
@@ -173,13 +191,15 @@ def list_running() -> list[ContainerInfo]:
                 status=c.status,
                 model=model,
                 image=image,
+                started_at=started_at,
+                created_at=created_at,
             )
         )
     return results
 
 
 def stop(container_id_or_name: str, force: bool = False) -> None:
-    """Stop and remove a sandbox container."""
+    """Stop a sandbox container (does not remove it)."""
     client = _get_client()
     container = _get_container(client, container_id_or_name)
 
@@ -188,9 +208,18 @@ def stop(container_id_or_name: str, force: bool = False) -> None:
             container.kill()
         else:
             container.stop()
-        container.remove()
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Failed to stop container: {exc}") from exc
+
+
+def start(container_id_or_name: str) -> None:
+    """Start a stopped sandbox container."""
+    client = _get_client()
+    container = _get_container(client, container_id_or_name)
+    try:
+        container.start()
+    except docker.errors.APIError as exc:
+        raise DockerServiceError(f"Failed to start container: {exc}") from exc
 
 
 def remove(container_id_or_name: str) -> None:

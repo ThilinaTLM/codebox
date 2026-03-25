@@ -8,7 +8,8 @@ export const Route = createFileRoute("/containers")({
 
 function ContainersPage() {
   const { data: containers } = useContainers()
-  const count = containers?.length ?? 0
+  const total = containers?.length ?? 0
+  const running = containers?.filter((c) => c.status === "running").length ?? 0
 
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col overflow-y-auto">
@@ -19,7 +20,8 @@ function ContainersPage() {
             Containers
           </h1>
           <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
-            {count} running
+            {total} container{total !== 1 ? "s" : ""}
+            {running > 0 ? ` · ${running} running` : ""}
           </p>
         </div>
       </div>

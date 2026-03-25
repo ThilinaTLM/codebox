@@ -159,9 +159,17 @@ async def box_read_file(request: Request, box_id: str, path: str):
 
 @router.get("/containers")
 async def list_containers() -> list[ContainerResponse]:
-    containers = docker_service.list_running()
+    containers = docker_service.list_containers()
     return [
-        ContainerResponse(id=c.id, name=c.name)
+        ContainerResponse(
+            id=c.id,
+            name=c.name,
+            status=c.status,
+            image=c.image,
+            model=c.model or None,
+            started_at=c.started_at,
+            created_at=c.created_at,
+        )
         for c in containers
     ]
 
@@ -173,3 +181,20 @@ async def stop_container(container_id: str):
     except docker_service.DockerServiceError as exc:
         raise HTTPException(400, str(exc))
     return {"status": "stopped"}
+
+
+@router.post("/containers/{container_id}/start")
+async def start_container(container_id: str):
+    try:
+        docker_service.start(container_id)
+    except docker_service.DockerServiceError as exc:
+        raise HTTPException(400, str(exc))
+    return {"status": "started"}
+
+
+@router.delete("/containers/{container_id}", status_code=204)
+async def delete_container(container_id: str):
+    try:
+        docker_service.remove(container_id)
+    except docker_service.DockerServiceError as exc:
+        raise HTTPException(400, str(exc))

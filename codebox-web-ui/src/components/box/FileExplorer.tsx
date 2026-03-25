@@ -111,7 +111,7 @@ export function FileExplorer({
             disabled={isRefreshing}
             title="Refresh files"
           >
-            <RefreshCw size={15} className={isRefreshing ? "animate-spin" : ""} />
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
           </Button>
           {onClose && (
             <Button
@@ -120,7 +120,7 @@ export function FileExplorer({
               onClick={onClose}
               title="Close file explorer"
             >
-              <X size={15} />
+              <X size={14} />
             </Button>
           )}
         </div>

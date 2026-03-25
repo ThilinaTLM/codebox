@@ -45,6 +45,11 @@ export interface BoxEvent {
 export interface Container {
   id: string
   name: string
+  status: string
+  image: string
+  model: string | null
+  started_at: string | null
+  created_at: string | null
 }
 
 export interface BoxCreatePayload {

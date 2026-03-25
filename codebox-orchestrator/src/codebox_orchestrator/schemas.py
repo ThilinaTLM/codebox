@@ -93,6 +93,11 @@ class BoxEventResponse(BaseModel):
 class ContainerResponse(BaseModel):
     id: str
     name: str
+    status: str
+    image: str
+    model: str | None = None
+    started_at: str | None = None
+    created_at: str | None = None
 
 
 # ── GitHub schemas ──────────────────────────────────────────────
