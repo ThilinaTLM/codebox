@@ -1,0 +1,61 @@
+export enum TaskStatus {
+  QUEUED = "queued",
+  STARTING = "starting",
+  RUNNING = "running",
+  WAITING_FOR_FEEDBACK = "waiting_for_feedback",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  CANCELLED = "cancelled",
+}
+
+export interface Task {
+  id: string
+  title: string
+  prompt: string
+  system_prompt: string | null
+  model: string
+  status: TaskStatus
+  container_id: string | null
+  container_name: string | null
+  host_port: number | null
+  session_id: string | null
+  workspace_path: string | null
+  result_summary: string | null
+  error_message: string | null
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+}
+
+export interface TaskEvent {
+  id: number
+  task_id: string
+  event_type: string
+  data: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface Container {
+  id: string
+  name: string
+  port: number | null
+}
+
+export interface TaskCreatePayload {
+  title: string
+  prompt: string
+  model?: string | null
+  system_prompt?: string | null
+  workspace_path?: string | null
+}
+
+// WebSocket event types from orchestrator
+export type WSEvent =
+  | { type: "token"; text: string }
+  | { type: "tool_start"; name: string }
+  | { type: "tool_end"; name: string; output: string }
+  | { type: "model_start" }
+  | { type: "done"; content: string }
+  | { type: "error"; detail: string }
+  | { type: "status_change"; status: TaskStatus }
+  | { type: "ping" }
