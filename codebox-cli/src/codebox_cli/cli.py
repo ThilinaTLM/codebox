@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 
 import click
 from rich.console import Console
@@ -19,10 +18,10 @@ def cli() -> None:
     """Codebox — manage and connect to sandboxed coding agents."""
 
 
-# ── Orchestrator task commands ────────────────────────────────
+# ── Box commands ────────────────────────────────────────────
 
 
-@cli.group(name="task")
+@cli.group(name="box")
 @click.option(
     "--url",
     default=None,
@@ -30,109 +29,111 @@ def cli() -> None:
     help="Orchestrator URL (default: $CODEBOX_ORCHESTRATOR_URL or http://localhost:8080).",
 )
 @click.pass_context
-def task_group(ctx: click.Context, url: str | None) -> None:
-    """Manage tasks via the orchestrator."""
+def box_group(ctx: click.Context, url: str | None) -> None:
+    """Manage boxes via the orchestrator."""
     ctx.ensure_object(dict)
     ctx.obj["orch"] = OrchestratorClient(base_url=url or ORCHESTRATOR_URL)
 
 
-@task_group.command(name="create")
-@click.option("--title", "-t", required=True, help="Task title.")
-@click.option("--prompt", "-p", required=True, help="Task prompt.")
+@box_group.command(name="create")
+@click.option("--name", "-n", default=None, help="Box name.")
+@click.option("--prompt", "-p", default=None, help="Initial prompt (auto-executed on start).")
 @click.option("--model", "-m", default=None, help="Override LLM model.")
 @click.option("--system-prompt", default=None, help="Custom system prompt.")
-@click.option("--watch", is_flag=True, default=True, help="Stream task output (default: true).")
-@click.option("--no-watch", is_flag=True, help="Don't stream task output.")
+@click.option("--watch", is_flag=True, default=True, help="Stream box output (default: true).")
+@click.option("--no-watch", is_flag=True, help="Don't stream box output.")
 @click.pass_context
-def task_create(
+def box_create(
     ctx: click.Context,
-    title: str,
-    prompt: str,
+    name: str | None,
+    prompt: str | None,
     model: str | None,
     system_prompt: str | None,
     watch: bool,
     no_watch: bool,
 ) -> None:
-    """Create a new task and optionally stream its output."""
+    """Create a new box and optionally stream its output."""
     orch: OrchestratorClient = ctx.obj["orch"]
     try:
-        task = orch.create_task(
-            title=title,
-            prompt=prompt,
+        box = orch.create_box(
+            name=name,
+            initial_prompt=prompt,
             model=model,
             system_prompt=system_prompt,
         )
     except RuntimeError as exc:
         raise click.ClickException(str(exc))
 
-    click.echo(f"Task created: {task['id']} ({task['title']})")
+    click.echo(f"Box created: {box['id']} ({box['name']})")
 
     if not no_watch:
-        asyncio.run(orchestrator_chat_loop(orch, task["id"], watch_only=True))
+        asyncio.run(orchestrator_chat_loop(orch, box["id"], watch_only=bool(prompt)))
 
 
-@task_group.command(name="list")
+@box_group.command(name="list")
 @click.option("--status", "-s", default=None, help="Filter by status.")
 @click.pass_context
-def task_list(ctx: click.Context, status: str | None) -> None:
-    """List tasks from the orchestrator."""
+def box_list(ctx: click.Context, status: str | None) -> None:
+    """List boxes from the orchestrator."""
     orch: OrchestratorClient = ctx.obj["orch"]
     try:
-        tasks = orch.list_tasks(status=status)
+        boxes = orch.list_boxes(status=status)
     except RuntimeError as exc:
         raise click.ClickException(str(exc))
 
-    if not tasks:
-        click.echo("No tasks found.")
+    if not boxes:
+        click.echo("No boxes found.")
         return
 
     table = Table()
     table.add_column("ID", style="dim", max_width=10)
-    table.add_column("Title")
+    table.add_column("Name")
     table.add_column("Status")
     table.add_column("Model", style="dim")
+    table.add_column("Trigger", style="dim")
 
-    for t in tasks:
+    for b in boxes:
         table.add_row(
-            t["id"][:8],
-            t["title"],
-            t["status"],
-            t.get("model", ""),
+            b["id"][:8],
+            b["name"],
+            b["status"],
+            b.get("model", ""),
+            b.get("trigger", "") or "",
         )
 
     Console().print(table)
 
 
-@task_group.command(name="connect")
-@click.argument("task_id")
+@box_group.command(name="connect")
+@click.argument("box_id")
 @click.pass_context
-def task_connect(ctx: click.Context, task_id: str) -> None:
-    """Connect to a running task for interactive follow-up."""
+def box_connect(ctx: click.Context, box_id: str) -> None:
+    """Connect to a box for interactive chat."""
     orch: OrchestratorClient = ctx.obj["orch"]
-    asyncio.run(orchestrator_chat_loop(orch, task_id))
+    asyncio.run(orchestrator_chat_loop(orch, box_id))
 
 
-@task_group.command(name="cancel")
-@click.argument("task_id")
+@box_group.command(name="stop")
+@click.argument("box_id")
 @click.pass_context
-def task_cancel(ctx: click.Context, task_id: str) -> None:
-    """Cancel a running task."""
+def box_stop(ctx: click.Context, box_id: str) -> None:
+    """Stop a running box."""
     orch: OrchestratorClient = ctx.obj["orch"]
     try:
-        task = orch.cancel_task(task_id)
-        click.echo(f"Task {task_id[:8]} cancelled (status: {task['status']})")
+        box = orch.stop_box(box_id)
+        click.echo(f"Box {box_id[:8]} stopped (status: {box['status']})")
     except RuntimeError as exc:
         raise click.ClickException(str(exc))
 
 
-@task_group.command(name="delete")
-@click.argument("task_id")
+@box_group.command(name="delete")
+@click.argument("box_id")
 @click.pass_context
-def task_delete(ctx: click.Context, task_id: str) -> None:
-    """Delete a task and its container."""
+def box_delete(ctx: click.Context, box_id: str) -> None:
+    """Delete a box and its container."""
     orch: OrchestratorClient = ctx.obj["orch"]
     try:
-        orch.delete_task(task_id)
-        click.echo(f"Task {task_id[:8]} deleted.")
+        orch.delete_box(box_id)
+        click.echo(f"Box {box_id[:8]} deleted.")
     except RuntimeError as exc:
         raise click.ClickException(str(exc))

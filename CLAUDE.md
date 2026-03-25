@@ -7,9 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Monorepo for a sandboxed AI coding agent platform. Six sub-projects:
 
 - **codebox-core** — FastAPI daemon (REST + WebSocket API) for AI agent sessions, runs inside sandbox containers
-- **codebox-cli** — CLI client that connects to the orchestrator for task management and interactive follow-up
+- **codebox-cli** — CLI client that connects to the orchestrator for box management and interactive chat
 - **codebox-sandbox** — Dockerfile packaging codebox-core with Devbox toolchains into a container
-- **codebox-orchestrator** — Backend API service (FastAPI) that manages sandbox containers, relays WebSocket events between sandboxes and clients (web-ui, cli)
+- **codebox-orchestrator** — Backend API service (FastAPI) that manages "boxes" (sandbox containers with AI agents), relays WebSocket events between containers and clients
 - **codebox-web-ui** — React frontend (TanStack Start + shadcn) that connects to the orchestrator via REST + WebSocket
 - **demo-deepagents** — Standalone terminal demo, same agent framework without Docker
 
@@ -20,7 +20,21 @@ Monorepo for a sandboxed AI coding agent platform. Six sub-projects:
 [codebox-cli]     --(REST + WS)--> [codebox-orchestrator] --(REST + WS)--> [sandbox containers (codebox-core)]
 ```
 
-The orchestrator spawns Docker containers (built from codebox-sandbox, which embeds codebox-core), creates sessions, and streams agent events over WebSocket. The web-ui and CLI both connect to the orchestrator for task management, event streaming, and interactive follow-up.
+### Domain Model
+
+The central concept is a **Box** — a container with an AI model that you interact with via chat. Boxes unify the former "Task" and "Sandbox" concepts:
+
+- **Box**: Container + AI agent. Has a lifecycle: `STARTING → RUNNING → IDLE → COMPLETED/FAILED/CANCELLED/STOPPED`
+  - `initial_prompt` (optional): If set, auto-sent to agent on container start (like a task). If null, box starts in IDLE awaiting user messages.
+  - `auto_stop` (bool): If true, box completes on "done" event. If false, goes to IDLE for follow-up.
+  - `trigger` (nullable): "github_issue", "github_pr", or null for manual creation.
+- **BoxEvent**: Persisted event stream (token, tool_start, tool_end, done, error, etc.)
+- **FeedbackRequest**: Human-in-the-loop questions from the agent
+
+### API Endpoints
+
+- REST: `/api/boxes/*` (CRUD + message + files), `/api/containers/*`, `/api/github/*`
+- WS: `/api/boxes/{id}/ws` (client relay), `/api/internal/sandbox/connect` (container callback)
 
 ## How to Run
 
@@ -42,16 +56,16 @@ cd codebox-web-ui && pnpm dev
 
 **CLI:**
 ```bash
-codebox task create --title "My task" --prompt "Write hello world"
-codebox task list
-codebox task connect <task_id>
+codebox box create --name "My box" --prompt "Write hello world"
+codebox box list
+codebox box connect <box_id>
 ```
 
 ## Tech Stack
 
 - **codebox-orchestrator**: Python 3.12, FastAPI, SQLAlchemy (async SQLite), Docker SDK, websockets
-- **codebox-web-ui**: React 19, TanStack Start/Router, shadcn (radix-mira), TanStack Query, Axios, Tailwind v4
-- **codebox-cli**: Python 3.12, Click, websockets, Rich, prompt-toolkit (orchestrator-only)
+- **codebox-web-ui**: React 19, TanStack Start/Router, Base UI (radix-mira), TanStack Query, Axios, Tailwind v4
+- **codebox-cli**: Python 3.12, Click, websockets, Rich, prompt-toolkit
 - **codebox-core**: Python 3.12, FastAPI, LangGraph agent framework
 
 Each Python sub-project has its own `.venv` and `pyproject.toml`. The orchestrator requires `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` env vars (set in `codebox-orchestrator/.env.local`); these are passed to sandbox containers automatically.

@@ -10,8 +10,7 @@ import { API_URL, WS_URL } from "@/lib/constants"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TooltipProvider } from "../components/ui/tooltip"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
-import { AppSidebar } from "@/components/layout/AppSidebar"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { TopBar } from "@/components/layout/TopBar"
 import { Toaster } from "@/components/ui/sonner"
 
 import appCss from "../styles.css?url"
@@ -43,12 +42,12 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset>
+          <div className="flex min-h-svh flex-col">
+            <TopBar />
+            <main className="flex-1">
               <Outlet />
-            </SidebarInset>
-          </SidebarProvider>
+            </main>
+          </div>
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>

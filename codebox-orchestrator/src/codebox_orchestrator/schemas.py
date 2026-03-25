@@ -8,40 +8,38 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from codebox_orchestrator.db.models import (
-    Sandbox,
-    SandboxEvent,
-    SandboxStatus,
-    Task,
-    TaskEvent,
-    TaskStatus,
+    Box,
+    BoxEvent,
+    BoxStatus,
 )
 
 
 # ── Request schemas ──────────────────────────────────────────────
 
 
-class TaskCreate(BaseModel):
-    title: str
-    prompt: str
+class BoxCreate(BaseModel):
+    name: str | None = None
     model: str | None = None
     system_prompt: str | None = None
-    workspace_path: str | None = None
+    initial_prompt: str | None = None
+    auto_stop: bool | None = None
 
 
-class FeedbackMessage(BaseModel):
+class BoxMessage(BaseModel):
     message: str
 
 
 # ── Response schemas ─────────────────────────────────────────────
 
 
-class TaskResponse(BaseModel):
+class BoxResponse(BaseModel):
     id: str
-    title: str
-    prompt: str
-    system_prompt: str | None
+    name: str
     model: str
-    status: TaskStatus
+    status: BoxStatus
+    system_prompt: str | None
+    initial_prompt: str | None
+    auto_stop: bool
     container_id: str | None
     container_name: str | None
     session_id: str | None
@@ -51,6 +49,7 @@ class TaskResponse(BaseModel):
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None
+    trigger: str | None = None
     # GitHub integration fields
     github_repo: str | None = None
     github_issue_number: int | None = None
@@ -61,13 +60,13 @@ class TaskResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     @classmethod
-    def from_orm_task(cls, task: Task) -> TaskResponse:
-        return cls.model_validate(task)
+    def from_orm_box(cls, box: Box) -> BoxResponse:
+        return cls.model_validate(box)
 
 
-class TaskEventResponse(BaseModel):
+class BoxEventResponse(BaseModel):
     id: int
-    task_id: str
+    box_id: str
     event_type: str
     data: dict | None
     created_at: datetime
@@ -75,7 +74,7 @@ class TaskEventResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     @classmethod
-    def from_orm_event(cls, event: TaskEvent) -> TaskEventResponse:
+    def from_orm_event(cls, event: BoxEvent) -> BoxEventResponse:
         data = None
         if event.data:
             try:
@@ -84,7 +83,7 @@ class TaskEventResponse(BaseModel):
                 data = {"raw": event.data}
         return cls(
             id=event.id,
-            task_id=event.task_id,
+            box_id=event.box_id,
             event_type=event.event_type,
             data=data,
             created_at=event.created_at,
@@ -94,60 +93,6 @@ class TaskEventResponse(BaseModel):
 class ContainerResponse(BaseModel):
     id: str
     name: str
-
-
-# ── Sandbox schemas ─────────────────────────────────────────────
-
-
-class SandboxCreate(BaseModel):
-    name: str | None = None
-    model: str | None = None
-
-
-class SandboxResponse(BaseModel):
-    id: str
-    name: str
-    status: SandboxStatus
-    container_id: str | None
-    container_name: str | None
-    session_id: str | None
-    workspace_path: str | None
-    model: str
-    error_message: str | None
-    created_at: datetime
-    stopped_at: datetime | None
-
-    model_config = {"from_attributes": True}
-
-    @classmethod
-    def from_orm_sandbox(cls, sandbox: Sandbox) -> SandboxResponse:
-        return cls.model_validate(sandbox)
-
-
-class SandboxEventResponse(BaseModel):
-    id: int
-    sandbox_id: str
-    event_type: str
-    data: dict | None
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-    @classmethod
-    def from_orm_event(cls, event: SandboxEvent) -> SandboxEventResponse:
-        data = None
-        if event.data:
-            try:
-                data = json.loads(event.data)
-            except (json.JSONDecodeError, TypeError):
-                data = {"raw": event.data}
-        return cls(
-            id=event.id,
-            sandbox_id=event.sandbox_id,
-            event_type=event.event_type,
-            data=data,
-            created_at=event.created_at,
-        )
 
 
 # ── GitHub schemas ──────────────────────────────────────────────

@@ -2,131 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { WSEvent } from "@/net/http/types"
 import { WS_URL } from "@/lib/constants"
 
-export function getWsUrl(taskId: string): string {
-  return `${WS_URL}/api/tasks/${taskId}/ws`
-}
-
-interface UseTaskWebSocketOptions {
-  taskId: string | undefined
+interface UseBoxWebSocketOptions {
+  boxId: string | undefined
   enabled?: boolean
 }
 
-interface UseTaskWebSocketReturn {
-  events: WSEvent[]
-  sendMessage: (content: string) => void
-  sendCancel: () => void
-  isConnected: boolean
-}
-
-export function useTaskWebSocket({
-  taskId,
-  enabled = true,
-}: UseTaskWebSocketOptions): UseTaskWebSocketReturn {
-  const [events, setEvents] = useState<WSEvent[]>([])
-  const [isConnected, setIsConnected] = useState(false)
-  const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const reconnectAttemptsRef = useRef(0)
-  const isTerminalRef = useRef(false)
-
-  const connect = useCallback(() => {
-    if (!taskId || !enabled || isTerminalRef.current) return
-
-    const url = getWsUrl(taskId)
-    const ws = new WebSocket(url)
-    wsRef.current = ws
-
-    ws.onopen = () => {
-      setIsConnected(true)
-      reconnectAttemptsRef.current = 0
-    }
-
-    ws.onmessage = (e) => {
-      try {
-        const event = JSON.parse(e.data) as WSEvent
-        if (event.type === "ping") return
-
-        setEvents((prev) => [...prev, event])
-
-        if (event.type === "done" || event.type === "error") {
-          isTerminalRef.current = true
-        }
-      } catch {
-        // ignore malformed messages
-      }
-    }
-
-    ws.onclose = () => {
-      setIsConnected(false)
-      wsRef.current = null
-
-      // Reconnect with exponential backoff unless terminal
-      if (!isTerminalRef.current && enabled) {
-        const delay = Math.min(
-          1000 * 2 ** reconnectAttemptsRef.current,
-          30000,
-        )
-        reconnectAttemptsRef.current += 1
-        reconnectTimeoutRef.current = setTimeout(connect, delay)
-      }
-    }
-
-    ws.onerror = () => {
-      ws.close()
-    }
-  }, [taskId, enabled])
-
-  useEffect(() => {
-    // Reset state when taskId changes
-    setEvents([])
-    isTerminalRef.current = false
-    reconnectAttemptsRef.current = 0
-
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = null
-    }
-
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
-    }
-
-    connect()
-
-    return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
-    }
-  }, [connect])
-
-  const sendMessage = useCallback((content: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "message", content }))
-    }
-  }, [])
-
-  const sendCancel = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "cancel" }))
-    }
-  }, [])
-
-  return { events, sendMessage, sendCancel, isConnected }
-}
-
-// ── Sandbox WebSocket ──────────────────────────────────────────
-
-interface UseSandboxWebSocketOptions {
-  sandboxId: string | undefined
-  enabled?: boolean
-}
-
-interface UseSandboxWebSocketReturn {
+interface UseBoxWebSocketReturn {
   events: WSEvent[]
   sendMessage: (content: string) => void
   sendExec: (command: string) => void
@@ -134,10 +15,10 @@ interface UseSandboxWebSocketReturn {
   isConnected: boolean
 }
 
-export function useSandboxWebSocket({
-  sandboxId,
+export function useBoxWebSocket({
+  boxId,
   enabled = true,
-}: UseSandboxWebSocketOptions): UseSandboxWebSocketReturn {
+}: UseBoxWebSocketOptions): UseBoxWebSocketReturn {
   const [events, setEvents] = useState<WSEvent[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
@@ -145,9 +26,9 @@ export function useSandboxWebSocket({
   const reconnectAttemptsRef = useRef(0)
 
   const connect = useCallback(() => {
-    if (!sandboxId || !enabled) return
+    if (!boxId || !enabled) return
 
-    const url = `${WS_URL}/api/sandboxes/${sandboxId}/ws`
+    const url = `${WS_URL}/api/boxes/${boxId}/ws`
     const ws = new WebSocket(url)
     wsRef.current = ws
 
@@ -170,7 +51,7 @@ export function useSandboxWebSocket({
       setIsConnected(false)
       wsRef.current = null
 
-      // Always reconnect for sandboxes (they're long-lived)
+      // Always reconnect (box lifecycle managed by server, not client)
       if (enabled) {
         const delay = Math.min(
           1000 * 2 ** reconnectAttemptsRef.current,
@@ -184,7 +65,7 @@ export function useSandboxWebSocket({
     ws.onerror = () => {
       ws.close()
     }
-  }, [sandboxId, enabled])
+  }, [boxId, enabled])
 
   useEffect(() => {
     setEvents([])

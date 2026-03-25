@@ -1,16 +1,14 @@
 import axios from "axios"
 import type {
+  Box,
+  BoxCreatePayload,
+  BoxEvent,
   Container,
   FileContent,
   FileListResponse,
   GitHubInstallation,
   GitHubRepo,
   GitHubStatus,
-  Sandbox,
-  SandboxCreatePayload,
-  Task,
-  TaskCreatePayload,
-  TaskEvent,
 } from "./types"
 import { API_URL } from "@/lib/constants"
 
@@ -20,33 +18,58 @@ const client = axios.create({
 })
 
 export const api = {
-  tasks: {
-    list: async (status?: string): Promise<Task[]> => {
-      const params = status ? { status } : undefined
-      const { data } = await client.get<Task[]>("/api/tasks", { params })
+  boxes: {
+    list: async (status?: string, trigger?: string): Promise<Box[]> => {
+      const params: Record<string, string> = {}
+      if (status) params.status = status
+      if (trigger) params.trigger = trigger
+      const { data } = await client.get<Box[]>("/api/boxes", { params })
       return data
     },
-    get: async (taskId: string): Promise<Task> => {
-      const { data } = await client.get<Task>(`/api/tasks/${taskId}`)
+    get: async (boxId: string): Promise<Box> => {
+      const { data } = await client.get<Box>(`/api/boxes/${boxId}`)
       return data
     },
-    create: async (payload: TaskCreatePayload): Promise<Task> => {
-      const { data } = await client.post<Task>("/api/tasks", payload)
+    create: async (payload: BoxCreatePayload): Promise<Box> => {
+      const { data } = await client.post<Box>("/api/boxes", payload)
       return data
     },
-    cancel: async (taskId: string): Promise<Task> => {
-      const { data } = await client.post<Task>(`/api/tasks/${taskId}/cancel`)
+    stop: async (boxId: string): Promise<Box> => {
+      const { data } = await client.post<Box>(`/api/boxes/${boxId}/stop`)
       return data
     },
-    delete: async (taskId: string): Promise<void> => {
-      await client.delete(`/api/tasks/${taskId}`)
+    cancel: async (boxId: string): Promise<void> => {
+      await client.post(`/api/boxes/${boxId}/cancel`)
     },
-    sendFeedback: async (taskId: string, message: string): Promise<void> => {
-      await client.post(`/api/tasks/${taskId}/feedback`, { message })
+    delete: async (boxId: string): Promise<void> => {
+      await client.delete(`/api/boxes/${boxId}`)
     },
-    getEvents: async (taskId: string): Promise<TaskEvent[]> => {
-      const { data } = await client.get<TaskEvent[]>(
-        `/api/tasks/${taskId}/events`,
+    sendMessage: async (boxId: string, message: string): Promise<void> => {
+      await client.post(`/api/boxes/${boxId}/message`, { message })
+    },
+    getEvents: async (boxId: string): Promise<BoxEvent[]> => {
+      const { data } = await client.get<BoxEvent[]>(
+        `/api/boxes/${boxId}/events`,
+      )
+      return data
+    },
+    listFiles: async (
+      boxId: string,
+      path: string = "/workspace",
+    ): Promise<FileListResponse> => {
+      const { data } = await client.get<FileListResponse>(
+        `/api/boxes/${boxId}/files`,
+        { params: { path } },
+      )
+      return data
+    },
+    readFile: async (
+      boxId: string,
+      path: string,
+    ): Promise<FileContent> => {
+      const { data } = await client.get<FileContent>(
+        `/api/boxes/${boxId}/files/read`,
+        { params: { path } },
       )
       return data
     },
@@ -58,49 +81,6 @@ export const api = {
     },
     stop: async (containerId: string): Promise<void> => {
       await client.post(`/api/containers/${containerId}/stop`)
-    },
-  },
-  sandboxes: {
-    list: async (): Promise<Sandbox[]> => {
-      const { data } = await client.get<Sandbox[]>("/api/sandboxes")
-      return data
-    },
-    get: async (sandboxId: string): Promise<Sandbox> => {
-      const { data } = await client.get<Sandbox>(`/api/sandboxes/${sandboxId}`)
-      return data
-    },
-    create: async (payload: SandboxCreatePayload): Promise<Sandbox> => {
-      const { data } = await client.post<Sandbox>("/api/sandboxes", payload)
-      return data
-    },
-    stop: async (sandboxId: string): Promise<Sandbox> => {
-      const { data } = await client.post<Sandbox>(
-        `/api/sandboxes/${sandboxId}/stop`,
-      )
-      return data
-    },
-    delete: async (sandboxId: string): Promise<void> => {
-      await client.delete(`/api/sandboxes/${sandboxId}`)
-    },
-    listFiles: async (
-      sandboxId: string,
-      path: string = "/workspace",
-    ): Promise<FileListResponse> => {
-      const { data } = await client.get<FileListResponse>(
-        `/api/sandboxes/${sandboxId}/files`,
-        { params: { path } },
-      )
-      return data
-    },
-    readFile: async (
-      sandboxId: string,
-      path: string,
-    ): Promise<FileContent> => {
-      const { data } = await client.get<FileContent>(
-        `/api/sandboxes/${sandboxId}/files/read`,
-        { params: { path } },
-      )
-      return data
     },
   },
   github: {

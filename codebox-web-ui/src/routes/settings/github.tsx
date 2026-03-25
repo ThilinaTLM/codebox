@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
-import { SidebarTrigger } from "@/components/ui/sidebar"
 import {
   useGitHubStatus,
   useGitHubInstallations,
@@ -57,7 +56,6 @@ function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-3 border-b px-4 py-3">
-        <SidebarTrigger />
         <h1 className="text-xl font-semibold tracking-tight">
           Settings &mdash; GitHub
         </h1>

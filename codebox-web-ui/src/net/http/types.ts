@@ -1,23 +1,23 @@
-export enum TaskStatus {
-  QUEUED = "queued",
+export enum BoxStatus {
   STARTING = "starting",
   RUNNING = "running",
-  WAITING_FOR_FEEDBACK = "waiting_for_feedback",
+  IDLE = "idle",
   COMPLETED = "completed",
   FAILED = "failed",
   CANCELLED = "cancelled",
+  STOPPED = "stopped",
 }
 
-export interface Task {
+export interface Box {
   id: string
-  title: string
-  prompt: string
-  system_prompt: string | null
+  name: string
   model: string
-  status: TaskStatus
+  status: BoxStatus
+  system_prompt: string | null
+  initial_prompt: string | null
+  auto_stop: boolean
   container_id: string | null
   container_name: string | null
-  host_port: number | null
   session_id: string | null
   workspace_path: string | null
   result_summary: string | null
@@ -25,6 +25,7 @@ export interface Task {
   created_at: string
   started_at: string | null
   completed_at: string | null
+  trigger: string | null
   // GitHub integration fields
   github_repo: string | null
   github_issue_number: number | null
@@ -33,9 +34,9 @@ export interface Task {
   github_pr_number: number | null
 }
 
-export interface TaskEvent {
+export interface BoxEvent {
   id: number
-  task_id: string
+  box_id: string
   event_type: string
   data: Record<string, unknown> | null
   created_at: string
@@ -44,15 +45,14 @@ export interface TaskEvent {
 export interface Container {
   id: string
   name: string
-  port: number | null
 }
 
-export interface TaskCreatePayload {
-  title: string
-  prompt: string
+export interface BoxCreatePayload {
+  name?: string | null
   model?: string | null
   system_prompt?: string | null
-  workspace_path?: string | null
+  initial_prompt?: string | null
+  auto_stop?: boolean | null
 }
 
 // WebSocket event types from orchestrator
@@ -63,39 +63,10 @@ export type WSEvent =
   | { type: "model_start" }
   | { type: "done"; content: string }
   | { type: "error"; detail: string }
-  | { type: "status_change"; status: TaskStatus | SandboxStatus }
+  | { type: "status_change"; status: BoxStatus }
   | { type: "ping" }
   | { type: "exec_output"; output: string }
   | { type: "exec_done"; output: string }
-
-// ── Sandbox types ────────────────────────────────────────────
-
-export enum SandboxStatus {
-  STARTING = "starting",
-  READY = "ready",
-  STOPPED = "stopped",
-  FAILED = "failed",
-}
-
-export interface Sandbox {
-  id: string
-  name: string
-  status: SandboxStatus
-  container_id: string | null
-  container_name: string | null
-  host_port: number | null
-  session_id: string | null
-  workspace_path: string | null
-  model: string
-  error_message: string | null
-  created_at: string
-  stopped_at: string | null
-}
-
-export interface SandboxCreatePayload {
-  name?: string | null
-  model?: string | null
-}
 
 export interface FileEntry {
   name: string

@@ -14,14 +14,14 @@ class Base(DeclarativeBase):
     pass
 
 
-class TaskStatus(str, PyEnum):
-    QUEUED = "queued"
+class BoxStatus(str, PyEnum):
     STARTING = "starting"
     RUNNING = "running"
-    WAITING_FOR_FEEDBACK = "waiting_for_feedback"
+    IDLE = "idle"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    STOPPED = "stopped"
 
 
 def _utcnow() -> datetime:
@@ -52,26 +52,31 @@ class GitHubEvent(Base):
     action: Mapped[str] = mapped_column(String(100))
     repository: Mapped[str] = mapped_column(String(255))  # "owner/repo"
     payload: Mapped[str] = mapped_column(Text)  # JSON
-    task_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("tasks.id"), nullable=True
+    box_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("boxes.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
-class Task(Base):
-    __tablename__ = "tasks"
+class Box(Base):
+    __tablename__ = "boxes"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
-    title: Mapped[str] = mapped_column(String(255))
-    prompt: Mapped[str] = mapped_column(Text)
-    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    name: Mapped[str] = mapped_column(String(255))
     model: Mapped[str] = mapped_column(String(255))
-    status: Mapped[TaskStatus] = mapped_column(
-        Enum(TaskStatus, native_enum=False, length=30),
-        default=TaskStatus.QUEUED,
+    status: Mapped[BoxStatus] = mapped_column(
+        Enum(BoxStatus, native_enum=False, length=30),
+        default=BoxStatus.STARTING,
     )
 
-    # Sandbox connection info
+    # Prompts
+    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    initial_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Behaviour
+    auto_stop: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Container connection info
     container_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     container_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     callback_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -87,7 +92,10 @@ class Task(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    # GitHub integration fields (nullable — only set for GitHub-triggered tasks)
+    # Trigger info
+    trigger: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    # GitHub integration fields (nullable — only set for GitHub-triggered boxes)
     github_installation_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("github_installations.id"), nullable=True
     )
@@ -98,85 +106,35 @@ class Task(Base):
     github_pr_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
-    events: Mapped[list[TaskEvent]] = relationship(
-        back_populates="task", cascade="all, delete-orphan", order_by="TaskEvent.id"
+    events: Mapped[list[BoxEvent]] = relationship(
+        back_populates="box", cascade="all, delete-orphan", order_by="BoxEvent.id"
     )
     feedback_requests: Mapped[list[FeedbackRequest]] = relationship(
-        back_populates="task", cascade="all, delete-orphan"
+        back_populates="box", cascade="all, delete-orphan"
     )
 
 
-class SandboxStatus(str, PyEnum):
-    STARTING = "starting"
-    READY = "ready"
-    STOPPED = "stopped"
-    FAILED = "failed"
-
-
-class Sandbox(Base):
-    __tablename__ = "sandboxes"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
-    name: Mapped[str] = mapped_column(String(255))
-    status: Mapped[SandboxStatus] = mapped_column(
-        Enum(SandboxStatus, native_enum=False, length=30),
-        default=SandboxStatus.STARTING,
-    )
-
-    # Container connection info
-    container_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    container_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    callback_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    workspace_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    model: Mapped[str] = mapped_column(String(255))
-
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    stopped_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
-    # Error tracking
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    # Relationships
-    events: Mapped[list[SandboxEvent]] = relationship(
-        back_populates="sandbox", cascade="all, delete-orphan", order_by="SandboxEvent.id"
-    )
-
-
-class SandboxEvent(Base):
-    __tablename__ = "sandbox_events"
+class BoxEvent(Base):
+    __tablename__ = "box_events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    sandbox_id: Mapped[str] = mapped_column(String(36), ForeignKey("sandboxes.id"))
+    box_id: Mapped[str] = mapped_column(String(36), ForeignKey("boxes.id"))
     event_type: Mapped[str] = mapped_column(String(50))
     data: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
-    sandbox: Mapped[Sandbox] = relationship(back_populates="events")
-
-
-class TaskEvent(Base):
-    __tablename__ = "task_events"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    task_id: Mapped[str] = mapped_column(String(36), ForeignKey("tasks.id"))
-    event_type: Mapped[str] = mapped_column(String(50))
-    data: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-
-    task: Mapped[Task] = relationship(back_populates="events")
+    box: Mapped[Box] = relationship(back_populates="events")
 
 
 class FeedbackRequest(Base):
     __tablename__ = "feedback_requests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    task_id: Mapped[str] = mapped_column(String(36), ForeignKey("tasks.id"))
+    box_id: Mapped[str] = mapped_column(String(36), ForeignKey("boxes.id"))
     question: Mapped[str] = mapped_column(Text)
     response: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    task: Mapped[Task] = relationship(back_populates="feedback_requests")
+    box: Mapped[Box] = relationship(back_populates="feedback_requests")

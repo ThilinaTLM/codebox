@@ -58,18 +58,18 @@ async def github_webhook(request: Request) -> JSONResponse:
     payload = await request.json()
 
     # Process asynchronously — GitHub expects a fast 200 response
-    task_service = request.app.state.task_service
+    box_service = request.app.state.box_service
     asyncio.create_task(
-        _process_webhook_safe(github_service, event_type, delivery_id, payload, task_service)
+        _process_webhook_safe(github_service, event_type, delivery_id, payload, box_service)
     )
 
     return JSONResponse({"status": "accepted"}, status_code=200)
 
 
-async def _process_webhook_safe(github_service, event_type, delivery_id, payload, task_service):
+async def _process_webhook_safe(github_service, event_type, delivery_id, payload, box_service):
     """Wrapper to catch and log errors from async webhook processing."""
     try:
-        await github_service.process_webhook(event_type, delivery_id, payload, task_service)
+        await github_service.process_webhook(event_type, delivery_id, payload, box_service)
     except Exception:
         logger.exception(
             "Error processing webhook %s (delivery %s)", event_type, delivery_id

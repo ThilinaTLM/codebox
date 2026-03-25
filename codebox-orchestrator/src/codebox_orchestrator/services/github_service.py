@@ -206,11 +206,11 @@ class GitHubService:
         event_type: str,
         delivery_id: str,
         payload: dict,
-        task_service: object,
+        box_service: object,
     ) -> str | None:
         """Process a GitHub webhook payload.
 
-        Returns the task_id if a task was created, else None.
+        Returns the box_id if a box was created, else None.
         """
         # Dedup check
         async with self._sf() as db:
@@ -251,15 +251,15 @@ class GitHubService:
             return None
 
         if event_type == "issue_comment" and action == "created":
-            return await self._handle_issue_comment(payload, event_id, task_service)
+            return await self._handle_issue_comment(payload, event_id, box_service)
 
         if event_type == "pull_request_review_comment" and action == "created":
-            return await self._handle_pr_review_comment(payload, event_id, task_service)
+            return await self._handle_pr_review_comment(payload, event_id, box_service)
 
         return None
 
     async def _handle_issue_comment(
-        self, payload: dict, event_id: str, task_service: object
+        self, payload: dict, event_id: str, box_service: object
     ) -> str | None:
         """Handle an issue_comment.created event."""
         comment = payload.get("comment", {})
@@ -345,13 +345,15 @@ class GitHubService:
             "- You are inside a disposable sandbox."
         )
 
-        # Create task
-        from codebox_orchestrator.services.task_service import TaskService
-        ts: TaskService = task_service  # type: ignore[assignment]
-        task = await ts.create_task(
-            title=f"[GitHub] #{issue_number}: {issue_title[:100]}",
-            prompt=prompt,
+        # Create box
+        from codebox_orchestrator.services.box_service import BoxService
+        bs: BoxService = box_service  # type: ignore[assignment]
+        box = await bs.create_box(
+            name=f"[GitHub] #{issue_number}: {issue_title[:100]}",
+            initial_prompt=prompt,
             system_prompt=system_prompt,
+            auto_stop=True,
+            trigger="github_issue",
             github_installation_id=db_installation.id,
             github_repo=repo_full_name,
             github_issue_number=issue_number,
@@ -359,15 +361,12 @@ class GitHubService:
             github_branch=branch,
         )
 
-        # Update event with task_id
+        # Update event with box_id
         async with self._sf() as db:
             ev = await db.get(GitHubEvent, event_id)
             if ev:
-                ev.task_id = task.id
+                ev.box_id = box.id
                 await db.commit()
-
-        # Start the task
-        await ts.start_task(task.id)
 
         # Post a reaction on the triggering comment
         try:
@@ -386,13 +385,13 @@ class GitHubService:
             logger.warning("Failed to post reaction on comment", exc_info=True)
 
         logger.info(
-            "Created task %s from issue comment on %s#%d",
-            task.id, repo_full_name, issue_number,
+            "Created box %s from issue comment on %s#%d",
+            box.id, repo_full_name, issue_number,
         )
-        return task.id
+        return box.id
 
     async def _handle_pr_review_comment(
-        self, payload: dict, event_id: str, task_service: object
+        self, payload: dict, event_id: str, box_service: object
     ) -> str | None:
         """Handle a pull_request_review_comment.created event."""
         comment = payload.get("comment", {})
@@ -466,12 +465,14 @@ class GitHubService:
             "- You are inside a disposable sandbox."
         )
 
-        from codebox_orchestrator.services.task_service import TaskService
-        ts: TaskService = task_service  # type: ignore[assignment]
-        task = await ts.create_task(
-            title=f"[GitHub PR] #{pr_number}: {pr_title[:100]}",
-            prompt=prompt,
+        from codebox_orchestrator.services.box_service import BoxService
+        bs: BoxService = box_service  # type: ignore[assignment]
+        box = await bs.create_box(
+            name=f"[GitHub PR] #{pr_number}: {pr_title[:100]}",
+            initial_prompt=prompt,
             system_prompt=system_prompt,
+            auto_stop=True,
+            trigger="github_pr",
             github_installation_id=db_installation.id,
             github_repo=repo_full_name,
             github_issue_number=pr_number,
@@ -482,15 +483,14 @@ class GitHubService:
         async with self._sf() as db:
             ev = await db.get(GitHubEvent, event_id)
             if ev:
-                ev.task_id = task.id
+                ev.box_id = box.id
                 await db.commit()
 
-        await ts.start_task(task.id)
         logger.info(
-            "Created task %s from PR review comment on %s#%d",
-            task.id, repo_full_name, pr_number,
+            "Created box %s from PR review comment on %s#%d",
+            box.id, repo_full_name, pr_number,
         )
-        return task.id
+        return box.id
 
     # ------------------------------------------------------------------
     # Context extraction

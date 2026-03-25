@@ -4,32 +4,52 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 import { api } from "@/net/http/api"
-import type { SandboxCreatePayload, TaskCreatePayload } from "@/net/http/types"
+import type { BoxCreatePayload } from "@/net/http/types"
 
-// ── Task queries ──────────────────────────────────────────────
+// ── Box queries ──────────────────────────────────────────────
 
-export function useTasks(status?: string) {
+export function useBoxes(status?: string, trigger?: string) {
   return useQuery({
-    queryKey: ["tasks", status ?? "all"],
-    queryFn: () => api.tasks.list(status),
+    queryKey: ["boxes", status ?? "all", trigger ?? "all"],
+    queryFn: () => api.boxes.list(status, trigger),
     refetchInterval: 5000,
   })
 }
 
-export function useTask(taskId: string | undefined) {
+export function useBox(boxId: string | undefined) {
   return useQuery({
-    queryKey: ["tasks", taskId],
-    queryFn: () => api.tasks.get(taskId!),
-    enabled: !!taskId,
+    queryKey: ["boxes", boxId],
+    queryFn: () => api.boxes.get(boxId!),
+    enabled: !!boxId,
     refetchInterval: 3000,
   })
 }
 
-export function useTaskEvents(taskId: string | undefined) {
+export function useBoxEvents(boxId: string | undefined) {
   return useQuery({
-    queryKey: ["tasks", taskId, "events"],
-    queryFn: () => api.tasks.getEvents(taskId!),
-    enabled: !!taskId,
+    queryKey: ["boxes", boxId, "events"],
+    queryFn: () => api.boxes.getEvents(boxId!),
+    enabled: !!boxId,
+  })
+}
+
+export function useBoxFiles(boxId: string | undefined, path: string) {
+  return useQuery({
+    queryKey: ["boxes", boxId, "files", path],
+    queryFn: () => api.boxes.listFiles(boxId!, path),
+    enabled: !!boxId,
+    refetchInterval: 10000,
+  })
+}
+
+export function useBoxFileContent(
+  boxId: string | undefined,
+  path: string | null,
+) {
+  return useQuery({
+    queryKey: ["boxes", boxId, "file-content", path],
+    queryFn: () => api.boxes.readFile(boxId!, path!),
+    enabled: !!boxId && !!path,
   })
 }
 
@@ -43,43 +63,54 @@ export function useContainers() {
   })
 }
 
-// ── Mutations ─────────────────────────────────────────────────
+// ── Box mutations ────────────────────────────────────────────
 
-export function useCreateTask() {
+export function useCreateBox() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: TaskCreatePayload) => api.tasks.create(payload),
+    mutationFn: (payload: BoxCreatePayload) => api.boxes.create(payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tasks"] })
+      qc.invalidateQueries({ queryKey: ["boxes"] })
     },
   })
 }
 
-export function useCancelTask() {
+export function useStopBox() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (taskId: string) => api.tasks.cancel(taskId),
-    onSuccess: (_data, taskId) => {
-      qc.invalidateQueries({ queryKey: ["tasks", taskId] })
-      qc.invalidateQueries({ queryKey: ["tasks"] })
+    mutationFn: (boxId: string) => api.boxes.stop(boxId),
+    onSuccess: (_data, boxId) => {
+      qc.invalidateQueries({ queryKey: ["boxes", boxId] })
+      qc.invalidateQueries({ queryKey: ["boxes"] })
     },
   })
 }
 
-export function useDeleteTask() {
+export function useCancelBox() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (taskId: string) => api.tasks.delete(taskId),
+    mutationFn: (boxId: string) => api.boxes.cancel(boxId),
+    onSuccess: (_data, boxId) => {
+      qc.invalidateQueries({ queryKey: ["boxes", boxId] })
+      qc.invalidateQueries({ queryKey: ["boxes"] })
+    },
+  })
+}
+
+export function useDeleteBox() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (boxId: string) => api.boxes.delete(boxId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tasks"] })
+      qc.invalidateQueries({ queryKey: ["boxes"] })
     },
   })
 }
 
-export function useSendFeedback() {
+export function useSendMessage() {
   return useMutation({
-    mutationFn: ({ taskId, message }: { taskId: string; message: string }) =>
-      api.tasks.sendFeedback(taskId, message),
+    mutationFn: ({ boxId, message }: { boxId: string; message: string }) =>
+      api.boxes.sendMessage(boxId, message),
   })
 }
 
@@ -89,82 +120,6 @@ export function useStopContainer() {
     mutationFn: (containerId: string) => api.containers.stop(containerId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["containers"] })
-    },
-  })
-}
-
-// ── Sandbox queries ──────────────────────────────────────────
-
-export function useSandboxes() {
-  return useQuery({
-    queryKey: ["sandboxes"],
-    queryFn: () => api.sandboxes.list(),
-    refetchInterval: 5000,
-  })
-}
-
-export function useSandbox(sandboxId: string | undefined) {
-  return useQuery({
-    queryKey: ["sandboxes", sandboxId],
-    queryFn: () => api.sandboxes.get(sandboxId!),
-    enabled: !!sandboxId,
-    refetchInterval: 3000,
-  })
-}
-
-export function useSandboxFiles(
-  sandboxId: string | undefined,
-  path: string,
-) {
-  return useQuery({
-    queryKey: ["sandboxes", sandboxId, "files", path],
-    queryFn: () => api.sandboxes.listFiles(sandboxId!, path),
-    enabled: !!sandboxId,
-    refetchInterval: 10000,
-  })
-}
-
-export function useSandboxFileContent(
-  sandboxId: string | undefined,
-  path: string | null,
-) {
-  return useQuery({
-    queryKey: ["sandboxes", sandboxId, "file-content", path],
-    queryFn: () => api.sandboxes.readFile(sandboxId!, path!),
-    enabled: !!sandboxId && !!path,
-  })
-}
-
-// ── Sandbox mutations ────────────────────────────────────────
-
-export function useCreateSandbox() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: SandboxCreatePayload) =>
-      api.sandboxes.create(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sandboxes"] })
-    },
-  })
-}
-
-export function useStopSandbox() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (sandboxId: string) => api.sandboxes.stop(sandboxId),
-    onSuccess: (_data, sandboxId) => {
-      qc.invalidateQueries({ queryKey: ["sandboxes", sandboxId] })
-      qc.invalidateQueries({ queryKey: ["sandboxes"] })
-    },
-  })
-}
-
-export function useDeleteSandbox() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (sandboxId: string) => api.sandboxes.delete(sandboxId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sandboxes"] })
     },
   })
 }

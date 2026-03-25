@@ -1,4 +1,4 @@
-"""Interactive chat loop for a task via the orchestrator WebSocket."""
+"""Interactive chat loop for a box via the orchestrator WebSocket."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from rich.markdown import Markdown
 from codebox_cli.orchestrator_client import OrchestratorClient
 
 
-async def _stream_task_events(
+async def _stream_box_events(
     client: OrchestratorClient,
     ws,
     console: Console,
@@ -60,22 +60,22 @@ async def _stream_task_events(
 
 async def orchestrator_chat_loop(
     client: OrchestratorClient,
-    task_id: str,
+    box_id: str,
     *,
     watch_only: bool = False,
 ) -> None:
-    """Connect to a task's WebSocket and interactively chat or watch events.
+    """Connect to a box's WebSocket and interactively chat or watch events.
 
     If *watch_only* is True, just stream events without prompting for input
-    (used right after creating a task).
+    (used right after creating a box with an initial prompt).
     """
     console = Console()
-    ws = await client.connect_task(task_id)
+    ws = await client.connect_box(box_id)
 
     try:
         if watch_only:
-            console.print(f"[dim]Streaming task {task_id[:8]}...[/dim]\n")
-            await _stream_task_events(client, ws, console)
+            console.print(f"[dim]Streaming box {box_id[:8]}...[/dim]\n")
+            await _stream_box_events(client, ws, console)
             return
 
         # Interactive mode: prompt for follow-up messages
@@ -83,14 +83,14 @@ async def orchestrator_chat_loop(
             history=FileHistory(".codebox_history")
         )
 
-        console.print("[dim]Orchestrator Chat[/dim]")
-        console.print("[dim]Type 'exit' to quit. Ctrl+C to cancel running task.[/dim]\n")
+        console.print("[dim]Codebox Chat[/dim]")
+        console.print("[dim]Type 'exit' to quit. Ctrl+C to cancel. Prefix with ! for shell.[/dim]\n")
 
-        # First, stream the initial task response
-        await _stream_task_events(client, ws, console)
+        # Stream initial events if any
+        await _stream_box_events(client, ws, console)
         console.print()
 
-        # Then allow follow-up messages
+        # Interactive chat
         while True:
             try:
                 user_text = await prompt_session.prompt_async("> ")
@@ -103,9 +103,15 @@ async def orchestrator_chat_loop(
             if user_text.lower() in ("exit", "quit"):
                 break
 
-            await client.send_message(ws, user_text)
+            if user_text.startswith("!"):
+                command = user_text[1:].strip()
+                if command:
+                    await client.send_exec(ws, command)
+            else:
+                await client.send_message(ws, user_text)
+
             console.print("[dim]Thinking...[/dim]")
-            await _stream_task_events(client, ws, console)
+            await _stream_box_events(client, ws, console)
             console.print()
 
     finally:

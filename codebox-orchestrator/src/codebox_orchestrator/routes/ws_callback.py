@@ -1,7 +1,7 @@
 """Internal WebSocket endpoint that sandbox containers connect to.
 
-Sandbox containers initiate the connection back to this endpoint after
-startup, reversing the traditional orchestrator→sandbox direction.
+Containers initiate the connection back to this endpoint after startup,
+reversing the traditional orchestrator→container direction.
 """
 
 from __future__ import annotations
@@ -12,14 +12,7 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from codebox_orchestrator.db.models import (
-    Sandbox,
-    SandboxEvent,
-    SandboxStatus,
-    Task,
-    TaskEvent,
-    TaskStatus,
-)
+from codebox_orchestrator.db.models import Box, BoxEvent, BoxStatus
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
 from codebox_orchestrator.services.relay_service import RelayService
 
@@ -30,7 +23,7 @@ router = APIRouter()
 
 @router.websocket("/api/internal/sandbox/connect")
 async def sandbox_callback(ws: WebSocket) -> None:
-    """Accept inbound WebSocket from a sandbox container."""
+    """Accept inbound WebSocket from a container."""
     token = ws.query_params.get("token", "")
 
     registry: CallbackRegistry = ws.app.state.callback_registry
@@ -44,14 +37,14 @@ async def sandbox_callback(ws: WebSocket) -> None:
 
     entity_id, entity_type = result
     await ws.accept()
-    logger.info("Sandbox callback accepted for %s %s", entity_type, entity_id)
+    logger.info("Callback accepted for %s %s", entity_type, entity_id)
 
     # Wait for register message
     try:
         raw = await ws.receive_text()
         reg_msg = json.loads(raw)
     except (WebSocketDisconnect, Exception) as exc:
-        logger.warning("Sandbox %s disconnected during registration: %s", entity_id, exc)
+        logger.warning("Box %s disconnected during registration: %s", entity_id, exc)
         return
 
     if reg_msg.get("type") != "register":
@@ -65,14 +58,11 @@ async def sandbox_callback(ws: WebSocket) -> None:
     registry.set_connection(entity_id, ws)
 
     try:
-        if entity_type == "sandbox":
-            await _handle_sandbox(ws, entity_id, session_id, registry, relay)
-        elif entity_type == "task":
-            await _handle_task(ws, entity_id, session_id, registry, relay)
+        await _handle_box(ws, entity_id, session_id, registry, relay)
     except WebSocketDisconnect:
-        logger.info("%s %s disconnected", entity_type, entity_id)
+        logger.info("Box %s disconnected", entity_id)
     except Exception:
-        logger.exception("Error in callback relay for %s %s", entity_type, entity_id)
+        logger.exception("Error in callback relay for box %s", entity_id)
     finally:
         registry.remove(entity_id)
         try:
@@ -81,87 +71,54 @@ async def sandbox_callback(ws: WebSocket) -> None:
             pass
 
 
-async def _handle_sandbox(
+async def _handle_box(
     ws: WebSocket,
-    sandbox_id: str,
+    box_id: str,
     session_id: str,
     registry: CallbackRegistry,
     relay: RelayService,
 ) -> None:
-    """Handle an interactive sandbox callback connection."""
+    """Handle a unified box callback connection."""
     from sqlalchemy.ext.asyncio import async_sessionmaker
     sf: async_sessionmaker = ws.app.state._sf
 
-    # Update DB: mark sandbox as ready
+    # Load box to determine behaviour
     async with sf() as db:
-        sandbox = await db.get(Sandbox, sandbox_id)
-        if sandbox:
-            sandbox.session_id = session_id
-            sandbox.status = SandboxStatus.READY
-            await db.commit()
-
-    await relay.broadcast(
-        sandbox_id, {"type": "status_change", "status": SandboxStatus.READY.value}
-    )
-
-    logger.info("Sandbox %s is READY (session %s)", sandbox_id, session_id)
-
-    # Relay loop: read events from sandbox, persist + broadcast
-    async for raw in ws.iter_text():
-        event = json.loads(raw)
-        event_type = event.get("type", "")
-
-        # Handle file-op responses
-        if event_type in ("list_files_result", "read_file_result"):
-            request_id = event.get("request_id", "")
-            registry.resolve_pending_request(sandbox_id, request_id, event)
-            continue
-
-        # Persist event
-        await _persist_sandbox_event(sf, sandbox_id, event_type, event)
-
-        # Broadcast to subscribers
-        await relay.broadcast(sandbox_id, event)
-
-
-async def _handle_task(
-    ws: WebSocket,
-    task_id: str,
-    session_id: str,
-    registry: CallbackRegistry,
-    relay: RelayService,
-) -> None:
-    """Handle a task callback connection."""
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-    sf: async_sessionmaker = ws.app.state._sf
-
-    # Update DB: mark task as running
-    async with sf() as db:
-        task = await db.get(Task, task_id)
-        if task is None:
+        box = await db.get(Box, box_id)
+        if box is None:
             return
-        task.session_id = session_id
-        task.status = TaskStatus.RUNNING
-        prompt = task.prompt
+        has_initial_prompt = bool(box.initial_prompt)
+        initial_prompt = box.initial_prompt
+        auto_stop = box.auto_stop
+        box.session_id = session_id
+
+        if has_initial_prompt:
+            box.status = BoxStatus.RUNNING
+        else:
+            box.status = BoxStatus.IDLE
         await db.commit()
 
+    status = BoxStatus.RUNNING if has_initial_prompt else BoxStatus.IDLE
     await relay.broadcast(
-        task_id, {"type": "status_change", "status": TaskStatus.RUNNING.value}
+        box_id, {"type": "status_change", "status": status.value}
     )
+    logger.info("Box %s is %s (session %s)", box_id, status.value, session_id)
 
-    logger.info("Task %s is RUNNING (session %s)", task_id, session_id)
+    if has_initial_prompt:
+        # Wait for pre-start setup to complete (GitHub setup, etc.)
+        ready = await registry.wait_for_prompt_ready(box_id, timeout=300)
+        if not ready:
+            logger.error("Box %s: pre-start setup timed out", box_id)
+            await _set_box_failed(sf, relay, box_id, "Pre-start setup timed out")
+            return
 
-    # Wait for pre-start setup to complete (non-GitHub tasks are signalled immediately)
-    ready = await registry.wait_for_prompt_ready(task_id, timeout=300)
-    if not ready:
-        logger.error("Task %s: pre-start setup timed out", task_id)
-        await _set_task_failed(sf, relay, task_id, "Pre-start setup timed out")
-        return
+        # Send the initial prompt
+        await ws.send_json({"type": "message", "content": initial_prompt})
+    else:
+        # No initial prompt — signal prompt_ready immediately (already set by service)
+        pass
 
-    # Send the task prompt to the sandbox
-    await ws.send_json({"type": "message", "content": prompt})
-
-    # Relay loop: read events from sandbox, persist + broadcast
+    # Relay loop: read events from container, persist + broadcast
     async for raw in ws.iter_text():
         event = json.loads(raw)
         event_type = event.get("type", "")
@@ -169,23 +126,28 @@ async def _handle_task(
         # Handle file-op responses
         if event_type in ("list_files_result", "read_file_result"):
             request_id = event.get("request_id", "")
-            registry.resolve_pending_request(task_id, request_id, event)
+            registry.resolve_pending_request(box_id, request_id, event)
             continue
 
         # Persist event
-        await _persist_task_event(sf, task_id, event_type, event)
+        await _persist_box_event(sf, box_id, event_type, event)
 
         # Broadcast to subscribers
-        await relay.broadcast(task_id, event)
+        await relay.broadcast(box_id, event)
 
         # Handle terminal events
         if event_type == "done":
-            content = event.get("content", "")
-            await _set_task_completed(sf, relay, task_id, content)
-            return
+            if auto_stop:
+                content = event.get("content", "")
+                await _set_box_completed(sf, relay, box_id, content)
+                return
+            else:
+                # Go to IDLE — box stays alive for follow-up
+                await _set_box_idle(sf, relay, box_id)
+
         elif event_type == "error":
             detail = event.get("detail", "Unknown error")
-            await _set_task_failed(sf, relay, task_id, detail)
+            await _set_box_failed(sf, relay, box_id, detail)
             return
 
 
@@ -194,12 +156,12 @@ async def _handle_task(
 # ------------------------------------------------------------------
 
 
-async def _persist_sandbox_event(
-    sf: Any, sandbox_id: str, event_type: str, data: dict[str, Any]
+async def _persist_box_event(
+    sf: Any, box_id: str, event_type: str, data: dict[str, Any]
 ) -> None:
     async with sf() as db:
-        ev = SandboxEvent(
-            sandbox_id=sandbox_id,
+        ev = BoxEvent(
+            box_id=box_id,
             event_type=event_type,
             data=json.dumps(data),
         )
@@ -207,45 +169,43 @@ async def _persist_sandbox_event(
         await db.commit()
 
 
-async def _persist_task_event(
-    sf: Any, task_id: str, event_type: str, data: dict[str, Any]
-) -> None:
-    async with sf() as db:
-        ev = TaskEvent(
-            task_id=task_id,
-            event_type=event_type,
-            data=json.dumps(data),
-        )
-        db.add(ev)
-        await db.commit()
-
-
-async def _set_task_completed(sf: Any, relay: RelayService, task_id: str, result: str) -> None:
+async def _set_box_completed(sf: Any, relay: RelayService, box_id: str, result: str) -> None:
     from datetime import datetime, timezone
     async with sf() as db:
-        task = await db.get(Task, task_id)
-        if task:
-            task.status = TaskStatus.COMPLETED
-            task.result_summary = result
-            task.completed_at = datetime.now(timezone.utc)
+        box = await db.get(Box, box_id)
+        if box:
+            box.status = BoxStatus.COMPLETED
+            box.result_summary = result
+            box.completed_at = datetime.now(timezone.utc)
             await db.commit()
     await relay.broadcast(
-        task_id, {"type": "status_change", "status": TaskStatus.COMPLETED.value}
+        box_id, {"type": "status_change", "status": BoxStatus.COMPLETED.value}
     )
 
 
-async def _set_task_failed(sf: Any, relay: RelayService, task_id: str, error: str) -> None:
-    from datetime import datetime, timezone
+async def _set_box_idle(sf: Any, relay: RelayService, box_id: str) -> None:
     async with sf() as db:
-        task = await db.get(Task, task_id)
-        if task:
-            task.status = TaskStatus.FAILED
-            task.error_message = error
-            task.completed_at = datetime.now(timezone.utc)
+        box = await db.get(Box, box_id)
+        if box:
+            box.status = BoxStatus.IDLE
             await db.commit()
     await relay.broadcast(
-        task_id, {"type": "status_change", "status": TaskStatus.FAILED.value}
+        box_id, {"type": "status_change", "status": BoxStatus.IDLE.value}
+    )
+
+
+async def _set_box_failed(sf: Any, relay: RelayService, box_id: str, error: str) -> None:
+    from datetime import datetime, timezone
+    async with sf() as db:
+        box = await db.get(Box, box_id)
+        if box:
+            box.status = BoxStatus.FAILED
+            box.error_message = error
+            box.completed_at = datetime.now(timezone.utc)
+            await db.commit()
+    await relay.broadcast(
+        box_id, {"type": "status_change", "status": BoxStatus.FAILED.value}
     )
     await relay.broadcast(
-        task_id, {"type": "error", "detail": error}
+        box_id, {"type": "error", "detail": error}
     )

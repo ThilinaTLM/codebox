@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowUp01Icon } from "@hugeicons/core-free-icons"
 
-export function SandboxInput({
+export function BoxInput({
   onSendMessage,
   onSendExec,
   disabled,
@@ -44,7 +44,7 @@ export function SandboxInput({
       <textarea
         placeholder={
           disabled
-            ? "Sandbox is not active..."
+            ? "Box is not active..."
             : "Message the agent, or type ! for shell..."
         }
         value={input}

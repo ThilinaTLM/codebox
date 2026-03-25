@@ -60,47 +60,51 @@ class OrchestratorClient:
             return False
 
     # ------------------------------------------------------------------
-    # Task CRUD
+    # Box CRUD
     # ------------------------------------------------------------------
 
-    def create_task(
+    def create_box(
         self,
-        title: str,
-        prompt: str,
+        name: str | None = None,
+        initial_prompt: str | None = None,
         model: str | None = None,
         system_prompt: str | None = None,
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {"title": title, "prompt": prompt}
+        payload: dict[str, Any] = {}
+        if name:
+            payload["name"] = name
+        if initial_prompt:
+            payload["initial_prompt"] = initial_prompt
         if model:
             payload["model"] = model
         if system_prompt:
             payload["system_prompt"] = system_prompt
-        return self._rest_request("POST", "/api/tasks", payload)
+        return self._rest_request("POST", "/api/boxes", payload)
 
-    def list_tasks(self, status: str | None = None) -> list[dict[str, Any]]:
-        path = "/api/tasks"
+    def list_boxes(self, status: str | None = None) -> list[dict[str, Any]]:
+        path = "/api/boxes"
         if status:
             path += f"?status={status}"
         return self._rest_request("GET", path)
 
-    def get_task(self, task_id: str) -> dict[str, Any]:
-        return self._rest_request("GET", f"/api/tasks/{task_id}")
+    def get_box(self, box_id: str) -> dict[str, Any]:
+        return self._rest_request("GET", f"/api/boxes/{box_id}")
 
-    def cancel_task(self, task_id: str) -> dict[str, Any]:
-        return self._rest_request("POST", f"/api/tasks/{task_id}/cancel")
+    def stop_box(self, box_id: str) -> dict[str, Any]:
+        return self._rest_request("POST", f"/api/boxes/{box_id}/stop")
 
-    def delete_task(self, task_id: str) -> None:
-        self._rest_request("DELETE", f"/api/tasks/{task_id}")
+    def delete_box(self, box_id: str) -> None:
+        self._rest_request("DELETE", f"/api/boxes/{box_id}")
 
     # ------------------------------------------------------------------
     # WebSocket
     # ------------------------------------------------------------------
 
-    async def connect_task(
-        self, task_id: str
+    async def connect_box(
+        self, box_id: str
     ) -> websockets.asyncio.client.ClientConnection:
-        """Open a WebSocket connection to stream task events."""
-        url = f"{self.ws_url}/api/tasks/{task_id}/ws"
+        """Open a WebSocket connection to stream box events."""
+        url = f"{self.ws_url}/api/boxes/{box_id}/ws"
         return await websockets.connect(url)
 
     @staticmethod
@@ -108,6 +112,12 @@ class OrchestratorClient:
         ws: websockets.asyncio.client.ClientConnection, content: str
     ) -> None:
         await ws.send(json.dumps({"type": "message", "content": content}))
+
+    @staticmethod
+    async def send_exec(
+        ws: websockets.asyncio.client.ClientConnection, command: str
+    ) -> None:
+        await ws.send(json.dumps({"type": "exec", "content": command}))
 
     @staticmethod
     async def send_cancel(

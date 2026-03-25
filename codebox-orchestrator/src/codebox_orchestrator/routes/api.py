@@ -1,37 +1,29 @@
-"""JSON REST API routes for task and container management."""
+"""JSON REST API routes for box and container management."""
 
 from __future__ import annotations
 
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
 
-from codebox_orchestrator.db.models import TaskStatus
+from codebox_orchestrator.db.models import BoxStatus
 from codebox_orchestrator.schemas import (
+    BoxCreate,
+    BoxEventResponse,
+    BoxMessage,
+    BoxResponse,
     ContainerResponse,
-    FeedbackMessage,
-    SandboxCreate,
-    SandboxResponse,
-    TaskCreate,
-    TaskEventResponse,
-    TaskResponse,
 )
 from codebox_orchestrator.services import docker_service
-from codebox_orchestrator.services.sandbox_service import SandboxService
-from codebox_orchestrator.services.task_service import TaskService
+from codebox_orchestrator.services.box_service import BoxService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 
 
-def _ts(request: Request) -> TaskService:
-    return request.app.state.task_service
-
-
-def _ss(request: Request) -> SandboxService:
-    return request.app.state.sandbox_service
+def _bs(request: Request) -> BoxService:
+    return request.app.state.box_service
 
 
 # ── Health ───────────────────────────────────────────────────────
@@ -42,82 +34,124 @@ async def health_check():
     return {"status": "ok"}
 
 
-# ── Tasks ────────────────────────────────────────────────────────
+# ── Boxes ────────────────────────────────────────────────────────
 
 
-@router.post("/tasks", status_code=201)
-async def create_task(request: Request, body: TaskCreate) -> TaskResponse:
-    """Create a new task and auto-start it."""
-    ts = _ts(request)
-    task = await ts.create_task(
-        title=body.title,
-        prompt=body.prompt,
+@router.post("/boxes", status_code=201)
+async def create_box(request: Request, body: BoxCreate) -> BoxResponse:
+    """Create and auto-start a new box."""
+    bs = _bs(request)
+    box = await bs.create_box(
+        name=body.name,
         model=body.model,
         system_prompt=body.system_prompt,
-        workspace_path=body.workspace_path,
+        initial_prompt=body.initial_prompt,
+        auto_stop=body.auto_stop,
     )
-    await ts.start_task(task.id)
-    return TaskResponse.from_orm_task(task)
+    return BoxResponse.from_orm_box(box)
 
 
-@router.get("/tasks")
-async def list_tasks(request: Request, status: str | None = None) -> list[TaskResponse]:
-    """List tasks, optionally filtered by status."""
-    ts = _ts(request)
-    task_status = None
+@router.get("/boxes")
+async def list_boxes(
+    request: Request,
+    status: str | None = None,
+    trigger: str | None = None,
+) -> list[BoxResponse]:
+    """List boxes, optionally filtered by status or trigger."""
+    bs = _bs(request)
+    box_status = None
     if status:
         try:
-            task_status = TaskStatus(status)
+            box_status = BoxStatus(status)
         except ValueError:
             raise HTTPException(400, f"Invalid status: {status}")
-    tasks = await ts.list_tasks(status=task_status)
-    return [TaskResponse.from_orm_task(t) for t in tasks]
+    boxes = await bs.list_boxes(status=box_status, trigger=trigger)
+    return [BoxResponse.from_orm_box(b) for b in boxes]
 
 
-@router.get("/tasks/{task_id}")
-async def get_task(request: Request, task_id: str) -> TaskResponse:
-    ts = _ts(request)
-    task = await ts.get_task(task_id)
-    if task is None:
-        raise HTTPException(404, "Task not found")
-    return TaskResponse.from_orm_task(task)
+@router.get("/boxes/{box_id}")
+async def get_box(request: Request, box_id: str) -> BoxResponse:
+    bs = _bs(request)
+    box = await bs.get_box(box_id)
+    if box is None:
+        raise HTTPException(404, "Box not found")
+    return BoxResponse.from_orm_box(box)
 
 
-@router.get("/tasks/{task_id}/events")
-async def get_task_events(request: Request, task_id: str) -> list[TaskEventResponse]:
-    """Return persisted events for a task."""
-    ts = _ts(request)
-    task = await ts.get_task(task_id)
-    if task is None:
-        raise HTTPException(404, "Task not found")
-    events = await ts.get_task_events(task_id)
-    return [TaskEventResponse.from_orm_event(e) for e in events]
+@router.get("/boxes/{box_id}/events")
+async def get_box_events(request: Request, box_id: str) -> list[BoxEventResponse]:
+    """Return persisted events for a box."""
+    bs = _bs(request)
+    box = await bs.get_box(box_id)
+    if box is None:
+        raise HTTPException(404, "Box not found")
+    events = await bs.get_box_events(box_id)
+    return [BoxEventResponse.from_orm_event(e) for e in events]
 
 
-@router.post("/tasks/{task_id}/cancel")
-async def cancel_task(request: Request, task_id: str) -> TaskResponse:
-    ts = _ts(request)
-    await ts.cancel_task(task_id)
-    task = await ts.get_task(task_id)
-    if task is None:
-        raise HTTPException(404, "Task not found")
-    return TaskResponse.from_orm_task(task)
+@router.post("/boxes/{box_id}/stop")
+async def stop_box(request: Request, box_id: str) -> BoxResponse:
+    bs = _bs(request)
+    await bs.stop_box(box_id)
+    box = await bs.get_box(box_id)
+    if box is None:
+        raise HTTPException(404, "Box not found")
+    return BoxResponse.from_orm_box(box)
 
 
-@router.post("/tasks/{task_id}/feedback")
-async def submit_feedback(request: Request, task_id: str, body: FeedbackMessage):
-    ts = _ts(request)
+@router.post("/boxes/{box_id}/cancel")
+async def cancel_box(request: Request, box_id: str):
+    bs = _bs(request)
+    await bs.cancel_box(box_id)
+    return {"status": "cancelled"}
+
+
+@router.post("/boxes/{box_id}/message")
+async def send_message(request: Request, box_id: str, body: BoxMessage):
+    bs = _bs(request)
     try:
-        await ts.send_followup(task_id, body.message)
+        await bs.send_message(box_id, body.message)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     return {"status": "sent"}
 
 
-@router.delete("/tasks/{task_id}", status_code=204)
-async def delete_task(request: Request, task_id: str):
-    ts = _ts(request)
-    await ts.delete_task(task_id)
+@router.delete("/boxes/{box_id}", status_code=204)
+async def delete_box(request: Request, box_id: str):
+    bs = _bs(request)
+    await bs.delete_box(box_id)
+
+
+@router.get("/boxes/{box_id}/files")
+async def box_list_files(
+    request: Request, box_id: str, path: str = "/workspace"
+):
+    """List directory contents in a box workspace."""
+    bs = _bs(request)
+    box = await bs.get_box(box_id)
+    if box is None:
+        raise HTTPException(404, "Box not found")
+    try:
+        return await bs.list_files(box_id, path)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(502, f"Box file proxy error: {exc}")
+
+
+@router.get("/boxes/{box_id}/files/read")
+async def box_read_file(request: Request, box_id: str, path: str):
+    """Read a file from a box workspace."""
+    bs = _bs(request)
+    box = await bs.get_box(box_id)
+    if box is None:
+        raise HTTPException(404, "Box not found")
+    try:
+        return await bs.read_file(box_id, path)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(502, f"Box file proxy error: {exc}")
 
 
 # ── Containers ───────────────────────────────────────────────────
@@ -139,78 +173,3 @@ async def stop_container(container_id: str):
     except docker_service.DockerServiceError as exc:
         raise HTTPException(400, str(exc))
     return {"status": "stopped"}
-
-
-# ── Sandboxes ───────────────────────────────────────────────────
-
-
-@router.post("/sandboxes", status_code=201)
-async def create_sandbox(request: Request, body: SandboxCreate) -> SandboxResponse:
-    """Create and start a new interactive sandbox."""
-    ss = _ss(request)
-    sandbox = await ss.create_sandbox(name=body.name, model=body.model)
-    return SandboxResponse.from_orm_sandbox(sandbox)
-
-
-@router.get("/sandboxes")
-async def list_sandboxes(request: Request) -> list[SandboxResponse]:
-    ss = _ss(request)
-    sandboxes = await ss.list_sandboxes()
-    return [SandboxResponse.from_orm_sandbox(s) for s in sandboxes]
-
-
-@router.get("/sandboxes/{sandbox_id}")
-async def get_sandbox(request: Request, sandbox_id: str) -> SandboxResponse:
-    ss = _ss(request)
-    sandbox = await ss.get_sandbox(sandbox_id)
-    if sandbox is None:
-        raise HTTPException(404, "Sandbox not found")
-    return SandboxResponse.from_orm_sandbox(sandbox)
-
-
-@router.post("/sandboxes/{sandbox_id}/stop")
-async def stop_sandbox(request: Request, sandbox_id: str) -> SandboxResponse:
-    ss = _ss(request)
-    await ss.stop_sandbox(sandbox_id)
-    sandbox = await ss.get_sandbox(sandbox_id)
-    if sandbox is None:
-        raise HTTPException(404, "Sandbox not found")
-    return SandboxResponse.from_orm_sandbox(sandbox)
-
-
-@router.delete("/sandboxes/{sandbox_id}", status_code=204)
-async def delete_sandbox(request: Request, sandbox_id: str):
-    ss = _ss(request)
-    await ss.delete_sandbox(sandbox_id)
-
-
-@router.get("/sandboxes/{sandbox_id}/files")
-async def sandbox_list_files(
-    request: Request, sandbox_id: str, path: str = "/workspace"
-):
-    """List directory contents in a sandbox workspace."""
-    ss = _ss(request)
-    sandbox = await ss.get_sandbox(sandbox_id)
-    if sandbox is None:
-        raise HTTPException(404, "Sandbox not found")
-    try:
-        return await ss.list_files(sandbox_id, path)
-    except ValueError as exc:
-        raise HTTPException(400, str(exc))
-    except RuntimeError as exc:
-        raise HTTPException(502, f"Sandbox file proxy error: {exc}")
-
-
-@router.get("/sandboxes/{sandbox_id}/files/read")
-async def sandbox_read_file(request: Request, sandbox_id: str, path: str):
-    """Read a file from a sandbox workspace."""
-    ss = _ss(request)
-    sandbox = await ss.get_sandbox(sandbox_id)
-    if sandbox is None:
-        raise HTTPException(404, "Sandbox not found")
-    try:
-        return await ss.read_file(sandbox_id, path)
-    except ValueError as exc:
-        raise HTTPException(400, str(exc))
-    except RuntimeError as exc:
-        raise HTTPException(502, f"Sandbox file proxy error: {exc}")

@@ -2,14 +2,13 @@ import { useState, useCallback, useRef } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { SandboxStatusBadge } from "@/components/sandbox/SandboxStatusBadge"
-import { SandboxInput } from "@/components/sandbox/SandboxInput"
-import { FileExplorer } from "@/components/sandbox/FileExplorer"
+import { BoxStatusBadge } from "@/components/box/BoxStatusBadge"
+import { BoxInput } from "@/components/box/BoxInput"
+import { FileExplorer } from "@/components/box/FileExplorer"
 import { EventStream } from "@/components/task/EventStream"
-import { useSandbox, useStopSandbox, useDeleteSandbox } from "@/net/query"
-import { useSandboxWebSocket } from "@/net/ws"
-import { SandboxStatus } from "@/net/http/types"
+import { useBox, useStopBox, useDeleteBox } from "@/net/query"
+import { useBoxWebSocket } from "@/net/ws"
+import { BoxStatus } from "@/net/http/types"
 import type { WSEvent } from "@/net/http/types"
 import { toast } from "sonner"
 import {
@@ -21,25 +20,26 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { MoreHorizontalCircle01Icon } from "@hugeicons/core-free-icons"
 
-export const Route = createFileRoute("/sandboxes/$sandboxId")({
-  component: SandboxDetailPage,
+export const Route = createFileRoute("/boxes/$boxId")({
+  component: BoxDetailPage,
 })
 
-function SandboxDetailPage() {
-  const { sandboxId } = Route.useParams()
-  const { data: sandbox, isLoading } = useSandbox(sandboxId)
+function BoxDetailPage() {
+  const { boxId } = Route.useParams()
+  const { data: box, isLoading } = useBox(boxId)
   const navigate = useNavigate()
-  const stopMutation = useStopSandbox()
-  const deleteMutation = useDeleteSandbox()
+  const stopMutation = useStopBox()
+  const deleteMutation = useDeleteBox()
   const [fileExplorerOpen, setFileExplorerOpen] = useState(false)
 
   const isActive =
-    sandbox?.status === SandboxStatus.READY ||
-    sandbox?.status === SandboxStatus.STARTING
+    box?.status === BoxStatus.IDLE ||
+    box?.status === BoxStatus.RUNNING ||
+    box?.status === BoxStatus.STARTING
 
   const { events, sendMessage, sendExec, sendCancel, isConnected } =
-    useSandboxWebSocket({
-      sandboxId,
+    useBoxWebSocket({
+      boxId,
       enabled: isActive,
     })
 
@@ -49,7 +49,7 @@ function SandboxDetailPage() {
     (content: string) => {
       localEventsRef.current = [
         ...localEventsRef.current,
-        { type: "status_change", status: `you: ${content}` } as WSEvent,
+        { type: "status_change", status: BoxStatus.RUNNING } as WSEvent,
       ]
       sendMessage(content)
     },
@@ -60,19 +60,19 @@ function SandboxDetailPage() {
     (command: string) => {
       localEventsRef.current = [
         ...localEventsRef.current,
-        { type: "status_change", status: `! ${command}` } as WSEvent,
+        { type: "status_change", status: BoxStatus.RUNNING } as WSEvent,
       ]
       sendExec(command)
     },
     [sendExec],
   )
 
-  if (isLoading) return <SandboxDetailSkeleton />
+  if (isLoading) return <BoxDetailSkeleton />
 
-  if (!sandbox) {
+  if (!box) {
     return (
-      <div className="flex h-svh flex-col items-center justify-center gap-4">
-        <p className="text-sm text-muted-foreground">Sandbox not found</p>
+      <div className="flex h-[calc(100svh-3rem)] flex-col items-center justify-center gap-4">
+        <p className="text-sm text-muted-foreground">Box not found</p>
         <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/" />}>
           Go home
         </Button>
@@ -82,16 +82,16 @@ function SandboxDetailPage() {
 
   const handleStop = () => {
     sendCancel()
-    stopMutation.mutate(sandboxId, {
-      onSuccess: () => toast.success("Sandbox stopped"),
+    stopMutation.mutate(boxId, {
+      onSuccess: () => toast.success("Box stopped"),
       onError: () => toast.error("Failed to stop"),
     })
   }
 
   const handleDelete = () => {
-    deleteMutation.mutate(sandboxId, {
+    deleteMutation.mutate(boxId, {
       onSuccess: () => {
-        toast.success("Sandbox deleted")
+        toast.success("Box deleted")
         navigate({ to: "/" })
       },
       onError: () => toast.error("Failed to delete"),
@@ -99,13 +99,12 @@ function SandboxDetailPage() {
   }
 
   return (
-    <div className="flex h-svh flex-col">
+    <div className="flex h-[calc(100svh-3rem)] flex-col">
       {/* Header */}
       <header className="flex items-center justify-between border-b px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <SidebarTrigger />
-          <h1 className="truncate text-sm font-medium">{sandbox.name}</h1>
-          <SandboxStatusBadge status={sandbox.status} />
+          <h1 className="truncate text-sm font-medium">{box.name}</h1>
+          <BoxStatusBadge status={box.status} />
           {isConnected && isActive && (
             <span className="flex items-center gap-1 text-xs text-success">
               <span className="relative flex size-1.5">
@@ -142,7 +141,7 @@ function SandboxDetailPage() {
                 onClick={handleDelete}
                 className="text-destructive focus:text-destructive"
               >
-                Delete sandbox
+                Delete box
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -151,6 +150,23 @@ function SandboxDetailPage() {
 
       {/* Main content */}
       <div className="flex min-h-0 flex-1">
+        {/* File explorer panel (left) */}
+        {fileExplorerOpen && (
+          <div className="w-64 flex-shrink-0 border-r lg:w-80">
+            {box.status === BoxStatus.IDLE || box.status === BoxStatus.RUNNING ? (
+              <FileExplorer boxId={boxId} />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-sm text-muted-foreground">
+                  {box.status === BoxStatus.STARTING
+                    ? "Starting..."
+                    : "Not active"}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Chat area */}
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1">
@@ -160,7 +176,7 @@ function SandboxDetailPage() {
           {/* Input */}
           <div className="border-t bg-background/80 backdrop-blur-sm">
             <div className="mx-auto max-w-3xl px-4 py-4">
-              <SandboxInput
+              <BoxInput
                 onSendMessage={handleSendMessage}
                 onSendExec={handleSendExec}
                 disabled={!isActive || !isConnected}
@@ -168,33 +184,15 @@ function SandboxDetailPage() {
             </div>
           </div>
         </div>
-
-        {/* File explorer panel */}
-        {fileExplorerOpen && (
-          <div className="w-80 flex-shrink-0 border-l">
-            {sandbox.status === SandboxStatus.READY ? (
-              <FileExplorer sandboxId={sandboxId} />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-muted-foreground">
-                  {sandbox.status === SandboxStatus.STARTING
-                    ? "Starting..."
-                    : "Not active"}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   )
 }
 
-function SandboxDetailSkeleton() {
+function BoxDetailSkeleton() {
   return (
-    <div className="flex h-svh flex-col">
+    <div className="flex h-[calc(100svh-3rem)] flex-col">
       <div className="flex items-center gap-2 border-b px-3 py-2">
-        <Skeleton className="h-6 w-6" />
         <Skeleton className="h-5 w-40" />
       </div>
       <div className="flex-1 p-8">

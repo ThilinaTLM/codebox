@@ -5,28 +5,28 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowDown01Icon, ArrowRight01Icon, Cancel01Icon, Loading03Icon } from "@hugeicons/core-free-icons"
-import { useSandboxFiles, useSandboxFileContent } from "@/net/query"
+import { useBoxFiles, useBoxFileContent } from "@/net/query"
 import type { FileEntry } from "@/net/http/types"
 
-export function FileExplorer({ sandboxId }: { sandboxId: string }) {
+export function FileExplorer({ boxId }: { boxId: string }) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const queryClient = useQueryClient()
   const { data: fileContent, isLoading: isLoadingContent } =
-    useSandboxFileContent(sandboxId, selectedFile)
+    useBoxFileContent(boxId, selectedFile)
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     await queryClient.invalidateQueries({
-      queryKey: ["sandboxes", sandboxId, "files"],
+      queryKey: ["boxes", boxId, "files"],
     })
     if (selectedFile) {
       await queryClient.invalidateQueries({
-        queryKey: ["sandboxes", sandboxId, "file-content", selectedFile],
+        queryKey: ["boxes", boxId, "file-content", selectedFile],
       })
     }
     setIsRefreshing(false)
-  }, [queryClient, sandboxId, selectedFile])
+  }, [queryClient, boxId, selectedFile])
 
   return (
     <div className="flex h-full flex-col">
@@ -89,7 +89,7 @@ export function FileExplorer({ sandboxId }: { sandboxId: string }) {
         <ScrollArea className="flex-1">
           <div className="py-1">
             <FileTreeLevel
-              sandboxId={sandboxId}
+              boxId={boxId}
               path="/workspace"
               depth={0}
               onSelectFile={setSelectedFile}
@@ -103,23 +103,20 @@ export function FileExplorer({ sandboxId }: { sandboxId: string }) {
 }
 
 function FileTreeLevel({
-  sandboxId,
+  boxId,
   path,
   depth,
   onSelectFile,
   defaultExpanded = false,
 }: {
-  sandboxId: string
+  boxId: string
   path: string
   depth: number
   onSelectFile: (path: string) => void
   defaultExpanded?: boolean
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
-  const { data: fileList, isLoading } = useSandboxFiles(
-    sandboxId,
-    path,
-  )
+  const { data: fileList, isLoading } = useBoxFiles(boxId, path)
 
   if (!expanded && !defaultExpanded) return null
 
@@ -138,7 +135,7 @@ function FileTreeLevel({
         <FileTreeNode
           key={entry.path}
           entry={entry}
-          sandboxId={sandboxId}
+          boxId={boxId}
           depth={depth}
           onSelectFile={onSelectFile}
         />
@@ -157,12 +154,12 @@ function FileTreeLevel({
 
 function FileTreeNode({
   entry,
-  sandboxId,
+  boxId,
   depth,
   onSelectFile,
 }: {
   entry: FileEntry
-  sandboxId: string
+  boxId: string
   depth: number
   onSelectFile: (path: string) => void
 }) {
@@ -207,7 +204,7 @@ function FileTreeNode({
       </button>
       {entry.is_dir && expanded && (
         <FileTreeLevel
-          sandboxId={sandboxId}
+          boxId={boxId}
           path={entry.path}
           depth={depth + 1}
           onSelectFile={onSelectFile}
