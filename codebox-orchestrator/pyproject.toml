@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codebox-orchestrator"
+version = "0.1.0"
+description = "Web-based orchestrator for Codebox sandbox agents"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]",
+    "aiosqlite",
+    "docker",
+    "websockets",
+    "python-dotenv",
+]
+
+[project.scripts]
+codebox-orchestrator = "codebox_orchestrator.__main__:main"
