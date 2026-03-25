@@ -39,7 +39,9 @@ async def _run_agent_stream(
 
     try:
         async for event in session.agent.astream_events(
-            {"messages": session.messages}, version="v2"
+            {"messages": session.messages},
+            version="v2",
+            config={"recursion_limit": 150},
         ):
             kind = event["event"]
 
