@@ -15,4 +15,8 @@ wheels/
 # IDE
 .idea/
 .vscode/
+.zed/
 *.swp
+
+# Data
+data/

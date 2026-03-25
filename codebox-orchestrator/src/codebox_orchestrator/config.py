@@ -12,7 +12,8 @@ _project_dir = Path(__file__).resolve().parent.parent.parent
 load_dotenv(_project_dir / ".env")
 load_dotenv(_project_dir / ".env.local", override=True)
 
-DATABASE_URL: str = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///data/orchestrator.db")
+_default_db = f"sqlite+aiosqlite:///{_project_dir / 'data' / 'orchestrator.db'}"
+DATABASE_URL: str = os.environ.get("DATABASE_URL", _default_db)
 CODEBOX_IMAGE: str = os.environ.get("CODEBOX_IMAGE", "codebox-sandbox:latest")
 CODEBOX_PORT: int = int(os.environ.get("CODEBOX_PORT", "8443"))
 OPENROUTER_API_KEY: str = os.environ.get("OPENROUTER_API_KEY", "")
