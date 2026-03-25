@@ -61,3 +61,67 @@ Environment variables (loaded from `.env` and `.env.local`):
 | `ORCHESTRATOR_HOST` | `0.0.0.0` | Bind address |
 | `ORCHESTRATOR_PORT` | `8080` | Bind port |
 | `CORS_ORIGINS` | `http://localhost:3000` | Allowed CORS origins (comma-separated) |
+
+### Container runtime
+
+The orchestrator supports Docker and Podman as container runtimes, connecting via local sockets, remote TCP/TLS, or SSH.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONTAINER_RUNTIME_URL` | _(empty — uses `docker.from_env()`)_ | Connection URL for the container runtime |
+| `CONTAINER_RUNTIME_TYPE` | `docker` | Runtime type: `docker` or `podman` (controls quirk handling) |
+| `CONTAINER_TLS_VERIFY` | _(empty)_ | Path to CA certificate, or `true`/`false` |
+| `CONTAINER_TLS_CERT` | _(empty)_ | Path to TLS client certificate |
+| `CONTAINER_TLS_KEY` | _(empty)_ | Path to TLS client key |
+
+When `CONTAINER_RUNTIME_URL` is not set, the orchestrator uses `docker.from_env()` which reads the standard `DOCKER_HOST`, `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` environment variables. Setting `CONTAINER_RUNTIME_URL` explicitly gives you full control over the connection.
+
+#### Examples
+
+**Local Docker** (default — no configuration needed):
+```bash
+# Uses /var/run/docker.sock automatically
+```
+
+**Local Podman (rootless)**:
+```bash
+CONTAINER_RUNTIME_URL=unix:///run/user/1000/podman/podman.sock
+CONTAINER_RUNTIME_TYPE=podman
+```
+
+**Local Podman (rootful)**:
+```bash
+CONTAINER_RUNTIME_URL=unix:///run/podman/podman.sock
+CONTAINER_RUNTIME_TYPE=podman
+```
+
+**Remote Docker over TCP (no TLS)**:
+```bash
+CONTAINER_RUNTIME_URL=tcp://docker-host:2375
+```
+
+**Remote Docker over TLS**:
+```bash
+CONTAINER_RUNTIME_URL=tcp://docker-host:2376
+CONTAINER_TLS_VERIFY=/path/to/ca.pem
+CONTAINER_TLS_CERT=/path/to/cert.pem
+CONTAINER_TLS_KEY=/path/to/key.pem
+```
+
+**Docker or Podman over SSH**:
+```bash
+CONTAINER_RUNTIME_URL=ssh://deploy@192.168.1.50
+```
+
+**Podman on WSL2** (from Windows host or another WSL distro):
+```bash
+CONTAINER_RUNTIME_URL=unix:///mnt/wsl/podman-sockets/podman-machine-default/podman-user.sock
+CONTAINER_RUNTIME_TYPE=podman
+```
+
+#### Podman notes
+
+- Set `CONTAINER_RUNTIME_TYPE=podman` so the orchestrator skips Docker-specific options like `host-gateway` in `extra_hosts`.
+- Podman 4.7+ automatically provides `host.containers.internal` for container-to-host communication.
+- Rootless Podman sockets are typically at `unix:///run/user/<UID>/podman/podman.sock`.
+- Ensure the Podman API service is running: `systemctl --user start podman.socket` (rootless) or `systemctl start podman.socket` (rootful).

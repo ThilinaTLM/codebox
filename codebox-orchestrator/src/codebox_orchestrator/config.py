@@ -20,6 +20,14 @@ OPENROUTER_MODEL: str = os.environ.get("OPENROUTER_MODEL", "")
 TAVILY_API_KEY: str = os.environ.get("TAVILY_API_KEY", "")
 WORKSPACE_BASE_DIR: str = os.environ.get("WORKSPACE_BASE_DIR", "/tmp/codebox-workspaces")
 DOCKER_NETWORK: str = os.environ.get("DOCKER_NETWORK", "codebox-net")
+
+# Container runtime configuration
+CONTAINER_RUNTIME_URL: str = os.environ.get("CONTAINER_RUNTIME_URL", "")
+CONTAINER_RUNTIME_TYPE: str = os.environ.get("CONTAINER_RUNTIME_TYPE", "docker")
+CONTAINER_TLS_VERIFY: str = os.environ.get("CONTAINER_TLS_VERIFY", "")
+CONTAINER_TLS_CERT: str = os.environ.get("CONTAINER_TLS_CERT", "")
+CONTAINER_TLS_KEY: str = os.environ.get("CONTAINER_TLS_KEY", "")
+
 ORCHESTRATOR_CALLBACK_URL: str = os.environ.get("ORCHESTRATOR_CALLBACK_URL", "")
 HOST: str = os.environ.get("ORCHESTRATOR_HOST", "0.0.0.0")
 PORT: int = int(os.environ.get("ORCHESTRATOR_PORT", "8080"))

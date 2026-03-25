@@ -1,22 +1,37 @@
-"""Docker container lifecycle management for sandbox containers."""
+"""Container runtime lifecycle management for sandbox containers.
+
+Supports Docker and Podman via configurable connection backends:
+local sockets, remote TCP/TLS, and SSH.
+"""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 import docker
 import docker.errors
+import docker.tls
 
-from codebox_orchestrator.config import DOCKER_NETWORK
+from codebox_orchestrator.config import (
+    CONTAINER_RUNTIME_TYPE,
+    CONTAINER_RUNTIME_URL,
+    CONTAINER_TLS_CERT,
+    CONTAINER_TLS_KEY,
+    CONTAINER_TLS_VERIFY,
+    DOCKER_NETWORK,
+)
 
 logger = logging.getLogger(__name__)
 
 CONTAINER_LABEL = "codebox-sandbox"
 
+_client: docker.DockerClient | None = None
+
 
 class DockerServiceError(Exception):
-    """Raised when a Docker operation fails."""
+    """Raised when a container runtime operation fails."""
 
 
 @dataclass
@@ -30,10 +45,43 @@ class ContainerInfo:
 
 
 def _get_client() -> docker.DockerClient:
+    global _client
+    if _client is not None:
+        return _client
     try:
-        return docker.from_env()
+        if not CONTAINER_RUNTIME_URL:
+            _client = docker.from_env()
+        else:
+            kwargs: dict[str, Any] = {"base_url": CONTAINER_RUNTIME_URL}
+            if CONTAINER_TLS_CERT and CONTAINER_TLS_KEY:
+                tls_config = docker.tls.TLSConfig(
+                    client_cert=(CONTAINER_TLS_CERT, CONTAINER_TLS_KEY),
+                    ca_cert=CONTAINER_TLS_VERIFY if CONTAINER_TLS_VERIFY not in ("", "true", "false") else None,
+                    verify=CONTAINER_TLS_VERIFY != "false",
+                )
+                kwargs["tls"] = tls_config
+            _client = docker.DockerClient(**kwargs)
+        return _client
     except docker.errors.DockerException as exc:
-        raise DockerServiceError(f"Cannot connect to Docker daemon: {exc}") from exc
+        raise DockerServiceError(f"Cannot connect to container runtime: {exc}") from exc
+
+
+def reset_client() -> None:
+    """Clear the cached client (useful for testing)."""
+    global _client
+    _client = None
+
+
+def check_connection() -> dict[str, str]:
+    """Verify the container runtime is reachable and return version info."""
+    client = _get_client()
+    info = client.version()
+    return {
+        "api_version": info.get("ApiVersion", "unknown"),
+        "os": info.get("Os", "unknown"),
+        "arch": info.get("Arch", "unknown"),
+        "version": info.get("Version", "unknown"),
+    }
 
 
 def spawn(
@@ -69,17 +117,19 @@ def spawn(
     # Ensure the network exists
     _ensure_network(client, net)
 
+    run_kwargs: dict[str, Any] = {
+        "detach": True,
+        "name": name,
+        "environment": environment,
+        "volumes": volumes,
+        "labels": labels,
+        "network": net,
+    }
+    if CONTAINER_RUNTIME_TYPE != "podman":
+        run_kwargs["extra_hosts"] = {"host.docker.internal": "host-gateway"}
+
     try:
-        container = client.containers.run(
-            image,
-            detach=True,
-            name=name,
-            environment=environment,
-            volumes=volumes,
-            labels=labels,
-            network=net,
-            extra_hosts={"host.docker.internal": "host-gateway"},
-        )
+        container = client.containers.run(image, **run_kwargs)
     except docker.errors.ImageNotFound as exc:
         raise DockerServiceError(f"Image not found: {image}") from exc
     except docker.errors.APIError as exc:

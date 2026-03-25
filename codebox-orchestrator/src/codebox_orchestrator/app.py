@@ -73,6 +73,16 @@ def create_app() -> FastAPI:
             )
             box_service._github_service = github_service
 
+        # Verify container runtime connectivity
+        import logging as _logging
+        from codebox_orchestrator.services import docker_service
+
+        try:
+            runtime_info = docker_service.check_connection()
+            _logging.getLogger(__name__).info("Container runtime: %s", runtime_info)
+        except docker_service.DockerServiceError as exc:
+            _logging.getLogger(__name__).warning("Container runtime not available: %s", exc)
+
         app.state.relay_service = relay
         app.state.callback_registry = registry
         app.state.global_broadcast = global_broadcast
