@@ -47,6 +47,7 @@ def spawn(
     name: str | None = None,
     model: str | None = None,
     api_key: str | None = None,
+    tavily_api_key: str | None = None,
     mount_path: str | None = None,
     port: int | None = None,
     network: str | None = None,
@@ -59,6 +60,8 @@ def spawn(
         environment["OPENROUTER_API_KEY"] = api_key
     if model:
         environment["OPENROUTER_MODEL"] = model
+    if tavily_api_key:
+        environment["TAVILY_API_KEY"] = tavily_api_key
 
     ports: dict[str, int | None] = {"8443/tcp": port}
 

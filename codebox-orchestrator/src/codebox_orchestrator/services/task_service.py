@@ -18,6 +18,7 @@ from codebox_orchestrator.config import (
     CODEBOX_PORT,
     OPENROUTER_API_KEY,
     OPENROUTER_MODEL,
+    TAVILY_API_KEY,
     WORKSPACE_BASE_DIR,
 )
 from codebox_orchestrator.db.models import Task, TaskEvent, TaskStatus
@@ -215,6 +216,7 @@ class TaskService:
                 name=container_name,
                 model=model,
                 api_key=OPENROUTER_API_KEY,
+                tavily_api_key=TAVILY_API_KEY,
                 mount_path=workspace,
             )
         except docker_service.DockerServiceError as exc:

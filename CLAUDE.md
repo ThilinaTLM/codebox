@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Monorepo for a sandboxed AI coding agent platform. Six sub-projects:
 
 - **codebox-core** — FastAPI daemon (REST + WebSocket API) for AI agent sessions, runs inside sandbox containers
-- **codebox-cli** — CLI client that manages Docker containers directly or connects via the orchestrator
+- **codebox-cli** — CLI client that connects to the orchestrator for task management and interactive follow-up
 - **codebox-docker** — Dockerfile packaging codebox-core with Devbox toolchains into a container
 - **codebox-orchestrator** — Backend API service (FastAPI) that manages sandbox containers, relays WebSocket events between sandboxes and clients (web-ui, cli)
 - **codebox-web-ui** — React frontend (TanStack Start + shadcn) that connects to the orchestrator via REST + WebSocket
@@ -18,12 +18,9 @@ Monorepo for a sandboxed AI coding agent platform. Six sub-projects:
 ```
 [codebox-web-ui]  --(REST + WS)--> [codebox-orchestrator] --(REST + WS)--> [sandbox containers (codebox-core)]
 [codebox-cli]     --(REST + WS)--> [codebox-orchestrator] --(REST + WS)--> [sandbox containers (codebox-core)]
-[codebox-cli]     --(REST + WS)-----------------------------------direct--> [sandbox containers (codebox-core)]
 ```
 
 The orchestrator spawns Docker containers (built from codebox-docker, which embeds codebox-core), creates sessions, and streams agent events over WebSocket. The web-ui and CLI both connect to the orchestrator for task management, event streaming, and interactive follow-up.
-
-The CLI also supports a direct mode (legacy) where it spawns and connects to sandbox containers without the orchestrator.
 
 ## How to Run
 
@@ -43,23 +40,18 @@ cd codebox-orchestrator && python -m codebox_orchestrator
 cd codebox-web-ui && pnpm dev
 ```
 
-**CLI via orchestrator:**
+**CLI:**
 ```bash
 codebox task create --title "My task" --prompt "Write hello world"
 codebox task list
 codebox task connect <task_id>
 ```
 
-**CLI direct mode (legacy):**
-```bash
-codebox spawn --connect
-```
-
 ## Tech Stack
 
 - **codebox-orchestrator**: Python 3.12, FastAPI, SQLAlchemy (async SQLite), Docker SDK, websockets
 - **codebox-web-ui**: React 19, TanStack Start/Router, shadcn (radix-mira), TanStack Query, Axios, Tailwind v4
-- **codebox-cli**: Python 3.12, Click, websockets, Rich, prompt-toolkit
+- **codebox-cli**: Python 3.12, Click, websockets, Rich, prompt-toolkit (orchestrator-only)
 - **codebox-core**: Python 3.12, FastAPI, LangGraph agent framework
 
-Each Python sub-project has its own `.venv` and `pyproject.toml`. All agent components require `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` env vars.
+Each Python sub-project has its own `.venv` and `pyproject.toml`. The orchestrator requires `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` env vars (set in `codebox-orchestrator/.env.local`); these are passed to sandbox containers automatically.

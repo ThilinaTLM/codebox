@@ -6,12 +6,15 @@ from langchain_openrouter import ChatOpenRouter
 from deepagents import create_deep_agent
 from deepagents.backends import LocalShellBackend
 
+from codebox_daemon.tools.web import build_web_tools
+
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are a helpful coding assistant running inside a sandboxed container. "
     "You have access to tools for filesystem operations "
-    "(ls, read_file, write_file, edit_file, glob, grep) "
-    "and shell execution (execute). Use them to help the user with coding tasks.\n\n"
+    "(ls, read_file, write_file, edit_file, glob, grep), "
+    "shell execution (execute), and web access "
+    "(web_search, web_fetch). Use them to help the user with coding tasks.\n\n"
     "Environment:\n"
     "- Working directory: /workspace\n"
     "- Python 3.12 (with uv), Node.js 20, Go 1.22 are pre-installed\n"
@@ -57,7 +60,7 @@ def create_agent(
 
     return create_deep_agent(
         model=llm,
-        tools=[],
+        tools=build_web_tools(),
         backend=backend,
         system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
     )

@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "click",
-    "docker",
     "websockets",
     "prompt-toolkit>=3.0.52",
     "rich>=14.3.3",

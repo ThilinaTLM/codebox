@@ -12,6 +12,8 @@ dependencies = [
     "websockets",
     "cryptography",
     "python-dotenv",
+    "tavily-python",
+    "markdownify",
 ]
 
 [project.scripts]
