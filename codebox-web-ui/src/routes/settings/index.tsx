@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
+import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { useGitHubStatus } from "@/net/query"
 
@@ -10,37 +11,52 @@ function SettingsPage() {
   const { data: githubStatus } = useGitHubStatus()
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-3 border-b px-4 py-3">
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+    <div className="flex h-[calc(100svh-3rem)] flex-col overflow-y-auto">
+      {/* Page header */}
+      <div className="bg-hero-gradient px-6 pt-10 pb-8">
+        <div className="mx-auto max-w-6xl">
+          <h1 className="font-display text-4xl font-bold tracking-tight">
+            Settings
+          </h1>
+          <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
+            Manage your preferences and integrations.
+          </p>
+        </div>
       </div>
-      <div className="mx-auto w-full max-w-3xl space-y-8 p-6">
-        {/* Appearance */}
-        <section>
-          <h2 className="text-lg font-medium">Appearance</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Toggle between light and dark mode.
-          </p>
-          <div className="mt-3">
-            <ThemeToggle />
-          </div>
-        </section>
 
-        {/* GitHub */}
-        <section>
-          <h2 className="text-lg font-medium">GitHub Integration</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {githubStatus?.enabled
-              ? "GitHub App is configured. Manage installations and connected repos."
-              : "GitHub integration is not configured on the orchestrator."}
-          </p>
-          <Link
-            to="/settings/github"
-            className="mt-3 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
-            GitHub Settings
-          </Link>
-        </section>
+      {/* Content */}
+      <div className="flex-1 px-6 pb-12">
+        <div className="mx-auto max-w-6xl space-y-10 pt-8">
+          {/* Appearance */}
+          <section>
+            <h2 className="font-display max-w-xs text-lg font-semibold">Appearance</h2>
+            <p className="mt-1 max-w-md text-sm text-muted-foreground">
+              Toggle between light and dark mode.
+            </p>
+            <div className="mt-4">
+              <ThemeToggle />
+            </div>
+          </section>
+
+          {/* GitHub */}
+          <section>
+            <h2 className="font-display max-w-xs text-lg font-semibold">GitHub Integration</h2>
+            <p className="mt-1 max-w-md text-sm text-muted-foreground">
+              {githubStatus?.enabled
+                ? "GitHub App is configured. Manage installations and connected repos."
+                : "GitHub integration is not configured on the orchestrator."}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              nativeButton={false}
+              render={<Link to="/settings/github" />}
+            >
+              GitHub Settings
+            </Button>
+          </section>
+        </div>
       </div>
     </div>
   )

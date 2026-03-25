@@ -11,15 +11,24 @@ function ContainersPage() {
   const count = containers?.length ?? 0
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-3 border-b px-4 py-3">
-        <h1 className="text-xl font-semibold tracking-tight">Containers</h1>
-        <span className="text-sm text-muted-foreground">
-          {count} running
-        </span>
+    <div className="flex h-[calc(100svh-3rem)] flex-col overflow-y-auto">
+      {/* Page header */}
+      <div className="bg-hero-gradient px-6 pt-10 pb-8">
+        <div className="mx-auto max-w-6xl">
+          <h1 className="font-display text-4xl font-bold tracking-tight">
+            Containers
+          </h1>
+          <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
+            {count} running
+          </p>
+        </div>
       </div>
-      <div className="mx-auto w-full max-w-5xl px-4">
-        <ContainerTable />
+
+      {/* Content */}
+      <div className="flex-1 px-6 pb-12">
+        <div className="mx-auto max-w-6xl">
+          <ContainerTable />
+        </div>
       </div>
     </div>
   )

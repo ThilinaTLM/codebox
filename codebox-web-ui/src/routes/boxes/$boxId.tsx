@@ -80,7 +80,8 @@ function BoxDetailPage() {
   if (!box) {
     return (
       <div className="flex h-[calc(100svh-3rem)] flex-col items-center justify-center gap-4">
-        <p className="text-sm text-muted-foreground">Box not found</p>
+        <h2 className="font-display text-lg font-semibold">Agent not found</h2>
+        <p className="text-sm text-muted-foreground">This agent may have been deleted.</p>
         <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/" />}>
           Go home
         </Button>
@@ -91,7 +92,7 @@ function BoxDetailPage() {
   const handleStop = () => {
     sendCancel()
     stopMutation.mutate(boxId, {
-      onSuccess: () => toast.success("Box stopped"),
+      onSuccess: () => toast.success("Agent stopped"),
       onError: () => toast.error("Failed to stop"),
     })
   }
@@ -99,7 +100,7 @@ function BoxDetailPage() {
   const handleDelete = () => {
     deleteMutation.mutate(boxId, {
       onSuccess: () => {
-        toast.success("Box deleted")
+        toast.success("Agent deleted")
         navigate({ to: "/" })
       },
       onError: () => toast.error("Failed to delete"),
@@ -109,16 +110,18 @@ function BoxDetailPage() {
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between border-b px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2">
+      <header className="flex items-center justify-between border-b bg-card/50 px-4 py-2.5 backdrop-blur-sm">
+        <div className="flex min-w-0 items-center gap-2.5">
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink render={<Link to="/" />}>Boxes</BreadcrumbLink>
+                <BreadcrumbLink render={<Link to="/" />}>Agents</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage className="max-w-[200px] truncate">{box.name}</BreadcrumbPage>
+                <BreadcrumbPage className="font-display max-w-[200px] truncate font-medium">
+                  {box.name}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -159,7 +162,7 @@ function BoxDetailPage() {
                 onClick={handleDelete}
                 className="text-destructive focus:text-destructive"
               >
-                Delete box
+                Delete agent
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -170,7 +173,7 @@ function BoxDetailPage() {
       <div className="flex min-h-0 flex-1">
         {/* File explorer panel (left) */}
         {fileExplorerOpen && (
-          <div className="w-64 flex-shrink-0 border-r lg:w-80">
+          <div className="w-64 flex-shrink-0 border-r bg-card/30 lg:w-80">
             {box.status === BoxStatus.IDLE || box.status === BoxStatus.RUNNING ? (
               <FileExplorer boxId={boxId} />
             ) : (
@@ -210,7 +213,7 @@ function BoxDetailPage() {
 function BoxDetailSkeleton() {
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
-      <div className="flex items-center gap-2 border-b px-3 py-2">
+      <div className="flex items-center gap-2 border-b bg-card/50 px-4 py-2.5 backdrop-blur-sm">
         <Skeleton className="h-5 w-40" />
       </div>
       <div className="flex-1 p-8">

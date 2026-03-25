@@ -1,12 +1,11 @@
-import { useState } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { BoxStatusBadge } from "@/components/box/BoxStatusBadge"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowUp01Icon, Github01Icon } from "@hugeicons/core-free-icons"
+import { Github01Icon } from "@hugeicons/core-free-icons"
+import { Plus } from "lucide-react"
 import { useBoxes, useCreateBox } from "@/net/query"
 import { BoxStatus } from "@/net/http/types"
 import type { Box } from "@/net/http/types"
@@ -16,95 +15,132 @@ import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/")({ component: HomePage })
 
+const ACTIVE_STATUSES = [BoxStatus.STARTING, BoxStatus.RUNNING, BoxStatus.IDLE]
+
+function statusDotColor(status: BoxStatus): string {
+  const map: Record<BoxStatus, string> = {
+    [BoxStatus.STARTING]: "bg-warning",
+    [BoxStatus.RUNNING]: "bg-success",
+    [BoxStatus.IDLE]: "bg-blue-400",
+    [BoxStatus.COMPLETED]: "bg-success/50",
+    [BoxStatus.FAILED]: "bg-destructive",
+    [BoxStatus.CANCELLED]: "bg-muted-foreground/30",
+    [BoxStatus.STOPPED]: "bg-muted-foreground/30",
+  }
+  return map[status] ?? "bg-muted-foreground/30"
+}
+
 function HomePage() {
   const { data: boxes, isLoading } = useBoxes()
   const createMutation = useCreateBox()
   const navigate = useNavigate()
-  const [prompt, setPrompt] = useState("")
+
+  const activeBoxes = (boxes ?? []).filter((b) => ACTIVE_STATUSES.includes(b.status))
+  const recentBoxes = (boxes ?? []).filter((b) => !ACTIVE_STATUSES.includes(b.status))
 
   const handleCreate = () => {
-    const name = prompt.trim() || undefined
     createMutation.mutate(
-      { name },
+      {},
       {
         onSuccess: (box) => {
-          toast.success("Box created")
-          setPrompt("")
+          toast.success("Agent created")
           navigate({ to: "/boxes/$boxId", params: { boxId: box.id } })
         },
-        onError: () => toast.error("Failed to create box"),
+        onError: () => toast.error("Failed to create agent"),
       },
     )
   }
 
   return (
-    <div className="flex h-[calc(100svh-3rem)] flex-col">
-      {/* Hero */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6">
-        <div className="w-full max-w-2xl space-y-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-semibold tracking-tight">
-              What would you like to build?
-            </h1>
-            <p className="mt-2 text-base text-muted-foreground">
-              Start a new box or continue where you left off.
-            </p>
-          </div>
-
-          {/* Create input */}
-          <div className="relative">
-            <div className="rounded-2xl border bg-card shadow-sm">
-              <textarea
-                placeholder="Describe your project or just start coding..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleCreate()
-                  }
-                }}
-                rows={2}
-                className="w-full resize-none rounded-2xl bg-transparent px-4 pt-4 pb-12 text-sm outline-none placeholder:text-muted-foreground/60"
-              />
-              <div className="absolute right-3 bottom-3">
-                <Button
-                  size="icon-sm"
-                  onClick={handleCreate}
-                  disabled={createMutation.isPending}
-                >
-                  <HugeiconsIcon icon={ArrowUp01Icon} size={16} strokeWidth={2.5} />
-                </Button>
-              </div>
+    <div className="flex h-[calc(100svh-3rem)] flex-col overflow-y-auto">
+      {/* Page header */}
+      <div className="bg-hero-gradient px-6 pt-10 pb-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h1 className="font-display text-4xl font-bold tracking-tight">
+                Agents
+              </h1>
+              <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
+                Your running and recent coding agents.
+              </p>
             </div>
+            <Button onClick={handleCreate} disabled={createMutation.isPending} className="gap-1.5">
+              <Plus size={16} />
+              New Agent
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Box grid */}
-      <div className="border-t px-6 py-8">
-        <div className="mx-auto max-w-5xl">
+      {/* Content */}
+      <div className="flex-1 px-6 pb-12">
+        <div className="mx-auto max-w-6xl">
           {isLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-xl" />
-              ))}
+            <div className="pt-8">
+              <Skeleton className="mb-4 h-3 w-16 rounded" />
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-32 rounded-2xl" />
+                ))}
+              </div>
             </div>
           ) : boxes && boxes.length > 0 ? (
             <>
-              <h2 className="mb-4 text-sm font-medium text-muted-foreground">
-                Your boxes
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {boxes.map((box) => (
-                  <BoxGridCard key={box.id} box={box} />
-                ))}
-              </div>
+              {/* Active agents */}
+              {activeBoxes.length > 0 && (
+                <section className="pt-8">
+                  <h2 className="font-display mb-4 max-w-xs text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Active
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {activeBoxes.map((box, i) => (
+                      <AgentCard
+                        key={box.id}
+                        box={box}
+                        style={{ animationDelay: `${i * 60}ms` }}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Recent agents */}
+              {recentBoxes.length > 0 && (
+                <section className="pt-8">
+                  <h2 className="font-display mb-4 max-w-xs text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Recent
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {recentBoxes.map((box, i) => (
+                      <AgentCard
+                        key={box.id}
+                        box={box}
+                        style={{ animationDelay: `${i * 60}ms` }}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           ) : (
-            <p className="text-center text-sm text-muted-foreground">
-              No boxes yet. Create one above to get started.
-            </p>
+            /* Empty state */
+            <div className="flex flex-col items-center justify-center py-32 text-center">
+              <div className="rounded-2xl border border-dashed border-muted-foreground/20 p-12">
+                <h2 className="font-display text-lg font-semibold">No agents yet</h2>
+                <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+                  Create your first agent to start coding.
+                </p>
+                <Button
+                  className="mt-6 gap-1.5"
+                  onClick={handleCreate}
+                  disabled={createMutation.isPending}
+                >
+                  <Plus size={16} />
+                  New Agent
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -112,52 +148,57 @@ function HomePage() {
   )
 }
 
-function BoxGridCard({ box }: { box: Box }) {
-  const isActive =
-    box.status === BoxStatus.STARTING ||
-    box.status === BoxStatus.RUNNING ||
-    box.status === BoxStatus.IDLE
+function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
+  const isActive = ACTIVE_STATUSES.includes(box.status)
+  const dotColor = statusDotColor(box.status)
 
   return (
-    <Link
-      to="/boxes/$boxId"
-      params={{ boxId: box.id }}
-      className="block"
-    >
+    <Link to="/boxes/$boxId" params={{ boxId: box.id }} className="block">
       <Card
         className={cn(
-          "border-l-2 shadow-sm transition-all hover:shadow-md hover:border-primary/30",
-          isActive ? "border-l-success/60" : "border-l-border",
+          "card-glow animate-fade-up cursor-pointer border-0 ring-1 ring-foreground/[0.06]",
+          isActive && "ring-primary/20",
         )}
+        style={style}
       >
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <h3 className="truncate text-sm font-medium">{box.name}</h3>
-                {box.trigger && (
-                  <HugeiconsIcon
-                    icon={Github01Icon}
-                    size={12}
-                    className="shrink-0 text-muted-foreground"
-                  />
-                )}
-              </div>
-              <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                {box.model}
-              </p>
-            </div>
-            <BoxStatusBadge status={box.status} />
+        <CardContent className="space-y-3 p-4">
+          {/* Top row: status dot + name */}
+          <div className="flex items-center gap-3">
+            <span className="relative flex size-2.5 shrink-0">
+              {isActive && (
+                <span
+                  className={cn(
+                    "absolute inline-flex size-full rounded-full opacity-60 animate-breathe",
+                    dotColor,
+                  )}
+                />
+              )}
+              <span className={cn("relative inline-flex size-2.5 rounded-full", dotColor)} />
+            </span>
+            <h3 className="font-display truncate text-sm font-semibold">{box.name}</h3>
           </div>
-          <div className="mt-2 flex items-center gap-2">
-            <p className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(box.created_at), { addSuffix: true })}
+
+          {/* Prompt preview */}
+          {box.initial_prompt && (
+            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground/80">
+              {box.initial_prompt}
             </p>
-            {box.github_repo && (
-              <Badge variant="outline" className="text-xs">
-                {box.github_repo}
-              </Badge>
-            )}
+          )}
+
+          {/* Bottom meta row */}
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] text-muted-foreground">{box.model}</span>
+              {box.github_repo && (
+                <Badge variant="outline" className="gap-1 py-0 text-[10px]">
+                  <HugeiconsIcon icon={Github01Icon} size={10} />
+                  {box.github_repo.split("/").pop()}
+                </Badge>
+              )}
+            </div>
+            <span className="text-[11px] text-muted-foreground/60">
+              {formatDistanceToNow(new Date(box.created_at), { addSuffix: true })}
+            </span>
           </div>
         </CardContent>
       </Card>
