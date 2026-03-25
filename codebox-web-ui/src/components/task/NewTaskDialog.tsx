@@ -5,7 +5,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { TaskForm } from "./task-form"
+import { TaskForm } from "./TaskForm"
 
 export function NewTaskDialog({
   open,

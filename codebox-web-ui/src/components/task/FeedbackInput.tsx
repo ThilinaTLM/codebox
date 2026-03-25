@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { useSendFeedback } from "@/hooks/queries"
+import { useSendFeedback } from "@/net/query"
 import { toast } from "sonner"
 
 export function FeedbackInput({

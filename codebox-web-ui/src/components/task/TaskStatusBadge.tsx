@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { TaskStatus } from "@/lib/types"
+import { TaskStatus } from "@/net/http/types"
 import { cn } from "@/lib/utils"
 
 const statusConfig: Record<

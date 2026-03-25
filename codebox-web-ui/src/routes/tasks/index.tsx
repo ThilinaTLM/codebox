@@ -8,10 +8,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { TaskStatusBadge } from "@/components/task/task-status-badge"
+import { TaskStatusBadge } from "@/components/task/TaskStatusBadge"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
-import { useTasks } from "@/hooks/queries"
-import { TaskStatus } from "@/lib/types"
+import { useTasks } from "@/net/query"
+import { TaskStatus } from "@/net/http/types"
 import { formatDistanceToNow, differenceInSeconds, differenceInMinutes, differenceInHours } from "date-fns"
 import { useState } from "react"
 import { cn } from "@/lib/utils"

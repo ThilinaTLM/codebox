@@ -6,8 +6,8 @@ import {
 } from "@tanstack/react-router"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { ThemeProvider } from "@/components/layout/theme-provider"
-import { TopNav } from "@/components/layout/top-nav"
+import { ThemeProvider } from "@/components/layout/ThemeProvider"
+import { TopNav } from "@/components/layout/TopNav"
 import { Toaster } from "@/components/ui/sonner"
 
 import appCss from "../styles.css?url"

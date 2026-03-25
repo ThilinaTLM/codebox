@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { EventItem } from "./event-item"
-import type { WSEvent } from "@/lib/types"
+import { EventItem } from "./EventItem"
+import type { WSEvent } from "@/net/http/types"
 
 export function EventStream({ events }: { events: WSEvent[] }) {
   const bottomRef = useRef<HTMLDivElement>(null)

@@ -3,8 +3,8 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "./theme-toggle"
-import { NewTaskDialog } from "@/components/task/new-task-dialog"
+import { ThemeToggle } from "./ThemeToggle"
+import { NewTaskDialog } from "@/components/task/NewTaskDialog"
 import { cn } from "@/lib/utils"
 
 const navLinks = [

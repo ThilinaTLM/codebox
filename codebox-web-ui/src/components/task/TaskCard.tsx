@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { TaskStatusBadge } from "./task-status-badge"
-import { TaskStatus } from "@/lib/types"
-import type { Task } from "@/lib/types"
+import { TaskStatusBadge } from "./TaskStatusBadge"
+import { TaskStatus } from "@/net/http/types"
+import type { Task } from "@/net/http/types"
 import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 

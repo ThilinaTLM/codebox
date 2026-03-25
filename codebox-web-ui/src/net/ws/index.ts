@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { getWsUrl } from "@/lib/api"
-import type { WSEvent } from "@/lib/types"
+import type { WSEvent } from "@/net/http/types"
+
+export function getWsUrl(taskId: string): string {
+  const wsBase =
+    typeof window !== "undefined"
+      ? (import.meta.env.VITE_WS_URL ?? "ws://localhost:8080")
+      : "ws://localhost:8080"
+  return `${wsBase}/api/tasks/${taskId}/ws`
+}
 
 interface UseTaskWebSocketOptions {
   taskId: string | undefined

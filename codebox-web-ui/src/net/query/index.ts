@@ -3,25 +3,15 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-import {
-  cancelTask,
-  createTask,
-  deleteTask,
-  getContainers,
-  getTask,
-  getTaskEvents,
-  getTasks,
-  sendFeedback,
-  stopContainer,
-} from "@/lib/api"
-import type { TaskCreatePayload } from "@/lib/types"
+import { api } from "@/net/http/api"
+import type { TaskCreatePayload } from "@/net/http/types"
 
 // ── Task queries ──────────────────────────────────────────────
 
 export function useTasks(status?: string) {
   return useQuery({
     queryKey: ["tasks", status ?? "all"],
-    queryFn: () => getTasks(status),
+    queryFn: () => api.tasks.list(status),
     refetchInterval: 5000,
   })
 }
@@ -29,7 +19,7 @@ export function useTasks(status?: string) {
 export function useTask(taskId: string | undefined) {
   return useQuery({
     queryKey: ["tasks", taskId],
-    queryFn: () => getTask(taskId!),
+    queryFn: () => api.tasks.get(taskId!),
     enabled: !!taskId,
     refetchInterval: 3000,
   })
@@ -38,7 +28,7 @@ export function useTask(taskId: string | undefined) {
 export function useTaskEvents(taskId: string | undefined) {
   return useQuery({
     queryKey: ["tasks", taskId, "events"],
-    queryFn: () => getTaskEvents(taskId!),
+    queryFn: () => api.tasks.getEvents(taskId!),
     enabled: !!taskId,
   })
 }
@@ -48,7 +38,7 @@ export function useTaskEvents(taskId: string | undefined) {
 export function useContainers() {
   return useQuery({
     queryKey: ["containers"],
-    queryFn: getContainers,
+    queryFn: api.containers.list,
     refetchInterval: 10000,
   })
 }
@@ -58,7 +48,7 @@ export function useContainers() {
 export function useCreateTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: TaskCreatePayload) => createTask(payload),
+    mutationFn: (payload: TaskCreatePayload) => api.tasks.create(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tasks"] })
     },
@@ -68,7 +58,7 @@ export function useCreateTask() {
 export function useCancelTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (taskId: string) => cancelTask(taskId),
+    mutationFn: (taskId: string) => api.tasks.cancel(taskId),
     onSuccess: (_data, taskId) => {
       qc.invalidateQueries({ queryKey: ["tasks", taskId] })
       qc.invalidateQueries({ queryKey: ["tasks"] })
@@ -79,7 +69,7 @@ export function useCancelTask() {
 export function useDeleteTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (taskId: string) => deleteTask(taskId),
+    mutationFn: (taskId: string) => api.tasks.delete(taskId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tasks"] })
     },
@@ -89,14 +79,14 @@ export function useDeleteTask() {
 export function useSendFeedback() {
   return useMutation({
     mutationFn: ({ taskId, message }: { taskId: string; message: string }) =>
-      sendFeedback(taskId, message),
+      api.tasks.sendFeedback(taskId, message),
   })
 }
 
 export function useStopContainer() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (containerId: string) => stopContainer(containerId),
+    mutationFn: (containerId: string) => api.containers.stop(containerId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["containers"] })
     },

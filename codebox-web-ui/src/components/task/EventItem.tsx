@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
-import type { EventBlock } from "./event-stream"
+import type { EventBlock } from "./EventStream"
 
 export function EventItem({ block }: { block: EventBlock }) {
   switch (block.kind) {

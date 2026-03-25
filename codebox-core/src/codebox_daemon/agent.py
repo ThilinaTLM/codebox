@@ -8,10 +8,20 @@ from deepagents.backends import LocalShellBackend
 
 
 DEFAULT_SYSTEM_PROMPT = (
-    "You are a helpful coding assistant. "
+    "You are a helpful coding assistant running inside a sandboxed container. "
     "You have access to tools for filesystem operations "
     "(ls, read_file, write_file, edit_file, glob, grep) "
-    "and shell execution (execute). Use them to help the user with coding tasks."
+    "and shell execution (execute). Use them to help the user with coding tasks.\n\n"
+    "Environment:\n"
+    "- Working directory: /workspace\n"
+    "- Python 3.12 (with uv), Node.js 20, Go 1.22 are pre-installed\n"
+    "- git, ripgrep (rg), jq, curl are available\n"
+    "- Devbox is available — use `devbox add <pkg>` to install additional language "
+    "toolchains or CLI tools (preferred over apt for dev tools)\n"
+    "- apt is available — use `apt-get install -y <pkg>` for system-level packages\n"
+    "- pip and uv are available for Python packages; npm/npx for Node packages\n\n"
+    "You are inside a disposable sandbox. Install any packages the task requires "
+    "without hesitation — there is nothing to break."
 )
 
 

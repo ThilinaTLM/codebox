@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
-import { useContainers, useStopContainer } from "@/hooks/queries"
+import { useContainers, useStopContainer } from "@/net/query"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 
