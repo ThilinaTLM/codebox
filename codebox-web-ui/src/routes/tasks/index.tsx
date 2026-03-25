@@ -15,6 +15,7 @@ import { TaskStatus } from "@/net/http/types"
 import { formatDistanceToNow, differenceInSeconds, differenceInMinutes, differenceInHours } from "date-fns"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 
 export const Route = createFileRoute("/tasks/")({ component: TaskHistoryPage })
 
@@ -37,6 +38,7 @@ function TaskHistoryPage() {
       {/* Header with tabs */}
       <div className="flex items-center justify-between border-b px-8 py-4">
         <div className="flex items-center gap-4">
+          <SidebarTrigger />
           <h1 className="text-xl font-semibold tracking-tight">Tasks</h1>
           <nav className="flex items-center gap-0.5 rounded-lg bg-muted/50 p-0.5">
             {filterTabs.map((tab) => (

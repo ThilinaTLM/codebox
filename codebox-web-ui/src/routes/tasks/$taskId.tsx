@@ -11,6 +11,7 @@ import { useTaskWebSocket } from "@/net/ws"
 import { TaskStatus } from "@/net/http/types"
 import { toast } from "sonner"
 import { useNavigate } from "@tanstack/react-router"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 
 export const Route = createFileRoute("/tasks/$taskId")({
   component: TaskDetailPage,
@@ -66,11 +67,12 @@ function TaskDetailPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-svh flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-6 py-4">
+      <div className="flex items-center justify-between border-b px-4 py-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
+            <SidebarTrigger />
             <h1 className="truncate text-lg font-semibold">{task.title}</h1>
             <TaskStatusBadge status={task.status} />
             {isConnected && isActive && (
@@ -113,18 +115,8 @@ function TaskDetailPage() {
       <div className="flex min-h-0 flex-1">
         {/* Event stream */}
         <div className="flex min-h-0 flex-1 flex-col">
-          {/* Terminal title bar */}
-          <div className="flex items-center gap-2 border-b bg-muted/30 px-4 py-1.5">
-            <span className="size-2.5 rounded-full bg-destructive/60" />
-            <span className="size-2.5 rounded-full bg-warning/60" />
-            <span className="size-2.5 rounded-full bg-success/60" />
-            <span className="ml-2 font-mono text-xs text-muted-foreground">
-              {task.title} &mdash; {task.model}
-            </span>
-          </div>
-
           <div className="min-h-0 flex-1">
-            <EventStream events={events} />
+            <EventStream events={events} centered />
           </div>
 
           {/* Feedback input */}

@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowUp01Icon } from "@hugeicons/core-free-icons"
 
 export function SandboxInput({
   onSendMessage,
@@ -31,19 +33,19 @@ export function SandboxInput({
   }
 
   return (
-    <div className="flex items-start gap-2">
-      <span
-        className={`mt-2.5 font-mono text-sm font-bold ${
-          isExecMode ? "text-yellow-500" : "text-primary"
-        }`}
-      >
-        {isExecMode ? "!" : "$"}
-      </span>
-      <Textarea
+    <div className="relative rounded-2xl border bg-card shadow-sm">
+      {isExecMode && (
+        <div className="absolute left-3 top-3 z-10">
+          <Badge variant="outline" className="border-yellow-500/30 text-xs text-yellow-600 dark:text-yellow-400">
+            shell
+          </Badge>
+        </div>
+      )}
+      <textarea
         placeholder={
           disabled
             ? "Sandbox is not active..."
-            : "Message the agent, or type !command to run shell..."
+            : "Message the agent, or type ! for shell..."
         }
         value={input}
         onChange={(e) => setInput(e.target.value)}
@@ -54,17 +56,22 @@ export function SandboxInput({
           }
         }}
         disabled={disabled}
-        className={`min-h-[60px] resize-none font-mono text-sm ${
-          isExecMode ? "border-yellow-500/30 bg-yellow-500/5" : ""
+        rows={1}
+        className={`w-full resize-none rounded-2xl bg-transparent px-4 py-3.5 pr-14 text-sm outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 ${
+          isExecMode ? "pt-10" : ""
         }`}
+        style={{ minHeight: "52px", maxHeight: "200px" }}
       />
-      <Button
-        onClick={handleSend}
-        disabled={disabled || !input.trim()}
-        className="self-end"
-      >
-        {isExecMode ? "Run" : "Send"}
-      </Button>
+      <div className="absolute right-3 bottom-3">
+        <Button
+          size="icon"
+          className="size-8 rounded-xl"
+          onClick={handleSend}
+          disabled={disabled || !input.trim()}
+        >
+          <HugeiconsIcon icon={ArrowUp01Icon} size={16} strokeWidth={2.5} />
+        </Button>
+      </div>
     </div>
   )
 }

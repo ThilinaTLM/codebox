@@ -1,12 +1,8 @@
+import { useState, useCallback, useRef } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import { SandboxStatusBadge } from "@/components/sandbox/SandboxStatusBadge"
 import { SandboxInput } from "@/components/sandbox/SandboxInput"
 import { FileExplorer } from "@/components/sandbox/FileExplorer"
@@ -16,7 +12,14 @@ import { useSandboxWebSocket } from "@/net/ws"
 import { SandboxStatus } from "@/net/http/types"
 import type { WSEvent } from "@/net/http/types"
 import { toast } from "sonner"
-import { useRef, useCallback } from "react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { MoreHorizontalCircle01Icon } from "@hugeicons/core-free-icons"
 
 export const Route = createFileRoute("/sandboxes/$sandboxId")({
   component: SandboxDetailPage,
@@ -28,6 +31,7 @@ function SandboxDetailPage() {
   const navigate = useNavigate()
   const stopMutation = useStopSandbox()
   const deleteMutation = useDeleteSandbox()
+  const [fileExplorerOpen, setFileExplorerOpen] = useState(false)
 
   const isActive =
     sandbox?.status === SandboxStatus.READY ||
@@ -39,12 +43,10 @@ function SandboxDetailPage() {
       enabled: true,
     })
 
-  // Track user inputs for display in the event stream
   const localEventsRef = useRef<WSEvent[]>([])
 
   const handleSendMessage = useCallback(
     (content: string) => {
-      // Add user message marker to local events
       localEventsRef.current = [
         ...localEventsRef.current,
         { type: "status_change", status: `you: ${content}` } as WSEvent,
@@ -69,12 +71,10 @@ function SandboxDetailPage() {
 
   if (!sandbox) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 p-12">
-        <p className="text-sm text-muted-foreground">
-          Sandbox not found
-        </p>
+      <div className="flex h-svh flex-col items-center justify-center gap-4">
+        <p className="text-sm text-muted-foreground">Sandbox not found</p>
         <Button variant="outline" size="sm" asChild>
-          <Link to="/sandboxes">Back to sandboxes</Link>
+          <Link to="/">Go home</Link>
         </Button>
       </div>
     )
@@ -92,110 +92,103 @@ function SandboxDetailPage() {
     deleteMutation.mutate(sandboxId, {
       onSuccess: () => {
         toast.success("Sandbox deleted")
-        navigate({ to: "/sandboxes" })
+        navigate({ to: "/" })
       },
       onError: () => toast.error("Failed to delete"),
     })
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-svh flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-6 py-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="truncate text-lg font-semibold">
-              {sandbox.name}
-            </h1>
-            <SandboxStatusBadge status={sandbox.status} />
-            {isConnected && isActive && (
-              <span className="flex items-center gap-1.5 text-xs text-success">
-                <span className="relative flex size-1.5">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
-                  <span className="relative inline-flex size-1.5 rounded-full bg-success" />
-                </span>
-                connected
+      <header className="flex items-center justify-between border-b px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <SidebarTrigger />
+          <h1 className="truncate text-sm font-medium">{sandbox.name}</h1>
+          <SandboxStatusBadge status={sandbox.status} />
+          {isConnected && isActive && (
+            <span className="flex items-center gap-1 text-xs text-success">
+              <span className="relative flex size-1.5">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-success" />
               </span>
-            )}
-          </div>
-          <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-            {sandbox.model} &middot; {sandbox.id.slice(0, 8)}
-            {sandbox.workspace_path && (
-              <> &middot; {sandbox.workspace_path}</>
-            )}
-          </p>
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant={fileExplorerOpen ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setFileExplorerOpen(!fileExplorerOpen)}
+            className="h-7 px-2 text-xs"
+          >
+            Files
+          </Button>
           {isActive && (
             <Button
               variant="outline"
               size="sm"
               onClick={handleStop}
               disabled={stopMutation.isPending}
+              className="h-7 px-2 text-xs"
             >
               Stop
             </Button>
           )}
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDelete}
-            disabled={deleteMutation.isPending}
-          >
-            Delete
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7">
+                <HugeiconsIcon icon={MoreHorizontalCircle01Icon} size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={handleDelete}
+                className="text-destructive focus:text-destructive"
+              >
+                Delete sandbox
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </div>
+      </header>
 
-      {/* Main content — resizable panels */}
-      <div className="min-h-0 flex-1">
-        <ResizablePanelGroup direction="horizontal">
-          {/* Left: Chat / Event Stream */}
-          <ResizablePanel defaultSize={65} minSize={40}>
-            <div className="flex h-full flex-col">
-              {/* Terminal title bar */}
-              <div className="flex items-center gap-2 border-b bg-muted/30 px-4 py-1.5">
-                <span className="size-2.5 rounded-full bg-destructive/60" />
-                <span className="size-2.5 rounded-full bg-warning/60" />
-                <span className="size-2.5 rounded-full bg-success/60" />
-                <span className="ml-2 font-mono text-xs text-muted-foreground">
-                  {sandbox.name} &mdash; interactive session
-                </span>
-              </div>
+      {/* Main content */}
+      <div className="flex min-h-0 flex-1">
+        {/* Chat area */}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1">
+            <EventStream events={events} centered />
+          </div>
 
-              <div className="min-h-0 flex-1">
-                <EventStream events={events} />
-              </div>
-
-              {/* Input */}
-              <Separator />
-              <div className="p-4">
-                <SandboxInput
-                  onSendMessage={handleSendMessage}
-                  onSendExec={handleSendExec}
-                  disabled={!isActive || !isConnected}
-                />
-              </div>
+          {/* Input */}
+          <div className="border-t bg-background/80 backdrop-blur-sm">
+            <div className="mx-auto max-w-3xl px-4 py-4">
+              <SandboxInput
+                onSendMessage={handleSendMessage}
+                onSendExec={handleSendExec}
+                disabled={!isActive || !isConnected}
+              />
             </div>
-          </ResizablePanel>
+          </div>
+        </div>
 
-          <ResizableHandle withHandle />
-
-          {/* Right: File Explorer */}
-          <ResizablePanel defaultSize={35} minSize={20}>
+        {/* File explorer panel */}
+        {fileExplorerOpen && (
+          <div className="w-80 flex-shrink-0 border-l">
             {sandbox.status === SandboxStatus.READY ? (
               <FileExplorer sandboxId={sandboxId} />
             ) : (
               <div className="flex h-full items-center justify-center">
                 <p className="text-sm text-muted-foreground">
                   {sandbox.status === SandboxStatus.STARTING
-                    ? "Sandbox is starting..."
-                    : "Sandbox is not active"}
+                    ? "Starting..."
+                    : "Not active"}
                 </p>
               </div>
             )}
-          </ResizablePanel>
-        </ResizablePanelGroup>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -203,10 +196,18 @@ function SandboxDetailPage() {
 
 function SandboxDetailSkeleton() {
   return (
-    <div className="space-y-4 p-8">
-      <Skeleton className="h-7 w-64" />
-      <Skeleton className="h-5 w-40" />
-      <Skeleton className="h-[400px] w-full rounded-lg" />
+    <div className="flex h-svh flex-col">
+      <div className="flex items-center gap-2 border-b px-3 py-2">
+        <Skeleton className="h-6 w-6" />
+        <Skeleton className="h-5 w-40" />
+      </div>
+      <div className="flex-1 p-8">
+        <div className="mx-auto max-w-3xl space-y-4">
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-3/4 rounded-xl" />
+          <Skeleton className="h-16 w-1/2 rounded-xl" />
+        </div>
+      </div>
     </div>
   )
 }

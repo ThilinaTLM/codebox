@@ -1,90 +1,75 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowDown01Icon, ArrowRight01Icon, Cancel01Icon, Loading03Icon } from "@hugeicons/core-free-icons"
 import { useSandboxFiles, useSandboxFileContent } from "@/net/query"
 import type { FileEntry } from "@/net/http/types"
 
 export function FileExplorer({ sandboxId }: { sandboxId: string }) {
-  const [currentPath, setCurrentPath] = useState("/workspace")
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
-
-  const { data: fileList, isLoading, refetch } = useSandboxFiles(sandboxId, currentPath)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const queryClient = useQueryClient()
   const { data: fileContent, isLoading: isLoadingContent } =
     useSandboxFileContent(sandboxId, selectedFile)
 
-  const breadcrumbs = currentPath.split("/").filter(Boolean)
-
-  const handleEntryClick = (entry: FileEntry) => {
-    if (entry.is_dir) {
-      setCurrentPath(entry.path)
-      setSelectedFile(null)
-    } else {
-      setSelectedFile(entry.path)
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
+    await queryClient.invalidateQueries({
+      queryKey: ["sandboxes", sandboxId, "files"],
+    })
+    if (selectedFile) {
+      await queryClient.invalidateQueries({
+        queryKey: ["sandboxes", sandboxId, "file-content", selectedFile],
+      })
     }
-  }
-
-  const navigateTo = (pathIndex: number) => {
-    const newPath = "/" + breadcrumbs.slice(0, pathIndex + 1).join("/")
-    setCurrentPath(newPath)
-    setSelectedFile(null)
-  }
+    setIsRefreshing(false)
+  }, [queryClient, sandboxId, selectedFile])
 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center justify-between border-b px-3 py-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Files
-        </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => refetch()}
-          className="h-6 px-2 text-xs"
-        >
-          Refresh
-        </Button>
-      </div>
-
-      {/* Breadcrumbs */}
-      <div className="flex flex-wrap items-center gap-0.5 border-b px-3 py-1.5">
-        <button
-          onClick={() => { setCurrentPath("/workspace"); setSelectedFile(null) }}
-          className="font-mono text-xs text-primary hover:underline"
-        >
-          /
-        </button>
-        {breadcrumbs.map((part, i) => (
-          <span key={i} className="flex items-center gap-0.5">
-            <span className="font-mono text-xs text-muted-foreground">/</span>
-            <button
-              onClick={() => navigateTo(i)}
-              className="font-mono text-xs text-primary hover:underline"
+        <span className="text-xs font-medium text-muted-foreground">Files</span>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="h-6 px-2 text-xs"
+          >
+            <HugeiconsIcon
+              icon={Loading03Icon}
+              size={12}
+              className={isRefreshing ? "animate-spin" : ""}
+            />
+            <span className="ml-1">Refresh</span>
+          </Button>
+          {selectedFile && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedFile(null)}
+              className="h-6 px-2 text-xs"
             >
-              {part}
-            </button>
-          </span>
-        ))}
+              <HugeiconsIcon icon={Cancel01Icon} size={12} />
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* File list or content */}
       {selectedFile ? (
+        /* File content viewer */
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-center gap-2 border-b px-3 py-1.5">
-            <button
-              onClick={() => setSelectedFile(null)}
-              className="font-mono text-xs text-primary hover:underline"
-            >
-              Back
-            </button>
             <span className="truncate font-mono text-xs text-muted-foreground">
               {selectedFile.split("/").pop()}
             </span>
             {fileContent?.truncated && (
-              <span className="font-mono text-xs text-warning">
-                (truncated)
-              </span>
+              <span className="text-xs text-warning">(truncated)</span>
             )}
           </div>
           <ScrollArea className="flex-1">
@@ -102,49 +87,135 @@ export function FileExplorer({ sandboxId }: { sandboxId: string }) {
           </ScrollArea>
         </div>
       ) : (
+        /* Tree view */
         <ScrollArea className="flex-1">
-          {isLoading ? (
-            <div className="space-y-1 p-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-6 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="py-1">
-              {fileList?.entries.length === 0 && (
-                <p className="p-3 font-mono text-xs text-muted-foreground">
-                  Empty directory
-                </p>
-              )}
-              {fileList?.entries.map((entry) => (
-                <button
-                  key={entry.path}
-                  onClick={() => handleEntryClick(entry)}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-muted/50"
-                >
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {entry.is_dir ? "dir" : "file"}
-                  </span>
-                  <span
-                    className={`truncate font-mono text-sm ${
-                      entry.is_dir ? "text-primary" : "text-foreground/80"
-                    }`}
-                  >
-                    {entry.name}
-                    {entry.is_dir ? "/" : ""}
-                  </span>
-                  {entry.size != null && !entry.is_dir && (
-                    <span className="ml-auto font-mono text-xs text-muted-foreground">
-                      {formatSize(entry.size)}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="py-1">
+            <FileTreeLevel
+              sandboxId={sandboxId}
+              path="/workspace"
+              depth={0}
+              onSelectFile={setSelectedFile}
+              defaultExpanded
+            />
+          </div>
         </ScrollArea>
       )}
     </div>
+  )
+}
+
+function FileTreeLevel({
+  sandboxId,
+  path,
+  depth,
+  onSelectFile,
+  defaultExpanded = false,
+}: {
+  sandboxId: string
+  path: string
+  depth: number
+  onSelectFile: (path: string) => void
+  defaultExpanded?: boolean
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const { data: fileList, isLoading } = useSandboxFiles(
+    sandboxId,
+    path,
+  )
+
+  if (!expanded && !defaultExpanded) return null
+
+  if (isLoading) {
+    return (
+      <div className="space-y-0.5 py-0.5" style={{ paddingLeft: `${depth * 16 + 8}px` }}>
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-5 w-24" />
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {fileList?.entries.map((entry) => (
+        <FileTreeNode
+          key={entry.path}
+          entry={entry}
+          sandboxId={sandboxId}
+          depth={depth}
+          onSelectFile={onSelectFile}
+        />
+      ))}
+      {fileList?.entries.length === 0 && (
+        <div
+          className="py-1 text-xs text-muted-foreground/50"
+          style={{ paddingLeft: `${depth * 16 + 28}px` }}
+        >
+          Empty
+        </div>
+      )}
+    </>
+  )
+}
+
+function FileTreeNode({
+  entry,
+  sandboxId,
+  depth,
+  onSelectFile,
+}: {
+  entry: FileEntry
+  sandboxId: string
+  depth: number
+  onSelectFile: (path: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  const handleClick = () => {
+    if (entry.is_dir) {
+      setExpanded(!expanded)
+    } else {
+      onSelectFile(entry.path)
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={handleClick}
+        className="flex w-full items-center gap-1 rounded-sm px-1 py-1 text-left transition-colors hover:bg-muted/50"
+        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+      >
+        {entry.is_dir ? (
+          <HugeiconsIcon
+            icon={expanded ? ArrowDown01Icon : ArrowRight01Icon}
+            size={12}
+            className="shrink-0 text-muted-foreground"
+          />
+        ) : (
+          <span className="inline-block size-3 shrink-0" />
+        )}
+        <span
+          className={`truncate font-mono text-xs ${
+            entry.is_dir ? "font-medium text-foreground" : "text-foreground/70"
+          }`}
+        >
+          {entry.name}
+        </span>
+        {entry.size != null && !entry.is_dir && (
+          <span className="ml-auto shrink-0 font-mono text-xs text-muted-foreground/50">
+            {formatSize(entry.size)}
+          </span>
+        )}
+      </button>
+      {entry.is_dir && expanded && (
+        <FileTreeLevel
+          sandboxId={sandboxId}
+          path={entry.path}
+          depth={depth + 1}
+          onSelectFile={onSelectFile}
+        />
+      )}
+    </>
   )
 }
 

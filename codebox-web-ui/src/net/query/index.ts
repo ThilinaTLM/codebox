@@ -120,6 +120,7 @@ export function useSandboxFiles(
     queryKey: ["sandboxes", sandboxId, "files", path],
     queryFn: () => api.sandboxes.listFiles(sandboxId!, path),
     enabled: !!sandboxId,
+    refetchInterval: 10000,
   })
 }
 

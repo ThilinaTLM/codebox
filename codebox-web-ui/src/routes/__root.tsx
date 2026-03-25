@@ -8,7 +8,8 @@ import { API_URL, WS_URL } from "@/lib/constants"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
-import { TopNav } from "@/components/layout/TopNav"
+import { AppSidebar } from "@/components/layout/AppSidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Toaster } from "@/components/ui/sonner"
 
 import appCss from "../styles.css?url"
@@ -27,7 +28,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Codebox Orchestrator" },
+      { title: "Codebox" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
@@ -40,12 +41,12 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <div className="flex min-h-screen flex-col">
-            <TopNav />
-            <main className="flex-1 overflow-auto">
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset>
               <Outlet />
-            </main>
-          </div>
+            </SidebarInset>
+          </SidebarProvider>
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>

@@ -3,34 +3,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { EventItem } from "./EventItem"
 import type { WSEvent } from "@/net/http/types"
 
-export function EventStream({ events }: { events: WSEvent[] }) {
-  const bottomRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [events.length])
-
-  // Collapse consecutive token events into text blocks
-  const blocks = collapseTokens(events)
-
-  return (
-    <ScrollArea className="h-full">
-      <div className="terminal-bg bg-grid space-y-1 p-5 font-mono text-sm">
-        {blocks.map((block, i) => (
-          <EventItem key={i} block={block} />
-        ))}
-        {events.length === 0 && (
-          <p className="font-mono text-sm text-muted-foreground">
-            <span className="text-primary/60">&gt;</span> waiting for events
-            <span className="animate-blink">_</span>
-          </p>
-        )}
-        <div ref={bottomRef} />
-      </div>
-    </ScrollArea>
-  )
-}
-
 export type EventBlock =
   | { kind: "text"; content: string }
   | { kind: "tool_start"; name: string }
@@ -44,7 +16,7 @@ export type EventBlock =
   | { kind: "user_message"; content: string }
   | { kind: "user_exec"; command: string }
 
-function collapseTokens(events: WSEvent[]): EventBlock[] {
+export function collapseTokens(events: WSEvent[]): EventBlock[] {
   const blocks: EventBlock[] = []
   let textBuffer = ""
   let execBuffer = ""
@@ -78,7 +50,6 @@ function collapseTokens(events: WSEvent[]): EventBlock[] {
       continue
     }
 
-    // Flush buffers before other events
     flushText()
     flushExec()
 
@@ -107,9 +78,37 @@ function collapseTokens(events: WSEvent[]): EventBlock[] {
     }
   }
 
-  // Flush remaining buffers
   flushText()
   flushExec()
 
   return blocks
+}
+
+export function EventStream({ events, centered }: { events: WSEvent[]; centered?: boolean }) {
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [events.length])
+
+  const blocks = collapseTokens(events)
+
+  return (
+    <ScrollArea className="h-full">
+      <div className={centered ? "mx-auto max-w-3xl px-4" : "px-5"}>
+        <div className="space-y-4 py-6 text-sm">
+          {blocks.map((block, i) => (
+            <EventItem key={i} block={block} />
+          ))}
+          {events.length === 0 && (
+            <div className="flex items-center gap-2 py-8 text-muted-foreground">
+              <span className="text-sm">Waiting for events...</span>
+              <span className="animate-blink">|</span>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </div>
+    </ScrollArea>
+  )
 }
