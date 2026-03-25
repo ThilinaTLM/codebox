@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BoxInput } from "@/components/box/BoxInput"
-import { FileExplorer } from "@/components/box/FileExplorer"
+import { FileExplorer, type ExplorerSize } from "@/components/box/FileExplorer"
 import { EventStream } from "@/components/task/EventStream"
 import { useBox, useStopBox, useDeleteBox } from "@/net/query"
 import { useBoxWebSocket } from "@/net/ws"
@@ -11,8 +11,13 @@ import { BoxStatus } from "@/net/http/types"
 import type { WSEvent } from "@/net/http/types"
 import { toast } from "sonner"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
-import { cn } from "@/lib/utils"
-import { PanelLeftOpen } from "lucide-react"
+import { FolderOpen, Settings } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export const Route = createFileRoute("/boxes/$boxId")({
   component: BoxDetailPage,
@@ -25,6 +30,7 @@ function BoxDetailPage() {
   const stopMutation = useStopBox()
   const deleteMutation = useDeleteBox()
   const [fileExplorerOpen, setFileExplorerOpen] = useState(false)
+  const [explorerSize, setExplorerSize] = useState<ExplorerSize>("sm")
   const setBoxPageActions = useSetBoxPageActions()
 
   const isActive =
@@ -59,18 +65,12 @@ function BoxDetailPage() {
   useEffect(() => {
     if (!box) return
     setBoxPageActions({
-      onStop: handleStop,
-      onDelete: handleDelete,
-      stopPending: stopMutation.isPending,
       isActive,
       isConnected,
     })
     return () => setBoxPageActions(null)
   }, [
     box,
-    handleStop,
-    handleDelete,
-    stopMutation.isPending,
     isActive,
     isConnected,
     setBoxPageActions,
@@ -117,59 +117,87 @@ function BoxDetailPage() {
   const canShowFiles = box.status === BoxStatus.IDLE || box.status === BoxStatus.RUNNING
 
   return (
-    <div className="flex h-[calc(100svh-3rem)] flex-col">
-      {/* Main content */}
-      <div className="flex min-h-0 flex-1">
-        {/* Sidebar toggle tab */}
-        {!fileExplorerOpen && (
-          <button
-            onClick={() => setFileExplorerOpen(true)}
-            className="flex w-8 flex-shrink-0 items-center justify-center border-r bg-card/20 text-muted-foreground transition-colors hover:bg-card/50 hover:text-foreground"
-            title="Open file explorer"
-          >
-            <PanelLeftOpen size={14} />
-          </button>
-        )}
+    <div className="relative h-[calc(100svh-3rem)]">
+      {/* Floating toggle button - top left */}
+      <Button
+        variant={fileExplorerOpen ? "secondary" : "ghost"}
+        size="icon-sm"
+        onClick={() => setFileExplorerOpen((o) => !o)}
+        className="absolute left-3 top-3 z-20"
+        title={fileExplorerOpen ? "Close file explorer" : "Open file explorer"}
+      >
+        <FolderOpen size={16} />
+      </Button>
 
-        {/* File explorer panel - always rendered, animated width */}
-        <div
-          className={cn(
-            "flex-shrink-0 overflow-hidden bg-card/30 transition-[width,border] duration-200 min-h-0",
-            fileExplorerOpen ? "w-64 border-r lg:w-80" : "w-0"
-          )}
+      {/* Floating settings button - top right */}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon-sm" className="absolute right-3 top-3 z-20" />}
         >
-          <div className="h-full min-h-0 w-64 lg:w-80">
-            {canShowFiles ? (
-              <FileExplorer boxId={boxId} onClose={() => setFileExplorerOpen(false)} />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-muted-foreground">
-                  {box.status === BoxStatus.STARTING
-                    ? "Starting..."
-                    : "Not active"}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+          <Settings size={16} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {isActive && (
+            <DropdownMenuItem
+              onClick={handleStop}
+              disabled={stopMutation.isPending}
+            >
+              Stop agent
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            onClick={handleDelete}
+            className="text-destructive focus:text-destructive"
+          >
+            Delete agent
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-        {/* Chat area */}
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1">
-            <EventStream events={events} centered />
-          </div>
-
-          {/* Input */}
-          <div className="border-t bg-background/80 backdrop-blur-sm">
-            <div className="mx-auto max-w-3xl px-4 py-4">
-              <BoxInput
-                onSendMessage={handleSendMessage}
-                onSendExec={handleSendExec}
-                disabled={!isActive || !isConnected}
-              />
+      {/* Floating file explorer panel */}
+      {fileExplorerOpen && (
+        <div
+          className={`absolute left-3 top-12 bottom-3 z-20 overflow-hidden rounded-xl border bg-card shadow-lg ${
+            explorerSize === "full"
+              ? "right-3"
+              : explorerSize === "lg"
+                ? "w-[32rem] lg:w-[36rem]"
+                : explorerSize === "md"
+                  ? "w-96 lg:w-[28rem]"
+                  : "w-72 lg:w-80"
+          }`}
+        >
+          {canShowFiles ? (
+            <FileExplorer
+              boxId={boxId}
+              onClose={() => setFileExplorerOpen(false)}
+              size={explorerSize}
+              onSizeChange={setExplorerSize}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-sm text-muted-foreground">
+                {box.status === BoxStatus.STARTING
+                  ? "Starting..."
+                  : "Not active"}
+              </p>
             </div>
-          </div>
+          )}
         </div>
+      )}
+
+      {/* Chat area - full height with bottom inset for floating input */}
+      <div className="h-full">
+        <EventStream events={events} centered bottomInset />
+      </div>
+
+      {/* Floating input - bottom center */}
+      <div className="absolute bottom-4 left-1/2 z-20 w-full max-w-3xl -translate-x-1/2 px-4">
+        <BoxInput
+          onSendMessage={handleSendMessage}
+          onSendExec={handleSendExec}
+          disabled={!isActive || !isConnected}
+        />
       </div>
     </div>
   )

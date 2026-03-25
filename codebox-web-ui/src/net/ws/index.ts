@@ -31,6 +31,8 @@ export function useBoxWebSocket({
   const connect = useCallback(() => {
     if (!boxId || !enabled || !activeRef.current) return
 
+    setEvents([]) // Clear stale events — server will replay from DB
+
     const url = `${WS_URL}/api/boxes/${boxId}/ws`
     const ws = new WebSocket(url)
     wsRef.current = ws

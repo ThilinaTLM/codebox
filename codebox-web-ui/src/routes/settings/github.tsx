@@ -92,7 +92,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
 
       {/* Content */}
       <div className="flex-1 px-6 pb-12">
-        <div className="mx-auto max-w-3xl pt-8">{children}</div>
+        <div className="mx-auto max-w-6xl pt-8">{children}</div>
       </div>
     </div>
   )

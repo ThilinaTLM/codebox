@@ -1,8 +1,10 @@
-import { useState } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowUp01Icon } from "@hugeicons/core-free-icons"
+
+const MAX_HEIGHT = 200
 
 export function BoxInput({
   onSendMessage,
@@ -14,8 +16,21 @@ export function BoxInput({
   disabled?: boolean
 }) {
   const [input, setInput] = useState("")
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const isExecMode = input.startsWith("!")
+
+  const adjustHeight = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = Math.min(el.scrollHeight, MAX_HEIGHT) + "px"
+    el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "auto" : "hidden"
+  }, [])
+
+  useEffect(() => {
+    adjustHeight()
+  }, [input, adjustHeight])
 
   const handleSend = () => {
     const trimmed = input.trim()
@@ -42,6 +57,7 @@ export function BoxInput({
         </div>
       )}
       <textarea
+        ref={textareaRef}
         placeholder={
           disabled
             ? "Box is not active..."
@@ -56,11 +72,10 @@ export function BoxInput({
           }
         }}
         disabled={disabled}
-        rows={1}
         className={`w-full resize-none rounded-2xl bg-transparent px-4 py-3.5 pr-14 text-sm outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 ${
           isExecMode ? "pt-10" : ""
         }`}
-        style={{ minHeight: "52px", maxHeight: "200px" }}
+        style={{ minHeight: "52px", maxHeight: `${MAX_HEIGHT}px`, overflowY: "hidden" }}
       />
       <div className="absolute right-3 bottom-3">
         <Button

@@ -1,9 +1,6 @@
 import { createContext, useContext } from "react"
 
 export interface BoxPageActions {
-  onStop: () => void
-  onDelete: () => void
-  stopPending: boolean
   isActive: boolean
   isConnected: boolean
 }

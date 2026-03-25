@@ -3,12 +3,13 @@ import { useQueryClient } from "@tanstack/react-query"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Loading03Icon } from "@hugeicons/core-free-icons"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { TreeView, type TreeDataItem } from "@/components/tree-view"
 import { useBoxFiles, useBoxFileContent } from "@/net/query"
 import type { FileEntry } from "@/net/http/types"
-import { Folder, File, ArrowLeft, PanelLeftClose } from "lucide-react"
+import { Folder, File, ArrowLeft, RefreshCw, X } from "lucide-react"
+
+export type ExplorerSize = "sm" | "md" | "lg" | "full"
 
 function entriesToTreeItems(entries: FileEntry[]): TreeDataItem[] {
   return entries.map((entry) => ({
@@ -20,20 +21,31 @@ function entriesToTreeItems(entries: FileEntry[]): TreeDataItem[] {
   }))
 }
 
-export function FileExplorer({ boxId, onClose }: { boxId: string; onClose?: () => void }) {
+export function FileExplorer({
+  boxId,
+  onClose,
+  size = "sm",
+  onSizeChange,
+}: {
+  boxId: string
+  onClose?: () => void
+  size?: ExplorerSize
+  onSizeChange?: (size: ExplorerSize) => void
+}) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [treeData, setTreeData] = useState<TreeDataItem[]>([])
   const queryClient = useQueryClient()
 
-  const { data: rootFiles } = useBoxFiles(boxId, "/workspace")
+  const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(boxId, "/workspace")
   const { data: fileContent, isLoading: isLoadingContent } =
     useBoxFileContent(boxId, selectedFile)
 
-  // Initialize tree data from root files
+  // Initialize tree data from root files, filtering out the /workspace root entry
   useEffect(() => {
     if (rootFiles?.entries) {
-      setTreeData(entriesToTreeItems(rootFiles.entries))
+      const filtered = rootFiles.entries.filter((e) => e.path !== "/workspace")
+      setTreeData(entriesToTreeItems(filtered))
     }
   }, [rootFiles])
 
@@ -64,30 +76,51 @@ export function FileExplorer({ boxId, onClose }: { boxId: string; onClose?: () =
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-3 py-2">
-        <span className="text-xs font-medium text-muted-foreground">Files</span>
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between border-b px-3 py-2.5">
+        <span className="text-sm font-medium text-muted-foreground">Files</span>
+        <div className="flex items-center gap-1.5">
+          {onSizeChange && (
+            <ToggleGroup
+              value={[size]}
+              onValueChange={(values) => {
+                // With multiple=true, clicking a new item adds it to the array.
+                // Pick the newly added value; ignore deselection of current.
+                const next = values.find((v) => v !== size) as ExplorerSize | undefined
+                if (next) onSizeChange(next)
+              }}
+              multiple
+              variant="outline"
+              size="sm"
+              className="h-6"
+            >
+              {(["sm", "md", "lg", "full"] as const).map((s) => (
+                <ToggleGroupItem
+                  key={s}
+                  value={s}
+                  className="h-6 px-1.5 text-[10px] font-medium uppercase"
+                >
+                  {s === "full" ? "F" : s.toUpperCase()}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          )}
           <Button
             variant="ghost"
-            size="xs"
+            size="icon-sm"
             onClick={handleRefresh}
             disabled={isRefreshing}
+            title="Refresh files"
           >
-            <HugeiconsIcon
-              icon={Loading03Icon}
-              size={12}
-              className={isRefreshing ? "animate-spin" : ""}
-            />
-            <span className="ml-1">Refresh</span>
+            <RefreshCw size={15} className={isRefreshing ? "animate-spin" : ""} />
           </Button>
           {onClose && (
             <Button
               variant="ghost"
-              size="icon-xs"
+              size="icon-sm"
               onClick={onClose}
               title="Close file explorer"
             >
-              <PanelLeftClose size={14} />
+              <X size={15} />
             </Button>
           )}
         </div>
@@ -96,14 +129,14 @@ export function FileExplorer({ boxId, onClose }: { boxId: string; onClose?: () =
       {selectedFile ? (
         /* File content viewer */
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center gap-1.5 border-b px-2 py-1.5">
+          <div className="flex items-center gap-1.5 border-b px-2 py-2">
             <Button
               variant="ghost"
-              size="icon-xs"
+              size="icon-sm"
               onClick={() => setSelectedFile(null)}
               title="Back to file tree"
             >
-              <ArrowLeft size={14} />
+              <ArrowLeft size={15} />
             </Button>
             <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
               {selectedFile.split("/").pop()}
@@ -136,10 +169,14 @@ export function FileExplorer({ boxId, onClose }: { boxId: string; onClose?: () =
               setData={setTreeData}
               onSelectChange={handleSelectChange}
             />
-          ) : (
+          ) : isLoadingFiles ? (
             <div className="space-y-0.5 p-3">
               <Skeleton className="h-5 w-32" />
               <Skeleton className="h-5 w-24" />
+            </div>
+          ) : (
+            <div className="flex h-32 items-center justify-center">
+              <p className="text-sm text-muted-foreground">No files yet</p>
             </div>
           )}
         </ScrollArea>

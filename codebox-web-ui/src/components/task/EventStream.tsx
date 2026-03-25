@@ -124,7 +124,7 @@ export function collapseTokens(events: WSEvent[]): EventBlock[] {
   return blocks
 }
 
-export function EventStream({ events, centered }: { events: WSEvent[]; centered?: boolean }) {
+export function EventStream({ events, centered, bottomInset }: { events: WSEvent[]; centered?: boolean; bottomInset?: boolean }) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -136,7 +136,7 @@ export function EventStream({ events, centered }: { events: WSEvent[]; centered?
   return (
     <ScrollArea className="h-full">
       <div className={centered ? "mx-auto max-w-3xl px-4" : "px-5"}>
-        <div className="space-y-3 py-6 text-sm">
+        <div className={`space-y-3 py-6 text-sm ${bottomInset ? "pb-24" : ""}`}>
           {blocks.map((block, i) => (
             <EventItem key={i} block={block} />
           ))}

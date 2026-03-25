@@ -27,9 +27,11 @@ class CallbackRegistry:
         self._pending_requests: dict[tuple[str, str], asyncio.Future[dict[str, Any]]] = {}
 
     def init_connection_state(self, entity_id: str) -> None:
-        """Prepare connection-tracking state for a new box."""
-        self._connected_events[entity_id] = asyncio.Event()
-        self._prompt_ready_events[entity_id] = asyncio.Event()
+        """Prepare connection-tracking state for a new box (idempotent)."""
+        if entity_id not in self._connected_events:
+            self._connected_events[entity_id] = asyncio.Event()
+        if entity_id not in self._prompt_ready_events:
+            self._prompt_ready_events[entity_id] = asyncio.Event()
 
     def set_connection(self, entity_id: str, ws: WebSocket) -> None:
         """Store the WebSocket connection from a sandbox container."""

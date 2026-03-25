@@ -31,7 +31,7 @@ function SettingsPage() {
           <section>
             <h2 className="font-display max-w-xs text-lg font-semibold">Appearance</h2>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              Toggle between light and dark mode.
+              Choose your preferred theme.
             </p>
             <div className="mt-4">
               <ThemeToggle />

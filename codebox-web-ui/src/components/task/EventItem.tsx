@@ -5,7 +5,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons"
+import { ArrowDown01Icon, ArrowRight01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
 import type { EventBlock } from "./EventStream"
 
 export function EventItem({ block }: { block: EventBlock }) {
@@ -34,8 +34,13 @@ export function EventItem({ block }: { block: EventBlock }) {
 
     case "done":
       return (
-        <div className="rounded-xl border border-success/20 bg-success/5 px-4 py-3 text-sm text-success">
-          Task completed
+        <div className="flex items-center gap-2 py-1">
+          <div className="h-px flex-1 bg-success/25" />
+          <div className="flex items-center gap-1.5 text-success/70">
+            <HugeiconsIcon icon={CheckmarkCircle02Icon} size={14} />
+            <span className="text-xs font-medium">Completed</span>
+          </div>
+          <div className="h-px flex-1 bg-success/25" />
         </div>
       )
 

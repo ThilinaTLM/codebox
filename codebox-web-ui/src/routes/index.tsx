@@ -1,12 +1,24 @@
+import { useState } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
+import { BoxStatusBadge } from "@/components/box/BoxStatusBadge"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Github01Icon } from "@hugeicons/core-free-icons"
-import { Plus } from "lucide-react"
-import { useBoxes, useCreateBox } from "@/net/query"
+import { Plus, Square, Trash2 } from "lucide-react"
+import { useBoxes, useCreateBox, useStopBox, useDeleteBox } from "@/net/query"
 import { BoxStatus } from "@/net/http/types"
 import type { Box } from "@/net/http/types"
 import { formatDistanceToNow } from "date-fns"
@@ -16,19 +28,6 @@ import { cn } from "@/lib/utils"
 export const Route = createFileRoute("/")({ component: HomePage })
 
 const ACTIVE_STATUSES = [BoxStatus.STARTING, BoxStatus.RUNNING, BoxStatus.IDLE]
-
-function statusDotColor(status: BoxStatus): string {
-  const map: Record<BoxStatus, string> = {
-    [BoxStatus.STARTING]: "bg-warning",
-    [BoxStatus.RUNNING]: "bg-success",
-    [BoxStatus.IDLE]: "bg-blue-400",
-    [BoxStatus.COMPLETED]: "bg-success/50",
-    [BoxStatus.FAILED]: "bg-destructive",
-    [BoxStatus.CANCELLED]: "bg-muted-foreground/30",
-    [BoxStatus.STOPPED]: "bg-muted-foreground/30",
-  }
-  return map[status] ?? "bg-muted-foreground/30"
-}
 
 function HomePage() {
   const { data: boxes, isLoading } = useBoxes()
@@ -148,60 +147,179 @@ function HomePage() {
   )
 }
 
+function getCardTimestamp(box: Box): string {
+  const ts = ACTIVE_STATUSES.includes(box.status)
+    ? box.started_at ?? box.created_at
+    : box.completed_at ?? box.created_at
+  return formatDistanceToNow(new Date(ts), { addSuffix: true })
+}
+
 function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
   const isActive = ACTIVE_STATUSES.includes(box.status)
-  const dotColor = statusDotColor(box.status)
+  const stopMutation = useStopBox()
+  const deleteMutation = useDeleteBox()
+  const [showStopDialog, setShowStopDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
+  const handleStop = () => {
+    stopMutation.mutate(box.id, {
+      onSuccess: () => toast.success("Agent stopped"),
+      onError: () => toast.error("Failed to stop agent"),
+    })
+    setShowStopDialog(false)
+  }
+
+  const handleDelete = () => {
+    deleteMutation.mutate(box.id, {
+      onSuccess: () => toast.success("Agent deleted"),
+      onError: () => toast.error("Failed to delete agent"),
+    })
+    setShowDeleteDialog(false)
+  }
+
+  const triggerLabel = box.trigger === "github_issue"
+    ? `Issue #${box.github_issue_number ?? ""}`
+    : box.trigger === "github_pr"
+      ? `PR #${box.github_pr_number ?? ""}`
+      : null
 
   return (
-    <Link to="/boxes/$boxId" params={{ boxId: box.id }} className="block">
-      <Card
-        className={cn(
-          "card-glow animate-fade-up cursor-pointer border-0 ring-1 ring-foreground/[0.06]",
-          isActive && "ring-primary/20",
-        )}
-        style={style}
-      >
-        <CardContent className="space-y-3 p-4">
-          {/* Top row: status dot + name */}
-          <div className="flex items-center gap-3">
-            <span className="relative flex size-2.5 shrink-0">
-              {isActive && (
-                <span
-                  className={cn(
-                    "absolute inline-flex size-full rounded-full opacity-60 animate-breathe",
-                    dotColor,
-                  )}
-                />
-              )}
-              <span className={cn("relative inline-flex size-2.5 rounded-full", dotColor)} />
-            </span>
-            <h3 className="font-display truncate text-sm font-semibold">{box.name}</h3>
-          </div>
-
-          {/* Prompt preview */}
-          {box.initial_prompt && (
-            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground/80">
-              {box.initial_prompt}
-            </p>
+    <>
+      <Link to="/boxes/$boxId" params={{ boxId: box.id }} className="block group/card">
+        <Card
+          className={cn(
+            "card-glow animate-fade-up cursor-pointer border-0 bg-primary/[0.04] ring-1 ring-primary/20 transition-colors hover:bg-primary/[0.07]",
+            isActive && "bg-primary/[0.07] ring-primary/35 hover:bg-primary/[0.1]",
           )}
-
-          {/* Bottom meta row */}
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] text-muted-foreground">{box.model}</span>
-              {box.github_repo && (
-                <Badge variant="outline" className="gap-1 py-0 text-[10px]">
-                  <HugeiconsIcon icon={Github01Icon} size={10} />
-                  {box.github_repo.split("/").pop()}
-                </Badge>
-              )}
+          style={style}
+        >
+          <CardContent className="space-y-2.5 px-4 py-3">
+            {/* Top row: name + actions */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-0.5">
+                <h3 className="font-display truncate font-semibold">{box.name}</h3>
+                {box.container_name && (
+                  <p className="truncate font-mono text-xs text-muted-foreground/50">
+                    {box.container_name}
+                  </p>
+                )}
+              </div>
+              <div
+                className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/card:opacity-100"
+                onClick={(e) => e.preventDefault()}
+              >
+                {isActive && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-warning"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowStopDialog(true)
+                    }}
+                  >
+                    <Square size={15} />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowDeleteDialog(true)
+                  }}
+                >
+                  <Trash2 size={15} />
+                </Button>
+              </div>
             </div>
-            <span className="text-[11px] text-muted-foreground/60">
-              {formatDistanceToNow(new Date(box.created_at), { addSuffix: true })}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+
+            {/* Prompt preview or result/error summary */}
+            {box.status === BoxStatus.FAILED && box.error_message ? (
+              <p className="line-clamp-2 text-[13px] leading-relaxed text-destructive/80">
+                {box.error_message}
+              </p>
+            ) : box.status === BoxStatus.COMPLETED && box.result_summary ? (
+              <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground/70">
+                {box.result_summary}
+              </p>
+            ) : box.initial_prompt ? (
+              <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground/70">
+                {box.initial_prompt}
+              </p>
+            ) : null}
+
+            {/* Bottom meta */}
+            <div className="space-y-1 pt-0.5">
+              <div className="flex items-center gap-2">
+                <BoxStatusBadge status={box.status} />
+                <span className="font-mono text-xs text-muted-foreground">{box.model}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                {triggerLabel && box.github_repo ? (
+                  <Badge variant="outline" className="gap-1 py-0 text-[11px]">
+                    <HugeiconsIcon icon={Github01Icon} size={12} />
+                    {triggerLabel}
+                  </Badge>
+                ) : box.github_repo ? (
+                  <Badge variant="outline" className="gap-1 py-0 text-[11px]">
+                    <HugeiconsIcon icon={Github01Icon} size={12} />
+                    {box.github_repo.split("/").pop()}
+                  </Badge>
+                ) : (
+                  <Badge variant="ghost" className="py-0 text-[11px] text-muted-foreground/40">
+                    Manual
+                  </Badge>
+                )}
+                <span className="text-xs text-muted-foreground/50">
+                  {getCardTimestamp(box)}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+
+      {/* Stop confirmation dialog */}
+      <AlertDialog open={showStopDialog} onOpenChange={setShowStopDialog}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop Agent</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will interrupt the running process and stop the agent. You can restart it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStop} disabled={stopMutation.isPending}>
+              Stop
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the agent and its container. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
