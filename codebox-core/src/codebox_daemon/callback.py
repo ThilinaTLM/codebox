@@ -120,69 +120,78 @@ async def _connect_and_run(
             except Exception:
                 pass
 
-        # Message loop
+        # Message loop — long-running tasks (agent, exec) run as background
+        # tasks so the loop stays responsive to file-op and cancel messages.
         current_task: asyncio.Task | None = None
 
-        async for raw_msg in ws:
-            msg = json.loads(raw_msg)
-            msg_type = msg.get("type", "")
+        async def _cancel_current() -> None:
+            nonlocal current_task
+            if current_task and not current_task.done():
+                current_task.cancel()
+                try:
+                    await current_task
+                except (asyncio.CancelledError, Exception):
+                    pass
+            current_task = None
 
+        def _on_task_done(task: asyncio.Task) -> None:
+            nonlocal current_task
             session = manager.get(session_id)
+            if current_task is task:
+                current_task = None
+                session.current_task = None
 
-            if msg_type == "message":
-                content = msg.get("content", "")
-                if not content:
-                    await send({"type": "error", "detail": "Empty message content"})
-                    continue
+        try:
+            async for raw_msg in ws:
+                msg = json.loads(raw_msg)
+                msg_type = msg.get("type", "")
 
-                session.messages.append({"role": "user", "content": content})
+                session = manager.get(session_id)
 
-                task = asyncio.create_task(
-                    run_agent_stream(send, session_id, manager)
-                )
-                current_task = task
-                session.current_task = task
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-                finally:
+                if msg_type == "message":
+                    content = msg.get("content", "")
+                    if not content:
+                        await send({"type": "error", "detail": "Empty message content"})
+                        continue
+
+                    await _cancel_current()
+                    session.messages.append({"role": "user", "content": content})
+
+                    current_task = asyncio.create_task(
+                        run_agent_stream(send, session_id, manager)
+                    )
+                    session.current_task = current_task
+                    current_task.add_done_callback(_on_task_done)
+
+                elif msg_type == "exec":
+                    command = msg.get("content", "")
+                    if not command:
+                        await send({"type": "error", "detail": "Empty exec command"})
+                        continue
+
+                    await _cancel_current()
+                    current_task = asyncio.create_task(
+                        run_exec(send, command, session_id)
+                    )
+                    session.current_task = current_task
+                    current_task.add_done_callback(_on_task_done)
+
+                elif msg_type == "cancel":
+                    await _cancel_current()
                     session.current_task = None
-                    current_task = None
-
-            elif msg_type == "exec":
-                command = msg.get("content", "")
-                if not command:
-                    await send({"type": "error", "detail": "Empty exec command"})
-                    continue
-
-                task = asyncio.create_task(
-                    run_exec(send, command, session_id)
-                )
-                current_task = task
-                session.current_task = task
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-                finally:
-                    session.current_task = None
-                    current_task = None
-
-            elif msg_type == "cancel":
-                if current_task and not current_task.done():
-                    current_task.cancel()
                     logger.info("Cancelled running task for session %s", session_id)
 
-            elif msg_type == "list_files":
-                path = msg.get("path", "/workspace")
-                request_id = msg.get("request_id", "")
-                await handle_list_files(send, path, request_id)
+                elif msg_type == "list_files":
+                    path = msg.get("path", "/workspace")
+                    request_id = msg.get("request_id", "")
+                    await handle_list_files(send, path, request_id)
 
-            elif msg_type == "read_file":
-                path = msg.get("path", "")
-                request_id = msg.get("request_id", "")
-                await handle_read_file(send, path, request_id)
+                elif msg_type == "read_file":
+                    path = msg.get("path", "")
+                    request_id = msg.get("request_id", "")
+                    await handle_read_file(send, path, request_id)
 
-            else:
-                await send({"type": "error", "detail": f"Unknown message type: {msg_type}"})
+                else:
+                    await send({"type": "error", "detail": f"Unknown message type: {msg_type}"})
+        finally:
+            await _cancel_current()
