@@ -24,9 +24,10 @@ export function useBoxWebSocket({
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectAttemptsRef = useRef(0)
+  const activeRef = useRef(false)
 
   const connect = useCallback(() => {
-    if (!boxId || !enabled) return
+    if (!boxId || !enabled || !activeRef.current) return
 
     const url = `${WS_URL}/api/boxes/${boxId}/ws`
     const ws = new WebSocket(url)
@@ -34,24 +35,29 @@ export function useBoxWebSocket({
 
     ws.onopen = () => {
       setIsConnected(true)
-      reconnectAttemptsRef.current = 0
     }
 
     ws.onmessage = (e) => {
       try {
         const event = JSON.parse(e.data) as WSEvent
         if (event.type === "ping") return
+        // Reset backoff on real message (not just on open, to avoid
+        // open-then-immediate-close resetting the counter)
+        reconnectAttemptsRef.current = 0
         setEvents((prev) => [...prev, event])
       } catch {
         // ignore malformed messages
       }
     }
 
-    ws.onclose = () => {
+    ws.onclose = (e) => {
       setIsConnected(false)
       wsRef.current = null
 
-      // Always reconnect (box lifecycle managed by server, not client)
+      // Don't reconnect if the effect was cleaned up, or if the server
+      // told us the box doesn't exist (close code 4004).
+      if (!activeRef.current || e.code === 4004) return
+
       if (enabled) {
         const delay = Math.min(
           1000 * 2 ** reconnectAttemptsRef.current,
@@ -68,6 +74,7 @@ export function useBoxWebSocket({
   }, [boxId, enabled])
 
   useEffect(() => {
+    activeRef.current = true
     setEvents([])
     reconnectAttemptsRef.current = 0
 
@@ -84,6 +91,7 @@ export function useBoxWebSocket({
     connect()
 
     return () => {
+      activeRef.current = false
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }

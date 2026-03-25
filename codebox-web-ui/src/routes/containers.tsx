@@ -18,7 +18,9 @@ function ContainersPage() {
           {count} running
         </span>
       </div>
-      <ContainerTable />
+      <div className="mx-auto w-full max-w-5xl px-4">
+        <ContainerTable />
+      </div>
     </div>
   )
 }

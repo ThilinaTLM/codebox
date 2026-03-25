@@ -19,6 +19,8 @@ class CallbackRegistry:
     def __init__(self) -> None:
         # token → (entity_id, entity_type)
         self._pending: dict[str, tuple[str, str]] = {}
+        # entity_id → token (reverse mapping for cleanup)
+        self._tokens: dict[str, str] = {}
         # entity_id → WebSocket (inbound from sandbox)
         self._connections: dict[str, WebSocket] = {}
         # entity_id → asyncio.Event (signals when sandbox connects)
@@ -31,12 +33,13 @@ class CallbackRegistry:
     def register(self, token: str, entity_id: str, entity_type: str) -> None:
         """Register a pending callback token for a sandbox/task."""
         self._pending[token] = (entity_id, entity_type)
+        self._tokens[entity_id] = token
         self._connected_events[entity_id] = asyncio.Event()
         self._prompt_ready_events[entity_id] = asyncio.Event()
 
     def resolve(self, token: str) -> tuple[str, str] | None:
-        """Look up and consume a callback token. Returns (entity_id, entity_type) or None."""
-        return self._pending.pop(token, None)
+        """Look up a callback token (non-destructive for reconnection). Returns (entity_id, entity_type) or None."""
+        return self._pending.get(token, None)
 
     def set_connection(self, entity_id: str, ws: WebSocket) -> None:
         """Store the WebSocket connection from a sandbox container."""
@@ -67,7 +70,7 @@ class CallbackRegistry:
             return False
 
     def remove(self, entity_id: str) -> None:
-        """Clean up all state for an entity."""
+        """Clean up connection state for an entity (keeps token alive for reconnection)."""
         self._connections.pop(entity_id, None)
         self._connected_events.pop(entity_id, None)
         self._prompt_ready_events.pop(entity_id, None)
@@ -77,6 +80,13 @@ class CallbackRegistry:
             fut = self._pending_requests.pop(key)
             if not fut.done():
                 fut.cancel()
+
+    def remove_fully(self, entity_id: str) -> None:
+        """Full cleanup including token (box reached terminal state)."""
+        token = self._tokens.pop(entity_id, None)
+        if token:
+            self._pending.pop(token, None)
+        self.remove(entity_id)
 
     async def wait_for_connection(self, entity_id: str, timeout: float = 60.0) -> bool:
         """Wait until the sandbox connects back, or timeout."""

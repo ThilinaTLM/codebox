@@ -48,10 +48,16 @@ async def run_agent_stream(
             elif kind == "on_tool_start":
                 tool_name = event["name"]
                 run_id = event.get("run_id", "")
+                tool_input = event.get("data", {}).get("input", {})
+                import json as _json
+                input_str = _json.dumps(tool_input) if tool_input else ""
+                if len(input_str) > 4000:
+                    input_str = input_str[:4000] + "..."
                 await send({
                     "type": "tool_start",
                     "name": tool_name,
                     "tool_call_id": run_id,
+                    "input": input_str,
                 })
 
             elif kind == "on_tool_end":

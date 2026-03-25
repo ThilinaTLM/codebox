@@ -160,7 +160,7 @@ class BoxService:
                 await ws.close()
             except Exception:
                 pass
-        self._registry.remove(box_id)
+        self._registry.remove_fully(box_id)
 
         async with self._sf() as db:
             box = await db.get(Box, box_id)

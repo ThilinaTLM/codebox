@@ -4,6 +4,8 @@ import remarkGfm from "remark-gfm"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import type { EventBlock } from "./EventStream"
 
 export function EventItem({ block }: { block: EventBlock }) {
@@ -15,26 +17,20 @@ export function EventItem({ block }: { block: EventBlock }) {
         </div>
       )
 
-    case "tool_start":
+    case "thinking":
       return (
-        <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
-          <Spinner className="size-3" />
-          <Badge variant="outline" className="border-success/20 bg-success/5 font-mono text-xs text-success">
-            {block.name}
-          </Badge>
+        <div className="flex items-center gap-2.5 py-2">
+          <div className="flex items-center gap-1">
+            <span className="thinking-dot-1 inline-block size-1.5 rounded-full bg-primary" />
+            <span className="thinking-dot-2 inline-block size-1.5 rounded-full bg-primary" />
+            <span className="thinking-dot-3 inline-block size-1.5 rounded-full bg-primary" />
+          </div>
+          <span className="text-xs font-medium text-muted-foreground">Reasoning</span>
         </div>
       )
 
-    case "tool_end":
-      return <ToolEndBlock name={block.name} output={block.output} />
-
-    case "model_start":
-      return (
-        <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-          <Spinner className="size-3" />
-          <span>Thinking...</span>
-        </div>
-      )
+    case "tool_call":
+      return <ToolCallBlock name={block.name} input={block.input} output={block.output} isRunning={block.isRunning} />
 
     case "done":
       return (
@@ -101,21 +97,112 @@ export function EventItem({ block }: { block: EventBlock }) {
   }
 }
 
-function ToolEndBlock({ name, output }: { name: string; output: string }) {
-  const [open, setOpen] = useState(false)
-  const preview = output.length > 120 ? output.slice(0, 120) + "..." : output
+function ToolCallBlock({
+  name,
+  input,
+  output,
+  isRunning,
+}: {
+  name: string
+  input?: string
+  output?: string
+  isRunning: boolean
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [argsExpanded, setArgsExpanded] = useState(false)
+  const hasInput = !!input && input.length > 0
+  const hasOutput = !!output && output.length > 0
 
+  // Try to pretty-format JSON for display
+  const formatJson = (str: string) => {
+    try {
+      return JSON.stringify(JSON.parse(str), null, 2)
+    } catch {
+      return str
+    }
+  }
+
+  const inputPreview = hasInput
+    ? input.length > 80 ? input.slice(0, 80) + "\u2026" : input
+    : ""
+
+  const outputPreview = hasOutput
+    ? output.length > 120 ? output.slice(0, 120) + "\u2026" : output
+    : ""
+
+  if (isRunning) {
+    // In-progress state
+    return (
+      <div className="rounded-lg border border-border/50 bg-muted/20">
+        <div className="flex items-center gap-2 px-3 py-2">
+          <Spinner className="size-3 text-primary/60" />
+          <span className="font-mono text-xs font-medium text-foreground/80">{name}</span>
+          {hasInput && (
+            <button
+              onClick={() => setArgsExpanded(!argsExpanded)}
+              className="ml-auto flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <HugeiconsIcon icon={argsExpanded ? ArrowDown01Icon : ArrowRight01Icon} size={10} />
+              args
+            </button>
+          )}
+        </div>
+        {hasInput && !argsExpanded && (
+          <div className="border-t border-border/30 px-3 py-1.5">
+            <code className="block truncate font-mono text-xs text-muted-foreground">{inputPreview}</code>
+          </div>
+        )}
+        {hasInput && argsExpanded && (
+          <div className="border-t border-border/30 px-3 py-2">
+            <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground/70">
+              {formatJson(input)}
+            </pre>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Completed state
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm transition-colors hover:bg-muted/50">
-        <span className="font-mono text-xs text-success">{name}</span>
-        <span className="flex-1 truncate text-xs text-muted-foreground">{preview}</span>
-        <span className="text-xs text-muted-foreground">{open ? "Hide" : "Show"}</span>
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border/50 bg-muted/15 px-3 py-2 text-sm transition-colors hover:bg-muted/30">
+        <span className="size-1.5 shrink-0 rounded-full bg-success" />
+        <span className="font-mono text-xs font-medium text-foreground/70">{name}</span>
+        {!expanded && outputPreview && (
+          <span className="flex-1 truncate font-mono text-xs text-muted-foreground">{outputPreview}</span>
+        )}
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {expanded ? "Collapse" : "Expand"}
+        </span>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-xl border-l-2 border-success/20 bg-muted/30 p-3 font-mono text-xs leading-relaxed">
-          {output}
-        </pre>
+        <div className="ml-1 border-l-2 border-border/30 pl-3">
+          {hasInput && (
+            <div className="pt-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setArgsExpanded(!argsExpanded)
+                }}
+                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <HugeiconsIcon icon={argsExpanded ? ArrowDown01Icon : ArrowRight01Icon} size={10} />
+                Input
+              </button>
+              {argsExpanded && (
+                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted/20 p-2 font-mono text-xs leading-relaxed text-foreground/70">
+                  {formatJson(input)}
+                </pre>
+              )}
+            </div>
+          )}
+          {hasOutput && (
+            <pre className="mt-2 mb-1 overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted/20 p-3 font-mono text-xs leading-relaxed text-foreground/80">
+              {formatJson(output)}
+            </pre>
+          )}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   )

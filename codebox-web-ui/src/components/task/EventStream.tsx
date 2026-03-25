@@ -5,9 +5,8 @@ import type { WSEvent } from "@/net/http/types"
 
 export type EventBlock =
   | { kind: "text"; content: string }
-  | { kind: "tool_start"; name: string }
-  | { kind: "tool_end"; name: string; output: string }
-  | { kind: "model_start" }
+  | { kind: "thinking" }
+  | { kind: "tool_call"; name: string; input?: string; output?: string; isRunning: boolean }
   | { kind: "done"; content: string }
   | { kind: "error"; detail: string }
   | { kind: "status_change"; status: string }
@@ -20,6 +19,7 @@ export function collapseTokens(events: WSEvent[]): EventBlock[] {
   const blocks: EventBlock[] = []
   let textBuffer = ""
   let execBuffer = ""
+  let pendingThinking = false
 
   const flushText = () => {
     if (textBuffer) {
@@ -35,17 +35,20 @@ export function collapseTokens(events: WSEvent[]): EventBlock[] {
     }
   }
 
-  for (const event of events) {
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i]
     if (event.type === "ping") continue
 
     if (event.type === "token") {
       flushExec()
+      pendingThinking = false
       textBuffer += event.text
       continue
     }
 
     if (event.type === "exec_output") {
       flushText()
+      pendingThinking = false
       execBuffer += event.output
       continue
     }
@@ -54,19 +57,51 @@ export function collapseTokens(events: WSEvent[]): EventBlock[] {
     flushExec()
 
     switch (event.type) {
-      case "tool_start":
-        blocks.push({ kind: "tool_start", name: event.name })
-        break
-      case "tool_end":
-        blocks.push({ kind: "tool_end", name: event.name, output: event.output })
-        break
       case "model_start":
-        blocks.push({ kind: "model_start" })
+        // Mark as pending — only emit if nothing else follows
+        pendingThinking = true
         break
+
+      case "tool_start": {
+        pendingThinking = false
+        blocks.push({
+          kind: "tool_call",
+          name: event.name,
+          input: event.input,
+          isRunning: true,
+        })
+        break
+      }
+
+      case "tool_end": {
+        // Find the last running tool_call with the same name and mark it complete
+        let matched = false
+        for (let j = blocks.length - 1; j >= 0; j--) {
+          const b = blocks[j]
+          if (b.kind === "tool_call" && b.name === event.name && b.isRunning) {
+            b.output = event.output
+            b.isRunning = false
+            matched = true
+            break
+          }
+        }
+        if (!matched) {
+          blocks.push({
+            kind: "tool_call",
+            name: event.name,
+            output: event.output,
+            isRunning: false,
+          })
+        }
+        break
+      }
+
       case "done":
+        pendingThinking = false
         blocks.push({ kind: "done", content: event.content })
         break
       case "error":
+        pendingThinking = false
         blocks.push({ kind: "error", detail: event.detail })
         break
       case "status_change":
@@ -80,6 +115,11 @@ export function collapseTokens(events: WSEvent[]): EventBlock[] {
 
   flushText()
   flushExec()
+
+  // Only show thinking indicator if model is currently thinking (last meaningful event)
+  if (pendingThinking) {
+    blocks.push({ kind: "thinking" })
+  }
 
   return blocks
 }
@@ -96,7 +136,7 @@ export function EventStream({ events, centered }: { events: WSEvent[]; centered?
   return (
     <ScrollArea className="h-full">
       <div className={centered ? "mx-auto max-w-3xl px-4" : "px-5"}>
-        <div className="space-y-4 py-6 text-sm">
+        <div className="space-y-3 py-6 text-sm">
           {blocks.map((block, i) => (
             <EventItem key={i} block={block} />
           ))}

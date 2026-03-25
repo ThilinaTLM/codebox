@@ -1,19 +1,52 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowDown01Icon, ArrowRight01Icon, Cancel01Icon, Loading03Icon } from "@hugeicons/core-free-icons"
+import { Loading03Icon, Cancel01Icon } from "@hugeicons/core-free-icons"
+import { TreeView, type TreeDataItem } from "@/components/tree-view"
 import { useBoxFiles, useBoxFileContent } from "@/net/query"
 import type { FileEntry } from "@/net/http/types"
+import { Folder, File } from "lucide-react"
+
+function entriesToTreeItems(entries: FileEntry[]): TreeDataItem[] {
+  return entries.map((entry) => ({
+    id: entry.path,
+    name: entry.name,
+    icon: entry.is_dir ? Folder : File,
+    // Directories start with an empty children array so TreeView renders them as nodes
+    children: entry.is_dir ? [] : undefined,
+  }))
+}
 
 export function FileExplorer({ boxId }: { boxId: string }) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [treeData, setTreeData] = useState<TreeDataItem[]>([])
   const queryClient = useQueryClient()
+
+  const { data: rootFiles } = useBoxFiles(boxId, "/workspace")
   const { data: fileContent, isLoading: isLoadingContent } =
     useBoxFileContent(boxId, selectedFile)
+
+  // Initialize tree data from root files
+  useEffect(() => {
+    if (rootFiles?.entries) {
+      setTreeData(entriesToTreeItems(rootFiles.entries))
+    }
+  }, [rootFiles])
+
+  const handleSelectChange = useCallback(
+    (item: TreeDataItem | undefined) => {
+      if (!item) return
+      const isDir = !!item.children
+      if (!isDir) {
+        setSelectedFile(item.id)
+      }
+    },
+    [],
+  )
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
@@ -87,135 +120,96 @@ export function FileExplorer({ boxId }: { boxId: string }) {
       ) : (
         /* Tree view */
         <ScrollArea className="flex-1">
-          <div className="py-1">
-            <FileTreeLevel
+          {treeData.length > 0 ? (
+            <LazyTreeView
               boxId={boxId}
-              path="/workspace"
-              depth={0}
-              onSelectFile={setSelectedFile}
-              defaultExpanded
+              data={treeData}
+              setData={setTreeData}
+              onSelectChange={handleSelectChange}
             />
-          </div>
+          ) : (
+            <div className="space-y-0.5 p-3">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+          )}
         </ScrollArea>
       )}
     </div>
   )
 }
 
-function FileTreeLevel({
+/**
+ * Wrapper around TreeView that lazy-loads directory contents on expand.
+ */
+function LazyTreeView({
   boxId,
-  path,
-  depth,
-  onSelectFile,
-  defaultExpanded = false,
+  data,
+  setData,
+  onSelectChange,
 }: {
   boxId: string
-  path: string
-  depth: number
-  onSelectFile: (path: string) => void
-  defaultExpanded?: boolean
+  data: TreeDataItem[]
+  setData: React.Dispatch<React.SetStateAction<TreeDataItem[]>>
+  onSelectChange: (item: TreeDataItem | undefined) => void
 }) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
-  const { data: fileList, isLoading } = useBoxFiles(boxId, path)
+  const queryClient = useQueryClient()
 
-  if (!expanded && !defaultExpanded) return null
+  const handleSelect = useCallback(
+    async (item: TreeDataItem | undefined) => {
+      if (!item) return
 
-  if (isLoading) {
-    return (
-      <div className="space-y-0.5 py-0.5" style={{ paddingLeft: `${depth * 16 + 8}px` }}>
-        <Skeleton className="h-5 w-32" />
-        <Skeleton className="h-5 w-24" />
-      </div>
-    )
-  }
+      const isDir = !!item.children
+      if (isDir && item.children && item.children.length === 0) {
+        // Lazy-load children
+        try {
+          const result = await queryClient.fetchQuery({
+            queryKey: ["boxes", boxId, "files", item.id],
+            queryFn: async () => {
+              const { api } = await import("@/net/http/api")
+              return api.boxes.listFiles(boxId, item.id)
+            },
+            staleTime: 10000,
+          })
+
+          if (result?.entries) {
+            const children = entriesToTreeItems(result.entries)
+            setData((prev) => updateTreeChildren(prev, item.id, children))
+          }
+        } catch {
+          // silently fail
+        }
+      }
+
+      onSelectChange(item)
+    },
+    [boxId, queryClient, setData, onSelectChange],
+  )
 
   return (
-    <>
-      {fileList?.entries.map((entry) => (
-        <FileTreeNode
-          key={entry.path}
-          entry={entry}
-          boxId={boxId}
-          depth={depth}
-          onSelectFile={onSelectFile}
-        />
-      ))}
-      {fileList?.entries.length === 0 && (
-        <div
-          className="py-1 text-xs text-muted-foreground/50"
-          style={{ paddingLeft: `${depth * 16 + 28}px` }}
-        >
-          Empty
-        </div>
-      )}
-    </>
+    <TreeView
+      data={data}
+      onSelectChange={handleSelect}
+      defaultNodeIcon={Folder}
+      defaultLeafIcon={File}
+      className="text-sm"
+    />
   )
 }
 
-function FileTreeNode({
-  entry,
-  boxId,
-  depth,
-  onSelectFile,
-}: {
-  entry: FileEntry
-  boxId: string
-  depth: number
-  onSelectFile: (path: string) => void
-}) {
-  const [expanded, setExpanded] = useState(false)
-
-  const handleClick = () => {
-    if (entry.is_dir) {
-      setExpanded(!expanded)
-    } else {
-      onSelectFile(entry.path)
+/** Recursively update a node's children in the tree data. */
+function updateTreeChildren(
+  items: TreeDataItem[],
+  targetId: string,
+  children: TreeDataItem[],
+): TreeDataItem[] {
+  return items.map((item) => {
+    if (item.id === targetId) {
+      return { ...item, children }
     }
-  }
-
-  return (
-    <>
-      <button
-        onClick={handleClick}
-        className="flex w-full items-center gap-1 rounded-sm px-1 py-1 text-left transition-colors hover:bg-muted/50"
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
-      >
-        {entry.is_dir ? (
-          <HugeiconsIcon
-            icon={expanded ? ArrowDown01Icon : ArrowRight01Icon}
-            size={12}
-            className="shrink-0 text-muted-foreground"
-          />
-        ) : (
-          <span className="inline-block size-3 shrink-0" />
-        )}
-        <span
-          className={`truncate font-mono text-xs ${
-            entry.is_dir ? "font-medium text-foreground" : "text-foreground/70"
-          }`}
-        >
-          {entry.name}
-        </span>
-        {entry.size != null && !entry.is_dir && (
-          <span className="ml-auto shrink-0 font-mono text-xs text-muted-foreground/50">
-            {formatSize(entry.size)}
-          </span>
-        )}
-      </button>
-      {entry.is_dir && expanded && (
-        <FileTreeLevel
-          boxId={boxId}
-          path={entry.path}
-          depth={depth + 1}
-          onSelectFile={onSelectFile}
-        />
-      )}
-    </>
-  )
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}K`
-  return `${(bytes / (1024 * 1024)).toFixed(1)}M`
+    if (item.children && item.children.length > 0) {
+      return { ...item, children: updateTreeChildren(item.children, targetId, children) }
+    }
+    return item
+  })
 }

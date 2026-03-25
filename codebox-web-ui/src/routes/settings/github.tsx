@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { useState } from "react"
 import {
   useGitHubStatus,
@@ -8,6 +8,14 @@ import {
   useRemoveGitHubInstallation,
 } from "@/net/query"
 import type { GitHubInstallation, GitHubRepo } from "@/net/http/types"
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { toast } from "sonner"
 
 export const Route = createFileRoute("/settings/github")({
@@ -56,9 +64,17 @@ function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-3 border-b px-4 py-3">
-        <h1 className="text-xl font-semibold tracking-tight">
-          Settings &mdash; GitHub
-        </h1>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link to="/settings" />}>Settings</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>GitHub</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
       <div className="mx-auto w-full max-w-3xl p-6">{children}</div>
     </div>

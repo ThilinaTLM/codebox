@@ -58,7 +58,7 @@ export interface BoxCreatePayload {
 // WebSocket event types from orchestrator
 export type WSEvent =
   | { type: "token"; text: string }
-  | { type: "tool_start"; name: string }
+  | { type: "tool_start"; name: string; input?: string }
   | { type: "tool_end"; name: string; output: string }
   | { type: "model_start" }
   | { type: "done"; content: string }

@@ -6,6 +6,7 @@ reversing the traditional orchestrator→container direction.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -39,6 +40,20 @@ async def sandbox_callback(ws: WebSocket) -> None:
     await ws.accept()
     logger.info("Callback accepted for %s %s", entity_type, entity_id)
 
+    # Close existing stale connection if any (container reconnected)
+    old_ws = registry.get_connection(entity_id)
+    if old_ws is not None:
+        logger.info("Replacing stale connection for %s %s", entity_type, entity_id)
+        try:
+            await old_ws.close(code=1012, reason="Replaced by reconnection")
+        except Exception:
+            pass
+        registry.remove(entity_id)
+
+    # Re-create connected/prompt_ready events for this connection
+    registry._connected_events[entity_id] = asyncio.Event()
+    registry._prompt_ready_events[entity_id] = asyncio.Event()
+
     # Wait for register message
     try:
         raw = await ws.receive_text()
@@ -64,6 +79,7 @@ async def sandbox_callback(ws: WebSocket) -> None:
     except Exception:
         logger.exception("Error in callback relay for box %s", entity_id)
     finally:
+        # Clean up connection but keep token alive for reconnection
         registry.remove(entity_id)
         try:
             await ws.close()
@@ -140,6 +156,7 @@ async def _handle_box(
             if auto_stop:
                 content = event.get("content", "")
                 await _set_box_completed(sf, relay, box_id, content)
+                registry.remove_fully(box_id)
                 return
             else:
                 # Go to IDLE — box stays alive for follow-up
@@ -148,6 +165,7 @@ async def _handle_box(
         elif event_type == "error":
             detail = event.get("detail", "Unknown error")
             await _set_box_failed(sf, relay, box_id, detail)
+            registry.remove_fully(box_id)
             return
 
 
