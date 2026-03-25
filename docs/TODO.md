@@ -259,7 +259,7 @@ To avoid re-doing environment setup for every task, maintain **cached sandbox im
 #### Strategy: Repo-Specific Base Images
 
 ```
-Base Image (codebox-docker)
+Base Image (codebox-sandbox)
     │
     └── repo-specific layer (cached)
             │  - repo cloned

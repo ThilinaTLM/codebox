@@ -10,8 +10,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 # Verify expected files exist
-if [[ ! -f codebox-docker/Dockerfile ]]; then
-    echo "Error: codebox-docker/Dockerfile not found."
+if [[ ! -f codebox-sandbox/Dockerfile ]]; then
+    echo "Error: codebox-sandbox/Dockerfile not found."
     echo "Are you in the right repository?"
     exit 1
 fi
@@ -28,7 +28,7 @@ fi
 
 docker build \
     -t "$IMAGE_NAME" \
-    -f codebox-docker/Dockerfile \
+    -f codebox-sandbox/Dockerfile \
     "${EXTRA_ARGS[@]}" \
     .
 

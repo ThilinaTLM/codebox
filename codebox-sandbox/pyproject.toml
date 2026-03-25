@@ -1,5 +1,5 @@
 [project]
-name = "codebox-docker"
+name = "codebox-sandbox"
 version = "0.1.0"
 description = "Docker packaging for codebox sandbox containers"
 readme = "README.md"

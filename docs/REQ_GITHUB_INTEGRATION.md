@@ -182,7 +182,7 @@ git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".instead
 
 ### gh CLI in Sandbox
 
-The sandbox image (codebox-docker) must ship with the `gh` CLI pre-installed. With `GH_TOKEN` set, the agent can use `gh` directly for:
+The sandbox image (codebox-sandbox) must ship with the `gh` CLI pre-installed. With `GH_TOKEN` set, the agent can use `gh` directly for:
 
 - `gh pr create` — open pull requests
 - `gh issue comment` — comment on issues
@@ -411,7 +411,7 @@ exit 0
 ```
 
 **Why injected, not baked into the image:**
-- Hook logic can be updated without rebuilding codebox-docker
+- Hook logic can be updated without rebuilding codebox-sandbox
 - Different repos could get different hook configurations in the future
 - The orchestrator controls the full sandbox setup sequence
 
@@ -824,7 +824,7 @@ Note: Pillar 2 (environment variables) is handled at the container level via `do
 | **codebox-orchestrator** | Add custom env vars to `docker_service.spawn()` | High |
 | **codebox-orchestrator** | Add pre-start setup command execution | High |
 | **codebox-orchestrator** | Pass `optional_tools` and `sandbox_config` through to codebox-core | Medium |
-| **codebox-docker** | Install `gh` CLI in sandbox image | Medium |
+| **codebox-sandbox** | Install `gh` CLI in sandbox image | Medium |
 
 ---
 
@@ -838,7 +838,7 @@ Note: Pillar 2 (environment variables) is handled at the container level via `do
 - codebox-orchestrator: custom env vars in `docker_service.spawn()`
 - codebox-orchestrator: pre-start setup command execution via `docker exec`
 - codebox-orchestrator: pass `optional_tools` and `sandbox_config` through to codebox-core
-- codebox-docker: install `gh` CLI in sandbox image
+- codebox-sandbox: install `gh` CLI in sandbox image
 
 **GitHub integration:**
 - GitHub App registration and installation flow

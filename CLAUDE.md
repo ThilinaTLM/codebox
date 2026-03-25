@@ -8,7 +8,7 @@ Monorepo for a sandboxed AI coding agent platform. Six sub-projects:
 
 - **codebox-core** — FastAPI daemon (REST + WebSocket API) for AI agent sessions, runs inside sandbox containers
 - **codebox-cli** — CLI client that connects to the orchestrator for task management and interactive follow-up
-- **codebox-docker** — Dockerfile packaging codebox-core with Devbox toolchains into a container
+- **codebox-sandbox** — Dockerfile packaging codebox-core with Devbox toolchains into a container
 - **codebox-orchestrator** — Backend API service (FastAPI) that manages sandbox containers, relays WebSocket events between sandboxes and clients (web-ui, cli)
 - **codebox-web-ui** — React frontend (TanStack Start + shadcn) that connects to the orchestrator via REST + WebSocket
 - **demo-deepagents** — Standalone terminal demo, same agent framework without Docker
@@ -20,7 +20,7 @@ Monorepo for a sandboxed AI coding agent platform. Six sub-projects:
 [codebox-cli]     --(REST + WS)--> [codebox-orchestrator] --(REST + WS)--> [sandbox containers (codebox-core)]
 ```
 
-The orchestrator spawns Docker containers (built from codebox-docker, which embeds codebox-core), creates sessions, and streams agent events over WebSocket. The web-ui and CLI both connect to the orchestrator for task management, event streaming, and interactive follow-up.
+The orchestrator spawns Docker containers (built from codebox-sandbox, which embeds codebox-core), creates sessions, and streams agent events over WebSocket. The web-ui and CLI both connect to the orchestrator for task management, event streaming, and interactive follow-up.
 
 ## How to Run
 

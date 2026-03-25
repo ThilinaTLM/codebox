@@ -10,7 +10,7 @@ RUN curl -fsSL https://get.jetify.com/devbox | bash -s -- -f
 WORKDIR /app
 
 # Copy devbox config and install packages
-COPY codebox-docker/devbox.json ./
+COPY codebox-sandbox/devbox.json ./
 RUN devbox install
 
 # Install codebox-core

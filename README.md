@@ -17,7 +17,7 @@ A sandboxed AI coding agent platform. Run AI-powered coding sessions inside isol
 | **codebox-web-ui** | React frontend (TanStack Start + shadcn) — dashboard, task creation, real-time event streaming |
 | **codebox-cli** | CLI client — manages tasks via orchestrator or connects directly to sandbox containers |
 | **codebox-core** | FastAPI daemon (REST + WebSocket API) for agent sessions, runs inside sandbox containers |
-| **codebox-docker** | Dockerfile packaging codebox-core with Devbox toolchains into a container image |
+| **codebox-sandbox** | Dockerfile packaging codebox-core with Devbox toolchains into a container image |
 | **demo-deepagents** | Standalone terminal demo — same agent framework without Docker |
 
 ## Requirements
@@ -42,7 +42,7 @@ docker compose up
 
 ```bash
 # Build the sandbox image
-cd codebox-docker && docker build -t codebox-sandbox:latest .
+cd codebox-sandbox && docker build -t codebox-sandbox:latest .
 
 # Start the orchestrator
 cd codebox-orchestrator && uv sync && uv run python -m codebox_orchestrator
