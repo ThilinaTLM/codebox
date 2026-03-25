@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { BoxStatus } from "@/net/http/types"
+import type { AgentActivity } from "@/hooks/useAgentActivity"
 
 const statusConfig: Record<
   BoxStatus,
@@ -24,7 +25,31 @@ const statusDot: Record<BoxStatus, string> = {
   [BoxStatus.STOPPED]: "bg-muted-foreground/40",
 }
 
-export function BoxStatusBadge({ status, isActive }: { status: BoxStatus; isActive?: boolean }) {
+interface BoxStatusBadgeProps {
+  status: BoxStatus
+  isActive?: boolean
+  activity?: AgentActivity
+}
+
+export function BoxStatusBadge({ status, isActive, activity }: BoxStatusBadgeProps) {
+  // If we have a live activity override, use it
+  if (activity) {
+    return (
+      <Badge variant="default" className="gap-1.5 text-xs">
+        <span className="relative flex size-1.5">
+          {activity.animate && (
+            <span
+              className={`absolute inline-flex size-full animate-ping rounded-full opacity-60 ${activity.dotColor}`}
+            />
+          )}
+          <span className={`relative inline-flex size-1.5 rounded-full ${activity.dotColor}`} />
+        </span>
+        {activity.label}
+      </Badge>
+    )
+  }
+
+  // Fallback: existing behavior (used on box list page, etc.)
   const effectiveStatus = isActive ? BoxStatus.RUNNING : status
   const config = statusConfig[effectiveStatus] ?? { label: effectiveStatus, variant: "outline" as const }
   const dot = statusDot[effectiveStatus] ?? "bg-muted-foreground/40"

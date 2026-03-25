@@ -1,8 +1,10 @@
 import { createContext, useContext } from "react"
+import type { AgentActivity } from "@/hooks/useAgentActivity"
 
 export interface BoxPageActions {
   isActive: boolean
   isConnected: boolean
+  activity?: AgentActivity
 }
 
 const BoxPageActionsContext = createContext<BoxPageActions | null>(null)

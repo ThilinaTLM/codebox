@@ -40,31 +40,29 @@ export function TopBar() {
     <header className="flex h-12 shrink-0 items-center justify-between border-b px-4">
       {isBoxPage ? (
         /* Box page: back link + box info */
-        <div className="flex min-w-0 items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            nativeButton={false}
-            render={<Link to="/" />}
-            className="gap-1.5"
-          >
-            <ArrowLeft size={14} />
-            <span className="hidden sm:inline">Agents</span>
-          </Button>
-          <span className="text-muted-foreground/40">/</span>
-          <span className="font-display max-w-[200px] truncate text-sm font-medium">
-            {box.name}
-          </span>
-          {box.container_name && (
-            <span className="max-w-[150px] truncate font-mono text-xs text-muted-foreground">
-              {box.container_name}
+        <>
+          <div className="flex min-w-0 items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              render={<Link to="/" />}
+              className="gap-1.5"
+            >
+              <ArrowLeft size={14} />
+              <span className="hidden sm:inline">Agents</span>
+            </Button>
+            <span className="text-muted-foreground/40">/</span>
+            <span className="font-display max-w-[200px] truncate text-sm font-medium">
+              {box.name}
             </span>
-          )}
+          </div>
           <BoxStatusBadge
             status={box.status}
             isActive={boxPageActions?.isConnected && boxPageActions?.isActive}
+            activity={boxPageActions?.activity}
           />
-        </div>
+        </>
       ) : (
         <>
           {/* Default: Brand */}

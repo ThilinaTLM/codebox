@@ -9,6 +9,7 @@ import { useBox, useStopBox, useDeleteBox } from "@/net/query"
 import { useBoxWebSocket } from "@/net/ws"
 import { BoxStatus } from "@/net/http/types"
 import type { WSEvent } from "@/net/http/types"
+import { useAgentActivity } from "@/hooks/useAgentActivity"
 import { toast } from "sonner"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
 import { FolderOpen, Settings } from "lucide-react"
@@ -44,6 +45,8 @@ function BoxDetailPage() {
       enabled: isActive,
     })
 
+  const activity = useAgentActivity(events, box?.status)
+
   const handleStop = useCallback(() => {
     sendCancel()
     stopMutation.mutate(boxId, {
@@ -67,12 +70,14 @@ function BoxDetailPage() {
     setBoxPageActions({
       isActive,
       isConnected,
+      activity,
     })
     return () => setBoxPageActions(null)
   }, [
     box,
     isActive,
     isConnected,
+    activity,
     setBoxPageActions,
   ])
 
