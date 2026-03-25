@@ -1,21 +1,48 @@
-# TanStack Start + shadcn/ui
+# codebox-web-ui
 
-This is a template for a new TanStack Start project with React, TypeScript, and shadcn/ui.
+React frontend for the Codebox platform. Connects to `codebox-orchestrator` for task management and real-time agent event streaming.
 
-## Adding components
+## Tech Stack
 
-To add components to your app, run the following command:
+- React 19 + TypeScript
+- TanStack Start / Router (file-based routing with SSR)
+- TanStack Query (API state management)
+- shadcn/ui (radix-mira style, 60+ components)
+- Tailwind CSS v4
+- Axios (HTTP client)
+- Native WebSocket (real-time events)
+
+## Pages
+
+| Route | Description |
+|-------|-------------|
+| `/` | Dashboard — stats, active tasks, recent tasks |
+| `/tasks/new` | Create a new task |
+| `/tasks/:taskId` | Task detail — real-time event stream, follow-up input |
+| `/tasks` | Task history with status filtering |
+| `/containers` | Running container management |
+
+## Development
 
 ```bash
-npx shadcn@latest add button
+pnpm install
+pnpm dev
 ```
 
-This will place the ui components in the `components` directory.
+Runs on http://localhost:3000. Expects the orchestrator at http://localhost:8080.
 
-## Using components
+## Configuration
 
-To use the components in your app, import them as follows:
+Create a `.env` file (already provided):
 
-```tsx
-import { Button } from "@/components/ui/button";
+```
+VITE_API_URL=http://localhost:8080
+VITE_WS_URL=ws://localhost:8080
+```
+
+## Build
+
+```bash
+pnpm build
+pnpm preview
 ```

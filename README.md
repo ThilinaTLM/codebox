@@ -1,35 +1,70 @@
 # Open Coding Agents
 
-A sandboxed AI coding agent platform. Run AI-powered coding sessions inside isolated Docker containers with a streaming WebSocket API.
+A sandboxed AI coding agent platform. Run AI-powered coding sessions inside isolated Docker containers with a streaming WebSocket API, managed through a web dashboard or CLI.
+
+## Architecture
+
+```
+[codebox-web-ui]  --(REST + WS)--> [codebox-orchestrator] --(REST + WS)--> [sandbox containers]
+[codebox-cli]     --(REST + WS)--> [codebox-orchestrator] --(REST + WS)--> [sandbox containers]
+```
 
 ## Sub-projects
 
 | Directory | Description |
 |---|---|
-| **codebox-core** | FastAPI daemon exposing REST + WebSocket API for agent sessions |
-| **codebox-cli** | CLI client that manages Docker containers and connects to the daemon |
-| **codebox-docker** | Dockerfile packaging codebox-core with Devbox toolchains |
+| **codebox-orchestrator** | Backend API service (FastAPI) — manages sandbox containers, relays WebSocket events between sandboxes and clients |
+| **codebox-web-ui** | React frontend (TanStack Start + shadcn) — dashboard, task creation, real-time event streaming |
+| **codebox-cli** | CLI client — manages tasks via orchestrator or connects directly to sandbox containers |
+| **codebox-core** | FastAPI daemon (REST + WebSocket API) for agent sessions, runs inside sandbox containers |
+| **codebox-docker** | Dockerfile packaging codebox-core with Devbox toolchains into a container image |
 | **demo-deepagents** | Standalone terminal demo — same agent framework without Docker |
-
-## How It Works
-
-The CLI spawns a Docker container (built from codebox-docker, which embeds codebox-core). It retrieves an auth token, creates a session via REST, then streams agent events over WebSocket. demo-deepagents runs the same agent locally without the daemon layer.
 
 ## Requirements
 
-- Python 3.12
-- [uv](https://docs.astral.sh/uv/)
+- Python 3.12 + [uv](https://docs.astral.sh/uv/)
+- Node.js 22 + pnpm
 - Docker
 - Environment variables: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`
 
-Each sub-project has its own `.venv` and `pyproject.toml`, managed with uv.
+## Quick Start
 
-## Getting Started
+### Full stack (Docker Compose)
 
 ```bash
-# Build the Docker image
-cd codebox-docker && docker build -t codebox .
-
-# Run via CLI
-cd codebox-cli && uv sync && uv run codebox run
+docker compose up
 ```
+
+- Orchestrator API: http://localhost:8080
+- Web UI: http://localhost:3000
+
+### Development (separate terminals)
+
+```bash
+# Build the sandbox image
+cd codebox-docker && docker build -t codebox-sandbox:latest .
+
+# Start the orchestrator
+cd codebox-orchestrator && uv sync && uv run python -m codebox_orchestrator
+
+# Start the web UI
+cd codebox-web-ui && pnpm install && pnpm dev
+```
+
+### CLI
+
+```bash
+cd codebox-cli && uv sync
+
+# Via orchestrator
+uv run codebox task create --title "My task" --prompt "Write hello world in Python"
+uv run codebox task list
+uv run codebox task connect <task_id>
+
+# Direct mode (legacy)
+uv run codebox spawn --connect
+```
+
+## Project Structure
+
+Each Python sub-project has its own `.venv` and `pyproject.toml`, managed with uv. The web UI uses pnpm.
