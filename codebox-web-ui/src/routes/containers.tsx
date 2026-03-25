@@ -1,22 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { ContainerTable } from "@/components/container/container-table"
+import { useContainers } from "@/hooks/queries"
 
 export const Route = createFileRoute("/containers")({
   component: ContainersPage,
 })
 
 function ContainersPage() {
+  const { data: containers } = useContainers()
+  const count = containers?.length ?? 0
+
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Containers</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Running sandbox containers
-        </p>
+    <div className="flex flex-col">
+      <div className="flex items-center gap-3 border-b px-6 py-3">
+        <h1 className="font-mono text-sm font-semibold tracking-tight">Containers</h1>
+        <span className="font-mono text-xs text-muted-foreground">
+          {count} running
+        </span>
       </div>
-      <div className="rounded-lg border">
-        <ContainerTable />
-      </div>
+      <ContainerTable />
     </div>
   )
 }

@@ -5,8 +5,11 @@ export const Route = createFileRoute("/tasks/new")({ component: NewTaskPage })
 
 function NewTaskPage() {
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">New Task</h1>
+    <div className="mx-auto max-w-2xl p-6">
+      <h1 className="mb-1 font-mono text-lg font-semibold tracking-tight">New Task</h1>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Describe what the agent should build or do.
+      </p>
       <TaskForm />
     </div>
   )

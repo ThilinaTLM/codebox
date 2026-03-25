@@ -6,8 +6,8 @@ import {
 } from "@tanstack/react-router"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/layout/app-sidebar"
+import { ThemeProvider } from "@/components/layout/theme-provider"
+import { TopNav } from "@/components/layout/top-nav"
 import { Toaster } from "@/components/ui/sonner"
 
 import appCss from "../styles.css?url"
@@ -37,27 +37,24 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <header className="flex h-12 items-center gap-2 border-b px-4">
-              <SidebarTrigger />
-            </header>
+      <ThemeProvider>
+        <TooltipProvider>
+          <div className="flex min-h-screen flex-col">
+            <TopNav />
             <main className="flex-1 overflow-auto">
               <Outlet />
             </main>
-          </SidebarInset>
-        </SidebarProvider>
-        <Toaster />
-      </TooltipProvider>
+          </div>
+          <Toaster />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>

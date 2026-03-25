@@ -33,7 +33,8 @@ export function FeedbackInput({
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex items-start gap-2">
+      <span className="mt-2.5 font-mono text-sm text-primary">$</span>
       <Textarea
         placeholder="Send a follow-up message..."
         value={message}
@@ -44,7 +45,7 @@ export function FeedbackInput({
             handleSend()
           }
         }}
-        className="min-h-[60px] resize-none"
+        className="min-h-[60px] resize-none font-mono text-sm"
       />
       <Button
         onClick={handleSend}

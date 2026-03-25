@@ -39,8 +39,8 @@ function TaskDetailPage() {
   if (!task) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12">
-        <p className="text-muted-foreground">Task not found</p>
-        <Button variant="outline" asChild>
+        <p className="font-mono text-sm text-muted-foreground">Task not found</p>
+        <Button variant="outline" size="sm" asChild>
           <Link to="/tasks">Back to tasks</Link>
         </Button>
       </div>
@@ -68,17 +68,23 @@ function TaskDetailPage() {
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-6 py-4">
+      <div className="flex items-center justify-between border-b px-6 py-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="truncate text-lg font-semibold">{task.title}</h1>
+            <h1 className="truncate font-mono text-sm font-semibold">{task.title}</h1>
             <TaskStatusBadge status={task.status} />
             {isConnected && isActive && (
-              <span className="inline-block size-2 animate-pulse rounded-full bg-green-500" />
+              <span className="flex items-center gap-1.5 font-mono text-[10px] text-success">
+                <span className="relative flex size-1.5">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+                  <span className="relative inline-flex size-1.5 rounded-full bg-success" />
+                </span>
+                connected
+              </span>
             )}
           </div>
-          <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-            {task.model}
+          <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+            {task.model} &middot; {task.id.slice(0, 8)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -88,6 +94,7 @@ function TaskDetailPage() {
               size="sm"
               onClick={handleCancel}
               disabled={cancelMutation.isPending}
+              className="font-mono text-xs"
             >
               Cancel
             </Button>
@@ -97,6 +104,7 @@ function TaskDetailPage() {
             size="sm"
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
+            className="font-mono text-xs"
           >
             Delete
           </Button>
@@ -107,6 +115,16 @@ function TaskDetailPage() {
       <div className="flex min-h-0 flex-1">
         {/* Event stream */}
         <div className="flex min-h-0 flex-1 flex-col">
+          {/* Terminal title bar */}
+          <div className="flex items-center gap-2 border-b bg-muted/30 px-4 py-1.5">
+            <span className="size-2 rounded-full bg-destructive/60" />
+            <span className="size-2 rounded-full bg-warning/60" />
+            <span className="size-2 rounded-full bg-success/60" />
+            <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+              {task.title} &mdash; {task.model}
+            </span>
+          </div>
+
           <div className="min-h-0 flex-1">
             <EventStream events={events} />
           </div>
@@ -127,7 +145,7 @@ function TaskDetailPage() {
           <div className="space-y-4 p-4">
             <Card size="sm">
               <CardHeader>
-                <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">
+                <CardTitle className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                   Details
                 </CardTitle>
               </CardHeader>
@@ -154,26 +172,26 @@ function TaskDetailPage() {
 
             <Card size="sm">
               <CardHeader>
-                <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">
+                <CardTitle className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                   Prompt
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="whitespace-pre-wrap text-xs text-muted-foreground">
+                <p className="whitespace-pre-wrap font-mono text-xs text-muted-foreground">
                   {task.prompt}
                 </p>
               </CardContent>
             </Card>
 
             {task.error_message && (
-              <Card size="sm">
+              <Card size="sm" className="border-destructive/30">
                 <CardHeader>
-                  <CardTitle className="text-xs uppercase tracking-wider text-destructive">
+                  <CardTitle className="font-mono text-[10px] uppercase tracking-wider text-destructive">
                     Error
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="whitespace-pre-wrap text-xs text-destructive">
+                  <p className="whitespace-pre-wrap font-mono text-xs text-destructive">
                     {task.error_message}
                   </p>
                 </CardContent>
@@ -197,7 +215,7 @@ function DetailRow({
 }) {
   return (
     <div className="flex justify-between gap-2">
-      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono text-muted-foreground">{label}</span>
       <span className={`truncate text-right ${mono ? "font-mono" : ""}`}>
         {value}
       </span>
@@ -208,7 +226,7 @@ function DetailRow({
 function TaskDetailSkeleton() {
   return (
     <div className="space-y-4 p-6">
-      <Skeleton className="h-8 w-64" />
+      <Skeleton className="h-6 w-64" />
       <Skeleton className="h-4 w-40" />
       <Skeleton className="h-[400px] w-full rounded-lg" />
     </div>

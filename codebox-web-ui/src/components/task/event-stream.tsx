@@ -15,12 +15,15 @@ export function EventStream({ events }: { events: WSEvent[] }) {
 
   return (
     <ScrollArea className="h-full">
-      <div className="space-y-1 p-4 font-mono text-sm">
+      <div className="terminal-bg bg-grid space-y-1 p-4 font-mono text-sm">
         {blocks.map((block, i) => (
           <EventItem key={i} block={block} />
         ))}
         {events.length === 0 && (
-          <p className="text-muted-foreground text-xs">Waiting for events...</p>
+          <p className="font-mono text-xs text-muted-foreground">
+            <span className="text-primary/60">&gt;</span> waiting for events
+            <span className="animate-blink">_</span>
+          </p>
         )}
         <div ref={bottomRef} />
       </div>

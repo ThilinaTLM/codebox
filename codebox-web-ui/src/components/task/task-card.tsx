@@ -1,27 +1,47 @@
 import { Link } from "@tanstack/react-router"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { TaskStatusBadge } from "./task-status-badge"
+import { TaskStatus } from "@/lib/types"
 import type { Task } from "@/lib/types"
 import { formatDistanceToNow } from "date-fns"
+import { cn } from "@/lib/utils"
+
+const statusBorderColor: Partial<Record<TaskStatus, string>> = {
+  [TaskStatus.RUNNING]: "border-l-success/60",
+  [TaskStatus.STARTING]: "border-l-success/60",
+  [TaskStatus.QUEUED]: "border-l-warning/60",
+  [TaskStatus.WAITING_FOR_FEEDBACK]: "border-l-warning/60",
+  [TaskStatus.FAILED]: "border-l-destructive/60",
+  [TaskStatus.COMPLETED]: "border-l-success/30",
+}
 
 export function TaskCard({ task }: { task: Task }) {
   return (
     <Link to="/tasks/$taskId" params={{ taskId: task.id }} className="block">
-      <Card className="transition-colors hover:bg-muted/50">
-        <CardHeader>
+      <Card
+        className={cn(
+          "border-l-2 transition-colors hover:bg-muted/50",
+          statusBorderColor[task.status] ?? "border-l-border",
+        )}
+      >
+        <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="truncate text-sm font-medium">
+            <span className="truncate font-mono text-sm font-medium">
               {task.title}
-            </CardTitle>
+            </span>
             <TaskStatusBadge status={task.status} />
           </div>
-          <CardDescription className="line-clamp-2 text-xs">
-            {task.prompt}
-          </CardDescription>
-          <p className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
-          </p>
         </CardHeader>
+        <CardContent className="space-y-1">
+          <p className="line-clamp-2 text-xs text-muted-foreground">
+            {task.prompt}
+          </p>
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+            <span className="font-mono">{task.id.slice(0, 8)}</span>
+            <span>&middot;</span>
+            <span>{formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}</span>
+          </div>
+        </CardContent>
       </Card>
     </Link>
   )

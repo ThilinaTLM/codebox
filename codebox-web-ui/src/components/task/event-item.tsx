@@ -11,7 +11,7 @@ export function EventItem({ block }: { block: EventBlock }) {
   switch (block.kind) {
     case "text":
       return (
-        <div className="prose prose-sm prose-invert max-w-none">
+        <div className="prose prose-sm dark:prose-invert max-w-none prose-code:font-mono prose-code:text-primary/80 prose-a:text-primary">
           <Markdown remarkPlugins={[remarkGfm]}>{block.content}</Markdown>
         </div>
       )
@@ -20,7 +20,8 @@ export function EventItem({ block }: { block: EventBlock }) {
       return (
         <div className="flex items-center gap-2 pt-2 text-xs text-muted-foreground">
           <Spinner className="size-3" />
-          <Badge variant="outline" className="text-xs font-mono">
+          <span className="font-mono text-primary/60">&gt;</span>
+          <Badge variant="outline" className="border-success/20 bg-success/5 font-mono text-[10px] text-success">
             {block.name}
           </Badge>
         </div>
@@ -33,14 +34,15 @@ export function EventItem({ block }: { block: EventBlock }) {
       return (
         <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
           <Spinner className="size-3" />
-          <span>Thinking...</span>
+          <span className="font-mono">processing</span>
+          <span className="animate-blink font-mono">_</span>
         </div>
       )
 
     case "done":
       return (
-        <Alert className="mt-3 border-green-800 bg-green-950/30">
-          <AlertDescription className="text-xs text-green-400">
+        <Alert className="mt-3 border-success/30 bg-success/5">
+          <AlertDescription className="font-mono text-xs text-success">
             Task completed
           </AlertDescription>
         </Alert>
@@ -48,8 +50,8 @@ export function EventItem({ block }: { block: EventBlock }) {
 
     case "error":
       return (
-        <Alert variant="destructive" className="mt-3">
-          <AlertDescription className="text-xs">
+        <Alert className="mt-3 border-destructive/30 bg-destructive/5">
+          <AlertDescription className="font-mono text-xs text-destructive">
             {block.detail}
           </AlertDescription>
         </Alert>
@@ -57,8 +59,8 @@ export function EventItem({ block }: { block: EventBlock }) {
 
     case "status_change":
       return (
-        <p className="py-0.5 text-xs text-muted-foreground">
-          Status: {block.status}
+        <p className="py-0.5 font-mono text-xs text-warning">
+          <span className="text-warning/60">&gt;</span> status: {block.status}
         </p>
       )
   }
@@ -70,12 +72,12 @@ function ToolEndBlock({ name, output }: { name: string; output: string }) {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="mb-1">
-      <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-        <span className="font-mono text-primary">{name}</span>
-        <span className="truncate max-w-[400px] opacity-60">{preview}</span>
+      <CollapsibleTrigger className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
+        <span className="font-mono text-success">{name}</span>
+        <span className="max-w-[400px] truncate opacity-60">{preview}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <pre className="mt-1 ml-4 overflow-x-auto rounded bg-muted/50 p-2 text-xs whitespace-pre-wrap border-l-2 border-muted">
+        <pre className="mt-1 ml-4 overflow-x-auto whitespace-pre-wrap rounded border-l-2 border-success/30 bg-muted/50 p-2 text-xs">
           {output}
         </pre>
       </CollapsibleContent>
