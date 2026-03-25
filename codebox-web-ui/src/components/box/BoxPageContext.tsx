@@ -1,8 +1,6 @@
 import { createContext, useContext } from "react"
 
 export interface BoxPageActions {
-  fileExplorerOpen: boolean
-  toggleFileExplorer: () => void
   onStop: () => void
   onDelete: () => void
   stopPending: boolean

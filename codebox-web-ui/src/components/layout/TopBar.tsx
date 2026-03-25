@@ -75,13 +75,6 @@ export function TopBar() {
           <div className="flex items-center gap-1.5">
             {boxPageActions && (
               <>
-                <Button
-                  variant={boxPageActions.fileExplorerOpen ? "secondary" : "ghost"}
-                  size="xs"
-                  onClick={boxPageActions.toggleFileExplorer}
-                >
-                  Files
-                </Button>
                 {boxPageActions.isActive && (
                   <Button
                     variant="outline"

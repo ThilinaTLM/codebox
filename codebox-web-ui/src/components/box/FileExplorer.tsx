@@ -4,11 +4,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Loading03Icon, Cancel01Icon } from "@hugeicons/core-free-icons"
+import { Loading03Icon } from "@hugeicons/core-free-icons"
 import { TreeView, type TreeDataItem } from "@/components/tree-view"
 import { useBoxFiles, useBoxFileContent } from "@/net/query"
 import type { FileEntry } from "@/net/http/types"
-import { Folder, File } from "lucide-react"
+import { Folder, File, ArrowLeft, PanelLeftClose } from "lucide-react"
 
 function entriesToTreeItems(entries: FileEntry[]): TreeDataItem[] {
   return entries.map((entry) => ({
@@ -20,7 +20,7 @@ function entriesToTreeItems(entries: FileEntry[]): TreeDataItem[] {
   }))
 }
 
-export function FileExplorer({ boxId }: { boxId: string }) {
+export function FileExplorer({ boxId, onClose }: { boxId: string; onClose?: () => void }) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [treeData, setTreeData] = useState<TreeDataItem[]>([])
@@ -80,13 +80,14 @@ export function FileExplorer({ boxId }: { boxId: string }) {
             />
             <span className="ml-1">Refresh</span>
           </Button>
-          {selectedFile && (
+          {onClose && (
             <Button
               variant="ghost"
-              size="xs"
-              onClick={() => setSelectedFile(null)}
+              size="icon-xs"
+              onClick={onClose}
+              title="Close file explorer"
             >
-              <HugeiconsIcon icon={Cancel01Icon} size={12} />
+              <PanelLeftClose size={14} />
             </Button>
           )}
         </div>
@@ -95,12 +96,20 @@ export function FileExplorer({ boxId }: { boxId: string }) {
       {selectedFile ? (
         /* File content viewer */
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center gap-2 border-b px-3 py-1.5">
-            <span className="truncate font-mono text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 border-b px-2 py-1.5">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setSelectedFile(null)}
+              title="Back to file tree"
+            >
+              <ArrowLeft size={14} />
+            </Button>
+            <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
               {selectedFile.split("/").pop()}
             </span>
             {fileContent?.truncated && (
-              <span className="text-xs text-warning">(truncated)</span>
+              <span className="flex-shrink-0 text-xs text-warning">(truncated)</span>
             )}
           </div>
           <ScrollArea className="flex-1">

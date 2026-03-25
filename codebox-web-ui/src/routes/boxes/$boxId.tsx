@@ -11,6 +11,8 @@ import { BoxStatus } from "@/net/http/types"
 import type { WSEvent } from "@/net/http/types"
 import { toast } from "sonner"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
+import { cn } from "@/lib/utils"
+import { PanelLeftOpen } from "lucide-react"
 
 export const Route = createFileRoute("/boxes/$boxId")({
   component: BoxDetailPage,
@@ -57,8 +59,6 @@ function BoxDetailPage() {
   useEffect(() => {
     if (!box) return
     setBoxPageActions({
-      fileExplorerOpen,
-      toggleFileExplorer: () => setFileExplorerOpen((o) => !o),
       onStop: handleStop,
       onDelete: handleDelete,
       stopPending: stopMutation.isPending,
@@ -68,7 +68,6 @@ function BoxDetailPage() {
     return () => setBoxPageActions(null)
   }, [
     box,
-    fileExplorerOpen,
     handleStop,
     handleDelete,
     stopMutation.isPending,
@@ -115,15 +114,33 @@ function BoxDetailPage() {
     )
   }
 
+  const canShowFiles = box.status === BoxStatus.IDLE || box.status === BoxStatus.RUNNING
+
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
       {/* Main content */}
       <div className="flex min-h-0 flex-1">
-        {/* File explorer panel (left) */}
-        {fileExplorerOpen && (
-          <div className="w-64 flex-shrink-0 border-r bg-card/30 lg:w-80">
-            {box.status === BoxStatus.IDLE || box.status === BoxStatus.RUNNING ? (
-              <FileExplorer boxId={boxId} />
+        {/* Sidebar toggle tab */}
+        {!fileExplorerOpen && (
+          <button
+            onClick={() => setFileExplorerOpen(true)}
+            className="flex w-8 flex-shrink-0 items-center justify-center border-r bg-card/20 text-muted-foreground transition-colors hover:bg-card/50 hover:text-foreground"
+            title="Open file explorer"
+          >
+            <PanelLeftOpen size={14} />
+          </button>
+        )}
+
+        {/* File explorer panel - always rendered, animated width */}
+        <div
+          className={cn(
+            "flex-shrink-0 overflow-hidden bg-card/30 transition-[width,border] duration-200 min-h-0",
+            fileExplorerOpen ? "w-64 border-r lg:w-80" : "w-0"
+          )}
+        >
+          <div className="h-full min-h-0 w-64 lg:w-80">
+            {canShowFiles ? (
+              <FileExplorer boxId={boxId} onClose={() => setFileExplorerOpen(false)} />
             ) : (
               <div className="flex h-full items-center justify-center">
                 <p className="text-sm text-muted-foreground">
@@ -134,7 +151,7 @@ function BoxDetailPage() {
               </div>
             )}
           </div>
-        )}
+        </div>
 
         {/* Chat area */}
         <div className="flex min-h-0 flex-1 flex-col">
