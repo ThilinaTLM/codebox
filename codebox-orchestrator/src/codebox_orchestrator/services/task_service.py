@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
+    GITHUB_DEFAULT_BASE_BRANCH,
     OPENROUTER_API_KEY,
     OPENROUTER_MODEL,
     ORCHESTRATOR_CALLBACK_URL,
@@ -58,6 +59,12 @@ class TaskService:
         model: str | None = None,
         system_prompt: str | None = None,
         workspace_path: str | None = None,
+        # GitHub integration fields
+        github_installation_id: str | None = None,
+        github_repo: str | None = None,
+        github_issue_number: int | None = None,
+        github_trigger_url: str | None = None,
+        github_branch: str | None = None,
     ) -> Task:
         task = Task(
             title=title,
@@ -65,6 +72,11 @@ class TaskService:
             model=model or OPENROUTER_MODEL,
             system_prompt=system_prompt,
             workspace_path=workspace_path,
+            github_installation_id=github_installation_id,
+            github_repo=github_repo,
+            github_issue_number=github_issue_number,
+            github_trigger_url=github_trigger_url,
+            github_branch=github_branch,
         )
         async with self._sf() as db:
             db.add(task)
@@ -204,8 +216,14 @@ class TaskService:
                 return
             model = task.model
             system_prompt = task.system_prompt
+            github_repo = task.github_repo
+            github_branch = task.github_branch
+            github_issue_number = task.github_issue_number
+            github_installation_id = task.github_installation_id
 
-        # Create workspace directory
+        is_github_task = bool(github_repo)
+
+        # Create workspace directory (for non-GitHub tasks; GitHub tasks clone into /workspace)
         os.makedirs(WORKSPACE_BASE_DIR, exist_ok=True)
         workspace = tempfile.mkdtemp(prefix=f"task-{task_id[:8]}-", dir=WORKSPACE_BASE_DIR)
 
@@ -221,6 +239,26 @@ class TaskService:
         }
         if system_prompt:
             extra_env["SYSTEM_PROMPT"] = system_prompt
+
+        # For GitHub tasks, get installation token and inject env vars
+        gh_token: str | None = None
+        if is_github_task:
+            sandbox_config = {
+                "timeout": 300,
+                "recursion_limit": 200,
+                "temperature": 0,
+            }
+            extra_env["CODEBOX_SANDBOX_CONFIG"] = json.dumps(sandbox_config)
+            extra_env["CODEBOX_GITHUB_REPO"] = github_repo or ""
+            if github_branch:
+                extra_env["CODEBOX_BRANCH"] = github_branch
+            if github_issue_number is not None:
+                extra_env["CODEBOX_GITHUB_ISSUE_NUMBER"] = str(github_issue_number)
+
+            # Get installation token BEFORE spawning so it's a real env var
+            gh_token = await self._get_github_token(github_installation_id)
+            extra_env["GH_TOKEN"] = gh_token
+            extra_env["CODEBOX_GITHUB_REF"] = GITHUB_DEFAULT_BASE_BRANCH
 
         try:
             info = docker_service.spawn(
@@ -253,8 +291,66 @@ class TaskService:
             await self._set_failed(task_id, "Sandbox did not connect back in time")
             return
 
+        # Run pre-start setup commands for GitHub tasks
+        if is_github_task and gh_token:
+            try:
+                await self._run_github_setup(
+                    container_name=info.name,
+                    task_id=task_id,
+                    github_repo=github_repo or "",
+                    github_branch=github_branch or "",
+                    github_token=gh_token,
+                    github_issue_number=github_issue_number,
+                )
+            except Exception as exc:
+                logger.exception("GitHub setup failed for task %s", task_id)
+                await self._set_failed(task_id, f"GitHub setup failed: {exc}")
+                return
+
+        # Signal that setup is done — ws_callback can now send the prompt
+        self._registry.set_prompt_ready(task_id)
+
         # Task is now RUNNING (status updated + prompt sent by ws_callback endpoint)
         logger.info("Task %s started successfully", task_id)
+
+    async def _get_github_token(self, github_installation_id: str | None) -> str:
+        """Get a GitHub installation token for a task."""
+        if not hasattr(self, "_github_service") or self._github_service is None:
+            raise RuntimeError("GitHub service not available")
+
+        if not github_installation_id:
+            raise RuntimeError("No GitHub installation ID for task")
+
+        async with self._sf() as db:
+            from codebox_orchestrator.db.models import GitHubInstallation
+            installation = await db.get(GitHubInstallation, github_installation_id)
+            if installation is None:
+                raise RuntimeError(f"GitHub installation not found: {github_installation_id}")
+            gh_installation_id = installation.installation_id
+
+        return await self._github_service.get_installation_token(gh_installation_id)
+
+    async def _run_github_setup(
+        self,
+        container_name: str,
+        task_id: str,
+        github_repo: str,
+        github_branch: str,
+        github_token: str,
+        github_issue_number: int | None,
+    ) -> None:
+        """Run pre-start setup commands inside the container for GitHub tasks."""
+        if not hasattr(self, "_github_service") or self._github_service is None:
+            raise RuntimeError("GitHub service not available")
+
+        setup_commands = self._github_service.build_setup_commands(
+            repo=github_repo,
+            branch=github_branch,
+            token=github_token,
+            issue_number=github_issue_number,
+        )
+
+        docker_service.exec_commands(container_name, setup_commands)
 
     # ------------------------------------------------------------------
     # State updates

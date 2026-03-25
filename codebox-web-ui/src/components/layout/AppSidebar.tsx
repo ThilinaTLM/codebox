@@ -153,6 +153,11 @@ export function AppSidebar() {
                   <span>Containers</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<Link to="/settings/github" />} isActive={currentPath.startsWith("/settings")} tooltip="Settings">
+                  <span>Settings</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

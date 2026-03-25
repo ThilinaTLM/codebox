@@ -25,6 +25,12 @@ export interface Task {
   created_at: string
   started_at: string | null
   completed_at: string | null
+  // GitHub integration fields
+  github_repo: string | null
+  github_issue_number: number | null
+  github_trigger_url: string | null
+  github_branch: string | null
+  github_pr_number: number | null
 }
 
 export interface TaskEvent {
@@ -108,4 +114,25 @@ export interface FileContent {
   content: string
   size: number
   truncated: boolean
+}
+
+// ── GitHub types ────────────────────────────────────────────
+
+export interface GitHubStatus {
+  enabled: boolean
+  app_slug: string
+}
+
+export interface GitHubInstallation {
+  id: string
+  installation_id: number
+  account_login: string
+  account_type: string
+  created_at: string
+}
+
+export interface GitHubRepo {
+  full_name: string
+  private: boolean
+  default_branch: string
 }

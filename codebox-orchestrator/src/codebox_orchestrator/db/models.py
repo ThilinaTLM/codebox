@@ -32,6 +32,32 @@ def _new_uuid() -> str:
     return str(uuid.uuid4())
 
 
+class GitHubInstallation(Base):
+    __tablename__ = "github_installations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    installation_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    account_login: Mapped[str] = mapped_column(String(255))
+    account_type: Mapped[str] = mapped_column(String(50))  # "Organization" or "User"
+    settings: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
+class GitHubEvent(Base):
+    __tablename__ = "github_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    delivery_id: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    event_type: Mapped[str] = mapped_column(String(100))
+    action: Mapped[str] = mapped_column(String(100))
+    repository: Mapped[str] = mapped_column(String(255))  # "owner/repo"
+    payload: Mapped[str] = mapped_column(Text)  # JSON
+    task_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("tasks.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
@@ -60,6 +86,16 @@ class Task(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # GitHub integration fields (nullable — only set for GitHub-triggered tasks)
+    github_installation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("github_installations.id"), nullable=True
+    )
+    github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_issue_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    github_trigger_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    github_branch: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_pr_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
     events: Mapped[list[TaskEvent]] = relationship(

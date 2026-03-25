@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import os
+from typing import Any
 
 import websockets
 import websockets.asyncio.client
@@ -44,6 +45,12 @@ async def run_callback() -> None:
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY is required")
 
+    # Parse optional sandbox config from environment
+    sandbox_config: dict[str, Any] | None = None
+    sandbox_config_raw = os.environ.get("CODEBOX_SANDBOX_CONFIG")
+    if sandbox_config_raw:
+        sandbox_config = json.loads(sandbox_config_raw)
+
     # Create session manager and session
     manager = SessionManager()
     system_prompt = os.environ.get("SYSTEM_PROMPT")
@@ -51,6 +58,7 @@ async def run_callback() -> None:
         model=model,
         api_key=api_key,
         system_prompt=system_prompt,
+        sandbox_config=sandbox_config,
     )
     session_id = session.session_id
     logger.info("Created session %s with model %s", session_id, model)

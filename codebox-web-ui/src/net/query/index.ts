@@ -168,3 +168,53 @@ export function useDeleteSandbox() {
     },
   })
 }
+
+// ── GitHub queries ──────────────────────────────────────────
+
+export function useGitHubStatus() {
+  return useQuery({
+    queryKey: ["github", "status"],
+    queryFn: () => api.github.status(),
+  })
+}
+
+export function useGitHubInstallations() {
+  return useQuery({
+    queryKey: ["github", "installations"],
+    queryFn: () => api.github.listInstallations(),
+  })
+}
+
+export function useGitHubRepos() {
+  return useQuery({
+    queryKey: ["github", "repos"],
+    queryFn: () => api.github.listRepos(),
+  })
+}
+
+export function useAddGitHubInstallation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (installationId: number) =>
+      api.github.addInstallation(installationId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["github", "installations"] })
+    },
+  })
+}
+
+export function useSyncGitHubInstallation() {
+  return useMutation({
+    mutationFn: (id: string) => api.github.syncInstallation(id),
+  })
+}
+
+export function useRemoveGitHubInstallation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.github.removeInstallation(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["github", "installations"] })
+    },
+  })
+}

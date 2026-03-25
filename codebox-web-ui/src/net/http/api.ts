@@ -3,6 +3,9 @@ import type {
   Container,
   FileContent,
   FileListResponse,
+  GitHubInstallation,
+  GitHubRepo,
+  GitHubStatus,
   Sandbox,
   SandboxCreatePayload,
   Task,
@@ -97,6 +100,40 @@ export const api = {
         `/api/sandboxes/${sandboxId}/files/read`,
         { params: { path } },
       )
+      return data
+    },
+  },
+  github: {
+    status: async (): Promise<GitHubStatus> => {
+      const { data } = await client.get<GitHubStatus>("/api/github/status")
+      return data
+    },
+    listInstallations: async (): Promise<GitHubInstallation[]> => {
+      const { data } = await client.get<GitHubInstallation[]>(
+        "/api/github/installations",
+      )
+      return data
+    },
+    addInstallation: async (
+      installationId: number,
+    ): Promise<GitHubInstallation> => {
+      const { data } = await client.post<GitHubInstallation>(
+        "/api/github/installations",
+        { installation_id: installationId },
+      )
+      return data
+    },
+    syncInstallation: async (id: string): Promise<GitHubRepo[]> => {
+      const { data } = await client.post<GitHubRepo[]>(
+        `/api/github/installations/${id}/sync`,
+      )
+      return data
+    },
+    removeInstallation: async (id: string): Promise<void> => {
+      await client.delete(`/api/github/installations/${id}`)
+    },
+    listRepos: async (): Promise<GitHubRepo[]> => {
+      const { data } = await client.get<GitHubRepo[]>("/api/github/repos")
       return data
     },
   },

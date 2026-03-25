@@ -5,6 +5,7 @@
     "ripgrep",
     "git",
     "jq",
-    "curl"
+    "curl",
+    "gh"
   ]
 }

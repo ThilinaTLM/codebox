@@ -21,6 +21,7 @@ class Session:
     created_at: datetime
     last_active_at: datetime
     model: str
+    recursion_limit: int = 150
     current_task: asyncio.Task | None = field(default=None, repr=False)
 
 
@@ -36,6 +37,7 @@ class SessionManager:
         api_key: str,
         system_prompt: str | None = None,
         working_dir: str = "/workspace",
+        sandbox_config: dict | None = None,
     ) -> Session:
         """Create a new session with a fresh agent.
 
@@ -44,6 +46,7 @@ class SessionManager:
             api_key: The OpenRouter API key.
             system_prompt: Optional custom system prompt.
             working_dir: Root directory for the shell backend.
+            sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
 
         Returns:
             The newly created Session.
@@ -54,7 +57,10 @@ class SessionManager:
             api_key=api_key,
             system_prompt=system_prompt,
             root_dir=working_dir,
+            sandbox_config=sandbox_config,
         )
+        cfg = sandbox_config or {}
+        recursion_limit = cfg.get("recursion_limit", 150)
         now = datetime.now(timezone.utc)
         session = Session(
             session_id=session_id,
@@ -63,6 +69,7 @@ class SessionManager:
             created_at=now,
             last_active_at=now,
             model=model,
+            recursion_limit=recursion_limit,
         )
         self._sessions[session_id] = session
         return session

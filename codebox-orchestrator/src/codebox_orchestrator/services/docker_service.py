@@ -153,6 +153,32 @@ def remove(container_id_or_name: str) -> None:
         raise DockerServiceError(f"Failed to remove container: {exc}") from exc
 
 
+def exec_commands(
+    container_id_or_name: str, commands: list[str]
+) -> list[tuple[int, str]]:
+    """Execute a list of shell commands inside a running container.
+
+    Raises DockerServiceError if any command returns a non-zero exit code.
+    Returns list of (exit_code, output) tuples for all executed commands.
+    """
+    client = _get_client()
+    container = _get_container(client, container_id_or_name)
+    results: list[tuple[int, str]] = []
+    for cmd in commands:
+        exit_code, output = container.exec_run(["bash", "-c", cmd], workdir="/")
+        output_str = (
+            output.decode("utf-8", errors="replace")
+            if isinstance(output, bytes)
+            else str(output)
+        )
+        results.append((exit_code, output_str))
+        if exit_code != 0:
+            raise DockerServiceError(
+                f"Setup command failed (exit {exit_code}): {cmd}\n{output_str}"
+            )
+    return results
+
+
 # ------------------------------------------------------------------
 # Internal helpers
 # ------------------------------------------------------------------

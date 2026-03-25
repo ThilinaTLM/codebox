@@ -51,6 +51,12 @@ class TaskResponse(BaseModel):
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None
+    # GitHub integration fields
+    github_repo: str | None = None
+    github_issue_number: int | None = None
+    github_trigger_url: str | None = None
+    github_branch: str | None = None
+    github_pr_number: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -142,3 +148,31 @@ class SandboxEventResponse(BaseModel):
             data=data,
             created_at=event.created_at,
         )
+
+
+# ── GitHub schemas ──────────────────────────────────────────────
+
+
+class GitHubStatusResponse(BaseModel):
+    enabled: bool
+    app_slug: str
+
+
+class GitHubInstallationCreate(BaseModel):
+    installation_id: int
+
+
+class GitHubInstallationResponse(BaseModel):
+    id: str
+    installation_id: int
+    account_login: str
+    account_type: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class GitHubRepoResponse(BaseModel):
+    full_name: str
+    private: bool
+    default_branch: str

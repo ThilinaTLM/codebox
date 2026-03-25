@@ -9,11 +9,22 @@ from urllib.parse import urlparse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from codebox_orchestrator.config import CORS_ORIGINS, DATABASE_URL
+from codebox_orchestrator.config import (
+    CORS_ORIGINS,
+    DATABASE_URL,
+    GITHUB_APP_ID,
+    GITHUB_APP_PRIVATE_KEY_PATH,
+    GITHUB_APP_SLUG,
+    GITHUB_BOT_NAME,
+    GITHUB_WEBHOOK_SECRET,
+    github_enabled,
+)
 from codebox_orchestrator.db.engine import async_session_factory, engine
+from codebox_orchestrator.db.migrations import run_migrations
 from codebox_orchestrator.db.models import Base
 from codebox_orchestrator.routes import api, ws_relay
 from codebox_orchestrator.routes import ws_callback
+from codebox_orchestrator.routes import github as github_routes
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
 from codebox_orchestrator.services.relay_service import RelayService
 from codebox_orchestrator.services.sandbox_service import SandboxService
@@ -32,6 +43,8 @@ def create_app() -> FastAPI:
         # Create tables on startup
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        # Run idempotent column migrations for existing tables
+        await run_migrations(engine)
 
         # Initialize services
         relay = RelayService()
@@ -46,10 +59,28 @@ def create_app() -> FastAPI:
             relay=relay,
             registry=registry,
         )
+
+        # Initialize GitHub service if configured
+        github_service = None
+        if github_enabled():
+            from codebox_orchestrator.services.github_service import GitHubService
+
+            github_service = GitHubService(
+                session_factory=async_session_factory,
+                app_id=GITHUB_APP_ID,
+                private_key_path=GITHUB_APP_PRIVATE_KEY_PATH,
+                webhook_secret=GITHUB_WEBHOOK_SECRET,
+                app_slug=GITHUB_APP_SLUG,
+                bot_name=GITHUB_BOT_NAME,
+            )
+            # Give task_service access to the GitHub service for setup commands
+            task_service._github_service = github_service
+
         app.state.relay_service = relay
         app.state.callback_registry = registry
         app.state.task_service = task_service
         app.state.sandbox_service = sandbox_service
+        app.state.github_service = github_service
         # Expose session factory for ws_callback route
         app.state._sf = async_session_factory
 
@@ -78,5 +109,6 @@ def create_app() -> FastAPI:
     app.include_router(api.router)
     app.include_router(ws_relay.router)
     app.include_router(ws_callback.router)
+    app.include_router(github_routes.router)
 
     return app

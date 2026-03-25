@@ -151,6 +151,13 @@ async def _handle_task(
 
     logger.info("Task %s is RUNNING (session %s)", task_id, session_id)
 
+    # Wait for pre-start setup to complete (non-GitHub tasks are signalled immediately)
+    ready = await registry.wait_for_prompt_ready(task_id, timeout=300)
+    if not ready:
+        logger.error("Task %s: pre-start setup timed out", task_id)
+        await _set_task_failed(sf, relay, task_id, "Pre-start setup timed out")
+        return
+
     # Send the task prompt to the sandbox
     await ws.send_json({"type": "message", "content": prompt})
 

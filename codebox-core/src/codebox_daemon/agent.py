@@ -33,6 +33,7 @@ def create_agent(
     api_key: str,
     system_prompt: str | None = None,
     root_dir: str = "/workspace",
+    sandbox_config: dict | None = None,
 ):
     """Create a deep agent with the given configuration.
 
@@ -41,20 +42,25 @@ def create_agent(
         api_key: The OpenRouter API key.
         system_prompt: Optional custom system prompt.
         root_dir: Root directory for the shell backend.
+        sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
 
     Returns:
         A compiled LangGraph agent.
     """
+    cfg = sandbox_config or {}
+    temperature = cfg.get("temperature", 0)
+    timeout = cfg.get("timeout", 120)
+
     llm = ChatOpenRouter(
         model=model,
-        temperature=0,
+        temperature=temperature,
         api_key=api_key,
     )
 
     backend = LocalShellBackend(
         root_dir=root_dir,
         virtual_mode=True,
-        timeout=120,
+        timeout=timeout,
         inherit_env=True,
     )
 

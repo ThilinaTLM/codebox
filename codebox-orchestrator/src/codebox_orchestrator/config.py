@@ -28,3 +28,16 @@ CORS_ORIGINS: list[str] = [
     for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
     if o.strip()
 ]
+
+# GitHub App configuration (all optional — integration disabled if not set)
+GITHUB_APP_ID: str = os.environ.get("GITHUB_APP_ID", "")
+GITHUB_APP_PRIVATE_KEY_PATH: str = os.environ.get("GITHUB_APP_PRIVATE_KEY_PATH", "")
+GITHUB_WEBHOOK_SECRET: str = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
+GITHUB_APP_SLUG: str = os.environ.get("GITHUB_APP_SLUG", "codebox")
+GITHUB_BOT_NAME: str = os.environ.get("GITHUB_BOT_NAME", "") or GITHUB_APP_SLUG
+GITHUB_DEFAULT_BASE_BRANCH: str = os.environ.get("GITHUB_DEFAULT_BASE_BRANCH", "main")
+
+
+def github_enabled() -> bool:
+    """Return True if GitHub App credentials are configured."""
+    return bool(GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_PATH)

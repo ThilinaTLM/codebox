@@ -23,6 +23,8 @@ class CallbackRegistry:
         self._connections: dict[str, WebSocket] = {}
         # entity_id → asyncio.Event (signals when sandbox connects)
         self._connected_events: dict[str, asyncio.Event] = {}
+        # entity_id → asyncio.Event (signals when pre-start setup is done and prompt can be sent)
+        self._prompt_ready_events: dict[str, asyncio.Event] = {}
         # (entity_id, request_id) → asyncio.Future for file ops
         self._pending_requests: dict[tuple[str, str], asyncio.Future[dict[str, Any]]] = {}
 
@@ -30,6 +32,7 @@ class CallbackRegistry:
         """Register a pending callback token for a sandbox/task."""
         self._pending[token] = (entity_id, entity_type)
         self._connected_events[entity_id] = asyncio.Event()
+        self._prompt_ready_events[entity_id] = asyncio.Event()
 
     def resolve(self, token: str) -> tuple[str, str] | None:
         """Look up and consume a callback token. Returns (entity_id, entity_type) or None."""
@@ -46,10 +49,28 @@ class CallbackRegistry:
         """Get the active WebSocket for an entity."""
         return self._connections.get(entity_id)
 
+    def set_prompt_ready(self, entity_id: str) -> None:
+        """Signal that pre-start setup is done and the prompt can be sent."""
+        event = self._prompt_ready_events.get(entity_id)
+        if event:
+            event.set()
+
+    async def wait_for_prompt_ready(self, entity_id: str, timeout: float = 300.0) -> bool:
+        """Wait until pre-start setup completes (prompt can be sent), or timeout."""
+        event = self._prompt_ready_events.get(entity_id)
+        if event is None:
+            return False
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+            return True
+        except asyncio.TimeoutError:
+            return False
+
     def remove(self, entity_id: str) -> None:
         """Clean up all state for an entity."""
         self._connections.pop(entity_id, None)
         self._connected_events.pop(entity_id, None)
+        self._prompt_ready_events.pop(entity_id, None)
         # Cancel any pending file-op futures
         to_remove = [k for k in self._pending_requests if k[0] == entity_id]
         for key in to_remove:

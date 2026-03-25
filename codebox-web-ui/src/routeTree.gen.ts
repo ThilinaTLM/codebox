@@ -15,6 +15,7 @@ import { Route as TasksIndexRouteImport } from './routes/tasks/index'
 import { Route as SandboxesIndexRouteImport } from './routes/sandboxes/index'
 import { Route as TasksNewRouteImport } from './routes/tasks/new'
 import { Route as TasksTaskIdRouteImport } from './routes/tasks/$taskId'
+import { Route as SettingsGithubRouteImport } from './routes/settings/github'
 import { Route as SandboxesSandboxIdRouteImport } from './routes/sandboxes/$sandboxId'
 
 const ContainersRoute = ContainersRouteImport.update({
@@ -47,6 +48,11 @@ const TasksTaskIdRoute = TasksTaskIdRouteImport.update({
   path: '/tasks/$taskId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsGithubRoute = SettingsGithubRouteImport.update({
+  id: '/settings/github',
+  path: '/settings/github',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SandboxesSandboxIdRoute = SandboxesSandboxIdRouteImport.update({
   id: '/sandboxes/$sandboxId',
   path: '/sandboxes/$sandboxId',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/containers': typeof ContainersRoute
   '/sandboxes/$sandboxId': typeof SandboxesSandboxIdRoute
+  '/settings/github': typeof SettingsGithubRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
   '/sandboxes/': typeof SandboxesIndexRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/containers': typeof ContainersRoute
   '/sandboxes/$sandboxId': typeof SandboxesSandboxIdRoute
+  '/settings/github': typeof SettingsGithubRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
   '/sandboxes': typeof SandboxesIndexRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/containers': typeof ContainersRoute
   '/sandboxes/$sandboxId': typeof SandboxesSandboxIdRoute
+  '/settings/github': typeof SettingsGithubRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
   '/sandboxes/': typeof SandboxesIndexRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/containers'
     | '/sandboxes/$sandboxId'
+    | '/settings/github'
     | '/tasks/$taskId'
     | '/tasks/new'
     | '/sandboxes/'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/containers'
     | '/sandboxes/$sandboxId'
+    | '/settings/github'
     | '/tasks/$taskId'
     | '/tasks/new'
     | '/sandboxes'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/containers'
     | '/sandboxes/$sandboxId'
+    | '/settings/github'
     | '/tasks/$taskId'
     | '/tasks/new'
     | '/sandboxes/'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ContainersRoute: typeof ContainersRoute
   SandboxesSandboxIdRoute: typeof SandboxesSandboxIdRoute
+  SettingsGithubRoute: typeof SettingsGithubRoute
   TasksTaskIdRoute: typeof TasksTaskIdRoute
   TasksNewRoute: typeof TasksNewRoute
   SandboxesIndexRoute: typeof SandboxesIndexRoute
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksTaskIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/github': {
+      id: '/settings/github'
+      path: '/settings/github'
+      fullPath: '/settings/github'
+      preLoaderRoute: typeof SettingsGithubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sandboxes/$sandboxId': {
       id: '/sandboxes/$sandboxId'
       path: '/sandboxes/$sandboxId'
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ContainersRoute: ContainersRoute,
   SandboxesSandboxIdRoute: SandboxesSandboxIdRoute,
+  SettingsGithubRoute: SettingsGithubRoute,
   TasksTaskIdRoute: TasksTaskIdRoute,
   TasksNewRoute: TasksNewRoute,
   SandboxesIndexRoute: SandboxesIndexRoute,
