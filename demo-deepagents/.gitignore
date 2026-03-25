@@ -1,9 +1,0 @@
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-.venv
-.chat_history
-.env.local
