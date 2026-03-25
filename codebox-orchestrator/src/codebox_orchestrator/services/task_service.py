@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 import tempfile
 from datetime import datetime, timezone
 from typing import Any
@@ -15,18 +16,20 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
-    CODEBOX_PORT,
     OPENROUTER_API_KEY,
     OPENROUTER_MODEL,
+    ORCHESTRATOR_CALLBACK_URL,
     TAVILY_API_KEY,
     WORKSPACE_BASE_DIR,
 )
 from codebox_orchestrator.db.models import Task, TaskEvent, TaskStatus
 from codebox_orchestrator.services import docker_service
+from codebox_orchestrator.services.callback_registry import CallbackRegistry
 from codebox_orchestrator.services.relay_service import RelayService
-from codebox_orchestrator.services.sandbox_client import SandboxClient
 
 logger = logging.getLogger(__name__)
+
+_CALLBACK_TIMEOUT = 60.0  # seconds to wait for sandbox to connect back
 
 
 class TaskService:
@@ -36,13 +39,13 @@ class TaskService:
         self,
         session_factory: async_sessionmaker[AsyncSession],
         relay: RelayService,
+        registry: CallbackRegistry,
     ) -> None:
         self._sf = session_factory
         self._relay = relay
+        self._registry = registry
         # Background asyncio tasks keyed by task_id
         self._running: dict[str, asyncio.Task[None]] = {}
-        # Active WebSocket connections keyed by task_id
-        self._ws_connections: dict[str, Any] = {}
 
     # ------------------------------------------------------------------
     # CRUD
@@ -97,7 +100,6 @@ class TaskService:
         async with self._sf() as db:
             task = await db.get(Task, task_id)
             if task:
-                # Try to remove the container
                 if task.container_name:
                     try:
                         docker_service.remove(task.container_name)
@@ -134,14 +136,15 @@ class TaskService:
         if bg and not bg.done():
             bg.cancel()
 
-        # Send cancel over WebSocket if connected
-        ws = self._ws_connections.pop(task_id, None)
+        # Send cancel over callback WS if connected
+        ws = self._registry.get_connection(task_id)
         if ws:
             try:
-                await SandboxClient.send_cancel(ws)
+                await ws.send_json({"type": "cancel"})
                 await ws.close()
             except Exception:
                 pass
+        self._registry.remove(task_id)
 
         async with self._sf() as db:
             task = await db.get(Task, task_id)
@@ -165,10 +168,10 @@ class TaskService:
 
     async def send_followup(self, task_id: str, message: str) -> None:
         """Send a follow-up message to a running agent."""
-        ws = self._ws_connections.get(task_id)
+        ws = self._registry.get_connection(task_id)
         if ws is None:
-            raise ValueError("No active WebSocket connection for this task")
-        await SandboxClient.send_message(ws, message)
+            raise ValueError("No active connection for this task")
+        await ws.send_json({"type": "message", "content": message})
 
     async def shutdown(self) -> None:
         """Cancel all running background tasks (called on app shutdown)."""
@@ -182,7 +185,7 @@ class TaskService:
     # ------------------------------------------------------------------
 
     async def _run_task(self, task_id: str) -> None:
-        """Background coroutine: spawn container, connect, stream events."""
+        """Background coroutine: spawn container, wait for callback."""
         try:
             await self._do_run_task(task_id)
         except asyncio.CancelledError:
@@ -192,7 +195,6 @@ class TaskService:
             await self._set_failed(task_id, str(exc))
         finally:
             self._running.pop(task_id, None)
-            self._ws_connections.pop(task_id, None)
 
     async def _do_run_task(self, task_id: str) -> None:
         # Load task
@@ -200,7 +202,6 @@ class TaskService:
             task = await db.get(Task, task_id)
             if task is None:
                 return
-            prompt = task.prompt
             model = task.model
             system_prompt = task.system_prompt
 
@@ -208,8 +209,19 @@ class TaskService:
         os.makedirs(WORKSPACE_BASE_DIR, exist_ok=True)
         workspace = tempfile.mkdtemp(prefix=f"task-{task_id[:8]}-", dir=WORKSPACE_BASE_DIR)
 
-        # Spawn container
+        # Generate callback token
+        callback_token = secrets.token_urlsafe(32)
+        self._registry.register(callback_token, task_id, "task")
+
+        # Spawn container with callback env vars
         container_name = f"codebox-task-{task_id[:8]}"
+        extra_env: dict[str, str] = {
+            "ORCHESTRATOR_CALLBACK_URL": ORCHESTRATOR_CALLBACK_URL,
+            "CALLBACK_TOKEN": callback_token,
+        }
+        if system_prompt:
+            extra_env["SYSTEM_PROMPT"] = system_prompt
+
         try:
             info = docker_service.spawn(
                 image=CODEBOX_IMAGE,
@@ -218,6 +230,7 @@ class TaskService:
                 api_key=OPENROUTER_API_KEY,
                 tavily_api_key=TAVILY_API_KEY,
                 mount_path=workspace,
+                extra_env=extra_env,
             )
         except docker_service.DockerServiceError as exc:
             await self._set_failed(task_id, f"Failed to spawn container: {exc}")
@@ -230,92 +243,18 @@ class TaskService:
                 return
             task.container_id = info.id
             task.container_name = info.name
-            task.host_port = info.port
+            task.callback_token = callback_token
             task.workspace_path = workspace
             await db.commit()
 
-        # Wait for daemon to become healthy
-        healthy = await asyncio.to_thread(
-            docker_service.wait_for_healthy, container_name
-        )
-        if not healthy:
-            await self._set_failed(task_id, "Sandbox daemon did not become healthy in time")
+        # Wait for sandbox to connect back
+        connected = await self._registry.wait_for_connection(task_id, timeout=_CALLBACK_TIMEOUT)
+        if not connected:
+            await self._set_failed(task_id, "Sandbox did not connect back in time")
             return
 
-        # Get auth token
-        try:
-            token = await asyncio.to_thread(docker_service.get_token, container_name)
-        except docker_service.DockerServiceError as exc:
-            await self._set_failed(task_id, f"Failed to get token: {exc}")
-            return
-
-        # Create sandbox client and session
-        client = SandboxClient(host=container_name, port=CODEBOX_PORT, token=token)
-        try:
-            session_info = client.create_session(
-                model=model,
-                api_key=OPENROUTER_API_KEY,
-                system_prompt=system_prompt,
-            )
-        except Exception as exc:
-            await self._set_failed(task_id, f"Failed to create session: {exc}")
-            return
-
-        session_id = session_info["session_id"]
-
-        # Update task with session ID and mark running
-        async with self._sf() as db:
-            task = await db.get(Task, task_id)
-            if task is None:
-                return
-            task.session_id = session_id
-            task.status = TaskStatus.RUNNING
-            await db.commit()
-
-        await self._relay.broadcast(
-            task_id, {"type": "status_change", "status": TaskStatus.RUNNING.value}
-        )
-
-        # Connect WebSocket and stream events
-        try:
-            ws = await client.connect_session(session_id)
-        except Exception as exc:
-            await self._set_failed(task_id, f"Failed to connect WebSocket: {exc}")
-            return
-
-        self._ws_connections[task_id] = ws
-
-        try:
-            # Send the task prompt
-            await SandboxClient.send_message(ws, prompt)
-
-            # Stream events
-            async for event in SandboxClient.receive_events(ws):
-                event_type = event.get("type", "")
-
-                # Persist event
-                await self._persist_event(task_id, event_type, event)
-
-                # Broadcast to SSE subscribers
-                await self._relay.broadcast(task_id, event)
-
-                # Handle terminal events
-                if event_type == "done":
-                    await self._set_completed(task_id, event.get("content", ""))
-                    return
-                elif event_type == "error":
-                    await self._set_failed(task_id, event.get("detail", "Unknown error"))
-                    return
-
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            await self._set_failed(task_id, f"WebSocket error: {exc}")
-        finally:
-            try:
-                await ws.close()
-            except Exception:
-                pass
+        # Task is now RUNNING (status updated + prompt sent by ws_callback endpoint)
+        logger.info("Task %s started successfully", task_id)
 
     # ------------------------------------------------------------------
     # State updates
@@ -335,27 +274,3 @@ class TaskService:
         await self._relay.broadcast(
             task_id, {"type": "error", "detail": error}
         )
-
-    async def _set_completed(self, task_id: str, result: str) -> None:
-        async with self._sf() as db:
-            task = await db.get(Task, task_id)
-            if task:
-                task.status = TaskStatus.COMPLETED
-                task.result_summary = result
-                task.completed_at = datetime.now(timezone.utc)
-                await db.commit()
-        await self._relay.broadcast(
-            task_id, {"type": "status_change", "status": TaskStatus.COMPLETED.value}
-        )
-
-    async def _persist_event(
-        self, task_id: str, event_type: str, data: dict[str, Any]
-    ) -> None:
-        async with self._sf() as db:
-            ev = TaskEvent(
-                task_id=task_id,
-                event_type=event_type,
-                data=json.dumps(data),
-            )
-            db.add(ev)
-            await db.commit()

@@ -1,16 +1,13 @@
 [project]
 name = "codebox-core"
 version = "0.1.0"
-description = "Codebox daemon — sandboxed coding agent with WebSocket API"
+description = "Codebox daemon — sandboxed coding agent with callback WebSocket"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "deepagents",
     "langchain-openrouter",
-    "fastapi",
-    "uvicorn[standard]",
     "websockets",
-    "cryptography",
     "python-dotenv",
     "tavily-python",
     "markdownify",

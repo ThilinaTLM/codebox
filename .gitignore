@@ -11,6 +11,7 @@ wheels/
 
 # Environment variables (actual values)
 .env.local
+.env.compose
 
 # IDE
 .idea/

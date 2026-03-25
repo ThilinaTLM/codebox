@@ -1,12 +1,9 @@
-"""Entrypoint for running the codebox daemon."""
+"""Entrypoint for running the codebox daemon in callback mode."""
 
+import asyncio
 import logging
-import os
 
-import uvicorn
-
-from codebox_daemon.app import create_app
-from codebox_daemon.tls import ensure_tls_certs
+from codebox_daemon.callback import run_callback
 
 
 def main() -> None:
@@ -14,18 +11,7 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-
-    app = create_app()
-    cert_path, key_path = ensure_tls_certs()
-    port = int(os.environ.get("CODEBOX_PORT", "8443"))
-
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=port,
-        ssl_keyfile=key_path,
-        ssl_certfile=cert_path,
-    )
+    asyncio.run(run_callback())
 
 
 if __name__ == "__main__":

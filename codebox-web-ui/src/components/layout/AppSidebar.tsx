@@ -88,9 +88,9 @@ export function AppSidebar() {
             <SidebarMenu>
               {isLoading ? (
                 <>
-                  <SidebarMenuSkeleton showIcon />
-                  <SidebarMenuSkeleton showIcon />
-                  <SidebarMenuSkeleton showIcon />
+                  <SidebarMenuSkeleton showIcon index={0} />
+                  <SidebarMenuSkeleton showIcon index={1} />
+                  <SidebarMenuSkeleton showIcon index={2} />
                 </>
               ) : (
                 sandboxes?.map((sandbox) => {

@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 import tempfile
 from datetime import datetime, timezone
 from typing import Any
@@ -15,18 +16,21 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
-    CODEBOX_PORT,
     OPENROUTER_API_KEY,
     OPENROUTER_MODEL,
+    ORCHESTRATOR_CALLBACK_URL,
     TAVILY_API_KEY,
     WORKSPACE_BASE_DIR,
 )
 from codebox_orchestrator.db.models import Sandbox, SandboxEvent, SandboxStatus
 from codebox_orchestrator.services import docker_service
+from codebox_orchestrator.services.callback_registry import CallbackRegistry
 from codebox_orchestrator.services.relay_service import RelayService
-from codebox_orchestrator.services.sandbox_client import SandboxClient
 
 logger = logging.getLogger(__name__)
+
+_CALLBACK_TIMEOUT = 60.0  # seconds to wait for sandbox to connect back
+_FILE_OP_TIMEOUT = 10.0  # seconds to wait for file operation responses
 
 
 class SandboxService:
@@ -36,15 +40,13 @@ class SandboxService:
         self,
         session_factory: async_sessionmaker[AsyncSession],
         relay: RelayService,
+        registry: CallbackRegistry,
     ) -> None:
         self._sf = session_factory
         self._relay = relay
-        # Background relay loops keyed by sandbox_id
+        self._registry = registry
+        # Background tasks keyed by sandbox_id (timeout watchers)
         self._running: dict[str, asyncio.Task[None]] = {}
-        # Active WS connections to sandbox containers
-        self._ws_connections: dict[str, Any] = {}
-        # Cached SandboxClient instances
-        self._clients: dict[str, SandboxClient] = {}
 
     # ------------------------------------------------------------------
     # CRUD
@@ -92,20 +94,19 @@ class SandboxService:
 
     async def stop_sandbox(self, sandbox_id: str) -> None:
         """Stop a sandbox and its container."""
-        # Cancel relay loop
+        # Cancel background task
         bg = self._running.pop(sandbox_id, None)
         if bg and not bg.done():
             bg.cancel()
 
-        # Close WS connection
-        ws = self._ws_connections.pop(sandbox_id, None)
+        # Close callback WS connection
+        ws = self._registry.get_connection(sandbox_id)
         if ws:
             try:
                 await ws.close()
             except Exception:
                 pass
-
-        self._clients.pop(sandbox_id, None)
+        self._registry.remove(sandbox_id)
 
         async with self._sf() as db:
             sandbox = await db.get(Sandbox, sandbox_id)
@@ -138,57 +139,71 @@ class SandboxService:
                 await db.commit()
 
     # ------------------------------------------------------------------
-    # Commands (forward to sandbox WS)
+    # Commands (forward to sandbox via callback WS)
     # ------------------------------------------------------------------
 
     async def send_message(self, sandbox_id: str, content: str) -> None:
         """Send a chat message to the sandbox agent."""
-        ws = self._ws_connections.get(sandbox_id)
+        ws = self._registry.get_connection(sandbox_id)
         if ws is None:
-            raise ValueError("No active WebSocket connection for this sandbox")
-        await SandboxClient.send_message(ws, content)
+            raise ValueError("No active connection for this sandbox")
+        await ws.send_json({"type": "message", "content": content})
 
     async def send_exec(self, sandbox_id: str, command: str) -> None:
         """Send a shell command for direct execution in the sandbox."""
-        ws = self._ws_connections.get(sandbox_id)
+        ws = self._registry.get_connection(sandbox_id)
         if ws is None:
-            raise ValueError("No active WebSocket connection for this sandbox")
-        await SandboxClient.send_exec(ws, command)
+            raise ValueError("No active connection for this sandbox")
+        await ws.send_json({"type": "exec", "content": command})
 
     async def send_cancel(self, sandbox_id: str) -> None:
         """Cancel the current operation in the sandbox."""
-        ws = self._ws_connections.get(sandbox_id)
+        ws = self._registry.get_connection(sandbox_id)
         if ws is None:
-            raise ValueError("No active WebSocket connection for this sandbox")
-        await SandboxClient.send_cancel(ws)
+            raise ValueError("No active connection for this sandbox")
+        await ws.send_json({"type": "cancel"})
 
     # ------------------------------------------------------------------
-    # File browsing (REST proxy)
+    # File browsing (via callback WS)
     # ------------------------------------------------------------------
 
     async def list_files(self, sandbox_id: str, path: str = "/workspace") -> dict[str, Any]:
         """List files in the sandbox workspace."""
-        client = await self._get_client(sandbox_id)
-        return await asyncio.to_thread(client.list_files, path)
+        ws = self._registry.get_connection(sandbox_id)
+        if ws is None:
+            raise ValueError("No active connection for this sandbox")
+        request_id, fut = self._registry.create_pending_request(sandbox_id)
+        await ws.send_json({"type": "list_files", "path": path, "request_id": request_id})
+        result = await asyncio.wait_for(fut, timeout=_FILE_OP_TIMEOUT)
+        if "error" in result:
+            raise RuntimeError(result["error"])
+        return result.get("data", {})
 
     async def read_file(self, sandbox_id: str, path: str) -> dict[str, Any]:
         """Read a file from the sandbox workspace."""
-        client = await self._get_client(sandbox_id)
-        return await asyncio.to_thread(client.read_file, path)
+        ws = self._registry.get_connection(sandbox_id)
+        if ws is None:
+            raise ValueError("No active connection for this sandbox")
+        request_id, fut = self._registry.create_pending_request(sandbox_id)
+        await ws.send_json({"type": "read_file", "path": path, "request_id": request_id})
+        result = await asyncio.wait_for(fut, timeout=_FILE_OP_TIMEOUT)
+        if "error" in result:
+            raise RuntimeError(result["error"])
+        return result.get("data", {})
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
     async def shutdown(self) -> None:
-        """Cancel all running relay loops (called on app shutdown)."""
+        """Cancel all running tasks (called on app shutdown)."""
         for sandbox_id in list(self._running):
             bg = self._running.pop(sandbox_id, None)
             if bg and not bg.done():
                 bg.cancel()
 
     async def _start_sandbox(self, sandbox_id: str) -> None:
-        """Background coroutine: spawn container, connect, start relay."""
+        """Background coroutine: spawn container and wait for callback."""
         try:
             await self._do_start_sandbox(sandbox_id)
         except asyncio.CancelledError:
@@ -215,7 +230,11 @@ class SandboxService:
         os.makedirs(WORKSPACE_BASE_DIR, exist_ok=True)
         workspace = tempfile.mkdtemp(prefix=f"sandbox-{sandbox_id[:8]}-", dir=WORKSPACE_BASE_DIR)
 
-        # Spawn container
+        # Generate callback token
+        callback_token = secrets.token_urlsafe(32)
+        self._registry.register(callback_token, sandbox_id, "sandbox")
+
+        # Spawn container with callback env vars
         container_name = f"codebox-sandbox-{sandbox_id[:8]}"
         try:
             info = docker_service.spawn(
@@ -225,6 +244,10 @@ class SandboxService:
                 api_key=OPENROUTER_API_KEY,
                 tavily_api_key=TAVILY_API_KEY,
                 mount_path=workspace,
+                extra_env={
+                    "ORCHESTRATOR_CALLBACK_URL": ORCHESTRATOR_CALLBACK_URL,
+                    "CALLBACK_TOKEN": callback_token,
+                },
             )
         except docker_service.DockerServiceError as exc:
             await self._set_failed(sandbox_id, f"Failed to spawn container: {exc}")
@@ -237,116 +260,22 @@ class SandboxService:
                 return
             sandbox.container_id = info.id
             sandbox.container_name = info.name
-            sandbox.host_port = info.port
+            sandbox.callback_token = callback_token
             sandbox.workspace_path = workspace
             await db.commit()
 
-        # Wait for daemon health
-        healthy = await asyncio.to_thread(
-            docker_service.wait_for_healthy, container_name
-        )
-        if not healthy:
-            await self._set_failed(sandbox_id, "Sandbox daemon did not become healthy in time")
+        # Wait for the sandbox to connect back
+        connected = await self._registry.wait_for_connection(sandbox_id, timeout=_CALLBACK_TIMEOUT)
+        if not connected:
+            await self._set_failed(sandbox_id, "Sandbox did not connect back in time")
             return
 
-        # Get auth token
-        try:
-            token = await asyncio.to_thread(docker_service.get_token, container_name)
-        except docker_service.DockerServiceError as exc:
-            await self._set_failed(sandbox_id, f"Failed to get token: {exc}")
-            return
-
-        # Create sandbox client and session
-        client = SandboxClient(host=container_name, port=CODEBOX_PORT, token=token)
-        try:
-            session_info = client.create_session(
-                model=model,
-                api_key=OPENROUTER_API_KEY,
-            )
-        except Exception as exc:
-            await self._set_failed(sandbox_id, f"Failed to create session: {exc}")
-            return
-
-        session_id = session_info["session_id"]
-
-        # Update sandbox with session and auth info, mark ready
-        async with self._sf() as db:
-            sandbox = await db.get(Sandbox, sandbox_id)
-            if sandbox is None:
-                return
-            sandbox.session_id = session_id
-            sandbox.auth_token = token
-            sandbox.status = SandboxStatus.READY
-            await db.commit()
-
-        self._clients[sandbox_id] = client
-
-        await self._relay.broadcast(
-            sandbox_id, {"type": "status_change", "status": SandboxStatus.READY.value}
-        )
-
-        # Connect WS and start relay loop (stays open indefinitely)
-        try:
-            ws = await client.connect_session(session_id)
-        except Exception as exc:
-            await self._set_failed(sandbox_id, f"Failed to connect WebSocket: {exc}")
-            return
-
-        self._ws_connections[sandbox_id] = ws
-
-        # Relay loop — does NOT terminate on "done" events
-        try:
-            async for event in SandboxClient.receive_events(ws):
-                event_type = event.get("type", "")
-
-                # Persist event
-                await self._persist_event(sandbox_id, event_type, event)
-
-                # Broadcast to subscribers
-                await self._relay.broadcast(sandbox_id, event)
-
-                # Only terminate on error (sandbox container issue)
-                if event_type == "error":
-                    detail = event.get("detail", "")
-                    # Don't terminate on agent-level errors (e.g. invalid message)
-                    # Only on fatal connection issues
-                    if "WebSocket" in detail or "connection" in detail.lower():
-                        break
-
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            logger.warning("Sandbox %s relay loop error: %s", sandbox_id, exc)
-        finally:
-            try:
-                await ws.close()
-            except Exception:
-                pass
-            self._ws_connections.pop(sandbox_id, None)
+        # Sandbox is now READY (status updated by ws_callback endpoint)
+        logger.info("Sandbox %s started successfully", sandbox_id)
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-
-    async def _get_client(self, sandbox_id: str) -> SandboxClient:
-        """Get or create a SandboxClient for REST calls."""
-        if sandbox_id in self._clients:
-            return self._clients[sandbox_id]
-
-        async with self._sf() as db:
-            sandbox = await db.get(Sandbox, sandbox_id)
-            if sandbox is None:
-                raise ValueError(f"Sandbox not found: {sandbox_id}")
-            if not sandbox.container_name or not sandbox.auth_token:
-                raise ValueError(f"Sandbox {sandbox_id} is not ready")
-
-            client = SandboxClient(
-                host=sandbox.container_name,
-                port=CODEBOX_PORT,
-                token=sandbox.auth_token,
-            )
-            self._clients[sandbox_id] = client
-            return client
 
     async def _set_failed(self, sandbox_id: str, error: str) -> None:
         async with self._sf() as db:
@@ -362,15 +291,3 @@ class SandboxService:
         await self._relay.broadcast(
             sandbox_id, {"type": "error", "detail": error}
         )
-
-    async def _persist_event(
-        self, sandbox_id: str, event_type: str, data: dict[str, Any]
-    ) -> None:
-        async with self._sf() as db:
-            ev = SandboxEvent(
-                sandbox_id=sandbox_id,
-                event_type=event_type,
-                data=json.dumps(data),
-            )
-            db.add(ev)
-            await db.commit()

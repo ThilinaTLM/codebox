@@ -13,7 +13,7 @@ services:
       DATABASE_URL: "sqlite+aiosqlite:////data/orchestrator.db"
     env_file:
       - .env
-      - path: .env.local
+      - path: .env.compose
         required: false
     networks:
       - codebox-net

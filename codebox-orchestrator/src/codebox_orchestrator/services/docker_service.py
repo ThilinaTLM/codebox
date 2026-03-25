@@ -1,19 +1,14 @@
-"""Docker container lifecycle management for sandbox containers.
-
-Adapted from codebox-cli/src/codebox_cli/docker_manager.py — same Docker SDK
-patterns with click dependency removed.
-"""
+"""Docker container lifecycle management for sandbox containers."""
 
 from __future__ import annotations
 
 import logging
-import time
 from dataclasses import dataclass
 
 import docker
 import docker.errors
 
-from codebox_orchestrator.config import CODEBOX_PORT, DOCKER_NETWORK
+from codebox_orchestrator.config import DOCKER_NETWORK
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +23,6 @@ class DockerServiceError(Exception):
 class ContainerInfo:
     id: str
     name: str
-    port: int | None
     mount_path: str | None
     status: str = ""
     model: str = ""
@@ -49,8 +43,8 @@ def spawn(
     api_key: str | None = None,
     tavily_api_key: str | None = None,
     mount_path: str | None = None,
-    port: int | None = None,
     network: str | None = None,
+    extra_env: dict[str, str] | None = None,
 ) -> ContainerInfo:
     """Start a new sandbox container and return its info."""
     client = _get_client()
@@ -62,8 +56,8 @@ def spawn(
         environment["OPENROUTER_MODEL"] = model
     if tavily_api_key:
         environment["TAVILY_API_KEY"] = tavily_api_key
-
-    ports: dict[str, int | None] = {"8443/tcp": port}
+    if extra_env:
+        environment.update(extra_env)
 
     volumes: dict[str, dict[str, str]] = {}
     if mount_path:
@@ -80,11 +74,11 @@ def spawn(
             image,
             detach=True,
             name=name,
-            ports=ports,
             environment=environment,
             volumes=volumes,
             labels=labels,
             network=net,
+            extra_hosts={"host.docker.internal": "host-gateway"},
         )
     except docker.errors.ImageNotFound as exc:
         raise DockerServiceError(f"Image not found: {image}") from exc
@@ -92,12 +86,10 @@ def spawn(
         raise DockerServiceError(f"Docker API error: {exc}") from exc
 
     container.reload()
-    host_port = _extract_host_port(container)
 
     return ContainerInfo(
         id=container.id,
         name=container.name,
-        port=host_port,
         mount_path=mount_path,
     )
 
@@ -127,7 +119,6 @@ def list_running() -> list[ContainerInfo]:
             ContainerInfo(
                 id=c.id,
                 name=c.name,
-                port=_extract_host_port(c),
                 mount_path=None,
                 status=c.status,
                 model=model,
@@ -162,55 +153,6 @@ def remove(container_id_or_name: str) -> None:
         raise DockerServiceError(f"Failed to remove container: {exc}") from exc
 
 
-def get_token(container_id_or_name: str) -> str:
-    """Retrieve the daemon authentication token from a running container."""
-    client = _get_client()
-    container = _get_container(client, container_id_or_name)
-
-    try:
-        exit_code, output = container.exec_run("cat /run/daemon-token")
-    except docker.errors.APIError as exc:
-        raise DockerServiceError(
-            f"Failed to read token from container: {exc}"
-        ) from exc
-
-    if exit_code != 0:
-        raise DockerServiceError(
-            f"Failed to read token (exit code {exit_code}): {output.decode()}"
-        )
-
-    return output.decode().strip()
-
-
-def get_port(container_id_or_name: str) -> int:
-    """Get the host port mapped to container port 8443/tcp."""
-    client = _get_client()
-    container = _get_container(client, container_id_or_name)
-
-    port = _extract_host_port(container)
-    if port is None:
-        raise DockerServiceError(
-            f"No port mapping found for 8443/tcp on container {container_id_or_name}"
-        )
-    return port
-
-
-def wait_for_healthy(container_name: str, timeout: int = 30) -> bool:
-    """Poll the sandbox daemon health endpoint until it responds OK."""
-    from codebox_orchestrator.services.sandbox_client import SandboxClient
-
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        try:
-            client = SandboxClient(host=container_name, port=CODEBOX_PORT)
-            if client.check_health():
-                return True
-        except Exception:
-            pass
-        time.sleep(1)
-    return False
-
-
 # ------------------------------------------------------------------
 # Internal helpers
 # ------------------------------------------------------------------
@@ -225,18 +167,6 @@ def _get_container(client: docker.DockerClient, container_id_or_name: str):
         ) from exc
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Docker API error: {exc}") from exc
-
-
-def _extract_host_port(container) -> int | None:
-    """Extract the host port mapped to 8443/tcp."""
-    ports = container.attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
-    bindings = ports.get("8443/tcp")
-    if bindings and len(bindings) > 0:
-        try:
-            return int(bindings[0]["HostPort"])
-        except (KeyError, ValueError, IndexError):
-            return None
-    return None
 
 
 def _ensure_network(client: docker.DockerClient, network_name: str) -> None:

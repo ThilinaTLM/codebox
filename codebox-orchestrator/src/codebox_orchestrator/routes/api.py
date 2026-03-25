@@ -127,7 +127,7 @@ async def delete_task(request: Request, task_id: str):
 async def list_containers() -> list[ContainerResponse]:
     containers = docker_service.list_running()
     return [
-        ContainerResponse(id=c.id, name=c.name, port=c.port)
+        ContainerResponse(id=c.id, name=c.name)
         for c in containers
     ]
 

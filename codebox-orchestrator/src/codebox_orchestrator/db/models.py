@@ -48,7 +48,7 @@ class Task(Base):
     # Sandbox connection info
     container_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     container_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    host_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    callback_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
     session_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     workspace_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
@@ -90,11 +90,10 @@ class Sandbox(Base):
     # Container connection info
     container_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     container_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    host_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    callback_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
     session_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     workspace_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     model: Mapped[str] = mapped_column(String(255))
-    auth_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

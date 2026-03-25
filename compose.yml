@@ -11,7 +11,8 @@ services:
       - /tmp/codebox-workspaces:/tmp/codebox-workspaces
     env_file:
       - ./codebox-orchestrator/.env
-      - ./codebox-orchestrator/.env.local
+      - path: ./codebox-orchestrator/.env.compose
+        required: false
     environment:
       CORS_ORIGINS: "http://localhost:3000"
     networks:

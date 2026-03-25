@@ -44,7 +44,6 @@ class TaskResponse(BaseModel):
     status: TaskStatus
     container_id: str | None
     container_name: str | None
-    host_port: int | None
     session_id: str | None
     workspace_path: str | None
     result_summary: str | None
@@ -89,7 +88,6 @@ class TaskEventResponse(BaseModel):
 class ContainerResponse(BaseModel):
     id: str
     name: str
-    port: int | None
 
 
 # ── Sandbox schemas ─────────────────────────────────────────────
@@ -106,7 +104,6 @@ class SandboxResponse(BaseModel):
     status: SandboxStatus
     container_id: str | None
     container_name: str | None
-    host_port: int | None
     session_id: str | None
     workspace_path: str | None
     model: str
