@@ -1,8 +1,7 @@
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { BoxStatusBadge } from "@/components/box/BoxStatusBadge"
 import { BoxInput } from "@/components/box/BoxInput"
 import { FileExplorer } from "@/components/box/FileExplorer"
 import { EventStream } from "@/components/task/EventStream"
@@ -11,22 +10,7 @@ import { useBoxWebSocket } from "@/net/ws"
 import { BoxStatus } from "@/net/http/types"
 import type { WSEvent } from "@/net/http/types"
 import { toast } from "sonner"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { MoreHorizontalCircle01Icon } from "@hugeicons/core-free-icons"
+import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
 
 export const Route = createFileRoute("/boxes/$boxId")({
   component: BoxDetailPage,
@@ -39,6 +23,7 @@ function BoxDetailPage() {
   const stopMutation = useStopBox()
   const deleteMutation = useDeleteBox()
   const [fileExplorerOpen, setFileExplorerOpen] = useState(false)
+  const setBoxPageActions = useSetBoxPageActions()
 
   const isActive =
     box?.status === BoxStatus.IDLE ||
@@ -50,6 +35,47 @@ function BoxDetailPage() {
       boxId,
       enabled: isActive,
     })
+
+  const handleStop = useCallback(() => {
+    sendCancel()
+    stopMutation.mutate(boxId, {
+      onSuccess: () => toast.success("Agent stopped"),
+      onError: () => toast.error("Failed to stop"),
+    })
+  }, [sendCancel, stopMutation, boxId])
+
+  const handleDelete = useCallback(() => {
+    deleteMutation.mutate(boxId, {
+      onSuccess: () => {
+        toast.success("Agent deleted")
+        navigate({ to: "/" })
+      },
+      onError: () => toast.error("Failed to delete"),
+    })
+  }, [deleteMutation, boxId, navigate])
+
+  useEffect(() => {
+    if (!box) return
+    setBoxPageActions({
+      fileExplorerOpen,
+      toggleFileExplorer: () => setFileExplorerOpen((o) => !o),
+      onStop: handleStop,
+      onDelete: handleDelete,
+      stopPending: stopMutation.isPending,
+      isActive,
+      isConnected,
+    })
+    return () => setBoxPageActions(null)
+  }, [
+    box,
+    fileExplorerOpen,
+    handleStop,
+    handleDelete,
+    stopMutation.isPending,
+    isActive,
+    isConnected,
+    setBoxPageActions,
+  ])
 
   const localEventsRef = useRef<WSEvent[]>([])
 
@@ -89,86 +115,8 @@ function BoxDetailPage() {
     )
   }
 
-  const handleStop = () => {
-    sendCancel()
-    stopMutation.mutate(boxId, {
-      onSuccess: () => toast.success("Agent stopped"),
-      onError: () => toast.error("Failed to stop"),
-    })
-  }
-
-  const handleDelete = () => {
-    deleteMutation.mutate(boxId, {
-      onSuccess: () => {
-        toast.success("Agent deleted")
-        navigate({ to: "/" })
-      },
-      onError: () => toast.error("Failed to delete"),
-    })
-  }
-
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b bg-card/50 px-4 py-2.5 backdrop-blur-sm">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink render={<Link to="/" />}>Agents</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="font-display max-w-[200px] truncate font-medium">
-                  {box.name}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <BoxStatusBadge status={box.status} />
-          {isConnected && isActive && (
-            <span className="flex items-center gap-1 text-xs text-success">
-              <span className="relative flex size-1.5">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
-                <span className="relative inline-flex size-1.5 rounded-full bg-success" />
-              </span>
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant={fileExplorerOpen ? "secondary" : "ghost"}
-            size="xs"
-            onClick={() => setFileExplorerOpen(!fileExplorerOpen)}
-          >
-            Files
-          </Button>
-          {isActive && (
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={handleStop}
-              disabled={stopMutation.isPending}
-            >
-              Stop
-            </Button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" />}>
-              <HugeiconsIcon icon={MoreHorizontalCircle01Icon} size={14} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={handleDelete}
-                className="text-destructive focus:text-destructive"
-              >
-                Delete agent
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
-
       {/* Main content */}
       <div className="flex min-h-0 flex-1">
         {/* File explorer panel (left) */}
@@ -213,9 +161,6 @@ function BoxDetailPage() {
 function BoxDetailSkeleton() {
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
-      <div className="flex items-center gap-2 border-b bg-card/50 px-4 py-2.5 backdrop-blur-sm">
-        <Skeleton className="h-5 w-40" />
-      </div>
       <div className="flex-1 p-8">
         <div className="mx-auto max-w-3xl space-y-4">
           <Skeleton className="h-16 w-full rounded-xl" />

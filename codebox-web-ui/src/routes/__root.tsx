@@ -13,6 +13,9 @@ import { TooltipProvider } from "../components/ui/tooltip"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
 import { TopBar } from "@/components/layout/TopBar"
 import { Toaster } from "@/components/ui/sonner"
+import { useState } from "react"
+import { BoxPageActionsContext, BoxPageSetterContext } from "@/components/box/BoxPageContext"
+import type { BoxPageActions } from "@/components/box/BoxPageContext"
 
 import appCss from "../styles.css?url"
 
@@ -44,18 +47,24 @@ function GlobalWebSocketProvider({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const [boxPageActions, setBoxPageActions] = useState<BoxPageActions | null>(null)
+
   return (
     <QueryClientProvider client={queryClient}>
       <GlobalWebSocketProvider>
         <ThemeProvider>
           <TooltipProvider>
-            <div className="flex min-h-svh flex-col">
-              <TopBar />
-              <main className="flex-1">
-                <Outlet />
-              </main>
-            </div>
-            <Toaster />
+            <BoxPageSetterContext value={setBoxPageActions}>
+              <BoxPageActionsContext value={boxPageActions}>
+                <div className="flex min-h-svh flex-col">
+                  <TopBar />
+                  <main className="flex-1">
+                    <Outlet />
+                  </main>
+                </div>
+                <Toaster />
+              </BoxPageActionsContext>
+            </BoxPageSetterContext>
           </TooltipProvider>
         </ThemeProvider>
       </GlobalWebSocketProvider>
