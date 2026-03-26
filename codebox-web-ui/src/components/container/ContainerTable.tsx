@@ -34,16 +34,16 @@ import type { Container } from "@/net/http/types"
 // ── Status badge ────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { color: string; label: string; ping?: boolean }> = {
-  running: { color: "bg-emerald-500", label: "Running", ping: true },
-  exited: { color: "bg-zinc-400", label: "Exited" },
-  created: { color: "bg-amber-400", label: "Created" },
-  paused: { color: "bg-blue-400", label: "Paused" },
-  restarting: { color: "bg-amber-400", label: "Restarting", ping: true },
-  dead: { color: "bg-red-500", label: "Dead" },
+  running: { color: "bg-success", label: "Running", ping: true },
+  exited: { color: "bg-muted-foreground/60", label: "Exited" },
+  created: { color: "bg-warning", label: "Created" },
+  paused: { color: "bg-muted-foreground/60", label: "Paused" },
+  restarting: { color: "bg-warning", label: "Restarting", ping: true },
+  dead: { color: "bg-destructive", label: "Dead" },
 }
 
 function ContainerStatusBadge({ status }: { status: string }) {
-  const config = STATUS_CONFIG[status] ?? { color: "bg-zinc-400", label: status }
+  const config = STATUS_CONFIG[status] ?? { color: "bg-muted-foreground/60", label: status }
   return (
     <span className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-muted/50 px-2.5 py-1 text-xs font-medium">
       <span className="relative flex size-2">

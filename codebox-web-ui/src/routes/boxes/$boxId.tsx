@@ -3,8 +3,13 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BoxInput } from "@/components/box/BoxInput"
-import { FileExplorer, type ExplorerSize } from "@/components/box/FileExplorer"
+import { FileExplorer } from "@/components/box/FileExplorer"
 import { EventStream } from "@/components/task/EventStream"
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable"
 import { useBox, useStopBox, useDeleteBox } from "@/net/query"
 import { useBoxWebSocket } from "@/net/ws"
 import { BoxStatus } from "@/net/http/types"
@@ -12,7 +17,7 @@ import type { WSEvent } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
 import { toast } from "sonner"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
-import { FolderOpen, Settings } from "lucide-react"
+import { PanelLeftOpen, PanelLeftClose, Settings } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,8 +35,7 @@ function BoxDetailPage() {
   const navigate = useNavigate()
   const stopMutation = useStopBox()
   const deleteMutation = useDeleteBox()
-  const [fileExplorerOpen, setFileExplorerOpen] = useState(false)
-  const [explorerSize, setExplorerSize] = useState<ExplorerSize>("sm")
+  const [showFiles, setShowFiles] = useState(true)
   const setBoxPageActions = useSetBoxPageActions()
 
   const isActive =
@@ -122,85 +126,94 @@ function BoxDetailPage() {
   const canShowFiles = box.status === BoxStatus.IDLE || box.status === BoxStatus.RUNNING
 
   return (
-    <div className="relative h-[calc(100svh-3rem)]">
-      {/* Floating toggle button - top left */}
-      <Button
-        variant={fileExplorerOpen ? "secondary" : "ghost"}
-        size="icon-sm"
-        onClick={() => setFileExplorerOpen((o) => !o)}
-        className="absolute left-3 top-3 z-20"
-        title={fileExplorerOpen ? "Close file explorer" : "Open file explorer"}
-      >
-        <FolderOpen size={16} />
-      </Button>
-
-      {/* Floating settings button - top right */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon-sm" className="absolute right-3 top-3 z-20" />}
+    <div className="flex h-[calc(100svh-3rem)] flex-col">
+      {/* Toolbar */}
+      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/50 px-2">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setShowFiles((o) => !o)}
+          title={showFiles ? "Hide files" : "Show files"}
+          className="text-muted-foreground"
         >
-          <Settings size={16} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {isActive && (
-            <DropdownMenuItem
-              onClick={handleStop}
-              disabled={stopMutation.isPending}
+          {showFiles ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+        </Button>
+        <div className="ml-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}
             >
-              Stop agent
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem
-            onClick={handleDelete}
-            className="text-destructive focus:text-destructive"
-          >
-            Delete agent
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Floating file explorer panel */}
-      {fileExplorerOpen && (
-        <div
-          className={`absolute left-3 top-3 bottom-12 z-30 overflow-hidden rounded-lg border bg-card shadow-lg ${
-            explorerSize === "lg"
-              ? "w-[44rem]"
-              : explorerSize === "md"
-                ? "w-[36rem]"
-                : "w-[28rem]"
-          }`}
-        >
-          {canShowFiles ? (
-            <FileExplorer
-              boxId={boxId}
-              onClose={() => setFileExplorerOpen(false)}
-              size={explorerSize}
-              onSizeChange={setExplorerSize}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-muted-foreground">
-                {box.status === BoxStatus.STARTING
-                  ? "Starting..."
-                  : "Not active"}
-              </p>
-            </div>
-          )}
+              <Settings size={15} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isActive && (
+                <DropdownMenuItem
+                  onClick={handleStop}
+                  disabled={stopMutation.isPending}
+                >
+                  Stop agent
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={handleDelete}
+                className="text-destructive focus:text-destructive"
+              >
+                Delete agent
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      )}
-
-      {/* Chat area - full height with bottom inset for floating input */}
-      <div className="h-full">
-        <EventStream events={events} centered bottomInset />
       </div>
 
-      {/* Floating input - bottom center */}
-      <div className="absolute bottom-4 left-1/2 z-20 w-full max-w-3xl -translate-x-1/2 px-4">
-        <BoxInput
-          onSendMessage={handleSendMessage}
-          onSendExec={handleSendExec}
-          disabled={!isActive || !isConnected}
-        />
+      {/* Main content area */}
+      <div className="min-h-0 flex-1">
+        <ResizablePanelGroup orientation="horizontal">
+          {/* File explorer panel */}
+          {showFiles && (
+            <>
+              <ResizablePanel
+                defaultSize={25}
+                minSize={15}
+                maxSize={50}
+                className="bg-card/50"
+              >
+                {canShowFiles ? (
+                  <FileExplorer boxId={boxId} />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <p className="text-xs text-muted-foreground">
+                      {box.status === BoxStatus.STARTING
+                        ? "Starting..."
+                        : "Not active"}
+                    </p>
+                  </div>
+                )}
+              </ResizablePanel>
+              <ResizableHandle />
+            </>
+          )}
+
+          {/* Chat panel */}
+          <ResizablePanel defaultSize={showFiles ? 75 : 100}>
+            <div className="relative flex h-full flex-col">
+              {/* Event stream */}
+              <div className="min-h-0 flex-1">
+                <EventStream events={events} centered bottomInset />
+              </div>
+
+              {/* Input at bottom */}
+              <div className="shrink-0 border-t border-border/30 bg-background/80 px-4 py-3 backdrop-blur-sm">
+                <div className="mx-auto max-w-3xl">
+                  <BoxInput
+                    onSendMessage={handleSendMessage}
+                    onSendExec={handleSendExec}
+                    disabled={!isActive || !isConnected}
+                  />
+                </div>
+              </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
     </div>
   )
@@ -209,11 +222,12 @@ function BoxDetailPage() {
 function BoxDetailSkeleton() {
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
+      <div className="h-9 shrink-0 border-b border-border/50" />
       <div className="flex-1 p-8">
         <div className="mx-auto max-w-3xl space-y-4">
-          <Skeleton className="h-16 w-full rounded-xl" />
-          <Skeleton className="h-16 w-3/4 rounded-xl" />
-          <Skeleton className="h-16 w-1/2 rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-lg" />
+          <Skeleton className="h-16 w-3/4 rounded-lg" />
+          <Skeleton className="h-16 w-1/2 rounded-lg" />
         </div>
       </div>
     </div>

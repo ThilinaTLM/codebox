@@ -32,20 +32,20 @@ export function useAgentActivity(
       const ev = events[i]
       switch (ev.type) {
         case "model_start":
-          return { label: "Thinking", animate: true, dotColor: "bg-violet-400" }
+          return { label: "Thinking", animate: true, dotColor: "bg-primary/70" }
         case "token":
           return { label: "Writing", animate: true, dotColor: "bg-success" }
         case "tool_start":
-          return { label: `Using ${ev.name}`, animate: true, dotColor: "bg-amber-400" }
+          return { label: `Using ${ev.name}`, animate: true, dotColor: "bg-warning" }
         case "tool_end":
-          return { label: "Thinking", animate: true, dotColor: "bg-violet-400" }
+          return { label: "Thinking", animate: true, dotColor: "bg-primary/70" }
         case "done":
-          return { label: "Idle", animate: false, dotColor: "bg-blue-400" }
+          return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60" }
         case "error":
           return { label: "Error", animate: false, dotColor: "bg-destructive" }
         case "status_change":
           if (ev.status === BoxStatus.IDLE) {
-            return { label: "Idle", animate: false, dotColor: "bg-blue-400" }
+            return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60" }
           }
           if (ev.status === BoxStatus.RUNNING) {
             return { label: "Running", animate: true, dotColor: "bg-success" }
@@ -56,7 +56,7 @@ export function useAgentActivity(
 
     // Fallback
     if (boxStatus === BoxStatus.IDLE) {
-      return { label: "Idle", animate: false, dotColor: "bg-blue-400" }
+      return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60" }
     }
     return { label: "Running", animate: true, dotColor: "bg-success" }
   }, [events, boxStatus])

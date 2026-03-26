@@ -18,7 +18,7 @@ const statusConfig: Record<
 const statusDot: Record<BoxStatus, string> = {
   [BoxStatus.STARTING]: "bg-warning",
   [BoxStatus.RUNNING]: "bg-success",
-  [BoxStatus.IDLE]: "bg-blue-400",
+  [BoxStatus.IDLE]: "bg-muted-foreground/60",
   [BoxStatus.COMPLETED]: "bg-success",
   [BoxStatus.FAILED]: "bg-destructive",
   [BoxStatus.CANCELLED]: "bg-muted-foreground/40",

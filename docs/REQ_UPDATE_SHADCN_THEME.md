@@ -1,12 +1,9 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/fira-code";
-@import "@fontsource/merriweather";
-@import "./animate.css";
+Update shadcn theme to following,
 
-@plugin "@tailwindcss/typography";
+# Shadcn Theme
+
+```
+@import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -63,10 +60,6 @@
   --shadow-2xl: 0px 2px 3px 0px hsl(28 18% 25% / 0.45);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
-  --success: oklch(0.55 0.12 155);
-  --success-foreground: oklch(0.98 0.01 155);
-  --warning: oklch(0.75 0.13 80);
-  --warning-foreground: oklch(0.25 0.05 80);
 }
 
 .dark {
@@ -120,10 +113,6 @@
   --shadow-lg: 0px 2px 3px 0px hsl(0 0% 5% / 0.18), 0px 4px 6px -1px hsl(0 0% 5% / 0.18);
   --shadow-xl: 0px 2px 3px 0px hsl(0 0% 5% / 0.18), 0px 8px 10px -1px hsl(0 0% 5% / 0.18);
   --shadow-2xl: 0px 2px 3px 0px hsl(0 0% 5% / 0.45);
-  --success: oklch(0.65 0.12 155);
-  --success-foreground: oklch(0.14 0.03 155);
-  --warning: oklch(0.78 0.12 80);
-  --warning-foreground: oklch(0.20 0.05 80);
 }
 
 @theme inline {
@@ -159,10 +148,6 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
@@ -190,40 +175,11 @@
   body {
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans selection:bg-primary/20;
-  }
 }
+```
 
-@layer components {
-  .font-display {
-    font-family: var(--font-serif);
-  }
-  .bg-grid {
-    background-image: radial-gradient(circle, oklch(from var(--foreground) l c h / 3%) 1px, transparent 1px);
-    background-size: 20px 20px;
-  }
-  .dark .bg-grid {
-    background-image: radial-gradient(circle, oklch(from var(--primary) l c h / 4%) 1px, transparent 1px);
-    background-size: 20px 20px;
-  }
-  .terminal-bg {
-    background-color: var(--muted);
-  }
-  .dark .terminal-bg {
-    background-color: oklch(0.16 0.005 50);
-  }
-  .shadow-warm {
-    box-shadow: var(--shadow-sm);
-  }
-  .bg-hero-gradient {
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(from var(--primary) l c h / 6%) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 50%, oklch(from var(--accent) l c h / 4%) 0%, transparent 50%);
-  }
-  .dark .bg-hero-gradient {
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(from var(--primary) l c h / 10%) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 50%, oklch(from var(--accent) l c h / 5%) 0%, transparent 50%);
-  }
-}
+# Important
+
+- Remove any hardcoded colors and make sure everything follows the shadcn theme variables.
+- Remove any fonts and use the fonts defined in the shadcn theme.
+- Try to use shadcn components wherever possible and make sure they follow the shadcn theme variables.

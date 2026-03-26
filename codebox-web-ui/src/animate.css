@@ -21,7 +21,7 @@
     transition: box-shadow 0.3s ease, transform 0.2s ease;
   }
   .card-glow:hover {
-    box-shadow: 0 0 0 1px oklch(0.55 0.16 49 / 15%), 0 8px 25px -5px oklch(0 0 0 / 20%);
+    box-shadow: 0 0 0 1px oklch(from var(--primary) l c h / 15%), 0 8px 25px -5px oklch(from var(--foreground) l c h / 20%);
     transform: translateY(-2px);
   }
 

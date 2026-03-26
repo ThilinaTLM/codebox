@@ -112,7 +112,7 @@ function ContainerLogsPage() {
             <pre
               ref={scrollRef}
               onScroll={handleScroll}
-              className="h-full overflow-auto rounded-lg bg-zinc-950 p-4 text-xs leading-relaxed text-zinc-300 font-mono whitespace-pre-wrap break-all"
+              className="h-full overflow-auto rounded-lg terminal-bg p-4 text-xs leading-relaxed text-foreground/80 font-mono whitespace-pre-wrap break-all"
             >
               {data?.logs || "No logs available."}
             </pre>
