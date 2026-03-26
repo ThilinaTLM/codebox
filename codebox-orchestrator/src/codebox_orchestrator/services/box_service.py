@@ -287,6 +287,16 @@ class BoxService:
             "content": content,
         })
 
+        # Persist as event so it appears on reconnect replay
+        event_data = {"type": "user_message", "content": content}
+        async with self._sf() as db:
+            db.add(BoxEvent(
+                box_id=box_id,
+                event_type="user_message",
+                data=json.dumps(event_data),
+            ))
+            await db.commit()
+
         conn = self._registry.get_connection(box_id)
         if conn is None:
             raise ValueError("No active connection for this box")

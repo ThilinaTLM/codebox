@@ -1,29 +1,8 @@
 import { useEffect, useRef } from "react"
-import { EventItem } from "./EventItem"
+import { ChatBlock } from "./ChatBlock"
+import type { EventBlock } from "./types"
 import type { WSEvent } from "@/net/http/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
-
-export type EventBlock =
-  | { kind: "text"; content: string }
-  | { kind: "thinking" }
-  | {
-      kind: "tool_call"
-      name: string
-      input?: string
-      output?: string
-      isRunning: boolean
-    }
-  | { kind: "done"; content: string }
-  | { kind: "error"; detail: string }
-  | { kind: "status_change"; status: string }
-  | {
-      kind: "exec_session"
-      command?: string
-      output: string
-      exitCode?: string
-      isRunning: boolean
-    }
-  | { kind: "user_message"; content: string }
 
 export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
   const blocks: Array<EventBlock> = []
@@ -55,11 +34,24 @@ export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
       continue
     }
 
+    if (event.type === "user_message") {
+      flushText()
+      flushExec()
+      pendingThinking = false
+      blocks.push({ kind: "user_message", content: event.content })
+      continue
+    }
+
     if (event.type === "user_exec") {
       flushText()
       flushExec()
       pendingThinking = false
-      currentExec = { kind: "exec_session", command: event.command, output: "", isRunning: true }
+      currentExec = {
+        kind: "exec_session",
+        command: event.command,
+        output: "",
+        isRunning: true,
+      }
       continue
     }
 
@@ -153,7 +145,7 @@ export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
   return blocks
 }
 
-export function EventStream({
+export function ChatStream({
   events,
   centered,
   bottomInset,
@@ -173,9 +165,11 @@ export function EventStream({
   return (
     <ScrollArea className="h-full">
       <div className={centered ? "mx-auto max-w-3xl px-4" : "px-5"}>
-        <div className={`space-y-3 py-6 text-sm ${bottomInset ? "pb-32" : ""}`}>
+        <div
+          className={`space-y-3 py-6 text-sm ${bottomInset ? "pb-32" : ""}`}
+        >
           {blocks.map((block, i) => (
-            <EventItem key={i} block={block} />
+            <ChatBlock key={i} block={block} />
           ))}
           {events.length === 0 && (
             <div className="flex items-center gap-2 py-8 text-muted-foreground">

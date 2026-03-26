@@ -46,7 +46,7 @@ export function useBoxWebSocket({
     ws.onmessage = (e) => {
       try {
         const event = JSON.parse(e.data) as WSEvent
-        if (event.type === "ping") return
+        if (event.type === "ping" || event.type === "user_message") return
         // Reset backoff on real message (not just on open, to avoid
         // open-then-immediate-close resetting the counter)
         reconnectAttemptsRef.current = 0
@@ -108,6 +108,7 @@ export function useBoxWebSocket({
 
   const sendMessage = useCallback((content: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      setEvents((prev) => [...prev, { type: "user_message", content }])
       wsRef.current.send(JSON.stringify({ type: "message", content }))
     }
   }, [])

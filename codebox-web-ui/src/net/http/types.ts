@@ -102,6 +102,7 @@ export type WSEvent =
   | { type: "ping" }
   | { type: "exec_output"; output: string }
   | { type: "exec_done"; output: string }
+  | { type: "user_message"; content: string }
   | { type: "user_exec"; command: string }
   | { type: "message_complete"; message: Record<string, unknown> }
 

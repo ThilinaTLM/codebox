@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BoxInput } from "@/components/box/BoxInput"
 import { FileExplorer } from "@/components/box/FileExplorer"
-import { EventStream } from "@/components/task/EventStream"
+import { ChatStream } from "@/components/chat/ChatStream"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -208,7 +208,7 @@ function BoxDetailPage() {
             <div className="relative flex h-full flex-col">
               {/* Event stream */}
               <div className="min-h-0 flex-1">
-                <EventStream events={events} centered bottomInset />
+                <ChatStream events={events} centered bottomInset />
               </div>
 
               {/* Floating input */}
