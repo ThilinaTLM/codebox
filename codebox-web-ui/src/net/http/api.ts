@@ -20,11 +20,11 @@ const client = axios.create({
 
 export const api = {
   boxes: {
-    list: async (status?: string, trigger?: string): Promise<Box[]> => {
+    list: async (status?: string, trigger?: string): Promise<Array<Box>> => {
       const params: Record<string, string> = {}
       if (status) params.status = status
       if (trigger) params.trigger = trigger
-      const { data } = await client.get<Box[]>("/api/boxes", { params })
+      const { data } = await client.get<Array<Box>>("/api/boxes", { params })
       return data
     },
     get: async (boxId: string): Promise<Box> => {
@@ -48,36 +48,33 @@ export const api = {
     sendMessage: async (boxId: string, message: string): Promise<void> => {
       await client.post(`/api/boxes/${boxId}/message`, { message })
     },
-    getEvents: async (boxId: string): Promise<BoxEvent[]> => {
-      const { data } = await client.get<BoxEvent[]>(
-        `/api/boxes/${boxId}/events`,
+    getEvents: async (boxId: string): Promise<Array<BoxEvent>> => {
+      const { data } = await client.get<Array<BoxEvent>>(
+        `/api/boxes/${boxId}/events`
       )
       return data
     },
     listFiles: async (
       boxId: string,
-      path: string = "/workspace",
+      path: string = "/workspace"
     ): Promise<FileListResponse> => {
       const { data } = await client.get<FileListResponse>(
         `/api/boxes/${boxId}/files`,
-        { params: { path } },
+        { params: { path } }
       )
       return data
     },
-    readFile: async (
-      boxId: string,
-      path: string,
-    ): Promise<FileContent> => {
+    readFile: async (boxId: string, path: string): Promise<FileContent> => {
       const { data } = await client.get<FileContent>(
         `/api/boxes/${boxId}/files/read`,
-        { params: { path } },
+        { params: { path } }
       )
       return data
     },
   },
   containers: {
-    list: async (): Promise<Container[]> => {
-      const { data } = await client.get<Container[]>("/api/containers")
+    list: async (): Promise<Array<Container>> => {
+      const { data } = await client.get<Array<Container>>("/api/containers")
       return data
     },
     stop: async (containerId: string): Promise<void> => {
@@ -89,10 +86,13 @@ export const api = {
     delete: async (containerId: string): Promise<void> => {
       await client.delete(`/api/containers/${containerId}`)
     },
-    logs: async (containerId: string, tail: number = 200): Promise<ContainerLogs> => {
+    logs: async (
+      containerId: string,
+      tail: number = 200
+    ): Promise<ContainerLogs> => {
       const { data } = await client.get<ContainerLogs>(
         `/api/containers/${containerId}/logs`,
-        { params: { tail } },
+        { params: { tail } }
       )
       return data
     },
@@ -102,32 +102,32 @@ export const api = {
       const { data } = await client.get<GitHubStatus>("/api/github/status")
       return data
     },
-    listInstallations: async (): Promise<GitHubInstallation[]> => {
-      const { data } = await client.get<GitHubInstallation[]>(
-        "/api/github/installations",
+    listInstallations: async (): Promise<Array<GitHubInstallation>> => {
+      const { data } = await client.get<Array<GitHubInstallation>>(
+        "/api/github/installations"
       )
       return data
     },
     addInstallation: async (
-      installationId: number,
+      installationId: number
     ): Promise<GitHubInstallation> => {
       const { data } = await client.post<GitHubInstallation>(
         "/api/github/installations",
-        { installation_id: installationId },
+        { installation_id: installationId }
       )
       return data
     },
-    syncInstallation: async (id: string): Promise<GitHubRepo[]> => {
-      const { data } = await client.post<GitHubRepo[]>(
-        `/api/github/installations/${id}/sync`,
+    syncInstallation: async (id: string): Promise<Array<GitHubRepo>> => {
+      const { data } = await client.post<Array<GitHubRepo>>(
+        `/api/github/installations/${id}/sync`
       )
       return data
     },
     removeInstallation: async (id: string): Promise<void> => {
       await client.delete(`/api/github/installations/${id}`)
     },
-    listRepos: async (): Promise<GitHubRepo[]> => {
-      const { data } = await client.get<GitHubRepo[]>("/api/github/repos")
+    listRepos: async (): Promise<Array<GitHubRepo>> => {
+      const { data } = await client.get<Array<GitHubRepo>>("/api/github/repos")
       return data
     },
   },

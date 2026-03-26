@@ -1,14 +1,17 @@
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { ArrowLeft, Download, RotateCw } from "lucide-react"
+import type { FileEntry } from "@/net/http/types"
+import type { TreeViewElement } from "@/components/ui/file-tree"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tree, Folder, File, type TreeViewElement } from "@/components/ui/file-tree"
-import { useBoxFiles, useBoxFileContent } from "@/net/query"
-import type { FileEntry } from "@/net/http/types"
-import { ArrowLeft, RotateCw, Download } from "lucide-react"
+import { File, Folder, Tree } from "@/components/ui/file-tree"
+import { useBoxFileContent, useBoxFiles } from "@/net/query"
 
-function entriesToTreeElements(entries: FileEntry[]): TreeViewElement[] {
+function entriesToTreeElements(
+  entries: Array<FileEntry>
+): Array<TreeViewElement> {
   return entries.map((entry) => ({
     id: entry.path,
     name: entry.name,
@@ -20,18 +23,23 @@ function entriesToTreeElements(entries: FileEntry[]): TreeViewElement[] {
 export function FileExplorer({ boxId }: { boxId: string }) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [treeElements, setTreeElements] = useState<TreeViewElement[]>([])
+  const [treeElements, setTreeElements] = useState<Array<TreeViewElement>>([])
   const loadedDirsRef = useRef<Set<string>>(new Set())
   const queryClient = useQueryClient()
 
-  const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(boxId, "/workspace")
-  const { data: fileContent, isLoading: isLoadingContent } =
-    useBoxFileContent(boxId, selectedFile)
+  const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(
+    boxId,
+    "/workspace"
+  )
+  const { data: fileContent, isLoading: isLoadingContent } = useBoxFileContent(
+    boxId,
+    selectedFile
+  )
 
   useEffect(() => {
     if (rootFiles?.entries) {
       const filtered = rootFiles.entries.filter(
-        (e) => !(e.is_dir && e.path === "/workspace"),
+        (e) => !(e.is_dir && e.path === "/workspace")
       )
       setTreeElements(entriesToTreeElements(filtered))
     }
@@ -50,15 +58,13 @@ export function FileExplorer({ boxId }: { boxId: string }) {
           },
           staleTime: 10000,
         })
-        if (result?.entries) {
-          const children = entriesToTreeElements(result.entries)
-          setTreeElements((prev) => updateTreeChildren(prev, dirPath, children))
-        }
+        const children = entriesToTreeElements(result.entries)
+        setTreeElements((prev) => updateTreeChildren(prev, dirPath, children))
       } catch {
         loadedDirsRef.current.delete(dirPath)
       }
     },
-    [boxId, queryClient],
+    [boxId, queryClient]
   )
 
   const handleRefresh = useCallback(async () => {
@@ -85,7 +91,7 @@ export function FileExplorer({ boxId }: { boxId: string }) {
         setSelectedFile(id)
       }
     },
-    [treeElements, loadDirChildren],
+    [treeElements, loadDirChildren]
   )
 
   if (selectedFile) {
@@ -104,14 +110,18 @@ export function FileExplorer({ boxId }: { boxId: string }) {
             {selectedFile.replace("/workspace/", "")}
           </span>
           {fileContent?.truncated && (
-            <span className="shrink-0 text-[10px] font-medium text-warning">(truncated)</span>
+            <span className="shrink-0 text-[10px] font-medium text-warning">
+              (truncated)
+            </span>
           )}
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={() => {
               if (!fileContent?.content) return
-              const blob = new Blob([fileContent.content], { type: "application/octet-stream" })
+              const blob = new Blob([fileContent.content], {
+                type: "application/octet-stream",
+              })
               const url = URL.createObjectURL(blob)
               const a = document.createElement("a")
               a.href = url
@@ -154,7 +164,10 @@ export function FileExplorer({ boxId }: { boxId: string }) {
             disabled={isRefreshing}
             title="Refresh files"
           >
-            <RotateCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+            <RotateCw
+              size={14}
+              className={isRefreshing ? "animate-spin" : ""}
+            />
           </Button>
         </div>
       </div>
@@ -180,8 +193,8 @@ export function FileExplorer({ boxId }: { boxId: string }) {
 }
 
 function renderElements(
-  elements: TreeViewElement[],
-  onSelect: (id: string) => void,
+  elements: Array<TreeViewElement>,
+  onSelect: (id: string) => void
 ): React.ReactNode {
   const sorted = [...elements].sort((a, b) => {
     const aFolder = a.type === "folder"
@@ -193,7 +206,12 @@ function renderElements(
   return sorted.map((el) => {
     if (el.type === "folder") {
       return (
-        <Folder key={el.id} value={el.id} element={el.name} onClick={() => onSelect(el.id)}>
+        <Folder
+          key={el.id}
+          value={el.id}
+          element={el.name}
+          onClick={() => onSelect(el.id)}
+        >
           {el.children && el.children.length > 0
             ? renderElements(el.children, onSelect)
             : null}
@@ -209,8 +227,8 @@ function renderElements(
 }
 
 function findTreeElement(
-  elements: TreeViewElement[],
-  targetId: string,
+  elements: Array<TreeViewElement>,
+  targetId: string
 ): TreeViewElement | null {
   for (const el of elements) {
     if (el.id === targetId) return el
@@ -223,16 +241,19 @@ function findTreeElement(
 }
 
 function updateTreeChildren(
-  items: TreeViewElement[],
+  items: Array<TreeViewElement>,
   targetId: string,
-  children: TreeViewElement[],
-): TreeViewElement[] {
+  children: Array<TreeViewElement>
+): Array<TreeViewElement> {
   return items.map((item) => {
     if (item.id === targetId) {
       return { ...item, children }
     }
     if (item.children && item.children.length > 0) {
-      return { ...item, children: updateTreeChildren(item.children, targetId, children) }
+      return {
+        ...item,
+        children: updateTreeChildren(item.children, targetId, children),
+      }
     }
     return item
   })

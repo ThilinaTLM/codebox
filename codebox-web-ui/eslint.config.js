@@ -3,6 +3,6 @@
 import { tanstackConfig } from "@tanstack/eslint-config"
 
 export default [
-  { ignores: ["src/components/ui/**"] },
+  { ignores: ["src/components/ui/**", ".output/**"] },
   ...tanstackConfig,
 ]

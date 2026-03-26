@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowUp01Icon } from "@hugeicons/core-free-icons"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 const MAX_HEIGHT = 200
 
@@ -50,8 +50,11 @@ export function BoxInput({
   return (
     <div className="relative rounded-2xl border bg-card shadow-sm">
       {isExecMode && (
-        <div className="absolute left-3 top-3 z-10">
-          <Badge variant="outline" className="border-warning/30 text-xs text-warning">
+        <div className="absolute top-3 left-3 z-10">
+          <Badge
+            variant="outline"
+            className="border-warning/30 text-xs text-warning"
+          >
             shell
           </Badge>
         </div>
@@ -75,7 +78,11 @@ export function BoxInput({
         className={`w-full resize-none rounded-2xl bg-transparent px-4 py-3.5 pr-14 text-sm outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 ${
           isExecMode ? "pt-10" : ""
         }`}
-        style={{ minHeight: "52px", maxHeight: `${MAX_HEIGHT}px`, overflowY: "hidden" }}
+        style={{
+          minHeight: "52px",
+          maxHeight: `${MAX_HEIGHT}px`,
+          overflowY: "hidden",
+        }}
       />
       <div className="absolute right-3 bottom-3">
         <Button

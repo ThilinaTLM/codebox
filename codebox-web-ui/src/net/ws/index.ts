@@ -10,7 +10,7 @@ interface UseBoxWebSocketOptions {
 }
 
 interface UseBoxWebSocketReturn {
-  events: WSEvent[]
+  events: Array<WSEvent>
   sendMessage: (content: string) => void
   sendExec: (command: string) => void
   sendCancel: () => void
@@ -21,7 +21,7 @@ export function useBoxWebSocket({
   boxId,
   enabled = true,
 }: UseBoxWebSocketOptions): UseBoxWebSocketReturn {
-  const [events, setEvents] = useState<WSEvent[]>([])
+  const [events, setEvents] = useState<Array<WSEvent>>([])
   const [isConnected, setIsConnected] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -65,10 +65,7 @@ export function useBoxWebSocket({
       if (!activeRef.current || e.code === 4004) return
 
       if (enabledRef.current) {
-        const delay = Math.min(
-          1000 * 2 ** reconnectAttemptsRef.current,
-          30000,
-        )
+        const delay = Math.min(1000 * 2 ** reconnectAttemptsRef.current, 30000)
         reconnectAttemptsRef.current += 1
         reconnectTimeoutRef.current = setTimeout(connect, delay)
       }

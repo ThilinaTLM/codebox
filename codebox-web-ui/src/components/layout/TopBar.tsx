@@ -1,10 +1,14 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { GridViewIcon, ContainerIcon, Settings02Icon } from "@hugeicons/core-free-icons"
-import { Plus, ArrowLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useCreateBox, useBox } from "@/net/query"
+import {
+  ContainerIcon,
+  GridViewIcon,
+  Settings02Icon,
+} from "@hugeicons/core-free-icons"
+import { ArrowLeft, Plus } from "lucide-react"
 import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { useBox, useCreateBox } from "@/net/query"
 import { cn } from "@/lib/utils"
 import { useBoxPageActions } from "@/components/box/BoxPageContext"
 import { BoxStatusBadge } from "@/components/box/BoxStatusBadge"
@@ -27,12 +31,12 @@ export function TopBar() {
     createMutation.mutate(
       {},
       {
-        onSuccess: (box) => {
+        onSuccess: (newBox) => {
           toast.success("Agent created")
-          navigate({ to: "/boxes/$boxId", params: { boxId: box.id } })
+          navigate({ to: "/boxes/$boxId", params: { boxId: newBox.id } })
         },
         onError: () => toast.error("Failed to create agent"),
-      },
+      }
     )
   }
 
@@ -59,14 +63,17 @@ export function TopBar() {
           </div>
           <BoxStatusBadge
             status={box.status}
-            isActive={boxPageActions?.isConnected && boxPageActions?.isActive}
+            isActive={boxPageActions?.isConnected && boxPageActions.isActive}
             activity={boxPageActions?.activity}
           />
         </>
       ) : (
         <>
           {/* Default: Brand */}
-          <Link to="/" className="font-display flex items-center gap-2 text-base font-bold tracking-tight">
+          <Link
+            to="/"
+            className="font-display flex items-center gap-2 text-base font-bold tracking-tight"
+          >
             Codebox
           </Link>
 
@@ -78,10 +85,7 @@ export function TopBar() {
                 size="sm"
                 nativeButton={false}
                 render={<Link to="/" />}
-                className={cn(
-                  "gap-1.5",
-                  currentPath === "/" && "bg-muted",
-                )}
+                className={cn("gap-1.5", currentPath === "/" && "bg-muted")}
               >
                 <HugeiconsIcon icon={GridViewIcon} size={16} strokeWidth={2} />
                 <span className="hidden sm:inline">Agents</span>
@@ -93,7 +97,7 @@ export function TopBar() {
                 render={<Link to="/containers" />}
                 className={cn(
                   "gap-1.5",
-                  currentPath.startsWith("/containers") && "bg-muted",
+                  currentPath.startsWith("/containers") && "bg-muted"
                 )}
               >
                 <HugeiconsIcon icon={ContainerIcon} size={16} strokeWidth={2} />
@@ -106,10 +110,14 @@ export function TopBar() {
                 render={<Link to="/settings" />}
                 className={cn(
                   "gap-1.5",
-                  currentPath.startsWith("/settings") && "bg-muted",
+                  currentPath.startsWith("/settings") && "bg-muted"
                 )}
               >
-                <HugeiconsIcon icon={Settings02Icon} size={16} strokeWidth={2} />
+                <HugeiconsIcon
+                  icon={Settings02Icon}
+                  size={16}
+                  strokeWidth={2}
+                />
                 <span className="hidden sm:inline">Settings</span>
               </Button>
             </nav>

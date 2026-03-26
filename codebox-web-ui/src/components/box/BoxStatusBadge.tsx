@@ -1,12 +1,20 @@
+import type { AgentActivity } from "@/hooks/useAgentActivity"
 import { Badge } from "@/components/ui/badge"
 import { BoxStatus } from "@/net/http/types"
-import type { AgentActivity } from "@/hooks/useAgentActivity"
 
 const statusConfig: Record<
   BoxStatus,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline"; animate?: boolean }
+  {
+    label: string
+    variant: "default" | "secondary" | "destructive" | "outline"
+    animate?: boolean
+  }
 > = {
-  [BoxStatus.STARTING]: { label: "Starting", variant: "outline", animate: true },
+  [BoxStatus.STARTING]: {
+    label: "Starting",
+    variant: "outline",
+    animate: true,
+  },
   [BoxStatus.RUNNING]: { label: "Running", variant: "default", animate: true },
   [BoxStatus.IDLE]: { label: "Idle", variant: "secondary" },
   [BoxStatus.COMPLETED]: { label: "Completed", variant: "outline" },
@@ -31,7 +39,11 @@ interface BoxStatusBadgeProps {
   activity?: AgentActivity
 }
 
-export function BoxStatusBadge({ status, isActive, activity }: BoxStatusBadgeProps) {
+export function BoxStatusBadge({
+  status,
+  isActive,
+  activity,
+}: BoxStatusBadgeProps) {
   // If we have a live activity override, use it
   if (activity) {
     return (
@@ -42,7 +54,9 @@ export function BoxStatusBadge({ status, isActive, activity }: BoxStatusBadgePro
               className={`absolute inline-flex size-full animate-ping rounded-full opacity-60 ${activity.dotColor}`}
             />
           )}
-          <span className={`relative inline-flex size-1.5 rounded-full ${activity.dotColor}`} />
+          <span
+            className={`relative inline-flex size-1.5 rounded-full ${activity.dotColor}`}
+          />
         </span>
         {activity.label}
       </Badge>
@@ -51,8 +65,8 @@ export function BoxStatusBadge({ status, isActive, activity }: BoxStatusBadgePro
 
   // Fallback: existing behavior (used on box list page, etc.)
   const effectiveStatus = isActive ? BoxStatus.RUNNING : status
-  const config = statusConfig[effectiveStatus] ?? { label: effectiveStatus, variant: "outline" as const }
-  const dot = statusDot[effectiveStatus] ?? "bg-muted-foreground/40"
+  const config = statusConfig[effectiveStatus]
+  const dot = statusDot[effectiveStatus]
 
   return (
     <Badge variant={config.variant} className="gap-1.5 text-xs">

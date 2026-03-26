@@ -1,18 +1,19 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
-import {
-  useGitHubStatus,
-  useGitHubInstallations,
-  useAddGitHubInstallation,
-  useSyncGitHubInstallation,
-  useRemoveGitHubInstallation,
-} from "@/net/query"
+import { toast } from "sonner"
 import type { GitHubInstallation, GitHubRepo } from "@/net/http/types"
 import {
+  useAddGitHubInstallation,
+  useGitHubInstallations,
+  useGitHubStatus,
+  useRemoveGitHubInstallation,
+  useSyncGitHubInstallation,
+} from "@/net/query"
+import {
   Breadcrumb,
-  BreadcrumbList,
   BreadcrumbItem,
   BreadcrumbLink,
+  BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
@@ -20,7 +21,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "sonner"
 
 export const Route = createFileRoute("/settings/github")({
   component: GitHubSettingsPage,
@@ -43,11 +43,20 @@ function GitHubSettingsPage() {
     <PageShell>
       {!status?.enabled ? (
         <div className="rounded-2xl border border-dashed border-muted-foreground/20 p-8 text-center">
-          <h2 className="font-display text-lg font-semibold">GitHub Integration Not Configured</h2>
-          <p className="mt-2 max-w-md mx-auto text-sm text-muted-foreground">
-            Set <code className="rounded bg-muted px-1.5 py-0.5 text-xs">GITHUB_APP_ID</code> and{" "}
-            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">GITHUB_APP_PRIVATE_KEY_PATH</code>{" "}
-            environment variables on the orchestrator to enable GitHub App integration.
+          <h2 className="font-display text-lg font-semibold">
+            GitHub Integration Not Configured
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+            Set{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+              GITHUB_APP_ID
+            </code>{" "}
+            and{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+              GITHUB_APP_PRIVATE_KEY_PATH
+            </code>{" "}
+            environment variables on the orchestrator to enable GitHub App
+            integration.
           </p>
         </div>
       ) : (
@@ -73,7 +82,9 @@ function PageShell({ children }: { children: React.ReactNode }) {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink render={<Link to="/settings" />}>Settings</BreadcrumbLink>
+                <BreadcrumbLink render={<Link to="/settings" />}>
+                  Settings
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -102,15 +113,21 @@ function ConnectSection({ appSlug }: { appSlug: string }) {
   const installUrl = `https://github.com/apps/${appSlug}/installations/new`
   return (
     <section>
-      <h2 className="font-display max-w-xs text-lg font-semibold">Connect GitHub</h2>
+      <h2 className="font-display max-w-xs text-lg font-semibold">
+        Connect GitHub
+      </h2>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
         Install the GitHub App on your organization or repositories to enable
         agent triggers from issues and pull requests.
       </p>
-      <Button className="mt-4" asChild>
-        <a href={installUrl} target="_blank" rel="noopener noreferrer">
-          Install GitHub App
-        </a>
+      <Button
+        className="mt-4"
+        nativeButton={false}
+        render={
+          <a href={installUrl} target="_blank" rel="noopener noreferrer" />
+        }
+      >
+        Install GitHub App
       </Button>
     </section>
   )
@@ -138,7 +155,9 @@ function ManualInstallSection() {
 
   return (
     <section>
-      <h2 className="font-display max-w-xs text-lg font-semibold">Manual Setup</h2>
+      <h2 className="font-display max-w-xs text-lg font-semibold">
+        Manual Setup
+      </h2>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
         If the callback redirect doesn&apos;t work, you can manually enter a
         GitHub App installation ID.
@@ -167,13 +186,15 @@ function InstallationsList({
   installations,
   isLoading,
 }: {
-  installations: GitHubInstallation[]
+  installations: Array<GitHubInstallation>
   isLoading: boolean
 }) {
   if (isLoading) {
     return (
       <section>
-        <h2 className="font-display max-w-xs text-lg font-semibold">Connected Installations</h2>
+        <h2 className="font-display max-w-xs text-lg font-semibold">
+          Connected Installations
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
       </section>
     )
@@ -181,7 +202,9 @@ function InstallationsList({
 
   return (
     <section>
-      <h2 className="font-display max-w-xs text-lg font-semibold">Connected Installations</h2>
+      <h2 className="font-display max-w-xs text-lg font-semibold">
+        Connected Installations
+      </h2>
       {installations.length === 0 ? (
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
           No GitHub App installations connected yet.
@@ -204,7 +227,7 @@ function InstallationCard({
 }) {
   const syncMutation = useSyncGitHubInstallation()
   const removeMutation = useRemoveGitHubInstallation()
-  const [repos, setRepos] = useState<GitHubRepo[] | null>(null)
+  const [repos, setRepos] = useState<Array<GitHubRepo> | null>(null)
 
   const handleSync = () => {
     syncMutation.mutate(installation.id, {
@@ -228,9 +251,12 @@ function InstallationCard({
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-display font-semibold">{installation.account_login}</p>
+            <p className="font-display font-semibold">
+              {installation.account_login}
+            </p>
             <p className="text-xs text-muted-foreground">
-              {installation.account_type} &middot; ID: {installation.installation_id} &middot;{" "}
+              {installation.account_type} &middot; ID:{" "}
+              {installation.installation_id} &middot;{" "}
               {new Date(installation.created_at).toLocaleDateString()}
             </p>
           </div>
@@ -263,7 +289,7 @@ function InstallationCard({
               >
                 <span>{repo.full_name}</span>
                 {repo.private && (
-                  <Badge variant="outline" className="text-[10px] py-0">
+                  <Badge variant="outline" className="py-0 text-[10px]">
                     private
                   </Badge>
                 )}

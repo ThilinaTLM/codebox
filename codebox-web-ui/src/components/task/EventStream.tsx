@@ -1,12 +1,18 @@
 import { useEffect, useRef } from "react"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { EventItem } from "./EventItem"
 import type { WSEvent } from "@/net/http/types"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export type EventBlock =
   | { kind: "text"; content: string }
   | { kind: "thinking" }
-  | { kind: "tool_call"; name: string; input?: string; output?: string; isRunning: boolean }
+  | {
+      kind: "tool_call"
+      name: string
+      input?: string
+      output?: string
+      isRunning: boolean
+    }
   | { kind: "done"; content: string }
   | { kind: "error"; detail: string }
   | { kind: "status_change"; status: string }
@@ -15,8 +21,8 @@ export type EventBlock =
   | { kind: "user_message"; content: string }
   | { kind: "user_exec"; command: string }
 
-export function collapseTokens(events: WSEvent[]): EventBlock[] {
-  const blocks: EventBlock[] = []
+export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
+  const blocks: Array<EventBlock> = []
   let textBuffer = ""
   let execBuffer = ""
   let pendingThinking = false
@@ -35,8 +41,7 @@ export function collapseTokens(events: WSEvent[]): EventBlock[] {
     }
   }
 
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i]
+  for (const event of events) {
     if (event.type === "ping") continue
 
     if (event.type === "token") {
@@ -124,7 +129,15 @@ export function collapseTokens(events: WSEvent[]): EventBlock[] {
   return blocks
 }
 
-export function EventStream({ events, centered, bottomInset }: { events: WSEvent[]; centered?: boolean; bottomInset?: boolean }) {
+export function EventStream({
+  events,
+  centered,
+  bottomInset,
+}: {
+  events: Array<WSEvent>
+  centered?: boolean
+  bottomInset?: boolean
+}) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

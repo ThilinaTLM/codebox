@@ -6,18 +6,20 @@ import {
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { useState } from "react"
+import { TooltipProvider } from "../components/ui/tooltip"
+import appCss from "../styles.css?url"
+import type { BoxPageActions } from "@/components/box/BoxPageContext"
 import { API_URL, WS_URL } from "@/lib/constants"
 import { useGlobalWebSocket } from "@/net/ws/useGlobalWebSocket"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { TooltipProvider } from "../components/ui/tooltip"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
 import { TopBar } from "@/components/layout/TopBar"
 import { Toaster } from "@/components/ui/sonner"
-import { useState } from "react"
-import { BoxPageActionsContext, BoxPageSetterContext } from "@/components/box/BoxPageContext"
-import type { BoxPageActions } from "@/components/box/BoxPageContext"
-
-import appCss from "../styles.css?url"
+import {
+  BoxPageActionsContext,
+  BoxPageSetterContext,
+} from "@/components/box/BoxPageContext"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,7 +49,9 @@ function GlobalWebSocketProvider({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  const [boxPageActions, setBoxPageActions] = useState<BoxPageActions | null>(null)
+  const [boxPageActions, setBoxPageActions] = useState<BoxPageActions | null>(
+    null
+  )
 
   return (
     <QueryClientProvider client={queryClient}>

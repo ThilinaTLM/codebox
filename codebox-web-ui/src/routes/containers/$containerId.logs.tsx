@@ -1,10 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react"
 import {
   Breadcrumb,
-  BreadcrumbList,
   BreadcrumbItem,
   BreadcrumbLink,
+  BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
@@ -65,7 +65,7 @@ function ContainerLogsPage() {
           <h1 className="font-display mt-3 text-4xl font-bold tracking-tight">
             Container Logs
           </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground font-mono">
+          <p className="mt-1.5 font-mono text-sm text-muted-foreground">
             {shortId}
           </p>
         </div>
@@ -100,8 +100,8 @@ function ContainerLogsPage() {
       </div>
 
       {/* Log output */}
-      <div className="flex-1 px-6 pb-6 pt-4 min-h-0">
-        <div className="mx-auto max-w-6xl h-full">
+      <div className="min-h-0 flex-1 px-6 pt-4 pb-6">
+        <div className="mx-auto h-full max-w-6xl">
           {isLoading ? (
             <div className="space-y-1 p-4">
               <Skeleton className="h-4 w-full" />
@@ -112,7 +112,7 @@ function ContainerLogsPage() {
             <pre
               ref={scrollRef}
               onScroll={handleScroll}
-              className="h-full overflow-auto rounded-lg terminal-bg p-4 text-xs leading-relaxed text-foreground/80 font-mono whitespace-pre-wrap break-all"
+              className="terminal-bg h-full overflow-auto rounded-lg p-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-foreground/80"
             >
               {data?.logs || "No logs available."}
             </pre>

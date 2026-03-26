@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { WS_URL } from "@/lib/constants"
 import type { Box, GlobalWSEvent } from "@/net/http/types"
+import { WS_URL } from "@/lib/constants"
 
 export function useGlobalWebSocket() {
   const qc = useQueryClient()
@@ -40,7 +40,7 @@ export function useGlobalWebSocket() {
           qcRef.current.setQueriesData<Box>(
             { queryKey: ["boxes", event.box_id] },
             (old) =>
-              old ? { ...old, status: event.status as Box["status"] } : old,
+              old ? { ...old, status: event.status as Box["status"] } : old
           )
           qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
         }
@@ -58,10 +58,7 @@ export function useGlobalWebSocket() {
       wsRef.current = null
       if (!activeRef.current) return
 
-      const delay = Math.min(
-        1000 * 2 ** reconnectAttemptsRef.current,
-        30000,
-      )
+      const delay = Math.min(1000 * 2 ** reconnectAttemptsRef.current, 30000)
       reconnectAttemptsRef.current += 1
       reconnectTimeoutRef.current = setTimeout(connect, delay)
     }

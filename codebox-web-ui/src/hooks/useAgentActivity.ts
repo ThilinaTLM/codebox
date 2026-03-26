@@ -9,15 +9,31 @@ export interface AgentActivity {
 }
 
 const terminalActivities: Partial<Record<BoxStatus, AgentActivity>> = {
-  [BoxStatus.COMPLETED]: { label: "Completed", animate: false, dotColor: "bg-success" },
-  [BoxStatus.FAILED]: { label: "Failed", animate: false, dotColor: "bg-destructive" },
-  [BoxStatus.CANCELLED]: { label: "Cancelled", animate: false, dotColor: "bg-muted-foreground/40" },
-  [BoxStatus.STOPPED]: { label: "Stopped", animate: false, dotColor: "bg-muted-foreground/40" },
+  [BoxStatus.COMPLETED]: {
+    label: "Completed",
+    animate: false,
+    dotColor: "bg-success",
+  },
+  [BoxStatus.FAILED]: {
+    label: "Failed",
+    animate: false,
+    dotColor: "bg-destructive",
+  },
+  [BoxStatus.CANCELLED]: {
+    label: "Cancelled",
+    animate: false,
+    dotColor: "bg-muted-foreground/40",
+  },
+  [BoxStatus.STOPPED]: {
+    label: "Stopped",
+    animate: false,
+    dotColor: "bg-muted-foreground/40",
+  },
 }
 
 export function useAgentActivity(
-  events: WSEvent[],
-  boxStatus: BoxStatus | undefined,
+  events: Array<WSEvent>,
+  boxStatus: BoxStatus | undefined
 ): AgentActivity {
   return useMemo(() => {
     if (!boxStatus || boxStatus === BoxStatus.STARTING) {
@@ -36,16 +52,28 @@ export function useAgentActivity(
         case "token":
           return { label: "Writing", animate: true, dotColor: "bg-success" }
         case "tool_start":
-          return { label: `Using ${ev.name}`, animate: true, dotColor: "bg-warning" }
+          return {
+            label: `Using ${ev.name}`,
+            animate: true,
+            dotColor: "bg-warning",
+          }
         case "tool_end":
           return { label: "Thinking", animate: true, dotColor: "bg-primary/70" }
         case "done":
-          return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60" }
+          return {
+            label: "Idle",
+            animate: false,
+            dotColor: "bg-muted-foreground/60",
+          }
         case "error":
           return { label: "Error", animate: false, dotColor: "bg-destructive" }
         case "status_change":
           if (ev.status === BoxStatus.IDLE) {
-            return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60" }
+            return {
+              label: "Idle",
+              animate: false,
+              dotColor: "bg-muted-foreground/60",
+            }
           }
           if (ev.status === BoxStatus.RUNNING) {
             return { label: "Running", animate: true, dotColor: "bg-success" }
@@ -56,7 +84,11 @@ export function useAgentActivity(
 
     // Fallback
     if (boxStatus === BoxStatus.IDLE) {
-      return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60" }
+      return {
+        label: "Idle",
+        animate: false,
+        dotColor: "bg-muted-foreground/60",
+      }
     }
     return { label: "Running", animate: true, dotColor: "bg-success" }
   }, [events, boxStatus])

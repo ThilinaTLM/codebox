@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { useGitHubStatus } from "@/net/query"
@@ -29,7 +29,9 @@ function SettingsPage() {
         <div className="mx-auto max-w-6xl space-y-10 pt-8">
           {/* Appearance */}
           <section>
-            <h2 className="font-display max-w-xs text-lg font-semibold">Appearance</h2>
+            <h2 className="font-display max-w-xs text-lg font-semibold">
+              Appearance
+            </h2>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
               Choose your preferred theme.
             </p>
@@ -40,7 +42,9 @@ function SettingsPage() {
 
           {/* GitHub */}
           <section>
-            <h2 className="font-display max-w-xs text-lg font-semibold">GitHub Integration</h2>
+            <h2 className="font-display max-w-xs text-lg font-semibold">
+              GitHub Integration
+            </h2>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
               {githubStatus?.enabled
                 ? "GitHub App is configured. Manage installations and connected repos."

@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { formatDistanceToNow } from "date-fns"
+import { toast } from "sonner"
+import type { Container } from "@/net/http/types"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -20,20 +22,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty"
 import {
   useContainers,
-  useStopContainer,
-  useStartContainer,
   useDeleteContainer,
+  useStartContainer,
+  useStopContainer,
 } from "@/net/query"
 import { Skeleton } from "@/components/ui/skeleton"
-import { toast } from "sonner"
-import type { Container } from "@/net/http/types"
 
 // ── Status badge ────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { color: string; label: string; ping?: boolean }> = {
+const STATUS_CONFIG: Record<
+  string,
+  { color: string; label: string; ping?: boolean }
+> = {
   running: { color: "bg-success", label: "Running", ping: true },
   exited: { color: "bg-muted-foreground/60", label: "Exited" },
   created: { color: "bg-warning", label: "Created" },
@@ -43,7 +51,10 @@ const STATUS_CONFIG: Record<string, { color: string; label: string; ping?: boole
 }
 
 function ContainerStatusBadge({ status }: { status: string }) {
-  const config = STATUS_CONFIG[status] ?? { color: "bg-muted-foreground/60", label: status }
+  const config = STATUS_CONFIG[status] ?? {
+    color: "bg-muted-foreground/60",
+    label: status,
+  }
   return (
     <span className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-muted/50 px-2.5 py-1 text-xs font-medium">
       <span className="relative flex size-2">
@@ -52,7 +63,9 @@ function ContainerStatusBadge({ status }: { status: string }) {
             className={`absolute inline-flex size-full animate-ping rounded-full opacity-50 ${config.color}`}
           />
         )}
-        <span className={`relative inline-flex size-2 rounded-full ${config.color}`} />
+        <span
+          className={`relative inline-flex size-2 rounded-full ${config.color}`}
+        />
       </span>
       {config.label}
     </span>
@@ -72,7 +85,10 @@ function TimeDisplay({ container }: { container: Container }) {
   if (container.started_at) {
     return (
       <span className="text-xs text-muted-foreground">
-        Stopped {formatDistanceToNow(new Date(container.started_at), { addSuffix: true })}
+        Stopped{" "}
+        {formatDistanceToNow(new Date(container.started_at), {
+          addSuffix: true,
+        })}
       </span>
     )
   }

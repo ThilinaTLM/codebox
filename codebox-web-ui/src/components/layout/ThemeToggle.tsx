@@ -2,15 +2,17 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Sun03Icon,
-  Moon02Icon,
   ComputerDesk01Icon,
+  Moon02Icon,
+  Sun03Icon,
 } from "@hugeicons/core-free-icons"
-const options: { value: string; label: string; icon: typeof Sun03Icon }[] = [
-  { value: "light", label: "Light", icon: Sun03Icon },
-  { value: "dark", label: "Dark", icon: Moon02Icon },
-  { value: "system", label: "System", icon: ComputerDesk01Icon },
-]
+
+const options: Array<{ value: string; label: string; icon: typeof Sun03Icon }> =
+  [
+    { value: "light", label: "Light", icon: Sun03Icon },
+    { value: "dark", label: "Dark", icon: Moon02Icon },
+    { value: "system", label: "System", icon: ComputerDesk01Icon },
+  ]
 
 function MiniPreview({ mode }: { mode: "light" | "dark" | "system" }) {
   const light = (
@@ -104,9 +106,7 @@ export function ThemeToggle() {
                 icon={opt.icon}
                 size={14}
                 strokeWidth={2}
-                className={
-                  selected ? "text-primary" : "text-muted-foreground"
-                }
+                className={selected ? "text-primary" : "text-muted-foreground"}
               />
               <span
                 className={`text-sm font-medium ${

@@ -1,23 +1,23 @@
-import { useState, useCallback, useRef, useEffect } from "react"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
+import { toast } from "sonner"
+import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react"
+import type { WSEvent } from "@/net/http/types"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BoxInput } from "@/components/box/BoxInput"
 import { FileExplorer } from "@/components/box/FileExplorer"
 import { EventStream } from "@/components/task/EventStream"
 import {
-  ResizablePanelGroup,
-  ResizablePanel,
   ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { useBox, useStopBox, useDeleteBox } from "@/net/query"
+import { useBox, useDeleteBox, useStopBox } from "@/net/query"
 import { useBoxWebSocket } from "@/net/ws"
 import { BoxStatus } from "@/net/http/types"
-import type { WSEvent } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
-import { toast } from "sonner"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
-import { PanelLeftOpen, PanelLeftClose, Settings } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,15 +77,9 @@ function BoxDetailPage() {
       activity,
     })
     return () => setBoxPageActions(null)
-  }, [
-    box,
-    isActive,
-    isConnected,
-    activity,
-    setBoxPageActions,
-  ])
+  }, [box, isActive, isConnected, activity, setBoxPageActions])
 
-  const localEventsRef = useRef<WSEvent[]>([])
+  const localEventsRef = useRef<Array<WSEvent>>([])
 
   const handleSendMessage = useCallback(
     (content: string) => {
@@ -95,7 +89,7 @@ function BoxDetailPage() {
       ]
       sendMessage(content)
     },
-    [sendMessage],
+    [sendMessage]
   )
 
   const handleSendExec = useCallback(
@@ -106,7 +100,7 @@ function BoxDetailPage() {
       ]
       sendExec(command)
     },
-    [sendExec],
+    [sendExec]
   )
 
   if (isLoading) return <BoxDetailSkeleton />
@@ -115,15 +109,23 @@ function BoxDetailPage() {
     return (
       <div className="flex h-[calc(100svh-3rem)] flex-col items-center justify-center gap-4">
         <h2 className="font-display text-lg font-semibold">Agent not found</h2>
-        <p className="text-sm text-muted-foreground">This agent may have been deleted.</p>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/" />}>
+        <p className="text-sm text-muted-foreground">
+          This agent may have been deleted.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={<Link to="/" />}
+        >
           Go home
         </Button>
       </div>
     )
   }
 
-  const canShowFiles = box.status === BoxStatus.IDLE || box.status === BoxStatus.RUNNING
+  const canShowFiles =
+    box.status === BoxStatus.IDLE || box.status === BoxStatus.RUNNING
 
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
@@ -136,12 +138,22 @@ function BoxDetailPage() {
           title={showFiles ? "Hide files" : "Show files"}
           className="text-muted-foreground"
         >
-          {showFiles ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+          {showFiles ? (
+            <PanelLeftClose size={15} />
+          ) : (
+            <PanelLeftOpen size={15} />
+          )}
         </Button>
         <div className="ml-auto">
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground"
+                />
+              }
             >
               <Settings size={15} />
             </DropdownMenuTrigger>

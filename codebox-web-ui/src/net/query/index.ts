@@ -1,10 +1,6 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
-import { api } from "@/net/http/api"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { BoxCreatePayload } from "@/net/http/types"
+import { api } from "@/net/http/api"
 
 // ── Box queries ──────────────────────────────────────────────
 
@@ -42,7 +38,7 @@ export function useBoxFiles(boxId: string | undefined, path: string) {
 
 export function useBoxFileContent(
   boxId: string | undefined,
-  path: string | null,
+  path: string | null
 ) {
   return useQuery({
     queryKey: ["boxes", boxId, "file-content", path],
@@ -64,7 +60,7 @@ export function useContainers() {
 export function useContainerLogs(
   containerId: string | null,
   tail: number = 200,
-  autoRefresh: boolean = false,
+  autoRefresh: boolean = false
 ) {
   return useQuery({
     queryKey: ["containers", containerId, "logs", tail],
