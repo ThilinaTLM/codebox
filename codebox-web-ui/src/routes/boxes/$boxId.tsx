@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import type { PanelImperativeHandle } from "react-resizable-panels"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react"
@@ -36,6 +37,7 @@ function BoxDetailPage() {
   const stopMutation = useStopBox()
   const deleteMutation = useDeleteBox()
   const [showFiles, setShowFiles] = useState(true)
+  const filePanelRef = useRef<PanelImperativeHandle>(null)
   const setBoxPageActions = useSetBoxPageActions()
 
   const isActive =
@@ -92,6 +94,13 @@ function BoxDetailPage() {
     [sendMessage]
   )
 
+  const toggleFiles = useCallback(() => {
+    const panel = filePanelRef.current
+    if (!panel) return
+    if (panel.isCollapsed()) panel.expand()
+    else panel.collapse()
+  }, [])
+
   const handleSendExec = useCallback(
     (command: string) => {
       localEventsRef.current = [
@@ -134,7 +143,7 @@ function BoxDetailPage() {
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={() => setShowFiles((o) => !o)}
+          onClick={toggleFiles}
           title={showFiles ? "Hide files" : "Show files"}
           className="text-muted-foreground"
         >
@@ -179,34 +188,34 @@ function BoxDetailPage() {
 
       {/* Main content area */}
       <div className="min-h-0 flex-1">
-        <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanelGroup orientation="horizontal" id="box-detail">
           {/* File explorer panel */}
-          {showFiles && (
-            <>
-              <ResizablePanel
-                defaultSize={25}
-                minSize={15}
-                maxSize={50}
-                className="bg-card/50"
-              >
-                {canShowFiles ? (
-                  <FileExplorer boxId={boxId} />
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <p className="text-xs text-muted-foreground">
-                      {box.status === BoxStatus.STARTING
-                        ? "Starting..."
-                        : "Not active"}
-                    </p>
-                  </div>
-                )}
-              </ResizablePanel>
-              <ResizableHandle />
-            </>
-          )}
+          <ResizablePanel
+            panelRef={filePanelRef}
+            id="file-explorer"
+            defaultSize={25}
+            minSize={15}
+            collapsible
+            collapsedSize={0}
+            onResize={(size) => setShowFiles(size.asPercentage > 0)}
+            className="bg-card/50"
+          >
+            {canShowFiles ? (
+              <FileExplorer boxId={boxId} />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-xs text-muted-foreground">
+                  {box.status === BoxStatus.STARTING
+                    ? "Starting..."
+                    : "Not active"}
+                </p>
+              </div>
+            )}
+          </ResizablePanel>
+          <ResizableHandle />
 
           {/* Chat panel */}
-          <ResizablePanel defaultSize={showFiles ? 75 : 100}>
+          <ResizablePanel id="chat-panel" defaultSize={75} minSize={30}>
             <div className="relative flex h-full flex-col">
               {/* Event stream */}
               <div className="min-h-0 flex-1">
