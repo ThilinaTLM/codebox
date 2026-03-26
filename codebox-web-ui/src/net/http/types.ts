@@ -110,6 +110,7 @@ export interface FileEntry {
   path: string
   is_dir: boolean
   size: number | null
+  is_binary?: boolean
 }
 
 export interface FileListResponse {

@@ -29,14 +29,18 @@ function getFileColorClass(name: string, isDir: boolean): string {
 }
 
 function entriesToTreeElements(
-  entries: Array<FileEntry>
+  entries: Array<FileEntry>,
+  binaryFiles?: Set<string>
 ): Array<TreeViewElement> {
-  return entries.map((entry) => ({
-    id: entry.path,
-    name: entry.name,
-    type: entry.is_dir ? ("folder" as const) : ("file" as const),
-    children: entry.is_dir ? [] : undefined,
-  }))
+  return entries.map((entry) => {
+    if (binaryFiles && entry.is_binary) binaryFiles.add(entry.path)
+    return {
+      id: entry.path,
+      name: entry.name,
+      type: entry.is_dir ? ("folder" as const) : ("file" as const),
+      children: entry.is_dir ? [] : undefined,
+    }
+  })
 }
 
 export function FileExplorer({
@@ -49,6 +53,7 @@ export function FileExplorer({
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [treeElements, setTreeElements] = useState<Array<TreeViewElement>>([])
   const loadedDirsRef = useRef<Set<string>>(new Set())
+  const binaryFilesRef = useRef<Set<string>>(new Set())
   const queryClient = useQueryClient()
 
   const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(
@@ -61,7 +66,7 @@ export function FileExplorer({
       const filtered = rootFiles.entries.filter(
         (e) => !(e.is_dir && e.path === "/workspace")
       )
-      setTreeElements(entriesToTreeElements(filtered))
+      setTreeElements(entriesToTreeElements(filtered, binaryFilesRef.current))
     }
   }, [rootFiles])
 
@@ -78,7 +83,7 @@ export function FileExplorer({
           },
           staleTime: 10000,
         })
-        const children = entriesToTreeElements(result.entries)
+        const children = entriesToTreeElements(result.entries, binaryFilesRef.current)
         setTreeElements((prev) => updateTreeChildren(prev, dirPath, children))
       } catch {
         loadedDirsRef.current.delete(dirPath)
@@ -90,6 +95,7 @@ export function FileExplorer({
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     loadedDirsRef.current.clear()
+    binaryFilesRef.current.clear()
     await queryClient.invalidateQueries({
       queryKey: ["boxes", boxId, "files"],
     })
@@ -136,7 +142,7 @@ export function FileExplorer({
           </div>
         ) : treeElements.length > 0 ? (
           <Tree elements={treeElements} className="p-3 text-sm">
-            {renderElements(treeElements, handleItemClick)}
+            {renderElements(treeElements, handleItemClick, binaryFilesRef.current)}
           </Tree>
         ) : (
           <div className="flex h-32 items-center justify-center">
@@ -150,7 +156,8 @@ export function FileExplorer({
 
 function renderElements(
   elements: Array<TreeViewElement>,
-  onSelect: (id: string) => void
+  onSelect: (id: string) => void,
+  binaryFiles: Set<string>
 ): React.ReactNode {
   const sorted = [...elements].sort((a, b) => {
     const aFolder = a.type === "folder"
@@ -171,14 +178,18 @@ function renderElements(
           className={colorClass}
         >
           {el.children && el.children.length > 0
-            ? renderElements(el.children, onSelect)
+            ? renderElements(el.children, onSelect, binaryFiles)
             : null}
         </Folder>
       )
     }
+    const isBinary = binaryFiles.has(el.id)
     return (
       <File key={el.id} value={el.id} onClick={() => onSelect(el.id)}>
         <span className={colorClass}>{el.name}</span>
+        {isBinary && (
+          <span className="ml-1 text-[10px] text-muted-foreground/50">bin</span>
+        )}
       </File>
     )
   })

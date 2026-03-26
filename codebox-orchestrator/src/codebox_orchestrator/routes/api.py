@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import base64
 import logging
+import mimetypes
+from pathlib import PurePosixPath
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
 
 from codebox_orchestrator.db.models import ContainerStatus, TaskStatus
 from codebox_orchestrator.schemas import (
@@ -194,6 +198,34 @@ async def box_read_file(request: Request, box_id: str, path: str):
         raise HTTPException(400, str(exc))
     except RuntimeError as exc:
         raise HTTPException(502, f"Box file proxy error: {exc}")
+
+
+@router.get("/boxes/{box_id}/files/download")
+async def box_download_file(request: Request, box_id: str, path: str):
+    """Download a file from a box workspace as raw bytes."""
+    bs = _bs(request)
+    box = await bs.get_box(box_id)
+    if box is None:
+        raise HTTPException(404, "Box not found")
+    try:
+        data = await bs.read_file(box_id, path)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(502, f"Box file proxy error: {exc}")
+
+    if data.get("is_binary") and data.get("content_base64"):
+        content_bytes = base64.b64decode(data["content_base64"])
+    else:
+        content_bytes = (data.get("content") or "").encode("utf-8")
+
+    mime_type, _ = mimetypes.guess_type(path)
+    filename = PurePosixPath(path).name
+    return Response(
+        content=content_bytes,
+        media_type=mime_type or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Containers ───────────────────────────────────────────────────

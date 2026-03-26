@@ -78,6 +78,10 @@ export const api = {
       )
       return data
     },
+    getDownloadUrl: (boxId: string, path: string): string => {
+      const params = new URLSearchParams({ path })
+      return `${API_URL}/api/boxes/${boxId}/files/download?${params.toString()}`
+    },
   },
   containers: {
     list: async (): Promise<Array<Container>> => {

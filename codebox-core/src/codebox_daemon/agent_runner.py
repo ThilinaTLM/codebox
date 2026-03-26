@@ -276,6 +276,27 @@ async def run_exec(
         await send({"type": "task_status_changed", "status": "idle"})
 
 
+_TEXT_MIME_PREFIXES = (
+    "text/",
+    "application/json",
+    "application/xml",
+    "application/javascript",
+    "application/typescript",
+    "application/x-sh",
+    "application/toml",
+    "application/yaml",
+    "application/x-yaml",
+)
+
+
+def _is_likely_binary_by_name(filename: str) -> bool:
+    """Extension-based binary heuristic — no disk I/O."""
+    mime, _ = mimetypes.guess_type(filename)
+    if mime is None:
+        return False  # unknown = assume text (safe default for code files)
+    return not any(mime.startswith(p) for p in _TEXT_MIME_PREFIXES)
+
+
 def _is_binary_file(path: Path) -> bool:
     """Heuristic: check MIME type and first 8 KB for null bytes."""
     mime, _ = mimetypes.guess_type(str(path))
@@ -325,11 +346,13 @@ async def handle_list_files(
         for child in sorted(dir_path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
             try:
                 stat = child.stat()
+                is_dir = child.is_dir()
                 entries.append({
                     "name": child.name,
                     "path": str(child),
-                    "is_dir": child.is_dir(),
+                    "is_dir": is_dir,
                     "size": stat.st_size if child.is_file() else None,
+                    "is_binary": not is_dir and _is_likely_binary_by_name(child.name),
                 })
             except OSError:
                 continue
