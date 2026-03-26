@@ -5,7 +5,7 @@ import {
   GridViewIcon,
   Settings02Icon,
 } from "@hugeicons/core-free-icons"
-import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Plus, StopCircle, Trash2 } from "lucide-react"
+import { Plus, StopCircle, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useBox, useCreateBox } from "@/net/query"
@@ -61,50 +61,14 @@ export function TopBar() {
       {isBoxPage ? (
         /* Box page: integrated workspace header */
         <>
-          {/* Left: back + file toggle + name */}
+          {/* Left: logo + name */}
           <div className="flex min-w-0 items-center gap-1.5">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    nativeButton={false}
-                    render={<Link to="/" />}
-                    className="text-muted-foreground"
-                  />
-                }
-              >
-                <ArrowLeft size={16} />
-              </TooltipTrigger>
-              <TooltipContent>Back to agents</TooltipContent>
-            </Tooltip>
-
-            <div className="h-4 w-px bg-border/50" />
-
-            {boxPageActions && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={boxPageActions.onToggleFiles}
-                      className="text-muted-foreground"
-                    />
-                  }
-                >
-                  {boxPageActions.showFiles ? (
-                    <PanelLeftClose size={16} />
-                  ) : (
-                    <PanelLeftOpen size={16} />
-                  )}
-                </TooltipTrigger>
-                <TooltipContent>
-                  {boxPageActions.showFiles ? "Hide files" : "Show files"}
-                </TooltipContent>
-              </Tooltip>
-            )}
+            <Link
+              to="/"
+              className="font-display flex items-center gap-2 text-base font-bold tracking-tight"
+            >
+              Codebox
+            </Link>
 
             <div className="h-4 w-px bg-border/50" />
 
