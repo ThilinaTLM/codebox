@@ -47,17 +47,7 @@ export function BoxStatusBadge({
   // If we have a live activity override, use it
   if (activity) {
     return (
-      <Badge variant="default" className="gap-1.5 text-xs">
-        <span className="relative flex size-1.5">
-          {activity.animate && (
-            <span
-              className={`absolute inline-flex size-full animate-ping rounded-full opacity-60 ${activity.dotColor}`}
-            />
-          )}
-          <span
-            className={`relative inline-flex size-1.5 rounded-full ${activity.dotColor}`}
-          />
-        </span>
+      <Badge variant="default" className="text-xs">
         {activity.label}
       </Badge>
     )
@@ -66,18 +56,9 @@ export function BoxStatusBadge({
   // Fallback: existing behavior (used on box list page, etc.)
   const effectiveStatus = isActive ? BoxStatus.RUNNING : status
   const config = statusConfig[effectiveStatus]
-  const dot = statusDot[effectiveStatus]
 
   return (
-    <Badge variant={config.variant} className="gap-1.5 text-xs">
-      <span className="relative flex size-1.5">
-        {config.animate && (
-          <span
-            className={`absolute inline-flex size-full animate-ping rounded-full opacity-60 ${dot}`}
-          />
-        )}
-        <span className={`relative inline-flex size-1.5 rounded-full ${dot}`} />
-      </span>
+    <Badge variant={config.variant} className="text-xs">
       {config.label}
     </Badge>
   )

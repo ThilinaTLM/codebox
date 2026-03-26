@@ -114,6 +114,7 @@ export function useBoxWebSocket({
 
   const sendExec = useCallback((command: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      setEvents((prev) => [...prev, { type: "user_exec", command }])
       wsRef.current.send(JSON.stringify({ type: "exec", content: command }))
     }
   }, [])

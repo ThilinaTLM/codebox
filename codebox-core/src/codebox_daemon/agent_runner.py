@@ -8,8 +8,10 @@ and any other transport.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
+import mimetypes
 from pathlib import Path
 from typing import Any, Callable, Coroutine
 
@@ -260,6 +262,18 @@ async def run_exec(
         await send({"type": "error", "detail": str(exc)})
 
 
+def _is_binary_file(path: Path) -> bool:
+    """Heuristic: check MIME type and first 8 KB for null bytes."""
+    mime, _ = mimetypes.guess_type(str(path))
+    if mime and mime.startswith("text/"):
+        return False
+    try:
+        chunk = path.read_bytes()[:8192]
+        return b"\x00" in chunk
+    except Exception:
+        return True
+
+
 def _validate_workspace_path(raw_path: str) -> Path:
     """Resolve a path and ensure it lives under /workspace."""
     resolved = Path(raw_path).resolve()
@@ -346,20 +360,37 @@ async def handle_read_file(
             return
 
         size = file_path.stat().st_size
+        is_binary = _is_binary_file(file_path)
         truncated = size > _MAX_FILE_SIZE
-        content = file_path.read_text(errors="replace")
-        if truncated:
-            content = content[:_MAX_FILE_SIZE]
 
-        await send({
-            "type": "read_file_result",
-            "request_id": request_id,
-            "data": {
+        if is_binary:
+            raw = file_path.read_bytes()
+            if truncated:
+                raw = raw[:_MAX_FILE_SIZE]
+            data = {
+                "path": str(file_path),
+                "content": "",
+                "content_base64": base64.b64encode(raw).decode("ascii"),
+                "size": size,
+                "truncated": truncated,
+                "is_binary": True,
+            }
+        else:
+            content = file_path.read_text(errors="replace")
+            if truncated:
+                content = content[:_MAX_FILE_SIZE]
+            data = {
                 "path": str(file_path),
                 "content": content,
                 "size": size,
                 "truncated": truncated,
-            },
+                "is_binary": False,
+            }
+
+        await send({
+            "type": "read_file_result",
+            "request_id": request_id,
+            "data": data,
         })
 
     except Exception as exc:

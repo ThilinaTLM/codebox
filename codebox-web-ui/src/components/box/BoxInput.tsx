@@ -24,6 +24,10 @@ export function BoxInput({
     const el = textareaRef.current
     if (!el) return
     el.style.height = "auto"
+    if (!el.value) {
+      el.style.overflowY = "hidden"
+      return
+    }
     el.style.height = Math.min(el.scrollHeight, MAX_HEIGHT) + "px"
     el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "auto" : "hidden"
   }, [])
@@ -48,7 +52,7 @@ export function BoxInput({
   }
 
   return (
-    <div className="relative rounded-2xl border bg-card shadow-sm">
+    <div className="relative rounded-2xl border border-border/60 bg-muted/30 shadow-lg backdrop-blur-md">
       {isExecMode && (
         <div className="absolute top-3 left-3 z-10">
           <Badge
@@ -61,6 +65,7 @@ export function BoxInput({
       )}
       <textarea
         ref={textareaRef}
+        rows={1}
         placeholder={
           disabled
             ? "Box is not active..."
@@ -75,11 +80,10 @@ export function BoxInput({
           }
         }}
         disabled={disabled}
-        className={`w-full resize-none rounded-2xl bg-transparent px-4 py-3.5 pr-14 text-sm outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 ${
+        className={`w-full resize-none rounded-2xl bg-transparent px-4 py-3.5 pr-14 text-base outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 ${
           isExecMode ? "pt-10" : ""
         }`}
         style={{
-          minHeight: "52px",
           maxHeight: `${MAX_HEIGHT}px`,
           overflowY: "hidden",
         }}

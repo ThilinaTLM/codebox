@@ -76,6 +76,8 @@ export type WSEvent =
   | { type: "ping" }
   | { type: "exec_output"; output: string }
   | { type: "exec_done"; output: string }
+  | { type: "user_exec"; command: string }
+  | { type: "message_complete"; message: Record<string, unknown> }
 
 export interface FileEntry {
   name: string
@@ -92,8 +94,10 @@ export interface FileListResponse {
 export interface FileContent {
   path: string
   content: string
+  content_base64?: string
   size: number
   truncated: boolean
+  is_binary: boolean
 }
 
 // Global WebSocket event types (platform-level)

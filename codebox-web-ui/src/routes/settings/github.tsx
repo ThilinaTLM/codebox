@@ -289,7 +289,7 @@ function InstallationCard({
               >
                 <span>{repo.full_name}</span>
                 {repo.private && (
-                  <Badge variant="outline" className="py-0 text-[10px]">
+                  <Badge variant="outline" className="py-0 text-xs">
                     private
                   </Badge>
                 )}

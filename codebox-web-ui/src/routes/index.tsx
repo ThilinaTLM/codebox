@@ -97,7 +97,7 @@ function HomePage() {
               {/* Active agents */}
               {activeBoxes.length > 0 && (
                 <section className="pt-8">
-                  <h2 className="font-display mb-4 max-w-xs text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
+                  <h2 className="font-display mb-4 max-w-xs text-xs font-semibold tracking-widest text-muted-foreground uppercase">
                     Active
                   </h2>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -115,7 +115,7 @@ function HomePage() {
               {/* Recent agents */}
               {recentBoxes.length > 0 && (
                 <section className="pt-8">
-                  <h2 className="font-display mb-4 max-w-xs text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
+                  <h2 className="font-display mb-4 max-w-xs text-xs font-semibold tracking-widest text-muted-foreground uppercase">
                     Recent
                   </h2>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -217,7 +217,7 @@ function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
                   {box.name}
                 </h3>
                 {box.container_name && (
-                  <p className="truncate font-mono text-xs text-muted-foreground/50">
+                  <p className="truncate font-mono text-sm text-muted-foreground/50">
                     {box.container_name}
                   </p>
                 )}
@@ -255,15 +255,15 @@ function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
 
             {/* Prompt preview or result/error summary */}
             {box.status === BoxStatus.FAILED && box.error_message ? (
-              <p className="line-clamp-2 text-[13px] leading-relaxed text-destructive/80">
+              <p className="line-clamp-2 text-sm leading-relaxed text-destructive/80">
                 {box.error_message}
               </p>
             ) : box.status === BoxStatus.COMPLETED && box.result_summary ? (
-              <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground/70">
+              <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground/70">
                 {box.result_summary}
               </p>
             ) : box.initial_prompt ? (
-              <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground/70">
+              <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground/70">
                 {box.initial_prompt}
               </p>
             ) : null}
@@ -278,24 +278,24 @@ function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
               </div>
               <div className="flex items-center justify-between gap-2">
                 {triggerLabel && box.github_repo ? (
-                  <Badge variant="outline" className="gap-1 py-0 text-[11px]">
+                  <Badge variant="outline" className="gap-1 py-0 text-xs">
                     <HugeiconsIcon icon={Github01Icon} size={12} />
                     {triggerLabel}
                   </Badge>
                 ) : box.github_repo ? (
-                  <Badge variant="outline" className="gap-1 py-0 text-[11px]">
+                  <Badge variant="outline" className="gap-1 py-0 text-xs">
                     <HugeiconsIcon icon={Github01Icon} size={12} />
                     {box.github_repo.split("/").pop()}
                   </Badge>
                 ) : (
                   <Badge
                     variant="ghost"
-                    className="py-0 text-[11px] text-muted-foreground/40"
+                    className="py-0 text-xs text-muted-foreground/40"
                   >
                     Manual
                   </Badge>
                 )}
-                <span className="text-xs text-muted-foreground/50">
+                <span className="text-sm text-muted-foreground/50">
                   {getCardTimestamp(box)}
                 </span>
               </div>

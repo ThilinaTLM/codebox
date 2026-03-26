@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, Download, RotateCw } from "lucide-react"
+import { Download, FileIcon, RotateCw } from "lucide-react"
 import type { FileEntry } from "@/net/http/types"
 import type { TreeViewElement } from "@/components/ui/file-tree"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { File, Folder, Tree } from "@/components/ui/file-tree"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useBoxFileContent, useBoxFiles } from "@/net/query"
 
 function entriesToTreeElements(
@@ -94,83 +102,48 @@ export function FileExplorer({ boxId }: { boxId: string }) {
     [treeElements, loadDirChildren]
   )
 
-  if (selectedFile) {
-    return (
-      <div className="flex h-full flex-col">
-        <div className="flex items-center gap-1.5 border-b border-border/50 px-3 py-2">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setSelectedFile(null)}
-            title="Back to file tree"
-          >
-            <ArrowLeft size={14} />
-          </Button>
-          <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
-            {selectedFile.replace("/workspace/", "")}
-          </span>
-          {fileContent?.truncated && (
-            <span className="shrink-0 text-[10px] font-medium text-warning">
-              (truncated)
-            </span>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => {
-              if (!fileContent?.content) return
-              const blob = new Blob([fileContent.content], {
-                type: "application/octet-stream",
-              })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement("a")
-              a.href = url
-              a.download = selectedFile.split("/").pop() ?? "file"
-              a.click()
-              URL.revokeObjectURL(url)
-            }}
-            disabled={isLoadingContent || !fileContent?.content}
-            title="Download file"
-          >
-            <Download size={14} />
-          </Button>
-        </div>
-        <ScrollArea className="min-h-0 flex-1">
-          {isLoadingContent ? (
-            <div className="space-y-1.5 p-4">
-              <Skeleton className="h-3.5 w-full" />
-              <Skeleton className="h-3.5 w-3/4" />
-              <Skeleton className="h-3.5 w-1/2" />
-            </div>
-          ) : (
-            <pre className="overflow-auto p-4 font-mono text-xs leading-relaxed text-foreground/80">
-              {fileContent?.content ?? "Unable to read file"}
-            </pre>
-          )}
-        </ScrollArea>
-      </div>
-    )
+  const handleDownload = useCallback(() => {
+    if (!fileContent || !selectedFile) return
+    let blob: Blob
+    if (fileContent.is_binary && fileContent.content_base64) {
+      const binaryStr = atob(fileContent.content_base64)
+      const bytes = new Uint8Array(binaryStr.length)
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i)
+      }
+      blob = new Blob([bytes], { type: "application/octet-stream" })
+    } else {
+      blob = new Blob([fileContent.content], { type: "text/plain" })
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = selectedFile.split("/").pop() ?? "file"
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [fileContent, selectedFile])
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-1.5 border-b border-border/50 px-3 py-2">
-        <span className="text-xs font-medium text-muted-foreground">Files</span>
-        <div className="ml-auto">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            title="Refresh files"
-          >
-            <RotateCw
-              size={14}
-              className={isRefreshing ? "animate-spin" : ""}
-            />
-          </Button>
-        </div>
-      </div>
+    <div className="relative flex h-full flex-col">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={handleRefresh}
+        disabled={isRefreshing}
+        title="Refresh files"
+        className="absolute top-1.5 right-1.5 z-10 text-muted-foreground/50"
+      >
+        <RotateCw
+          size={13}
+          className={isRefreshing ? "animate-spin" : ""}
+        />
+      </Button>
       <div className="min-h-0 flex-1 overflow-hidden">
         {isLoadingFiles ? (
           <div className="space-y-1 p-4">
@@ -179,15 +152,71 @@ export function FileExplorer({ boxId }: { boxId: string }) {
             <Skeleton className="h-5 w-28" />
           </div>
         ) : treeElements.length > 0 ? (
-          <Tree elements={treeElements} className="py-2 text-sm">
+          <Tree elements={treeElements} className="p-3 text-sm">
             {renderElements(treeElements, handleItemClick)}
           </Tree>
         ) : (
           <div className="flex h-32 items-center justify-center">
-            <p className="text-xs text-muted-foreground">No files yet</p>
+            <p className="text-sm text-muted-foreground">No files yet</p>
           </div>
         )}
       </div>
+
+      {/* File content dialog */}
+      <Dialog
+        open={!!selectedFile}
+        onOpenChange={(open) => {
+          if (!open) setSelectedFile(null)
+        }}
+      >
+        <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm font-normal">
+              {selectedFile?.replace("/workspace/", "")}
+            </DialogTitle>
+            {fileContent && (
+              <DialogDescription>
+                {formatSize(fileContent.size)}
+                {fileContent.truncated && " (truncated)"}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 overflow-auto">
+            {isLoadingContent ? (
+              <div className="space-y-1.5 p-4">
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-3/4" />
+                <Skeleton className="h-3.5 w-1/2" />
+              </div>
+            ) : fileContent?.is_binary ||
+              isBinaryContent(fileContent?.content) ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
+                <FileIcon size={32} strokeWidth={1.5} />
+                <p className="text-sm">Binary file — preview not available</p>
+              </div>
+            ) : (
+              <ScrollArea className="max-h-[60vh]">
+                <pre className="rounded-lg bg-muted p-4 font-mono text-sm leading-relaxed text-foreground/80">
+                  {fileContent?.content ?? "Unable to read file"}
+                </pre>
+              </ScrollArea>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownload}
+              disabled={isLoadingContent || !fileContent}
+            >
+              <Download size={14} />
+              Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -238,6 +267,11 @@ function findTreeElement(
     }
   }
   return null
+}
+
+function isBinaryContent(content?: string): boolean {
+  if (!content) return false
+  return content.includes("\uFFFD") || content.includes("\x00")
 }
 
 function updateTreeChildren(

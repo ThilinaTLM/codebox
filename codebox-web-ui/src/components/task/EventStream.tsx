@@ -16,16 +16,20 @@ export type EventBlock =
   | { kind: "done"; content: string }
   | { kind: "error"; detail: string }
   | { kind: "status_change"; status: string }
-  | { kind: "exec_output"; output: string }
-  | { kind: "exec_done"; exitCode: string }
+  | {
+      kind: "exec_session"
+      command?: string
+      output: string
+      exitCode?: string
+      isRunning: boolean
+    }
   | { kind: "user_message"; content: string }
-  | { kind: "user_exec"; command: string }
 
 export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
   const blocks: Array<EventBlock> = []
   let textBuffer = ""
-  let execBuffer = ""
   let pendingThinking = false
+  let currentExec: Extract<EventBlock, { kind: "exec_session" }> | null = null
 
   const flushText = () => {
     if (textBuffer) {
@@ -35,14 +39,14 @@ export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
   }
 
   const flushExec = () => {
-    if (execBuffer) {
-      blocks.push({ kind: "exec_output", output: execBuffer })
-      execBuffer = ""
+    if (currentExec) {
+      blocks.push(currentExec)
+      currentExec = null
     }
   }
 
   for (const event of events) {
-    if (event.type === "ping") continue
+    if (event.type === "ping" || event.type === "message_complete") continue
 
     if (event.type === "token") {
       flushExec()
@@ -51,10 +55,33 @@ export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
       continue
     }
 
+    if (event.type === "user_exec") {
+      flushText()
+      flushExec()
+      pendingThinking = false
+      currentExec = { kind: "exec_session", command: event.command, output: "", isRunning: true }
+      continue
+    }
+
     if (event.type === "exec_output") {
       flushText()
       pendingThinking = false
-      execBuffer += event.output
+      if (!currentExec) {
+        currentExec = { kind: "exec_session", output: "", isRunning: true }
+      }
+      currentExec.output += event.output
+      continue
+    }
+
+    if (event.type === "exec_done") {
+      flushText()
+      pendingThinking = false
+      if (!currentExec) {
+        currentExec = { kind: "exec_session", output: "", isRunning: false }
+      }
+      currentExec.exitCode = event.output
+      currentExec.isRunning = false
+      flushExec()
       continue
     }
 
@@ -63,7 +90,6 @@ export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
 
     switch (event.type) {
       case "model_start":
-        // Mark as pending — only emit if nothing else follows
         pendingThinking = true
         break
 
@@ -79,7 +105,6 @@ export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
       }
 
       case "tool_end": {
-        // Find the last running tool_call with the same name and mark it complete
         let matched = false
         for (let j = blocks.length - 1; j >= 0; j--) {
           const b = blocks[j]
@@ -112,16 +137,12 @@ export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
       case "status_change":
         blocks.push({ kind: "status_change", status: event.status })
         break
-      case "exec_done":
-        blocks.push({ kind: "exec_done", exitCode: event.output })
-        break
     }
   }
 
   flushText()
   flushExec()
 
-  // Only show thinking indicator if model is currently thinking (last meaningful event)
   if (pendingThinking) {
     blocks.push({ kind: "thinking" })
   }
@@ -149,7 +170,7 @@ export function EventStream({
   return (
     <ScrollArea className="h-full">
       <div className={centered ? "mx-auto max-w-3xl px-4" : "px-5"}>
-        <div className={`space-y-3 py-6 text-sm ${bottomInset ? "pb-24" : ""}`}>
+        <div className={`space-y-3 py-6 text-sm ${bottomInset ? "pb-32" : ""}`}>
           {blocks.map((block, i) => (
             <EventItem key={i} block={block} />
           ))}

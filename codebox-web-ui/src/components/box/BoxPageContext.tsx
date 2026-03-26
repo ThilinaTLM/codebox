@@ -5,6 +5,12 @@ export interface BoxPageActions {
   isActive: boolean
   isConnected: boolean
   activity?: AgentActivity
+  showFiles: boolean
+  onToggleFiles: () => void
+  onStop: () => void
+  onDelete: () => void
+  isStopPending: boolean
+  isDeletePending: boolean
 }
 
 const BoxPageActionsContext = createContext<BoxPageActions | null>(null)

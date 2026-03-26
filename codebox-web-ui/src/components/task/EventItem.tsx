@@ -13,14 +13,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
 
 export function EventItem({ block }: { block: EventBlock }) {
   switch (block.kind) {
     case "text":
       return (
-        <div className="prose prose-sm max-w-none dark:prose-invert prose-a:text-primary prose-code:rounded prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-sm prose-code:text-primary/80 prose-pre:rounded-xl prose-pre:bg-muted">
+        <div className="prose max-w-none dark:prose-invert prose-a:text-primary prose-code:rounded prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-sm prose-code:text-primary/80 prose-pre:rounded-xl prose-pre:bg-muted">
           <Markdown remarkPlugins={[remarkGfm]}>{block.content}</Markdown>
         </div>
       )
@@ -55,7 +54,7 @@ export function EventItem({ block }: { block: EventBlock }) {
           <div className="h-px flex-1 bg-success/25" />
           <div className="flex items-center gap-1.5 text-success/70">
             <HugeiconsIcon icon={CheckmarkCircle02Icon} size={14} />
-            <span className="text-xs font-medium">Completed</span>
+            <span className="text-sm font-medium">Completed</span>
           </div>
           <div className="h-px flex-1 bg-success/25" />
         </div>
@@ -72,58 +71,76 @@ export function EventItem({ block }: { block: EventBlock }) {
       return (
         <div className="flex items-center gap-2 py-1">
           <div className="h-px flex-1 bg-border/50" />
-          <span className="text-xs text-muted-foreground">{block.status}</span>
+          <span className="text-sm text-muted-foreground">{block.status}</span>
           <div className="h-px flex-1 bg-border/50" />
         </div>
       )
 
-    case "exec_output":
-      return (
-        <pre className="overflow-x-auto rounded-xl bg-muted p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
-          {block.output}
-        </pre>
-      )
-
-    case "exec_done":
-      return (
-        <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
-          <span>Exit:</span>
-          <span
-            className={
-              block.exitCode === "0" ? "text-success" : "text-destructive"
-            }
-          >
-            {block.exitCode}
-          </span>
-        </div>
-      )
+    case "exec_session":
+      return <ExecSessionBlock block={block} />
 
     case "user_message":
       return (
         <div className="flex justify-end">
           <div className="max-w-[85%] rounded-2xl bg-primary/10 px-4 py-3">
-            <p className="text-sm">{block.content}</p>
+            <p className="text-base">{block.content}</p>
           </div>
         </div>
       )
 
-    case "user_exec":
-      return (
-        <div className="flex justify-end">
-          <div className="max-w-[85%] rounded-2xl border border-warning/20 bg-warning/5 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className="border-warning/30 text-xs text-warning"
-              >
-                shell
-              </Badge>
-              <code className="font-mono text-sm">{block.command}</code>
-            </div>
-          </div>
-        </div>
-      )
   }
+}
+
+function ExecSessionBlock({
+  block,
+}: {
+  block: Extract<EventBlock, { kind: "exec_session" }>
+}) {
+  const hasOutput = block.output.length > 0
+  const hasCommand = !!block.command
+  const isSuccess = block.exitCode === "0"
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/40">
+      {/* Command header */}
+      {hasCommand && (
+        <div className="terminal-bg flex items-center gap-2 px-4 py-2.5 font-mono text-sm">
+          <span className="select-none text-success/80">$</span>
+          <span className="text-foreground/90">{block.command}</span>
+          {block.isRunning && <Spinner className="ml-auto size-3 text-muted-foreground" />}
+        </div>
+      )}
+
+      {/* Output body */}
+      {hasOutput && (
+        <pre
+          className={`terminal-bg max-h-[400px] overflow-auto px-4 py-3 font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground/80 ${hasCommand || (!hasCommand && block.exitCode != null) ? "border-t border-border/20" : ""}`}
+        >
+          {block.output}
+        </pre>
+      )}
+
+      {/* Running indicator when no command and no output yet */}
+      {!hasCommand && !hasOutput && block.isRunning && (
+        <div className="terminal-bg flex items-center gap-2 px-4 py-2.5">
+          <Spinner className="size-3 text-muted-foreground" />
+          <span className="font-mono text-sm text-muted-foreground">Running...</span>
+        </div>
+      )}
+
+      {/* Exit code footer */}
+      {block.exitCode != null && (
+        <div className="terminal-bg flex items-center justify-end gap-1.5 border-t border-border/20 px-4 py-1.5">
+          <span className="font-mono text-xs text-muted-foreground">exit</span>
+          <span
+            className={`font-mono text-xs font-medium ${isSuccess ? "text-success" : "text-destructive"}`}
+          >
+            {block.exitCode}
+          </span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ToolCallBlock({
@@ -169,13 +186,13 @@ function ToolCallBlock({
       <div className="rounded-lg border border-border/50 bg-muted/20">
         <div className="flex items-center gap-2 px-3 py-2">
           <Spinner className="size-3 text-primary/60" />
-          <span className="font-mono text-xs font-medium text-foreground/80">
+          <span className="font-mono text-sm font-medium text-foreground/80">
             {name}
           </span>
           {hasInput && (
             <button
               onClick={() => setArgsExpanded(!argsExpanded)}
-              className="ml-auto flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="ml-auto flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               <HugeiconsIcon
                 icon={argsExpanded ? ArrowDown01Icon : ArrowRight01Icon}
@@ -187,14 +204,14 @@ function ToolCallBlock({
         </div>
         {hasInput && !argsExpanded && (
           <div className="border-t border-border/30 px-3 py-1.5">
-            <code className="block truncate font-mono text-xs text-muted-foreground">
+            <code className="block truncate font-mono text-sm text-muted-foreground">
               {inputPreview}
             </code>
           </div>
         )}
         {hasInput && argsExpanded && (
           <div className="border-t border-border/30 px-3 py-2">
-            <pre className="overflow-x-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground/70">
+            <pre className="overflow-x-auto font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground/70">
               {formatJson(input)}
             </pre>
           </div>
@@ -208,15 +225,15 @@ function ToolCallBlock({
     <Collapsible open={expanded} onOpenChange={setExpanded}>
       <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border/50 bg-muted/15 px-3 py-2 text-sm transition-colors hover:bg-muted/30">
         <span className="size-1.5 shrink-0 rounded-full bg-success" />
-        <span className="font-mono text-xs font-medium text-foreground/70">
+        <span className="font-mono text-sm font-medium text-foreground/70">
           {name}
         </span>
         {!expanded && outputPreview && (
-          <span className="flex-1 truncate font-mono text-xs text-muted-foreground">
+          <span className="flex-1 truncate font-mono text-sm text-muted-foreground">
             {outputPreview}
           </span>
         )}
-        <span className="shrink-0 text-xs text-muted-foreground">
+        <span className="shrink-0 text-sm text-muted-foreground">
           {expanded ? "Collapse" : "Expand"}
         </span>
       </CollapsibleTrigger>
@@ -229,7 +246,7 @@ function ToolCallBlock({
                   e.stopPropagation()
                   setArgsExpanded(!argsExpanded)
                 }}
-                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 <HugeiconsIcon
                   icon={argsExpanded ? ArrowDown01Icon : ArrowRight01Icon}
@@ -238,14 +255,14 @@ function ToolCallBlock({
                 Input
               </button>
               {argsExpanded && (
-                <pre className="mt-1 overflow-x-auto rounded-lg bg-muted/20 p-2 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground/70">
+                <pre className="mt-1 overflow-x-auto rounded-lg bg-muted/20 p-2 font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground/70">
                   {formatJson(input)}
                 </pre>
               )}
             </div>
           )}
           {hasOutput && (
-            <pre className="mt-2 mb-1 overflow-x-auto rounded-lg bg-muted/20 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
+            <pre className="mt-2 mb-1 overflow-x-auto rounded-lg bg-muted/20 p-3 font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground/80">
               {formatJson(output)}
             </pre>
           )}

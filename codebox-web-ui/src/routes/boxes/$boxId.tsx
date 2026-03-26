@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react"
 import type { WSEvent } from "@/net/http/types"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -19,12 +18,6 @@ import { useBoxWebSocket } from "@/net/ws"
 import { BoxStatus } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 export const Route = createFileRoute("/boxes/$boxId")({
   component: BoxDetailPage,
@@ -71,15 +64,28 @@ function BoxDetailPage() {
     })
   }, [deleteMutation, boxId, navigate])
 
+  const toggleFiles = useCallback(() => {
+    const panel = filePanelRef.current
+    if (!panel) return
+    if (panel.isCollapsed()) panel.expand()
+    else panel.collapse()
+  }, [])
+
   useEffect(() => {
     if (!box) return
     setBoxPageActions({
       isActive,
       isConnected,
       activity,
+      showFiles,
+      onToggleFiles: toggleFiles,
+      onStop: handleStop,
+      onDelete: handleDelete,
+      isStopPending: stopMutation.isPending,
+      isDeletePending: deleteMutation.isPending,
     })
     return () => setBoxPageActions(null)
-  }, [box, isActive, isConnected, activity, setBoxPageActions])
+  }, [box, isActive, isConnected, activity, showFiles, toggleFiles, handleStop, handleDelete, stopMutation.isPending, deleteMutation.isPending, setBoxPageActions])
 
   const localEventsRef = useRef<Array<WSEvent>>([])
 
@@ -94,19 +100,8 @@ function BoxDetailPage() {
     [sendMessage]
   )
 
-  const toggleFiles = useCallback(() => {
-    const panel = filePanelRef.current
-    if (!panel) return
-    if (panel.isCollapsed()) panel.expand()
-    else panel.collapse()
-  }, [])
-
   const handleSendExec = useCallback(
     (command: string) => {
-      localEventsRef.current = [
-        ...localEventsRef.current,
-        { type: "status_change", status: BoxStatus.RUNNING } as WSEvent,
-      ]
       sendExec(command)
     },
     [sendExec]
@@ -138,56 +133,8 @@ function BoxDetailPage() {
 
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
-      {/* Toolbar */}
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/50 px-2">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={toggleFiles}
-          title={showFiles ? "Hide files" : "Show files"}
-          className="text-muted-foreground"
-        >
-          {showFiles ? (
-            <PanelLeftClose size={15} />
-          ) : (
-            <PanelLeftOpen size={15} />
-          )}
-        </Button>
-        <div className="ml-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-muted-foreground"
-                />
-              }
-            >
-              <Settings size={15} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {isActive && (
-                <DropdownMenuItem
-                  onClick={handleStop}
-                  disabled={stopMutation.isPending}
-                >
-                  Stop agent
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                onClick={handleDelete}
-                className="text-destructive focus:text-destructive"
-              >
-                Delete agent
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
       {/* Main content area */}
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 p-2">
         <ResizablePanelGroup orientation="horizontal" id="box-detail">
           {/* File explorer panel */}
           <ResizablePanel
@@ -198,7 +145,7 @@ function BoxDetailPage() {
             collapsible
             collapsedSize={0}
             onResize={(size) => setShowFiles(size.asPercentage > 0)}
-            className="bg-card/50"
+            className="rounded-lg border border-border/60 bg-muted/30"
           >
             {canShowFiles ? (
               <FileExplorer boxId={boxId} />
@@ -212,18 +159,18 @@ function BoxDetailPage() {
               </div>
             )}
           </ResizablePanel>
-          <ResizableHandle />
+          <ResizableHandle withHandle className="bg-transparent" />
 
           {/* Chat panel */}
-          <ResizablePanel id="chat-panel" defaultSize={75} minSize={30}>
+          <ResizablePanel id="chat-panel" defaultSize={95} minSize={30}>
             <div className="relative flex h-full flex-col">
               {/* Event stream */}
               <div className="min-h-0 flex-1">
                 <EventStream events={events} centered bottomInset />
               </div>
 
-              {/* Input at bottom */}
-              <div className="shrink-0 border-t border-border/30 bg-background/80 px-4 py-3 backdrop-blur-sm">
+              {/* Floating input */}
+              <div className="absolute inset-x-0 bottom-0 px-4 pb-4">
                 <div className="mx-auto max-w-3xl">
                   <BoxInput
                     onSendMessage={handleSendMessage}
@@ -243,7 +190,6 @@ function BoxDetailPage() {
 function BoxDetailSkeleton() {
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
-      <div className="h-9 shrink-0 border-b border-border/50" />
       <div className="flex-1 p-8">
         <div className="mx-auto max-w-3xl space-y-4">
           <Skeleton className="h-16 w-full rounded-lg" />
