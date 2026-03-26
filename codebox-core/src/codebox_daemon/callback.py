@@ -169,9 +169,10 @@ async def _connect_and_run(
                         await send({"type": "error", "detail": "Empty exec command"})
                         continue
 
+                    request_id = msg.get("request_id", "")
                     await _cancel_current()
                     current_task = asyncio.create_task(
-                        run_exec(send, command, session_id)
+                        run_exec(send, command, session_id, request_id=request_id)
                     )
                     session.current_task = current_task
                     current_task.add_done_callback(_on_task_done)

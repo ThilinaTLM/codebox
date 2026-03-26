@@ -224,6 +224,30 @@ class BoxService:
             raise ValueError("No active connection for this box")
         await ws.send_json({"type": "exec", "content": command})
 
+    async def send_exec_and_wait(
+        self, box_id: str, command: str, timeout: float = 120.0
+    ) -> dict:
+        """Send a shell command and wait for exec_done response.
+
+        Raises RuntimeError if the command returns a non-zero exit code.
+        """
+        ws = self._registry.get_connection(box_id)
+        if ws is None:
+            raise ValueError("No active connection for this box")
+        request_id, fut = self._registry.create_pending_request(box_id)
+        await ws.send_json({
+            "type": "exec",
+            "content": command,
+            "request_id": request_id,
+        })
+        result = await asyncio.wait_for(fut, timeout=timeout)
+        exit_code = result.get("output", "")
+        if exit_code not in ("0", ""):
+            raise RuntimeError(
+                f"Setup command failed (exit {exit_code}): {command}"
+            )
+        return result
+
     async def send_cancel(self, box_id: str) -> None:
         """Cancel the current operation."""
         ws = self._registry.get_connection(box_id)
@@ -366,11 +390,10 @@ class BoxService:
             await self._set_failed(box_id, "Container did not connect back in time")
             return
 
-        # Run pre-start setup commands for GitHub boxes
+        # Run pre-start setup commands for GitHub boxes via WebSocket exec
         if is_github and gh_token:
             try:
                 await self._run_github_setup(
-                    container_name=info.name,
                     box_id=box_id,
                     github_repo=github_repo or "",
                     github_branch=github_branch or "",
@@ -382,8 +405,19 @@ class BoxService:
                 await self._set_failed(box_id, f"GitHub setup failed: {exc}")
                 return
 
-        # Signal that setup is done — ws_callback can now send the prompt
-        self._registry.set_prompt_ready(box_id)
+        # Send initial prompt and set status
+        async with self._sf() as db:
+            box = await db.get(Box, box_id)
+            if box is None:
+                return
+            initial_prompt = box.initial_prompt
+
+        if initial_prompt:
+            await self._set_running(box_id)
+            await self.send_message(box_id, initial_prompt)
+        else:
+            await self._set_idle(box_id)
+
         logger.info("Box %s started successfully", box_id)
 
     # ------------------------------------------------------------------
@@ -407,7 +441,6 @@ class BoxService:
 
     async def _run_github_setup(
         self,
-        container_name: str,
         box_id: str,
         github_repo: str,
         github_branch: str,
@@ -423,11 +456,42 @@ class BoxService:
             token=github_token,
             issue_number=github_issue_number,
         )
-        docker_service.exec_commands(container_name, setup_commands)
+        for cmd in setup_commands:
+            await self.send_exec_and_wait(box_id, cmd, timeout=120.0)
 
     # ------------------------------------------------------------------
     # State updates
     # ------------------------------------------------------------------
+
+    async def _set_running(self, box_id: str) -> None:
+        async with self._sf() as db:
+            box = await db.get(Box, box_id)
+            if box:
+                box.status = BoxStatus.RUNNING
+                await db.commit()
+        await self._relay.broadcast(
+            box_id, {"type": "status_change", "status": BoxStatus.RUNNING.value}
+        )
+        await self._global_broadcast.broadcast({
+            "type": "box_status_changed",
+            "box_id": box_id,
+            "status": BoxStatus.RUNNING.value,
+        })
+
+    async def _set_idle(self, box_id: str) -> None:
+        async with self._sf() as db:
+            box = await db.get(Box, box_id)
+            if box:
+                box.status = BoxStatus.IDLE
+                await db.commit()
+        await self._relay.broadcast(
+            box_id, {"type": "status_change", "status": BoxStatus.IDLE.value}
+        )
+        await self._global_broadcast.broadcast({
+            "type": "box_status_changed",
+            "box_id": box_id,
+            "status": BoxStatus.IDLE.value,
+        })
 
     async def _set_failed(self, box_id: str, error: str) -> None:
         async with self._sf() as db:

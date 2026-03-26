@@ -109,6 +109,7 @@ async def run_exec(
     send: SendFn,
     command: str,
     session_id: str,
+    request_id: str = "",
 ) -> None:
     """Execute a shell command and stream output via send callback."""
     proc = None
@@ -124,16 +125,17 @@ async def run_exec(
             await send({
                 "type": "exec_output",
                 "output": line.decode(errors="replace"),
+                "request_id": request_id,
             })
 
         await proc.wait()
-        await send({"type": "exec_done", "output": str(proc.returncode)})
+        await send({"type": "exec_done", "output": str(proc.returncode), "request_id": request_id})
 
     except asyncio.CancelledError:
         if proc and proc.returncode is None:
             proc.kill()
             await proc.wait()
-        await send({"type": "exec_done", "output": "cancelled"})
+        await send({"type": "exec_done", "output": "cancelled", "request_id": request_id})
         raise
 
     except Exception as exc:

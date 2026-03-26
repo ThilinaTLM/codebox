@@ -66,7 +66,7 @@ async def sandbox_callback(ws: WebSocket) -> None:
             pass
         registry.remove(entity_id)
 
-    # Re-create connected/prompt_ready events for this connection
+    # Re-create connection-tracking state for this connection
     registry.init_connection_state(entity_id)
 
     # Wait for register message
@@ -115,46 +115,16 @@ async def _handle_box(
     """Handle a unified box callback connection."""
     sf: async_sessionmaker = ws.app.state._sf
 
-    # Load box to determine behaviour
+    # Store session_id on the box; status is managed by BoxService._do_run_box()
     async with sf() as db:
         box = await db.get(Box, box_id)
         if box is None:
             return
-        has_initial_prompt = bool(box.initial_prompt)
-        initial_prompt = box.initial_prompt
         auto_stop = box.auto_stop
         box.session_id = session_id
-
-        if has_initial_prompt:
-            box.status = BoxStatus.RUNNING
-        else:
-            box.status = BoxStatus.IDLE
         await db.commit()
 
-    status = BoxStatus.RUNNING if has_initial_prompt else BoxStatus.IDLE
-    await relay.broadcast(
-        box_id, {"type": "status_change", "status": status.value}
-    )
-    await global_broadcast.broadcast({
-        "type": "box_status_changed",
-        "box_id": box_id,
-        "status": status.value,
-    })
-    logger.info("Box %s is %s (session %s)", box_id, status.value, session_id)
-
-    if has_initial_prompt:
-        # Wait for pre-start setup to complete (GitHub setup, etc.)
-        ready = await registry.wait_for_prompt_ready(box_id, timeout=300)
-        if not ready:
-            logger.error("Box %s: pre-start setup timed out", box_id)
-            await _set_box_failed(sf, relay, global_broadcast, box_id, "Pre-start setup timed out")
-            return
-
-        # Send the initial prompt
-        await ws.send_json({"type": "message", "content": initial_prompt})
-    else:
-        # No initial prompt — signal prompt_ready immediately (already set by service)
-        pass
+    logger.info("Box %s connected (session %s), entering relay loop", box_id, session_id)
 
     # Relay loop: read events from container, persist + broadcast
     async for raw in ws.iter_text():
@@ -166,6 +136,12 @@ async def _handle_box(
             request_id = event.get("request_id", "")
             registry.resolve_pending_request(box_id, request_id, event)
             continue
+
+        # Resolve exec_done pending requests (but still persist + broadcast below)
+        if event_type == "exec_done":
+            request_id = event.get("request_id", "")
+            if request_id:
+                registry.resolve_pending_request(box_id, request_id, event)
 
         # Persist event
         await _persist_box_event(sf, box_id, event_type, event)
