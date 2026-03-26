@@ -22,9 +22,8 @@ async def _stream_box_events(
         async for event in client.stream_events(box_id):
             etype = event.get("type")
 
-            if etype == "status_change":
-                status = event.get("status", "")
-                console.print(f"[dim]status: {status}[/dim]")
+            if etype == "token":
+                ai_text_buffer += event.get("text", "")
 
             elif etype == "tool_start":
                 name = event.get("name", "")
@@ -37,8 +36,39 @@ async def _stream_box_events(
                     output = output[:200] + "..."
                 console.print(f"[dim]  \u2713 {name}:[/dim] [dim]{output}[/dim]")
 
-            elif etype == "token":
-                ai_text_buffer += event.get("text", "")
+            elif etype == "exec_output":
+                output = event.get("output", "")
+                console.print(f"[dim]{output}[/dim]", end="")
+
+            elif etype == "exec_done":
+                exit_code = event.get("output", "")
+                if exit_code and exit_code != "0":
+                    console.print(f"\n[yellow]exit code: {exit_code}[/yellow]")
+
+            elif etype == "task_status_changed":
+                status = event.get("status", "")
+                console.print(f"[dim]task: {status}[/dim]")
+
+            elif etype == "report_status":
+                status = event.get("status", "")
+                message = event.get("message", "")
+                console.print(f"[bold]Report: {status}[/bold]")
+                if message:
+                    console.print(f"  {message}")
+
+            elif etype == "status_change":
+                parts = []
+                for key in ("container_status", "task_status", "agent_report_status", "stop_reason"):
+                    if key in event:
+                        label = key.replace("_status", "").replace("_", " ")
+                        parts.append(f"{label}={event[key]}")
+                if parts:
+                    console.print(f"[dim]status: {', '.join(parts)}[/dim]")
+
+            elif etype == "shutting_down":
+                reason = event.get("reason", "")
+                console.print(f"[yellow]Box shutting down: {reason}[/yellow]")
+                return
 
             elif etype == "done":
                 final = event.get("content", "") or ai_text_buffer

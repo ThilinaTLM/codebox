@@ -25,7 +25,6 @@ export function CreateAgentDialog({
   const createMutation = useCreateBox()
 
   const [name, setName] = useState("")
-  const [model, setModel] = useState("")
   const [initialPrompt, setInitialPrompt] = useState("")
   const [idleTimeout, setIdleTimeout] = useState(60)
 
@@ -33,7 +32,6 @@ export function CreateAgentDialog({
     createMutation.mutate(
       {
         name: name.trim() || undefined,
-        model: model.trim() || undefined,
         initial_prompt: initialPrompt.trim() || undefined,
         idle_timeout: idleTimeout,
       },
@@ -42,7 +40,6 @@ export function CreateAgentDialog({
           toast.success("Agent created")
           onOpenChange(false)
           setName("")
-          setModel("")
           setInitialPrompt("")
           setIdleTimeout(60)
           navigate({ to: "/boxes/$boxId", params: { boxId: box.id } })
@@ -85,10 +82,9 @@ export function CreateAgentDialog({
             <input
               id="agent-model"
               type="text"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder="anthropic/claude-sonnet-4-20250514"
-              className="h-9 w-full rounded-lg border border-border bg-inset px-3 py-1 text-sm text-foreground font-terminal placeholder:text-muted-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              value="default"
+              disabled
+              className="h-9 w-full rounded-lg border border-border bg-inset px-3 py-1 text-sm text-foreground font-terminal opacity-60 cursor-not-allowed outline-none"
             />
           </div>
 

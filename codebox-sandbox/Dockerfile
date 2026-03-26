@@ -16,6 +16,7 @@ WORKDIR /app
 # Copy devbox config and install packages
 COPY codebox-sandbox/devbox.json ./
 ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
+ENV DEVBOX_PROJECT_DIR="/app"
 RUN devbox install
 
 # Install codebox-core

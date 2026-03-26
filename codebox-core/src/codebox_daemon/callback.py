@@ -155,6 +155,9 @@ async def _connect_and_run(
         # Inject the send function into the status reporter so the set_status tool works
         session = manager.get(session_id)
         session.status_reporter.send_fn = send
+        session.status_reporter.on_activity = lambda: setattr(
+            session, "last_active_at", datetime.now(timezone.utc)
+        )
 
         # Start idle monitor
         idle_monitor_task = asyncio.create_task(_idle_monitor(session, send))

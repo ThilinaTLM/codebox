@@ -58,7 +58,7 @@ function BoxDetailPage() {
 
   const { events, isConnected } = useBoxStream({
     boxId,
-    enabled: isActive,
+    enabled: true,
   })
   const sendMessageMutation = useSendMessage()
   const sendExecMutation = useSendExec()

@@ -47,10 +47,7 @@ export function useBoxStream({
 
     es.onerror = () => {
       setIsConnected(false)
-      // EventSource auto-reconnects; clear events so replay starts fresh
-      if (activeRef.current && enabledRef.current) {
-        setEvents([])
-      }
+      // EventSource auto-reconnects; connect() clears events before replay
     }
   }, [boxId])
 
