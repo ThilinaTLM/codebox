@@ -1,13 +1,13 @@
 import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { Plus } from "lucide-react"
+import type { Box } from "@/net/http/types"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AgentTable } from "@/components/box/AgentTable"
 import { CreateAgentDialog } from "@/components/box/CreateAgentDialog"
 import { useBoxes } from "@/net/query"
 import { ContainerStatus } from "@/net/http/types"
-import type { Box } from "@/net/http/types"
 
 export const Route = createFileRoute("/")({ component: HomePage })
 

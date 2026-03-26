@@ -56,10 +56,7 @@ export function useAgentActivity(
           if (ev.status === TaskStatus.EXEC_SHELL) {
             return { label: "Running command", animate: true, dotColor: "bg-warning", isWorking: true }
           }
-          if (ev.status === TaskStatus.IDLE) {
-            return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60", isWorking: false }
-          }
-          break
+          return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60", isWorking: false }
         case "status_change":
           if (ev.container_status === ContainerStatus.STOPPED) {
             return { label: "Stopped", animate: false, dotColor: "bg-muted-foreground/40", isWorking: false }

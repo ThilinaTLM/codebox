@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { PanelImperativeHandle } from "react-resizable-panels"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { RotateCw, Square, Trash2 } from "lucide-react"
+import type { PanelImperativeHandle } from "react-resizable-panels"
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -28,7 +28,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { useBox, useDeleteBox, useStopBox, useRestartBox, useSendMessage, useSendExec, useCancelBox } from "@/net/query"
+import { useBox, useCancelBox, useDeleteBox, useRestartBox, useSendExec, useSendMessage, useStopBox } from "@/net/query"
 import { useBoxStream } from "@/net/sse/useBoxStream"
 import { ContainerStatus } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
@@ -56,7 +56,7 @@ function BoxDetailPage() {
 
   const isStopped = box?.container_status === ContainerStatus.STOPPED
 
-  const { events, isConnected, appendEvent } = useBoxStream({
+  const { events, isConnected } = useBoxStream({
     boxId,
     enabled: isActive,
   })
@@ -127,18 +127,16 @@ function BoxDetailPage() {
 
   const handleSendMessage = useCallback(
     (content: string) => {
-      appendEvent({ type: "user_message", content })
       sendMessageMutation.mutate({ boxId, message: content })
     },
-    [appendEvent, sendMessageMutation, boxId]
+    [sendMessageMutation, boxId]
   )
 
   const handleSendExec = useCallback(
     (command: string) => {
-      appendEvent({ type: "user_exec", command })
       sendExecMutation.mutate({ boxId, command })
     },
-    [appendEvent, sendExecMutation, boxId]
+    [sendExecMutation, boxId]
   )
 
   const handleCancel = useCallback(() => {

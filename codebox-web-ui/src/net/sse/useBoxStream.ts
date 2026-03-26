@@ -10,7 +10,6 @@ interface UseBoxStreamOptions {
 interface UseBoxStreamReturn {
   events: Array<BoxStreamEvent>
   isConnected: boolean
-  appendEvent: (event: BoxStreamEvent) => void
 }
 
 export function useBoxStream({
@@ -78,9 +77,5 @@ export function useBoxStream({
     }
   }, [boxId, enabled, connect])
 
-  const appendEvent = useCallback((event: BoxStreamEvent) => {
-    setEvents((prev) => [...prev, event])
-  }, [])
-
-  return { events, isConnected, appendEvent }
+  return { events, isConnected }
 }

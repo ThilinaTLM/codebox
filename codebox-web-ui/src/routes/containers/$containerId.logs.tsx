@@ -42,8 +42,7 @@ function ContainerLogsPage() {
       <div className="flex items-center gap-3 border-b border-border px-6 py-3">
         <nav className="font-terminal text-xs text-muted-foreground">
           <Link
-            to="/settings"
-            search={{ tab: "containers" }}
+            to="/containers"
             className="hover:text-foreground transition-colors"
           >
             Containers

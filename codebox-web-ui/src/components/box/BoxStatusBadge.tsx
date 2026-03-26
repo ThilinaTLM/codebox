@@ -1,8 +1,8 @@
 import type { AgentActivity } from "@/hooks/useAgentActivity"
 import {
+  AgentReportStatus,
   ContainerStatus,
   TaskStatus,
-  AgentReportStatus,
 } from "@/net/http/types"
 
 const containerConfig: Record<

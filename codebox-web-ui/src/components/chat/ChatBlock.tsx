@@ -1,10 +1,10 @@
-import type { EventBlock } from "./types"
 import { AssistantTextBlock } from "./AssistantTextBlock"
 import { ThinkingBlock } from "./ThinkingBlock"
 import { ToolCallBlock } from "./ToolCallBlock"
 import { ExecBlock } from "./ExecBlock"
 import { UserMessageBlock } from "./UserMessageBlock"
 import { DoneBlock, ErrorBlock, StatusChangeBlock } from "./StatusDivider"
+import type { EventBlock } from "./types"
 
 export function ChatBlock({ block }: { block: EventBlock }) {
   switch (block.kind) {

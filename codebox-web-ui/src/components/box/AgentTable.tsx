@@ -6,8 +6,8 @@ import { Github01Icon } from "@hugeicons/core-free-icons"
 import { Square, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import type { Box } from "@/net/http/types"
-import { ContainerStatus, TaskStatus, AgentReportStatus } from "@/net/http/types"
-import { useStopBox, useDeleteBox } from "@/net/query"
+import { AgentReportStatus, ContainerStatus, TaskStatus } from "@/net/http/types"
+import { useDeleteBox, useStopBox } from "@/net/query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -23,7 +23,7 @@ import {
 import { cn } from "@/lib/utils"
 
 interface AgentTableProps {
-  boxes: Box[]
+  boxes: Array<Box>
   variant: "active" | "recent"
 }
 

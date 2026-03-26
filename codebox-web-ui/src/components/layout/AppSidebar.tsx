@@ -1,42 +1,17 @@
 import { useState } from "react"
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
+import { Link, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { GridViewIcon, Settings02Icon } from "@hugeicons/core-free-icons"
-import { Plus, PanelLeftClose, PanelLeftOpen } from "lucide-react"
-import { toast } from "sonner"
+import { GridViewIcon, ServerStack01Icon, Settings02Icon } from "@hugeicons/core-free-icons"
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { useBoxes, useCreateBox } from "@/net/query"
-import { ContainerStatus } from "@/net/http/types"
 
 export function AppSidebar() {
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
-  const navigate = useNavigate()
-  const createMutation = useCreateBox()
 
   const isBoxPage = currentPath.startsWith("/boxes/")
   const [collapsed, setCollapsed] = useState(isBoxPage)
-
-  const { data: boxes } = useBoxes()
-  const activeBoxes = (boxes ?? []).filter(
-    (b) =>
-      b.container_status === ContainerStatus.RUNNING ||
-      b.container_status === ContainerStatus.STARTING
-  )
-
-  const handleCreate = () => {
-    createMutation.mutate(
-      {},
-      {
-        onSuccess: (newBox) => {
-          toast.success("Agent created")
-          navigate({ to: "/boxes/$boxId", params: { boxId: newBox.id } })
-        },
-        onError: () => toast.error("Failed to create agent"),
-      }
-    )
-  }
 
   const navItems = [
     {
@@ -44,6 +19,12 @@ export function AppSidebar() {
       label: "Agents",
       to: "/" as const,
       active: currentPath === "/",
+    },
+    {
+      icon: ServerStack01Icon,
+      label: "Containers",
+      to: "/containers" as const,
+      active: currentPath.startsWith("/containers"),
     },
     {
       icon: Settings02Icon,
@@ -66,9 +47,11 @@ export function AppSidebar() {
           to="/"
           className="flex items-center gap-2 overflow-hidden"
         >
-          <span className="font-display shrink-0 text-base font-bold text-primary">
-            CB
-          </span>
+          <img
+            src="/codebox-logo.svg"
+            alt="Codebox"
+            className="size-5 shrink-0"
+          />
           {!collapsed && (
             <span className="font-display truncate text-sm font-semibold text-sidebar-foreground">
               Codebox
@@ -105,57 +88,11 @@ export function AppSidebar() {
         ))}
       </nav>
 
-      {/* Middle: Active boxes (expanded only) */}
-      {!collapsed && activeBoxes.length > 0 && (
-        <div className="mt-4 flex flex-col gap-1 px-2">
-          <span className="px-2 text-xs uppercase tracking-widest text-ghost">
-            Active
-          </span>
-          <div className="mt-1 flex flex-col gap-0.5">
-            {activeBoxes.map((box) => (
-              <Link
-                key={box.id}
-                to="/boxes/$boxId"
-                params={{ boxId: box.id }}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors",
-                  currentPath === `/boxes/${box.id}`
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )}
-              >
-                <span
-                  className={cn(
-                    "size-2 shrink-0 rounded-full",
-                    box.container_status === ContainerStatus.RUNNING
-                      ? "bg-state-completed"
-                      : "bg-state-starting"
-                  )}
-                />
-                <span className="truncate">
-                  {box.container_name ?? box.name}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Spacer */}
       <div className="flex-1" />
 
       {/* Bottom: New Agent + Collapse toggle */}
       <div className="flex flex-col gap-1 border-t border-sidebar-border p-2">
-        <Button
-          size={collapsed ? "icon-sm" : "sm"}
-          className={cn("gap-1.5", !collapsed && "w-full")}
-          onClick={handleCreate}
-          disabled={createMutation.isPending}
-        >
-          <Plus size={16} />
-          {!collapsed && <span>New Agent</span>}
-        </Button>
-
         <Button
           variant="ghost"
           size={collapsed ? "icon-sm" : "sm"}

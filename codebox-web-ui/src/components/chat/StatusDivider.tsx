@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertTriangle, Circle } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Circle } from "lucide-react"
 
 export function DoneBlock() {
   return (

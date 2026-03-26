@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import type { EventBlock } from "./types"
 import { Spinner } from "@/components/ui/spinner"
 
-function addLineNumbers(text: string): { numbered: boolean; lines: string[] } {
+function addLineNumbers(text: string): { numbered: boolean; lines: Array<string> } {
   const lines = text.split("\n")
   // Only number if > 3 lines
   return { numbered: lines.length > 3, lines }

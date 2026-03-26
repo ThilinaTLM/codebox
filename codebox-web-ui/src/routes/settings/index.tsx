@@ -8,18 +8,16 @@ import {
   useGitHubStatus,
   useRemoveGitHubInstallation,
   useSyncGitHubInstallation,
-  useContainers,
 } from "@/net/query"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
-import { ContainerTable } from "@/components/container/ContainerTable"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { API_URL } from "@/lib/constants"
 
-const VALID_TABS = ["appearance", "github", "containers", "about"] as const
+const VALID_TABS = ["appearance", "github", "about"] as const
 type SettingsTab = (typeof VALID_TABS)[number]
 
 export const Route = createFileRoute("/settings/")({
@@ -69,9 +67,6 @@ function SettingsPage() {
               <TabsTrigger value="github" className="font-terminal text-sm">
                 GitHub
               </TabsTrigger>
-              <TabsTrigger value="containers" className="font-terminal text-sm">
-                Containers
-              </TabsTrigger>
               <TabsTrigger value="about" className="font-terminal text-sm">
                 About
               </TabsTrigger>
@@ -82,9 +77,6 @@ function SettingsPage() {
             </TabsContent>
             <TabsContent value="github">
               <GitHubTab />
-            </TabsContent>
-            <TabsContent value="containers">
-              <ContainersTab />
             </TabsContent>
             <TabsContent value="about">
               <AboutTab />
@@ -344,27 +336,6 @@ function InstallationCard({
         )}
       </CardContent>
     </Card>
-  )
-}
-
-// ── Containers Tab ──────────────────────────────────────────
-
-function ContainersTab() {
-  const { data: containers } = useContainers()
-  const total = containers?.length ?? 0
-  const running = containers?.filter((c) => c.status === "running").length ?? 0
-
-  return (
-    <section>
-      <div className="mb-4">
-        <h2 className="font-display text-lg font-semibold">Containers</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {total} container{total !== 1 ? "s" : ""}
-          {running > 0 ? ` · ${running} running` : ""}
-        </p>
-      </div>
-      <ContainerTable />
-    </section>
   )
 }
 
