@@ -231,16 +231,18 @@ function BoxDetailPage() {
                   )}
                   {isActive && (
                     <AlertDialog>
-                      <AlertDialogTrigger>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={stopMutation.isPending}
-                          className="gap-1.5 font-terminal text-xs"
-                        >
-                          <Square size={10} fill="currentColor" />
-                          Stop
-                        </Button>
+                      <AlertDialogTrigger
+                        render={
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={stopMutation.isPending}
+                            className="gap-1.5 font-terminal text-xs"
+                          />
+                        }
+                      >
+                        <Square size={10} fill="currentColor" />
+                        Stop
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -259,15 +261,17 @@ function BoxDetailPage() {
                     </AlertDialog>
                   )}
                   <AlertDialog>
-                    <AlertDialogTrigger>
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        disabled={deleteMutation.isPending}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
+                    <AlertDialogTrigger
+                      render={
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          disabled={deleteMutation.isPending}
+                          className="text-muted-foreground hover:text-destructive"
+                        />
+                      }
+                    >
+                      <Trash2 size={14} />
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -310,27 +314,13 @@ function BoxDetailPage() {
             </div>
           </ResizablePanel>
 
-          {/* File preview panel */}
-          {previewFile && (
-            <>
-              <ResizableHandle withHandle className="bg-transparent" />
-              <ResizablePanel
-                id="file-preview"
-                defaultSize={30}
-                minSize={15}
-                collapsible
-                collapsedSize={0}
-                className="rounded-lg border border-border/60"
-              >
-                <FilePreview
-                  boxId={boxId}
-                  filePath={previewFile}
-                  onClose={handleClosePreview}
-                />
-              </ResizablePanel>
-            </>
-          )}
         </ResizablePanelGroup>
+
+        <FilePreview
+          boxId={boxId}
+          filePath={previewFile}
+          onClose={handleClosePreview}
+        />
       </div>
     </div>
   )

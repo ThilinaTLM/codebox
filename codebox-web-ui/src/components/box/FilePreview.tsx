@@ -1,6 +1,12 @@
-import { Download, X } from "lucide-react"
+import { Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useBoxFileContent } from "@/net/query"
 import { api } from "@/net/http/api"
 
@@ -29,69 +35,66 @@ interface FilePreviewProps {
 export function FilePreview({ boxId, filePath, onClose }: FilePreviewProps) {
   const { data: fileContent, isLoading } = useBoxFileContent(boxId, filePath)
 
-  if (!filePath) return null
-
-  const downloadUrl = api.boxes.getDownloadUrl(boxId, filePath)
+  const downloadUrl = filePath ? api.boxes.getDownloadUrl(boxId, filePath) : ""
+  const fileName = filePath?.split("/").pop() ?? ""
 
   return (
-    <div className="flex h-full flex-col bg-card">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/30 px-3 py-2">
-        <span className="min-w-0 flex-1 truncate font-terminal text-xs text-muted-foreground">
-          {filePath.replace("/workspace/", "")}
-        </span>
-        <div className="ml-2 flex shrink-0 items-center gap-1">
-          <a
-            href={downloadUrl}
-            download
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
-            title="Download file"
-          >
-            <Download size={14} />
-          </a>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onClose}
-            className="text-muted-foreground"
-          >
-            <X size={14} />
-          </Button>
-        </div>
-      </div>
+    <Dialog open={!!filePath} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-5xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="min-w-0 truncate font-terminal text-sm">
+              {filePath?.replace("/workspace/", "") ?? ""}
+            </span>
+            {filePath && (
+              <a
+                href={downloadUrl}
+                download
+                className="ml-auto inline-flex shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                title="Download file"
+              >
+                <Download size={14} />
+              </a>
+            )}
+          </DialogTitle>
+        </DialogHeader>
 
-      {/* Content */}
-      <div className="min-h-0 flex-1 overflow-auto">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center">
-            <Spinner />
-          </div>
-        ) : fileContent?.is_binary && isImageFile(filePath) ? (
-          <div className="flex h-full items-center justify-center p-4">
-            <img
-              src={downloadUrl}
-              alt={filePath.split("/").pop()}
-              className="max-h-full max-w-full object-contain"
-            />
-          </div>
-        ) : fileContent?.is_binary ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-            <span>Binary file — preview not available</span>
-            <a
-              href={downloadUrl}
-              download
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
-            >
-              <Download size={14} />
-              Download
-            </a>
-          </div>
-        ) : (
-          <pre className="h-full overflow-auto bg-inset p-4 font-terminal text-sm text-foreground/90">
-            {fileContent?.content ?? "Unable to read file"}
-          </pre>
-        )}
-      </div>
-    </div>
+        <div className="max-h-[70vh] min-h-[200px] overflow-auto">
+          {isLoading ? (
+            <div className="flex h-[200px] items-center justify-center">
+              <Spinner />
+            </div>
+          ) : fileContent?.is_binary && isImageFile(filePath!) ? (
+            <div className="flex flex-col items-center gap-4">
+              <img
+                src={downloadUrl}
+                alt={fileName}
+                className="max-h-[60vh] max-w-full rounded-md object-contain"
+              />
+              <a href={downloadUrl} download>
+                <Button variant="outline" className="gap-2">
+                  <Download size={14} />
+                  Download
+                </Button>
+              </a>
+            </div>
+          ) : fileContent?.is_binary ? (
+            <div className="flex h-[200px] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+              <span>Binary file — preview not available</span>
+              <a href={downloadUrl} download>
+                <Button variant="outline" className="gap-2">
+                  <Download size={14} />
+                  Download
+                </Button>
+              </a>
+            </div>
+          ) : (
+            <pre className="overflow-auto rounded-md bg-inset p-4 font-terminal text-sm text-foreground/90">
+              {fileContent?.content ?? "Unable to read file"}
+            </pre>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
