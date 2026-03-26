@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react"
 import { ChatBlock } from "./ChatBlock"
 import type { EventBlock } from "./types"
-import type { WSEvent } from "@/net/http/types"
+import type { BoxStreamEvent } from "@/net/http/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
+export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock> {
   const blocks: Array<EventBlock> = []
   let textBuffer = ""
   let pendingThinking = false
@@ -25,7 +25,7 @@ export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
   }
 
   for (const event of events) {
-    if (event.type === "ping" || event.type === "message_complete") continue
+    if (event.type === "message_complete") continue
 
     if (event.type === "token") {
       flushExec()
@@ -150,7 +150,7 @@ export function ChatStream({
   centered,
   bottomInset,
 }: {
-  events: Array<WSEvent>
+  events: Array<BoxStreamEvent>
   centered?: boolean
   bottomInset?: boolean
 }) {
@@ -166,15 +166,26 @@ export function ChatStream({
     <ScrollArea className="h-full">
       <div className={centered ? "mx-auto max-w-3xl px-4" : "px-5"}>
         <div
-          className={`space-y-3 py-6 text-sm ${bottomInset ? "pb-32" : ""}`}
+          className={`flex flex-col gap-4 py-6 text-sm ${bottomInset ? "pb-32" : ""}`}
         >
           {blocks.map((block, i) => (
-            <ChatBlock key={i} block={block} />
+            <div
+              key={i}
+              className="animate-fade-up"
+              style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
+            >
+              <ChatBlock block={block} />
+            </div>
           ))}
           {events.length === 0 && (
-            <div className="flex items-center gap-2 py-8 text-muted-foreground">
-              <span className="text-sm">Waiting for events...</span>
-              <span className="animate-blink">|</span>
+            <div className="relative flex flex-col items-center justify-center py-16 text-center">
+              <div className="font-terminal text-lg text-ghost">
+                &gt; awaiting instructions
+                <span className="animate-cursor">_</span>
+              </div>
+              <p className="mt-2 font-terminal text-xs text-ghost/50">
+                Send a message to start the agent
+              </p>
             </div>
           )}
           <div ref={bottomRef} />

@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ContainersIndexRouteImport } from './routes/containers/index'
-import { Route as SettingsGithubRouteImport } from './routes/settings/github'
 import { Route as BoxesBoxIdRouteImport } from './routes/boxes/$boxId'
 import { Route as ContainersContainerIdLogsRouteImport } from './routes/containers/$containerId.logs'
 
@@ -31,11 +30,6 @@ const ContainersIndexRoute = ContainersIndexRouteImport.update({
   path: '/containers/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsGithubRoute = SettingsGithubRouteImport.update({
-  id: '/settings/github',
-  path: '/settings/github',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BoxesBoxIdRoute = BoxesBoxIdRouteImport.update({
   id: '/boxes/$boxId',
   path: '/boxes/$boxId',
@@ -51,7 +45,6 @@ const ContainersContainerIdLogsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
-  '/settings/github': typeof SettingsGithubRoute
   '/containers/': typeof ContainersIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/containers/$containerId/logs': typeof ContainersContainerIdLogsRoute
@@ -59,7 +52,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
-  '/settings/github': typeof SettingsGithubRoute
   '/containers': typeof ContainersIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/containers/$containerId/logs': typeof ContainersContainerIdLogsRoute
@@ -68,7 +60,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
-  '/settings/github': typeof SettingsGithubRoute
   '/containers/': typeof ContainersIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/containers/$containerId/logs': typeof ContainersContainerIdLogsRoute
@@ -78,7 +69,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/boxes/$boxId'
-    | '/settings/github'
     | '/containers/'
     | '/settings/'
     | '/containers/$containerId/logs'
@@ -86,7 +76,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/boxes/$boxId'
-    | '/settings/github'
     | '/containers'
     | '/settings'
     | '/containers/$containerId/logs'
@@ -94,7 +83,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/boxes/$boxId'
-    | '/settings/github'
     | '/containers/'
     | '/settings/'
     | '/containers/$containerId/logs'
@@ -103,7 +91,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BoxesBoxIdRoute: typeof BoxesBoxIdRoute
-  SettingsGithubRoute: typeof SettingsGithubRoute
   ContainersIndexRoute: typeof ContainersIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   ContainersContainerIdLogsRoute: typeof ContainersContainerIdLogsRoute
@@ -132,13 +119,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContainersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/github': {
-      id: '/settings/github'
-      path: '/settings/github'
-      fullPath: '/settings/github'
-      preLoaderRoute: typeof SettingsGithubRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/boxes/$boxId': {
       id: '/boxes/$boxId'
       path: '/boxes/$boxId'
@@ -159,7 +139,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BoxesBoxIdRoute: BoxesBoxIdRoute,
-  SettingsGithubRoute: SettingsGithubRoute,
   ContainersIndexRoute: ContainersIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   ContainersContainerIdLogsRoute: ContainersContainerIdLogsRoute,

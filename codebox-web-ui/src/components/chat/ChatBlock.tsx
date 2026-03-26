@@ -38,7 +38,7 @@ export function ChatBlock({ block }: { block: EventBlock }) {
 
     case "user_message":
       return (
-        <div className="mt-6">
+        <div className="mt-4">
           <UserMessageBlock content={block.content} />
         </div>
       )

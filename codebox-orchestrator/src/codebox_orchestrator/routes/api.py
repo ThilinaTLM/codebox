@@ -10,6 +10,7 @@ from codebox_orchestrator.db.models import ContainerStatus, TaskStatus
 from codebox_orchestrator.schemas import (
     BoxCreate,
     BoxEventResponse,
+    BoxExec,
     BoxMessage,
     BoxMessageResponse,
     BoxResponse,
@@ -142,6 +143,16 @@ async def send_message(request: Request, box_id: str, body: BoxMessage):
     bs = _bs(request)
     try:
         await bs.send_message(box_id, body.message)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"status": "sent"}
+
+
+@router.post("/boxes/{box_id}/exec")
+async def exec_box(request: Request, box_id: str, body: BoxExec):
+    bs = _bs(request)
+    try:
+        await bs.send_exec(box_id, body.command)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     return {"status": "sent"}

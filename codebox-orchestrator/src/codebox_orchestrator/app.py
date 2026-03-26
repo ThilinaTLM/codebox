@@ -22,8 +22,7 @@ from codebox_orchestrator.config import (
 from codebox_orchestrator.db.engine import async_session_factory, engine
 from codebox_orchestrator.db.migrations import run_migrations
 from codebox_orchestrator.db.models import Base
-from codebox_orchestrator.routes import api, ws_relay
-from codebox_orchestrator.routes import ws_global
+from codebox_orchestrator.routes import api, sse
 from codebox_orchestrator.routes import github as github_routes
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
 from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
@@ -125,8 +124,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(api.router)
-    app.include_router(ws_relay.router)
-    app.include_router(ws_global.router)
+    app.include_router(sse.router)
     app.include_router(github_routes.router)
 
     return app

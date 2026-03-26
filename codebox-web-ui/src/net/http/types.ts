@@ -76,8 +76,8 @@ export interface BoxCreatePayload {
   idle_timeout?: number | null
 }
 
-// WebSocket event types from orchestrator
-export type WSEvent =
+// SSE stream event types from orchestrator
+export type BoxStreamEvent =
   | { type: "token"; text: string }
   | { type: "tool_start"; name: string; input?: string }
   | { type: "tool_end"; name: string; output: string }
@@ -99,7 +99,6 @@ export type WSEvent =
       message: string
     }
   | { type: "shutting_down"; reason: string }
-  | { type: "ping" }
   | { type: "exec_output"; output: string }
   | { type: "exec_done"; output: string }
   | { type: "user_message"; content: string }
@@ -127,26 +126,7 @@ export interface FileContent {
   is_binary: boolean
 }
 
-// Global WebSocket event types (platform-level)
-export type GlobalWSEvent =
-  | {
-      type: "box_created"
-      box_id: string
-      name: string
-      container_status: string
-      model: string
-      created_at: string
-    }
-  | {
-      type: "box_status_changed"
-      box_id: string
-      container_status?: string
-      task_status?: string
-      stop_reason?: string
-      agent_report_status?: string
-    }
-  | { type: "box_deleted"; box_id: string }
-  | { type: "ping" }
+
 
 // ── GitHub types ────────────────────────────────────────────
 

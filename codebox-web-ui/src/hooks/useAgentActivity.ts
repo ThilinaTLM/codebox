@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import type { WSEvent } from "@/net/http/types"
+import type { BoxStreamEvent } from "@/net/http/types"
 import { ContainerStatus, TaskStatus } from "@/net/http/types"
 
 export interface AgentActivity {
@@ -10,7 +10,7 @@ export interface AgentActivity {
 }
 
 export function useAgentActivity(
-  events: Array<WSEvent>,
+  events: Array<BoxStreamEvent>,
   containerStatus: ContainerStatus | undefined,
   taskStatus: TaskStatus | undefined
 ): AgentActivity {

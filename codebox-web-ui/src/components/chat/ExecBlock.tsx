@@ -1,5 +1,12 @@
+import { useMemo } from "react"
 import type { EventBlock } from "./types"
 import { Spinner } from "@/components/ui/spinner"
+
+function addLineNumbers(text: string): { numbered: boolean; lines: string[] } {
+  const lines = text.split("\n")
+  // Only number if > 3 lines
+  return { numbered: lines.length > 3, lines }
+}
 
 export function ExecBlock({
   block,
@@ -9,48 +16,89 @@ export function ExecBlock({
   const hasOutput = block.output.length > 0
   const hasCommand = !!block.command
   const isSuccess = block.exitCode === "0"
+  const isDone = block.exitCode != null
+
+  const outputData = useMemo(
+    () => (hasOutput ? addLineNumbers(block.output) : null),
+    [hasOutput, block.output]
+  )
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/40">
-      {/* Command header */}
-      {hasCommand && (
-        <div className="terminal-bg flex items-center gap-2 px-4 py-2.5 font-mono text-sm">
-          <span className="select-none text-success/80">$</span>
-          <span className="text-foreground/90">{block.command}</span>
+    <div className="overflow-hidden rounded-lg bg-inset">
+      {/* Terminal header bar */}
+      <div className="flex items-center gap-2 rounded-t-lg bg-card/60 px-3 py-1.5">
+        <div className="flex items-center gap-1">
+          <span className="size-2 rounded-full bg-ghost/40" />
+          <span className="size-2 rounded-full bg-ghost/40" />
+          <span className="size-2 rounded-full bg-ghost/40" />
+        </div>
+        <span className="font-terminal text-[10px] uppercase tracking-wider text-muted-foreground">
+          Terminal
+        </span>
+        <div className="ml-auto flex items-center gap-1.5">
           {block.isRunning && (
-            <Spinner className="ml-auto size-3 text-muted-foreground" />
+            <Spinner className="size-3 text-muted-foreground" />
           )}
+          {isDone && (
+            <span
+              className={`font-terminal text-xs font-medium ${isSuccess ? "text-state-completed" : "text-destructive"}`}
+            >
+              exit {block.exitCode}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Command line */}
+      {hasCommand && (
+        <div className="flex items-center gap-2 border-t border-border/15 px-4 py-2.5 font-terminal text-sm">
+          <span className="select-none font-terminal text-state-thinking">
+            $
+          </span>
+          <span className="text-foreground">{block.command}</span>
         </div>
       )}
 
       {/* Output body */}
-      {hasOutput && (
+      {hasOutput && outputData && (
         <pre
-          className={`terminal-bg max-h-[400px] overflow-auto px-4 py-3 font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground/80 ${hasCommand || (!hasCommand && block.exitCode != null) ? "border-t border-border/20" : ""}`}
+          className={`max-h-[400px] overflow-auto font-terminal text-xs leading-relaxed text-foreground/80 ${hasCommand ? "border-t border-border/15" : ""}`}
         >
-          {block.output}
+          {outputData.numbered ? (
+            <table className="w-full border-collapse">
+              <tbody>
+                {outputData.lines.map((line, i) => (
+                  <tr key={i} className="hover:bg-border/5">
+                    <td className="w-8 select-none pr-3 text-right align-top text-ghost/60">
+                      {i + 1}
+                    </td>
+                    <td className="whitespace-pre-wrap py-px pl-3 align-top">
+                      {line}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="px-4 py-3 whitespace-pre-wrap">{block.output}</div>
+          )}
         </pre>
       )}
 
       {/* Running indicator when no command and no output yet */}
       {!hasCommand && !hasOutput && block.isRunning && (
-        <div className="terminal-bg flex items-center gap-2 px-4 py-2.5">
+        <div className="flex items-center gap-2 px-4 py-2.5">
           <Spinner className="size-3 text-muted-foreground" />
-          <span className="font-mono text-sm text-muted-foreground">
+          <span className="font-terminal text-sm text-muted-foreground">
             Running...
           </span>
         </div>
       )}
 
-      {/* Exit code footer */}
-      {block.exitCode != null && (
-        <div className="terminal-bg flex items-center justify-end gap-1.5 border-t border-border/20 px-4 py-1.5">
-          <span className="font-mono text-xs text-muted-foreground">exit</span>
-          <span
-            className={`font-mono text-xs font-medium ${isSuccess ? "text-success" : "text-destructive"}`}
-          >
-            {block.exitCode}
-          </span>
+      {/* Shimmer bar when running */}
+      {block.isRunning && (
+        <div className="h-0.5 overflow-hidden bg-state-thinking/10">
+          <div className="h-full w-1/3 rounded-full bg-state-thinking/50 animate-shimmer" />
         </div>
       )}
     </div>

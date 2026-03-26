@@ -1,4 +1,4 @@
-"""Interactive chat loop for a box via the orchestrator WebSocket."""
+"""Interactive chat loop for a box via the orchestrator SSE + REST API."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ from codebox_cli.orchestrator_client import OrchestratorClient
 
 async def _stream_box_events(
     client: OrchestratorClient,
-    ws,
+    box_id: str,
     console: Console,
 ) -> None:
-    """Stream and render events from the orchestrator WebSocket."""
+    """Stream and render events from the orchestrator SSE stream."""
     ai_text_buffer = ""
 
     try:
-        async for event in client.receive_events(ws):
+        async for event in client.stream_events(box_id):
             etype = event.get("type")
 
             if etype == "status_change":
@@ -52,10 +52,7 @@ async def _stream_box_events(
                 return
 
     except KeyboardInterrupt:
-        await client.send_cancel(ws)
-        async for event in client.receive_events(ws):
-            if event.get("type") in ("done", "error"):
-                break
+        client.send_cancel(box_id)
 
 
 async def orchestrator_chat_loop(
@@ -64,55 +61,50 @@ async def orchestrator_chat_loop(
     *,
     watch_only: bool = False,
 ) -> None:
-    """Connect to a box's WebSocket and interactively chat or watch events.
+    """Connect to a box's SSE stream and interactively chat or watch events.
 
     If *watch_only* is True, just stream events without prompting for input
     (used right after creating a box with an initial prompt).
     """
     console = Console()
-    ws = await client.connect_box(box_id)
 
-    try:
-        if watch_only:
-            console.print(f"[dim]Streaming box {box_id[:8]}...[/dim]\n")
-            await _stream_box_events(client, ws, console)
-            return
+    if watch_only:
+        console.print(f"[dim]Streaming box {box_id[:8]}...[/dim]\n")
+        await _stream_box_events(client, box_id, console)
+        return
 
-        # Interactive mode: prompt for follow-up messages
-        prompt_session: PromptSession[str] = PromptSession(
-            history=FileHistory(".codebox_history")
-        )
+    # Interactive mode: prompt for follow-up messages
+    prompt_session: PromptSession[str] = PromptSession(
+        history=FileHistory(".codebox_history")
+    )
 
-        console.print("[dim]Codebox Chat[/dim]")
-        console.print("[dim]Type 'exit' to quit. Ctrl+C to cancel. Prefix with ! for shell.[/dim]\n")
+    console.print("[dim]Codebox Chat[/dim]")
+    console.print("[dim]Type 'exit' to quit. Ctrl+C to cancel. Prefix with ! for shell.[/dim]\n")
 
-        # Stream initial events if any
-        await _stream_box_events(client, ws, console)
+    # Stream initial events if any
+    await _stream_box_events(client, box_id, console)
+    console.print()
+
+    # Interactive chat
+    while True:
+        try:
+            user_text = await prompt_session.prompt_async("> ")
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        user_text = user_text.strip()
+        if not user_text:
+            continue
+        if user_text.lower() in ("exit", "quit"):
+            break
+
+        if user_text.startswith("!"):
+            command = user_text[1:].strip()
+            if command:
+                client.send_exec(box_id, command)
+        else:
+            client.send_message(box_id, user_text)
+
+        console.print("[dim]Thinking...[/dim]")
+        await _stream_box_events(client, box_id, console)
         console.print()
-
-        # Interactive chat
-        while True:
-            try:
-                user_text = await prompt_session.prompt_async("> ")
-            except (EOFError, KeyboardInterrupt):
-                break
-
-            user_text = user_text.strip()
-            if not user_text:
-                continue
-            if user_text.lower() in ("exit", "quit"):
-                break
-
-            if user_text.startswith("!"):
-                command = user_text[1:].strip()
-                if command:
-                    await client.send_exec(ws, command)
-            else:
-                await client.send_message(ws, user_text)
-
-            console.print("[dim]Thinking...[/dim]")
-            await _stream_box_events(client, ws, console)
-            console.print()
-
-    finally:
-        await ws.close()

@@ -1,4 +1,4 @@
-"""REST and WebSocket client for the Codebox Orchestrator API."""
+"""REST and SSE client for the Codebox Orchestrator API."""
 
 from __future__ import annotations
 
@@ -7,16 +7,14 @@ import urllib.request
 import urllib.error
 from typing import Any, AsyncIterator
 
-import websockets
-import websockets.asyncio.client
+import httpx
 
 
 class OrchestratorClient:
-    """Client that communicates with the orchestrator's REST + WebSocket API."""
+    """Client that communicates with the orchestrator's REST + SSE API."""
 
     def __init__(self, base_url: str = "http://localhost:8080") -> None:
         self.base_url = base_url.rstrip("/")
-        self.ws_url = self.base_url.replace("http://", "ws://").replace("https://", "wss://")
 
     # ------------------------------------------------------------------
     # REST helpers
@@ -97,40 +95,41 @@ class OrchestratorClient:
         self._rest_request("DELETE", f"/api/boxes/{box_id}")
 
     # ------------------------------------------------------------------
-    # WebSocket
+    # Commands (REST)
     # ------------------------------------------------------------------
 
-    async def connect_box(
-        self, box_id: str
-    ) -> websockets.asyncio.client.ClientConnection:
-        """Open a WebSocket connection to stream box events."""
-        url = f"{self.ws_url}/api/boxes/{box_id}/ws"
-        return await websockets.connect(url)
+    def send_message(self, box_id: str, content: str) -> None:
+        """Send a chat message to a box agent via REST."""
+        self._rest_request("POST", f"/api/boxes/{box_id}/message", {"message": content})
 
-    @staticmethod
-    async def send_message(
-        ws: websockets.asyncio.client.ClientConnection, content: str
-    ) -> None:
-        await ws.send(json.dumps({"type": "message", "content": content}))
+    def send_exec(self, box_id: str, command: str) -> None:
+        """Send a shell command to a box via REST."""
+        self._rest_request("POST", f"/api/boxes/{box_id}/exec", {"command": command})
 
-    @staticmethod
-    async def send_exec(
-        ws: websockets.asyncio.client.ClientConnection, command: str
-    ) -> None:
-        await ws.send(json.dumps({"type": "exec", "content": command}))
+    def send_cancel(self, box_id: str) -> None:
+        """Cancel the current operation on a box via REST."""
+        self._rest_request("POST", f"/api/boxes/{box_id}/cancel")
 
-    @staticmethod
-    async def send_cancel(
-        ws: websockets.asyncio.client.ClientConnection,
-    ) -> None:
-        await ws.send(json.dumps({"type": "cancel"}))
+    # ------------------------------------------------------------------
+    # SSE streaming
+    # ------------------------------------------------------------------
 
-    @staticmethod
-    async def receive_events(
-        ws: websockets.asyncio.client.ClientConnection,
-    ) -> AsyncIterator[dict[str, Any]]:
-        async for raw in ws:
-            event = json.loads(raw)
-            if event.get("type") == "ping":
-                continue
-            yield event
+    async def stream_events(self, box_id: str) -> AsyncIterator[dict[str, Any]]:
+        """Connect to a box's SSE stream and yield parsed events."""
+        url = f"{self.base_url}/api/boxes/{box_id}/stream"
+        async with httpx.AsyncClient(timeout=None) as http:
+            async with http.stream("GET", url) as resp:
+                resp.raise_for_status()
+                buffer = ""
+                async for chunk in resp.aiter_text():
+                    buffer += chunk
+                    while "\n\n" in buffer:
+                        frame, buffer = buffer.split("\n\n", 1)
+                        for line in frame.split("\n"):
+                            if line.startswith("data: "):
+                                data = line[6:]
+                                try:
+                                    event = json.loads(data)
+                                    yield event
+                                except json.JSONDecodeError:
+                                    pass

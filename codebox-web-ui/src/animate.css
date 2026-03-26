@@ -1,6 +1,8 @@
 /* ── Animations & motion utilities ─────────────────────────── */
 
 @layer components {
+  /* ── Existing animations ─────────────────────────────────── */
+
   @keyframes blink {
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
@@ -17,14 +19,6 @@
   .thinking-dot-2 { animation: thinking-dot 1.4s ease-in-out 0.2s infinite; }
   .thinking-dot-3 { animation: thinking-dot 1.4s ease-in-out 0.4s infinite; }
 
-  .card-glow {
-    transition: box-shadow 0.3s ease, transform 0.2s ease;
-  }
-  .card-glow:hover {
-    box-shadow: 0 0 0 1px oklch(from var(--primary) l c h / 15%), 0 8px 25px -5px oklch(from var(--foreground) l c h / 20%);
-    transform: translateY(-2px);
-  }
-
   @keyframes status-breathe {
     0%, 100% { opacity: 0.4; }
     50% { opacity: 1; }
@@ -39,5 +33,94 @@
   }
   .animate-fade-up {
     animation: fade-up 0.4s ease-out both;
+  }
+
+  .card-glow {
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+  }
+  .card-glow:hover {
+    box-shadow: 0 0 0 1px oklch(0.72 0.15 195 / 0.15), 0 8px 25px -5px oklch(0.93 0.01 90 / 0.08);
+    transform: translateY(-1px);
+  }
+
+  /* ── New animations ──────────────────────────────────────── */
+
+  /* Glow pulse — border/shadow glow oscillates */
+  @keyframes glow-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  /* Progress shimmer — loading indicator */
+  @keyframes progress-shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  .animate-shimmer {
+    animation: progress-shimmer 1.5s ease-in-out infinite;
+  }
+
+  /* Slide in from left — panel entrance */
+  @keyframes slide-in-left {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .animate-slide-in-left {
+    animation: slide-in-left 200ms ease-out both;
+  }
+
+  /* Slide in from bottom — status bar */
+  @keyframes slide-in-bottom {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-slide-in-bottom {
+    animation: slide-in-bottom 150ms ease-out both;
+  }
+
+  /* Status ping — expanding ring on dots */
+  @keyframes status-ping {
+    0% { transform: scale(1); opacity: 0.8; }
+    75%, 100% { transform: scale(2.5); opacity: 0; }
+  }
+  .animate-status-ping {
+    animation: status-ping 1.5s ease-out infinite;
+  }
+
+  /* Typewriter cursor — blinking block */
+  @keyframes typewriter-cursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .animate-cursor {
+    animation: typewriter-cursor 1s step-end infinite;
+  }
+
+  /* Chevron pulse — staggered for thinking indicator */
+  @keyframes chevron-pulse {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 1; }
+  }
+  .chevron-1 { animation: chevron-pulse 1.5s ease-in-out infinite; }
+  .chevron-2 { animation: chevron-pulse 1.5s ease-in-out 0.2s infinite; }
+  .chevron-3 { animation: chevron-pulse 1.5s ease-in-out 0.4s infinite; }
+
+  /* Scan line — horizontal sweep */
+  @keyframes scan-line {
+    0% { top: -2px; }
+    100% { top: 100%; }
+  }
+  .animate-scan-line::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    opacity: 0.3;
+    animation: scan-line 3s linear infinite;
   }
 }

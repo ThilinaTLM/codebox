@@ -11,10 +11,11 @@ import { useState } from "react"
 import { TooltipProvider } from "../components/ui/tooltip"
 import appCss from "../styles.css?url"
 import type { BoxPageActions } from "@/components/box/BoxPageContext"
-import { API_URL, WS_URL } from "@/lib/constants"
-import { useGlobalWebSocket } from "@/net/ws/useGlobalWebSocket"
+import { API_URL } from "@/lib/constants"
+import { useGlobalStream } from "@/net/sse/useGlobalStream"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
-import { TopBar } from "@/components/layout/TopBar"
+import { AppSidebar } from "@/components/layout/AppSidebar"
+import { StatusBar } from "@/components/layout/StatusBar"
 import { Toaster } from "@/components/ui/sonner"
 import {
   BoxPageActionsContext,
@@ -43,8 +44,8 @@ export const Route = createRootRoute({
   component: RootComponent,
 })
 
-function GlobalWebSocketProvider({ children }: { children: React.ReactNode }) {
-  useGlobalWebSocket()
+function GlobalStreamProvider({ children }: { children: React.ReactNode }) {
+  useGlobalStream()
   return <>{children}</>
 }
 
@@ -55,23 +56,26 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <GlobalWebSocketProvider>
+      <GlobalStreamProvider>
         <ThemeProvider>
           <TooltipProvider>
             <BoxPageSetterContext value={setBoxPageActions}>
               <BoxPageActionsContext value={boxPageActions}>
-                <div className="flex min-h-svh flex-col">
-                  <TopBar />
-                  <main className="flex-1">
-                    <Outlet />
-                  </main>
+                <div className="flex h-svh overflow-hidden">
+                  <AppSidebar />
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <main className="flex-1 overflow-hidden">
+                      <Outlet />
+                    </main>
+                    <StatusBar />
+                  </div>
                 </div>
                 <Toaster />
               </BoxPageActionsContext>
             </BoxPageSetterContext>
           </TooltipProvider>
         </ThemeProvider>
-      </GlobalWebSocketProvider>
+      </GlobalStreamProvider>
     </QueryClientProvider>
   )
 }
@@ -82,7 +86,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__ENV__=${JSON.stringify({ API_URL, WS_URL })}`,
+            __html: `window.__ENV__=${JSON.stringify({ API_URL })}`,
           }}
         />
         <HeadContent />

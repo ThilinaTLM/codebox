@@ -42,10 +42,10 @@ const STATUS_CONFIG: Record<
   string,
   { color: string; label: string; ping?: boolean }
 > = {
-  running: { color: "bg-success", label: "Running", ping: true },
-  exited: { color: "bg-muted-foreground/60", label: "Exited" },
+  running: { color: "bg-state-completed", label: "Running", ping: true },
+  exited: { color: "bg-state-idle", label: "Exited" },
   created: { color: "bg-warning", label: "Created" },
-  paused: { color: "bg-muted-foreground/60", label: "Paused" },
+  paused: { color: "bg-state-idle", label: "Paused" },
   restarting: { color: "bg-warning", label: "Restarting", ping: true },
   dead: { color: "bg-destructive", label: "Dead" },
 }
@@ -56,7 +56,7 @@ function ContainerStatusBadge({ status }: { status: string }) {
     label: status,
   }
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-muted/50 px-2.5 py-1 text-xs font-medium">
+    <span className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-muted/50 px-2.5 py-1 font-terminal text-xs font-medium">
       <span className="relative flex size-2">
         {config.ping && (
           <span
@@ -77,14 +77,14 @@ function ContainerStatusBadge({ status }: { status: string }) {
 function TimeDisplay({ container }: { container: Container }) {
   if (container.status === "running" && container.started_at) {
     return (
-      <span className="text-xs text-muted-foreground">
+      <span className="font-terminal text-xs text-muted-foreground">
         {formatDistanceToNow(new Date(container.started_at))}
       </span>
     )
   }
   if (container.started_at) {
     return (
-      <span className="text-xs text-muted-foreground">
+      <span className="font-terminal text-xs text-muted-foreground">
         Stopped{" "}
         {formatDistanceToNow(new Date(container.started_at), {
           addSuffix: true,
@@ -110,15 +110,15 @@ function ContainerRow({ container }: { container: Container }) {
 
   return (
     <>
-      <TableRow>
-        <TableCell className="font-mono text-xs text-muted-foreground/60">
+      <TableRow className="border-b border-border/30 transition-colors hover:bg-accent/30">
+        <TableCell className="font-terminal text-xs text-muted-foreground/60">
           {container.id.slice(0, 8)}
         </TableCell>
         <TableCell>
-          <span className="font-mono text-sm">{container.name}</span>
+          <span className="font-terminal text-sm">{container.name}</span>
         </TableCell>
         <TableCell>
-          <span className="font-mono text-xs text-muted-foreground">
+          <span className="font-terminal text-xs text-muted-foreground">
             {container.image || "—"}
           </span>
         </TableCell>
@@ -131,7 +131,7 @@ function ContainerRow({ container }: { container: Container }) {
         <TableCell>
           <div className="flex items-center justify-end gap-1.5">
             <Button
-              variant="outline"
+              variant="ghost"
               size="xs"
               nativeButton={false}
               render={
@@ -145,7 +145,7 @@ function ContainerRow({ container }: { container: Container }) {
             </Button>
             {isRunning && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="xs"
                 onClick={() => setConfirmStop(true)}
                 disabled={stopContainer.isPending}
@@ -155,7 +155,7 @@ function ContainerRow({ container }: { container: Container }) {
             )}
             {isStopped && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="xs"
                 onClick={() =>
                   startContainer.mutate(container.id, {
@@ -265,15 +265,25 @@ export function ContainerTable() {
   }
 
   return (
-    <Table>
+    <Table className="w-full">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[80px] text-xs font-medium">ID</TableHead>
-          <TableHead className="text-xs font-medium">Name</TableHead>
-          <TableHead className="text-xs font-medium">Image</TableHead>
-          <TableHead className="text-xs font-medium">Status</TableHead>
-          <TableHead className="text-xs font-medium">Uptime</TableHead>
-          <TableHead className="w-[160px] text-right text-xs font-medium">
+          <TableHead className="w-[80px] font-terminal text-xs uppercase tracking-wider text-ghost">
+            ID
+          </TableHead>
+          <TableHead className="font-terminal text-xs uppercase tracking-wider text-ghost">
+            Name
+          </TableHead>
+          <TableHead className="font-terminal text-xs uppercase tracking-wider text-ghost">
+            Image
+          </TableHead>
+          <TableHead className="font-terminal text-xs uppercase tracking-wider text-ghost">
+            Status
+          </TableHead>
+          <TableHead className="font-terminal text-xs uppercase tracking-wider text-ghost">
+            Uptime
+          </TableHead>
+          <TableHead className="w-[160px] text-right font-terminal text-xs uppercase tracking-wider text-ghost">
             Actions
           </TableHead>
         </TableRow>

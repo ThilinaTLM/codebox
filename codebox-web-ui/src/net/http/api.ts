@@ -52,6 +52,9 @@ export const api = {
     sendMessage: async (boxId: string, message: string): Promise<void> => {
       await client.post(`/api/boxes/${boxId}/message`, { message })
     },
+    sendExec: async (boxId: string, command: string): Promise<void> => {
+      await client.post(`/api/boxes/${boxId}/exec`, { command })
+    },
     getEvents: async (boxId: string): Promise<Array<BoxEvent>> => {
       const { data } = await client.get<Array<BoxEvent>>(
         `/api/boxes/${boxId}/events`

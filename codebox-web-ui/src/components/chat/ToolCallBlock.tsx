@@ -1,9 +1,5 @@
 import { useState } from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  ArrowDown01Icon,
-  ArrowRight01Icon,
-} from "@hugeicons/core-free-icons"
+import { ChevronRight } from "lucide-react"
 import {
   Collapsible,
   CollapsibleContent,
@@ -17,6 +13,21 @@ function formatJson(str: string) {
   } catch {
     return str
   }
+}
+
+function getOutputSummary(output: string): string {
+  if (!output) return ""
+  // Try to extract meaningful summary from JSON
+  try {
+    const parsed = JSON.parse(output)
+    if (typeof parsed === "string") return parsed.slice(0, 80)
+    if (parsed.content) return String(parsed.content).slice(0, 80)
+    if (parsed.result) return String(parsed.result).slice(0, 80)
+    if (parsed.output) return String(parsed.output).slice(0, 80)
+  } catch {
+    // Not JSON, use raw text
+  }
+  return output.length > 80 ? output.slice(0, 80) + "\u2026" : output
 }
 
 export function ToolCallBlock({
@@ -36,74 +47,79 @@ export function ToolCallBlock({
   const hasOutput = !!output && output.length > 0
 
   const inputPreview = hasInput
-    ? input.length > 80
-      ? input.slice(0, 80) + "\u2026"
+    ? input.length > 120
+      ? input.slice(0, 120) + "\u2026"
       : input
-    : ""
-
-  const outputPreview = hasOutput
-    ? output.length > 120
-      ? output.slice(0, 120) + "\u2026"
-      : output
     : ""
 
   if (isRunning) {
     return (
-      <div className="rounded-lg border border-border/50 bg-muted/20">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <Spinner className="size-3 text-primary/60" />
-          <span className="font-mono text-sm font-medium text-foreground/80">
+      <div className="rounded-lg border-l-2 border-l-state-tool-use bg-inset">
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <Spinner className="size-3 text-state-tool-use" />
+          <span className="rounded bg-state-tool-use/10 px-1.5 py-0.5 font-terminal text-[10px] uppercase tracking-wider text-state-tool-use/70">
+            tool
+          </span>
+          <span className="font-terminal text-sm font-semibold text-state-tool-use">
             {name}
           </span>
-          {hasInput && (
+        </div>
+        {/* Always show input preview when running */}
+        {hasInput && (
+          <div className="border-t border-border/20 px-3 py-2">
             <button
               onClick={() => setArgsExpanded(!argsExpanded)}
-              className="ml-auto flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="mb-1 flex items-center gap-1 font-terminal text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
-              <HugeiconsIcon
-                icon={argsExpanded ? ArrowDown01Icon : ArrowRight01Icon}
+              <ChevronRight
                 size={10}
+                className={`transition-transform ${argsExpanded ? "rotate-90" : ""}`}
               />
-              args
+              Input
             </button>
-          )}
+            {argsExpanded ? (
+              <pre className="overflow-x-auto font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/70">
+                {formatJson(input)}
+              </pre>
+            ) : (
+              <code className="block truncate font-terminal text-xs text-muted-foreground">
+                {inputPreview}
+              </code>
+            )}
+          </div>
+        )}
+        {/* Shimmer bar */}
+        <div className="mx-3 mb-2 h-0.5 overflow-hidden rounded-full bg-border/20">
+          <div className="h-full w-1/3 rounded-full bg-state-tool-use animate-shimmer" />
         </div>
-        {hasInput && !argsExpanded && (
-          <div className="border-t border-border/30 px-3 py-1.5">
-            <code className="block truncate font-mono text-sm text-muted-foreground">
-              {inputPreview}
-            </code>
-          </div>
-        )}
-        {hasInput && argsExpanded && (
-          <div className="border-t border-border/30 px-3 py-2">
-            <pre className="overflow-x-auto font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground/70">
-              {formatJson(input)}
-            </pre>
-          </div>
-        )}
       </div>
     )
   }
 
+  const outputSummary = hasOutput ? getOutputSummary(output) : ""
+
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border/50 bg-muted/15 px-3 py-2 text-sm transition-colors hover:bg-muted/30">
-        <span className="size-1.5 shrink-0 rounded-full bg-success" />
-        <span className="font-mono text-sm font-medium text-foreground/70">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-lg border-l-2 border-l-state-completed bg-card px-3 py-2.5 text-sm transition-colors hover:bg-card/80">
+        <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
+        <span className="rounded bg-state-completed/10 px-1.5 py-0.5 font-terminal text-[10px] uppercase tracking-wider text-state-completed/70">
+          tool
+        </span>
+        <span className="font-terminal text-sm font-semibold text-foreground/70">
           {name}
         </span>
-        {!expanded && outputPreview && (
-          <span className="flex-1 truncate font-mono text-sm text-muted-foreground">
-            {outputPreview}
+        {!expanded && outputSummary && (
+          <span className="min-w-0 flex-1 truncate font-terminal text-xs text-muted-foreground">
+            {outputSummary}
           </span>
         )}
-        <span className="shrink-0 text-sm text-muted-foreground">
-          {expanded ? "Collapse" : "Expand"}
-        </span>
+        <ChevronRight
+          size={14}
+          className={`shrink-0 text-muted-foreground transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
+        />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="ml-1 border-l-2 border-border/30 pl-3">
+        <div className="ml-1 border-l border-border/20 pl-3">
           {hasInput && (
             <div className="pt-2">
               <button
@@ -111,25 +127,30 @@ export function ToolCallBlock({
                   e.stopPropagation()
                   setArgsExpanded(!argsExpanded)
                 }}
-                className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="flex items-center gap-1 font-terminal text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
-                <HugeiconsIcon
-                  icon={argsExpanded ? ArrowDown01Icon : ArrowRight01Icon}
+                <ChevronRight
                   size={10}
+                  className={`transition-transform ${argsExpanded ? "rotate-90" : ""}`}
                 />
                 Input
               </button>
               {argsExpanded && (
-                <pre className="mt-1 overflow-x-auto rounded-lg bg-muted/20 p-2 font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground/70">
+                <pre className="mt-1 overflow-x-auto rounded-md bg-inset p-2 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/70">
                   {formatJson(input)}
                 </pre>
               )}
             </div>
           )}
           {hasOutput && (
-            <pre className="mt-2 mb-1 overflow-x-auto rounded-lg bg-muted/20 p-3 font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground/80">
-              {formatJson(output)}
-            </pre>
+            <div className="pt-2">
+              <span className="font-terminal text-xs text-muted-foreground">
+                Output
+              </span>
+              <pre className="mt-1 mb-1 overflow-x-auto rounded-md bg-inset p-3 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
+                {formatJson(output)}
+              </pre>
+            </div>
           )}
         </div>
       </CollapsibleContent>

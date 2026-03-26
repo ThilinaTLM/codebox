@@ -1,13 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useContainerLogs } from "@/net/query"
@@ -45,63 +37,59 @@ function ContainerLogsPage() {
   const shortId = containerId.slice(0, 12)
 
   return (
-    <div className="flex h-[calc(100svh-3rem)] flex-col overflow-y-auto">
-      {/* Page header */}
-      <div className="bg-hero-gradient px-6 pt-10 pb-8">
-        <div className="mx-auto max-w-6xl">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink render={<Link to="/containers" />}>
-                  Containers
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Logs</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <h1 className="font-display mt-3 text-4xl font-bold tracking-tight">
-            Container Logs
-          </h1>
-          <p className="mt-1.5 font-mono text-sm text-muted-foreground">
-            {shortId}
-          </p>
-        </div>
+    <div className="flex h-[calc(100svh-24px)] flex-col">
+      {/* Compact header with breadcrumb */}
+      <div className="flex items-center gap-3 border-b border-border px-6 py-3">
+        <nav className="font-terminal text-xs text-muted-foreground">
+          <Link
+            to="/settings"
+            search={{ tab: "containers" }}
+            className="hover:text-foreground transition-colors"
+          >
+            Containers
+          </Link>
+          <span className="mx-1.5 text-muted-foreground/50">/</span>
+          <span className="font-terminal text-foreground">{shortId}</span>
+          <span className="mx-1.5 text-muted-foreground/50">/</span>
+          <span className="text-foreground">Logs</span>
+        </nav>
       </div>
 
-      {/* Controls */}
-      <div className="border-b px-6 py-3">
-        <div className="mx-auto flex max-w-6xl items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Tail:</span>
+      {/* Controls toolbar */}
+      <div className="flex items-center gap-3 border-b border-border px-6 py-2">
+        <div className="flex items-center gap-1.5">
+          <span className="font-terminal text-xs text-muted-foreground">
+            Tail:
+          </span>
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
             {TAIL_OPTIONS.map((n) => (
               <Button
                 key={n}
-                variant={tail === n ? "default" : "outline"}
+                variant={tail === n ? "default" : "ghost"}
                 size="xs"
                 onClick={() => setTail(n)}
+                className="font-terminal text-xs"
               >
                 {n}
               </Button>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-1.5">
-            <Button
-              variant={autoRefresh ? "default" : "outline"}
-              size="xs"
-              onClick={() => setAutoRefresh(!autoRefresh)}
-            >
-              {autoRefresh ? "Auto-refresh on" : "Auto-refresh off"}
-            </Button>
-          </div>
+        </div>
+        <div className="ml-auto">
+          <Button
+            variant={autoRefresh ? "default" : "ghost"}
+            size="xs"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className="font-terminal text-xs"
+          >
+            {autoRefresh ? "Auto-refresh on" : "Auto-refresh off"}
+          </Button>
         </div>
       </div>
 
       {/* Log output */}
-      <div className="min-h-0 flex-1 px-6 pt-4 pb-6">
-        <div className="mx-auto h-full max-w-6xl">
+      <div className="min-h-0 flex-1 p-4">
+        <div className="h-full">
           {isLoading ? (
             <div className="space-y-1 p-4">
               <Skeleton className="h-4 w-full" />
@@ -112,7 +100,7 @@ function ContainerLogsPage() {
             <pre
               ref={scrollRef}
               onScroll={handleScroll}
-              className="terminal-bg h-full overflow-auto rounded-lg p-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-foreground/80"
+              className="h-full overflow-auto rounded-lg border border-border bg-inset p-4 font-terminal text-xs leading-relaxed break-all whitespace-pre-wrap text-foreground/80"
             >
               {data?.logs || "No logs available."}
             </pre>

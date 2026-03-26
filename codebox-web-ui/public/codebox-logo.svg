@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="codebox-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#0e7490" />
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="208" height="208" rx="48" fill="url(#codebox-gradient)" />
+  <polyline points="72,112 116,148 72,184" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="132" y1="184" x2="180" y2="184" stroke="#ffffff" stroke-width="20" stroke-linecap="round" />
+  <path d="M168 48 Q168 80 200 80 Q168 80 168 112 Q168 80 136 80 Q168 80 168 48 Z" fill="#ffffff" />
+</svg>

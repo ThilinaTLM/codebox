@@ -2,24 +2,37 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-
+import { RotateCw, Square, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { BoxInput } from "@/components/box/BoxInput"
 import { FileExplorer } from "@/components/box/FileExplorer"
+import { FilePreview } from "@/components/box/FilePreview"
+import { ActivityBar } from "@/components/box/ActivityBar"
+import { BoxStatusBadge } from "@/components/box/BoxStatusBadge"
 import { ChatStream } from "@/components/chat/ChatStream"
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { useBox, useDeleteBox, useStopBox, useRestartBox } from "@/net/query"
-import { useBoxWebSocket } from "@/net/ws"
+import { useBox, useDeleteBox, useStopBox, useRestartBox, useSendMessage, useSendExec, useCancelBox } from "@/net/query"
+import { useBoxStream } from "@/net/sse/useBoxStream"
 import { ContainerStatus } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
-import { AgentReportBadge } from "@/components/box/BoxStatusBadge"
 
 export const Route = createFileRoute("/boxes/$boxId")({
   component: BoxDetailPage,
@@ -33,6 +46,7 @@ function BoxDetailPage() {
   const deleteMutation = useDeleteBox()
   const restartMutation = useRestartBox()
   const [showFiles, setShowFiles] = useState(true)
+  const [previewFile, setPreviewFile] = useState<string | null>(null)
   const filePanelRef = useRef<PanelImperativeHandle>(null)
   const setBoxPageActions = useSetBoxPageActions()
 
@@ -42,21 +56,22 @@ function BoxDetailPage() {
 
   const isStopped = box?.container_status === ContainerStatus.STOPPED
 
-  const { events, sendMessage, sendExec, sendCancel, isConnected } =
-    useBoxWebSocket({
-      boxId,
-      enabled: isActive,
-    })
+  const { events, isConnected, appendEvent } = useBoxStream({
+    boxId,
+    enabled: isActive,
+  })
+  const sendMessageMutation = useSendMessage()
+  const sendExecMutation = useSendExec()
+  const cancelMutation = useCancelBox()
 
   const activity = useAgentActivity(events, box?.container_status, box?.task_status)
 
   const handleStop = useCallback(() => {
-    sendCancel()
     stopMutation.mutate(boxId, {
       onSuccess: () => toast.success("Agent stopped"),
       onError: () => toast.error("Failed to stop"),
     })
-  }, [sendCancel, stopMutation, boxId])
+  }, [stopMutation, boxId])
 
   const handleRestart = useCallback(() => {
     restartMutation.mutate(boxId, {
@@ -85,6 +100,14 @@ function BoxDetailPage() {
     else panel.collapse()
   }, [])
 
+  const handleFileSelect = useCallback((path: string) => {
+    setPreviewFile(path)
+  }, [])
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewFile(null)
+  }, [])
+
   useEffect(() => {
     if (!box) return
     setBoxPageActions({
@@ -104,27 +127,29 @@ function BoxDetailPage() {
 
   const handleSendMessage = useCallback(
     (content: string) => {
-      sendMessage(content)
+      appendEvent({ type: "user_message", content })
+      sendMessageMutation.mutate({ boxId, message: content })
     },
-    [sendMessage]
+    [appendEvent, sendMessageMutation, boxId]
   )
 
   const handleSendExec = useCallback(
     (command: string) => {
-      sendExec(command)
+      appendEvent({ type: "user_exec", command })
+      sendExecMutation.mutate({ boxId, command })
     },
-    [sendExec]
+    [appendEvent, sendExecMutation, boxId]
   )
 
   const handleCancel = useCallback(() => {
-    sendCancel()
-  }, [sendCancel])
+    cancelMutation.mutate(boxId)
+  }, [cancelMutation, boxId])
 
   if (isLoading) return <BoxDetailSkeleton />
 
   if (!box) {
     return (
-      <div className="flex h-[calc(100svh-3rem)] flex-col items-center justify-center gap-4">
+      <div className="flex h-[calc(100svh-24px)] flex-col items-center justify-center gap-4">
         <h2 className="font-display text-lg font-semibold">Agent not found</h2>
         <p className="text-sm text-muted-foreground">
           This agent may have been deleted.
@@ -145,36 +170,7 @@ function BoxDetailPage() {
     box.container_status === ContainerStatus.RUNNING
 
   return (
-    <div className="flex h-[calc(100svh-3rem)] flex-col">
-      {/* Agent report banner */}
-      {box.agent_report_status && (
-        <div className="flex items-center gap-2 border-b border-border/40 bg-muted/30 px-4 py-2">
-          <AgentReportBadge status={box.agent_report_status} />
-          {box.agent_report_message && (
-            <span className="text-sm text-muted-foreground">
-              {box.agent_report_message}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Stopped banner with restart */}
-      {isStopped && (
-        <div className="flex items-center gap-2 border-b border-border/40 bg-muted/30 px-4 py-2">
-          <span className="text-sm text-muted-foreground">
-            Container stopped{box.stop_reason ? ` (${box.stop_reason.replace("_", " ")})` : ""}
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleRestart}
-            disabled={restartMutation.isPending}
-          >
-            {restartMutation.isPending ? "Restarting..." : "Restart"}
-          </Button>
-        </div>
-      )}
-
+    <div className="flex h-[calc(100svh-24px)] flex-col">
       {/* Main content area */}
       <div className="min-h-0 flex-1 p-2">
         <ResizablePanelGroup orientation="horizontal" id="box-detail">
@@ -182,15 +178,15 @@ function BoxDetailPage() {
           <ResizablePanel
             panelRef={filePanelRef}
             id="file-explorer"
-            defaultSize={25}
+            defaultSize={20}
             minSize={15}
             collapsible
             collapsedSize={0}
             onResize={(size) => setShowFiles(size.asPercentage > 0)}
-            className="rounded-lg border border-border/60 bg-muted/30"
+            className="rounded-lg border border-border/60 bg-card"
           >
             {canShowFiles ? (
-              <FileExplorer boxId={boxId} />
+              <FileExplorer boxId={boxId} onFileSelect={handleFileSelect} />
             ) : (
               <div className="flex h-full items-center justify-center">
                 <p className="text-xs text-muted-foreground">
@@ -204,8 +200,98 @@ function BoxDetailPage() {
           <ResizableHandle withHandle className="bg-transparent" />
 
           {/* Chat panel */}
-          <ResizablePanel id="chat-panel" defaultSize={95} minSize={30}>
+          <ResizablePanel id="chat-panel" defaultSize={80} minSize={30}>
             <div className="relative flex h-full flex-col">
+              {/* Inline header */}
+              <div className="flex items-center justify-between border-b border-border/30 px-4 py-2">
+                <div className="flex items-center gap-3">
+                  <span className="font-display text-sm">
+                    {box.name || "Agent"}
+                  </span>
+                  <BoxStatusBadge
+                    containerStatus={box.container_status}
+                    taskStatus={box.task_status}
+                    agentReportStatus={box.agent_report_status}
+                    activity={activity}
+                  />
+                  <span className="font-terminal text-xs text-muted-foreground">
+                    {box.model}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {isStopped && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRestart}
+                      disabled={restartMutation.isPending}
+                      className="gap-1.5 font-terminal text-xs"
+                    >
+                      <RotateCw size={12} className={restartMutation.isPending ? "animate-spin" : ""} />
+                      {restartMutation.isPending ? "Restarting" : "Restart"}
+                    </Button>
+                  )}
+                  {isActive && (
+                    <AlertDialog>
+                      <AlertDialogTrigger>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={stopMutation.isPending}
+                          className="gap-1.5 font-terminal text-xs"
+                        >
+                          <Square size={10} fill="currentColor" />
+                          Stop
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Stop agent?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will stop the running agent container. You can restart it later.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleStop}>
+                            Stop
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  <AlertDialog>
+                    <AlertDialogTrigger>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        disabled={deleteMutation.isPending}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete agent?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. The agent and all its data will be permanently deleted.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+
+              {/* Activity bar */}
+              <ActivityBar activity={activity} />
+
               {/* Event stream */}
               <div className="min-h-0 flex-1">
                 <ChatStream events={events} centered bottomInset />
@@ -225,6 +311,27 @@ function BoxDetailPage() {
               </div>
             </div>
           </ResizablePanel>
+
+          {/* File preview panel */}
+          {previewFile && (
+            <>
+              <ResizableHandle withHandle className="bg-transparent" />
+              <ResizablePanel
+                id="file-preview"
+                defaultSize={30}
+                minSize={15}
+                collapsible
+                collapsedSize={0}
+                className="rounded-lg border border-border/60"
+              >
+                <FilePreview
+                  boxId={boxId}
+                  filePath={previewFile}
+                  onClose={handleClosePreview}
+                />
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
     </div>
@@ -233,7 +340,7 @@ function BoxDetailPage() {
 
 function BoxDetailSkeleton() {
   return (
-    <div className="flex h-[calc(100svh-3rem)] flex-col">
+    <div className="flex h-[calc(100svh-24px)] flex-col">
       <div className="flex-1 p-8">
         <div className="mx-auto max-w-3xl space-y-4">
           <Skeleton className="h-16 w-full rounded-lg" />

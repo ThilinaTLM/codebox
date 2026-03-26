@@ -132,6 +132,13 @@ export function useSendMessage() {
   })
 }
 
+export function useSendExec() {
+  return useMutation({
+    mutationFn: ({ boxId, command }: { boxId: string; command: string }) =>
+      api.boxes.sendExec(boxId, command),
+  })
+}
+
 export function useStopContainer() {
   const qc = useQueryClient()
   return useMutation({
