@@ -39,8 +39,15 @@ export function useGlobalWebSocket() {
         if (event.type === "box_status_changed") {
           qcRef.current.setQueriesData<Box>(
             { queryKey: ["boxes", event.box_id] },
-            (old) =>
-              old ? { ...old, status: event.status as Box["status"] } : old
+            (old) => {
+              if (!old) return old
+              const updates: Partial<Box> = {}
+              if (event.container_status) updates.container_status = event.container_status as Box["container_status"]
+              if (event.task_status) updates.task_status = event.task_status as Box["task_status"]
+              if (event.stop_reason !== undefined) updates.stop_reason = event.stop_reason
+              if (event.agent_report_status) updates.agent_report_status = event.agent_report_status as Box["agent_report_status"]
+              return { ...old, ...updates }
+            }
           )
           qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
         }

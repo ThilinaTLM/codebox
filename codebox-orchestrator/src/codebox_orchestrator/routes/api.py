@@ -6,7 +6,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-from codebox_orchestrator.db.models import BoxStatus
+from codebox_orchestrator.db.models import ContainerStatus, TaskStatus
 from codebox_orchestrator.schemas import (
     BoxCreate,
     BoxEventResponse,
@@ -48,7 +48,7 @@ async def create_box(request: Request, body: BoxCreate) -> BoxResponse:
         model=body.model,
         system_prompt=body.system_prompt,
         initial_prompt=body.initial_prompt,
-        auto_stop=body.auto_stop,
+        idle_timeout=body.idle_timeout,
     )
     return BoxResponse.from_orm_box(box)
 
@@ -56,18 +56,25 @@ async def create_box(request: Request, body: BoxCreate) -> BoxResponse:
 @router.get("/boxes")
 async def list_boxes(
     request: Request,
-    status: str | None = None,
+    container_status: str | None = None,
+    task_status: str | None = None,
     trigger: str | None = None,
 ) -> list[BoxResponse]:
-    """List boxes, optionally filtered by status or trigger."""
+    """List boxes, optionally filtered by container_status, task_status, or trigger."""
     bs = _bs(request)
-    box_status = None
-    if status:
+    cs = None
+    if container_status:
         try:
-            box_status = BoxStatus(status)
+            cs = ContainerStatus(container_status)
         except ValueError:
-            raise HTTPException(400, f"Invalid status: {status}")
-    boxes = await bs.list_boxes(status=box_status, trigger=trigger)
+            raise HTTPException(400, f"Invalid container_status: {container_status}")
+    ts = None
+    if task_status:
+        try:
+            ts = TaskStatus(task_status)
+        except ValueError:
+            raise HTTPException(400, f"Invalid task_status: {task_status}")
+    boxes = await bs.list_boxes(container_status=cs, task_status=ts, trigger=trigger)
     return [BoxResponse.from_orm_box(b) for b in boxes]
 
 
@@ -109,6 +116,17 @@ async def stop_box(request: Request, box_id: str) -> BoxResponse:
     box = await bs.get_box(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
+    return BoxResponse.from_orm_box(box)
+
+
+@router.post("/boxes/{box_id}/restart")
+async def restart_box(request: Request, box_id: str) -> BoxResponse:
+    """Restart a stopped box."""
+    bs = _bs(request)
+    try:
+        box = await bs.restart_box(box_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
     return BoxResponse.from_orm_box(box)
 
 

@@ -39,6 +39,10 @@ export const api = {
       const { data } = await client.post<Box>(`/api/boxes/${boxId}/stop`)
       return data
     },
+    restart: async (boxId: string): Promise<Box> => {
+      const { data } = await client.post<Box>(`/api/boxes/${boxId}/restart`)
+      return data
+    },
     cancel: async (boxId: string): Promise<void> => {
       await client.post(`/api/boxes/${boxId}/cancel`)
     },

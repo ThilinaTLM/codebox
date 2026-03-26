@@ -17,7 +17,14 @@ from grpc import aio as grpc_aio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from codebox_orchestrator.db.models import Box, BoxEvent, BoxMessage, BoxStatus
+from codebox_orchestrator.db.models import (
+    AgentReportStatus,
+    Box,
+    BoxEvent,
+    BoxMessage,
+    ContainerStatus,
+    TaskStatus,
+)
 from codebox_orchestrator.grpc.generated.codebox.sandbox import sandbox_pb2, sandbox_pb2_grpc
 from codebox_orchestrator.services.callback_registry import CallbackRegistry, ConnectionHandle
 from codebox_orchestrator.services.callback_token import decode_callback_token
@@ -63,14 +70,11 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
 
         entity_id, entity_type = result
 
-        # Reject connections for boxes in terminal states
+        # Reject connections for boxes that don't exist
         async with self._sf() as db:
             box = await db.get(Box, entity_id)
-            if box is None or box.status in (
-                BoxStatus.COMPLETED, BoxStatus.FAILED,
-                BoxStatus.CANCELLED, BoxStatus.STOPPED,
-            ):
-                await context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Box is in terminal state")
+            if box is None:
+                await context.abort(grpc.StatusCode.NOT_FOUND, "Box not found")
                 return
 
         logger.info("gRPC connection from %s %s", entity_type, entity_id)
@@ -107,8 +111,6 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 box.session_id = session_id
                 await db.commit()
 
-        auto_stop = await self._get_auto_stop(entity_id)
-
         logger.info("Box %s registered via gRPC (session %s)", entity_id, session_id)
 
         # Send RegisteredCommand
@@ -133,7 +135,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         # 1. Read events from sandbox and process them
         # 2. Read commands from the handle queue and yield them
         event_reader_task = asyncio.create_task(
-            self._read_events(request_iterator, entity_id, auto_stop)
+            self._read_events(request_iterator, entity_id)
         )
 
         try:
@@ -164,18 +166,19 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 except (asyncio.CancelledError, Exception):
                     pass
             self._registry.remove(entity_id)
+            # If container was still RUNNING when stream dropped, mark as stopped
+            await self._set_container_stopped_if_running(entity_id, "container_error")
             logger.info("gRPC connection closed for box %s", entity_id)
 
     async def _read_events(
         self,
         request_iterator: AsyncIterator[sandbox_pb2.SandboxEvent],
         box_id: str,
-        auto_stop: bool,
     ) -> None:
         """Read and process events from the sandbox container."""
         try:
             async for event in request_iterator:
-                await self._handle_event(event, box_id, auto_stop)
+                await self._handle_event(event, box_id)
         except grpc_aio.AioRpcError:
             logger.info("Box %s gRPC stream ended", box_id)
         except Exception:
@@ -185,7 +188,6 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         self,
         event: sandbox_pb2.SandboxEvent,
         box_id: str,
-        auto_stop: bool,
     ) -> None:
         """Process a single sandbox event."""
         event_type, event_dict = self._event_to_dict(event)
@@ -210,24 +212,28 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             msg_data = event_dict.get("message", {})
             await self._persist_box_message(box_id, msg_data)
 
-        # Persist event
-        await self._persist_box_event(box_id, event_type, event_dict)
+        # Handle task status changes
+        if event_type == "task_status_changed":
+            status = event_dict.get("status", "")
+            await self._set_task_status(box_id, status)
+
+        # Handle agent report status
+        elif event_type == "report_status":
+            status = event_dict.get("status", "")
+            message = event_dict.get("message", "")
+            await self._set_report_status(box_id, status, message)
+
+        # Handle container shutdown
+        elif event_type == "shutting_down":
+            reason = event_dict.get("reason", "")
+            await self._set_container_stopped(box_id, reason)
+
+        # Persist event (skip task_status_changed — too noisy for event log)
+        if event_type not in ("task_status_changed",):
+            await self._persist_box_event(box_id, event_type, event_dict)
 
         # Broadcast to subscribers
         await self._relay.broadcast(box_id, event_dict)
-
-        # Handle terminal events
-        if event_type == "done":
-            if auto_stop:
-                content = event_dict.get("content", "")
-                await self._set_box_completed(box_id, content)
-                self._registry.remove_fully(box_id)
-            else:
-                await self._set_box_idle(box_id)
-        elif event_type == "error":
-            detail = event_dict.get("detail", "Unknown error")
-            await self._set_box_failed(box_id, detail)
-            self._registry.remove_fully(box_id)
 
     def _event_to_dict(self, event: sandbox_pb2.SandboxEvent) -> tuple[str, dict[str, Any]]:
         """Convert a protobuf SandboxEvent to (event_type, dict)."""
@@ -282,6 +288,23 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             elif rfr.data_json:
                 result["data"] = json.loads(rfr.data_json)
             return "read_file_result", result
+        elif field == "task_status_changed":
+            return "task_status_changed", {
+                "type": "task_status_changed",
+                "status": event.task_status_changed.status,
+            }
+        elif field == "report_status":
+            rs = event.report_status
+            return "report_status", {
+                "type": "report_status",
+                "status": rs.status,
+                "message": rs.message,
+            }
+        elif field == "shutting_down":
+            return "shutting_down", {
+                "type": "shutting_down",
+                "reason": event.shutting_down.reason,
+            }
 
         return "", {}
 
@@ -343,11 +366,6 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
     # ------------------------------------------------------------------
     # DB helpers
     # ------------------------------------------------------------------
-
-    async def _get_auto_stop(self, box_id: str) -> bool:
-        async with self._sf() as db:
-            box = await db.get(Box, box_id)
-            return box.auto_stop if box else True
 
     async def _persist_box_event(
         self, box_id: str, event_type: str, data: dict[str, Any]
@@ -425,57 +443,97 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             ))
         return proto_messages
 
-    async def _set_box_completed(self, box_id: str, content: str) -> None:
+    async def _set_task_status(self, box_id: str, status: str) -> None:
+        try:
+            ts = TaskStatus(status)
+        except ValueError:
+            logger.warning("Invalid task status: %s", status)
+            return
         async with self._sf() as db:
             box = await db.get(Box, box_id)
             if box:
-                box.status = BoxStatus.COMPLETED
-                box.result_summary = content
+                box.task_status = ts
+                await db.commit()
+        await self._relay.broadcast(
+            box_id, {"type": "status_change", "task_status": ts.value}
+        )
+        await self._global_broadcast.broadcast({
+            "type": "box_status_changed",
+            "box_id": box_id,
+            "task_status": ts.value,
+        })
+
+    async def _set_report_status(self, box_id: str, status: str, message: str) -> None:
+        try:
+            rs = AgentReportStatus(status)
+        except ValueError:
+            logger.warning("Invalid agent report status: %s", status)
+            return
+        async with self._sf() as db:
+            box = await db.get(Box, box_id)
+            if box:
+                box.agent_report_status = rs
+                box.agent_report_message = message or None
+                await db.commit()
+        await self._relay.broadcast(
+            box_id, {
+                "type": "status_change",
+                "agent_report_status": rs.value,
+                "agent_report_message": message,
+            }
+        )
+        await self._global_broadcast.broadcast({
+            "type": "box_status_changed",
+            "box_id": box_id,
+            "agent_report_status": rs.value,
+        })
+
+    async def _set_container_stopped(self, box_id: str, reason: str) -> None:
+        async with self._sf() as db:
+            box = await db.get(Box, box_id)
+            if box:
+                box.container_status = ContainerStatus.STOPPED
+                box.stop_reason = reason
+                box.task_status = TaskStatus.IDLE
                 box.completed_at = datetime.now(timezone.utc)
                 await db.commit()
         await self._relay.broadcast(
-            box_id, {"type": "status_change", "status": BoxStatus.COMPLETED.value}
+            box_id, {
+                "type": "status_change",
+                "container_status": ContainerStatus.STOPPED.value,
+                "stop_reason": reason,
+            }
         )
         await self._global_broadcast.broadcast({
             "type": "box_status_changed",
             "box_id": box_id,
-            "status": BoxStatus.COMPLETED.value,
+            "container_status": ContainerStatus.STOPPED.value,
+            "stop_reason": reason,
         })
 
-    async def _set_box_idle(self, box_id: str) -> None:
+    async def _set_container_stopped_if_running(self, box_id: str, reason: str) -> None:
+        """Set container to stopped only if it's currently running."""
         async with self._sf() as db:
             box = await db.get(Box, box_id)
-            if box:
-                box.status = BoxStatus.IDLE
-                await db.commit()
-        await self._relay.broadcast(
-            box_id, {"type": "status_change", "status": BoxStatus.IDLE.value}
-        )
-        await self._global_broadcast.broadcast({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "status": BoxStatus.IDLE.value,
-        })
-
-    async def _set_box_failed(self, box_id: str, error: str) -> None:
-        async with self._sf() as db:
-            box = await db.get(Box, box_id)
-            if box:
-                box.status = BoxStatus.FAILED
-                box.error_message = error
+            if box and box.container_status == ContainerStatus.RUNNING:
+                box.container_status = ContainerStatus.STOPPED
+                box.stop_reason = reason
+                box.task_status = TaskStatus.IDLE
                 box.completed_at = datetime.now(timezone.utc)
                 await db.commit()
-        await self._relay.broadcast(
-            box_id, {"type": "status_change", "status": BoxStatus.FAILED.value}
-        )
-        await self._relay.broadcast(
-            box_id, {"type": "error", "detail": error}
-        )
-        await self._global_broadcast.broadcast({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "status": BoxStatus.FAILED.value,
-        })
+                await self._relay.broadcast(
+                    box_id, {
+                        "type": "status_change",
+                        "container_status": ContainerStatus.STOPPED.value,
+                        "stop_reason": reason,
+                    }
+                )
+                await self._global_broadcast.broadcast({
+                    "type": "box_status_changed",
+                    "box_id": box_id,
+                    "container_status": ContainerStatus.STOPPED.value,
+                    "stop_reason": reason,
+                })
 
 
 async def start_grpc_server(

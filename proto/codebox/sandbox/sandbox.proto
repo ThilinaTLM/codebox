@@ -25,6 +25,9 @@ message SandboxEvent {
     ExecDoneEvent exec_done = 10;
     ListFilesResultEvent list_files_result = 11;
     ReadFileResultEvent read_file_result = 12;
+    TaskStatusChangedEvent task_status_changed = 13;
+    ReportStatusEvent report_status = 14;
+    ShuttingDownEvent shutting_down = 15;
   }
 }
 
@@ -81,6 +84,19 @@ message ReadFileResultEvent {
   string request_id = 1;
   string data_json = 2;   // JSON-encoded file content
   string error = 3;
+}
+
+message TaskStatusChangedEvent {
+  string status = 1;  // "idle", "agent_working", "exec_shell"
+}
+
+message ReportStatusEvent {
+  string status = 1;  // "completed", "in_progress", "need_clarification", etc.
+  string message = 2;
+}
+
+message ShuttingDownEvent {
+  string reason = 1;  // "idle_timeout"
 }
 
 // ──────────────────────────────────────────────

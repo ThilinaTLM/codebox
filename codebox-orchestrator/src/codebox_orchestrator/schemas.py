@@ -8,10 +8,12 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from codebox_orchestrator.db.models import (
+    AgentReportStatus,
     Box,
     BoxEvent,
     BoxMessage as BoxMessageModel,
-    BoxStatus,
+    ContainerStatus,
+    TaskStatus,
 )
 
 
@@ -23,7 +25,7 @@ class BoxCreate(BaseModel):
     model: str | None = None
     system_prompt: str | None = None
     initial_prompt: str | None = None
-    auto_stop: bool | None = None
+    idle_timeout: int | None = None
 
 
 class BoxMessage(BaseModel):
@@ -37,16 +39,18 @@ class BoxResponse(BaseModel):
     id: str
     name: str
     model: str
-    status: BoxStatus
+    container_status: ContainerStatus
+    task_status: TaskStatus
+    stop_reason: str | None
+    agent_report_status: AgentReportStatus | None
+    agent_report_message: str | None
+    idle_timeout: int
     system_prompt: str | None
     initial_prompt: str | None
-    auto_stop: bool
     container_id: str | None
     container_name: str | None
     session_id: str | None
     workspace_path: str | None
-    result_summary: str | None
-    error_message: str | None
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None

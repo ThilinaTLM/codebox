@@ -15,6 +15,8 @@ import mimetypes
 from pathlib import Path
 from typing import Any, Callable, Coroutine
 
+from datetime import datetime, timezone
+
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from codebox_daemon.agent import extract_token
@@ -79,12 +81,15 @@ async def run_agent_stream(
     """Stream agent events, calling send(msg_dict) for each event."""
     logger.info("Agent stream starting for session %s", session_id)
     session = manager.get(session_id)
+    session.last_active_at = datetime.now(timezone.utc)
     ai_text_buffer = ""
 
     config = {
         "configurable": {"thread_id": session_id},
         "recursion_limit": session.recursion_limit,
     }
+
+    await send({"type": "task_status_changed", "status": "agent_working"})
 
     try:
         async for event in session.agent.astream_events(
@@ -157,14 +162,17 @@ async def run_agent_stream(
         # Stream finished normally
         logger.info("Agent stream completed for session %s", session_id)
         await send({"type": "done", "content": ai_text_buffer.strip()})
+        await send({"type": "task_status_changed", "status": "idle"})
 
     except asyncio.CancelledError:
         await send({"type": "done", "content": ai_text_buffer.strip()})
+        await send({"type": "task_status_changed", "status": "idle"})
         raise
 
     except Exception as exc:
         logger.exception("Agent stream error for session %s", session_id)
         await send({"type": "error", "detail": str(exc)})
+        await send({"type": "task_status_changed", "status": "idle"})
 
 
 async def run_exec(
@@ -181,7 +189,10 @@ async def run_exec(
     """
     logger.info("Exec command for session %s: %s", session_id, command[:200])
     session = manager.get(session_id)
+    session.last_active_at = datetime.now(timezone.utc)
     config = {"configurable": {"thread_id": session_id}}
+
+    await send({"type": "task_status_changed", "status": "exec_shell"})
 
     # Record the shell command in the agent's thread
     try:
@@ -249,17 +260,20 @@ async def run_exec(
                 "metadata_json": json.dumps({"type": "shell_output", "exit_code": exit_code}),
             },
         })
+        await send({"type": "task_status_changed", "status": "idle"})
 
     except asyncio.CancelledError:
         if proc and proc.returncode is None:
             proc.kill()
             await proc.wait()
         await send({"type": "exec_done", "output": "cancelled", "request_id": request_id})
+        await send({"type": "task_status_changed", "status": "idle"})
         raise
 
     except Exception as exc:
         logger.exception("Exec error for session %s", session_id)
         await send({"type": "error", "detail": str(exc)})
+        await send({"type": "task_status_changed", "status": "idle"})
 
 
 def _is_binary_file(path: Path) -> bool:

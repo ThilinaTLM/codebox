@@ -135,7 +135,10 @@ export function collapseTokens(events: Array<WSEvent>): Array<EventBlock> {
         blocks.push({ kind: "error", detail: event.detail })
         break
       case "status_change":
-        blocks.push({ kind: "status_change", status: event.status })
+        blocks.push({
+          kind: "status_change",
+          status: event.container_status ?? event.task_status ?? "",
+        })
         break
     }
   }

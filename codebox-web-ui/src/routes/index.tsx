@@ -22,24 +22,25 @@ import {
 } from "@/components/ui/alert-dialog"
 import { BoxStatusBadge } from "@/components/box/BoxStatusBadge"
 import { useBoxes, useCreateBox, useDeleteBox, useStopBox } from "@/net/query"
-import { BoxStatus } from "@/net/http/types"
+import { ContainerStatus } from "@/net/http/types"
 import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/")({ component: HomePage })
 
-const ACTIVE_STATUSES = [BoxStatus.STARTING, BoxStatus.RUNNING, BoxStatus.IDLE]
+function isBoxActive(box: Box): boolean {
+  return (
+    box.container_status === ContainerStatus.STARTING ||
+    box.container_status === ContainerStatus.RUNNING
+  )
+}
 
 function HomePage() {
   const { data: boxes, isLoading } = useBoxes()
   const createMutation = useCreateBox()
   const navigate = useNavigate()
 
-  const activeBoxes = (boxes ?? []).filter((b) =>
-    ACTIVE_STATUSES.includes(b.status)
-  )
-  const recentBoxes = (boxes ?? []).filter(
-    (b) => !ACTIVE_STATUSES.includes(b.status)
-  )
+  const activeBoxes = (boxes ?? []).filter(isBoxActive)
+  const recentBoxes = (boxes ?? []).filter((b) => !isBoxActive(b))
 
   const handleCreate = () => {
     createMutation.mutate(
@@ -158,14 +159,15 @@ function HomePage() {
 }
 
 function getCardTimestamp(box: Box): string {
-  const ts = ACTIVE_STATUSES.includes(box.status)
+  const active = isBoxActive(box)
+  const ts = active
     ? (box.started_at ?? box.created_at)
     : (box.completed_at ?? box.created_at)
   return formatDistanceToNow(new Date(ts), { addSuffix: true })
 }
 
 function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
-  const isActive = ACTIVE_STATUSES.includes(box.status)
+  const active = isBoxActive(box)
   const stopMutation = useStopBox()
   const deleteMutation = useDeleteBox()
   const [showStopDialog, setShowStopDialog] = useState(false)
@@ -204,7 +206,7 @@ function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
         <Card
           className={cn(
             "card-glow animate-fade-up cursor-pointer border-0 bg-primary/[0.04] ring-1 ring-primary/20 transition-colors hover:bg-primary/[0.07]",
-            isActive &&
+            active &&
               "bg-primary/[0.07] ring-primary/35 hover:bg-primary/[0.1]"
           )}
           style={style}
@@ -226,7 +228,7 @@ function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
                 className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/card:opacity-100"
                 onClick={(e) => e.preventDefault()}
               >
-                {isActive && (
+                {active && (
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -253,14 +255,10 @@ function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
               </div>
             </div>
 
-            {/* Prompt preview or result/error summary */}
-            {box.status === BoxStatus.FAILED && box.error_message ? (
-              <p className="line-clamp-2 text-sm leading-relaxed text-destructive/80">
-                {box.error_message}
-              </p>
-            ) : box.status === BoxStatus.COMPLETED && box.result_summary ? (
+            {/* Prompt preview or agent report */}
+            {box.agent_report_message ? (
               <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground/70">
-                {box.result_summary}
+                {box.agent_report_message}
               </p>
             ) : box.initial_prompt ? (
               <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground/70">
@@ -271,7 +269,11 @@ function AgentCard({ box, style }: { box: Box; style?: React.CSSProperties }) {
             {/* Bottom meta */}
             <div className="space-y-1 pt-0.5">
               <div className="flex items-center gap-2">
-                <BoxStatusBadge status={box.status} />
+                <BoxStatusBadge
+                  containerStatus={box.container_status}
+                  taskStatus={box.task_status}
+                  agentReportStatus={box.agent_report_status}
+                />
                 <span className="font-mono text-xs text-muted-foreground">
                   {box.model}
                 </span>

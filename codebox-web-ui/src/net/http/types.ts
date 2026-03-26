@@ -1,27 +1,39 @@
-export enum BoxStatus {
+export enum ContainerStatus {
   STARTING = "starting",
   RUNNING = "running",
-  IDLE = "idle",
-  COMPLETED = "completed",
-  FAILED = "failed",
-  CANCELLED = "cancelled",
   STOPPED = "stopped",
+}
+
+export enum TaskStatus {
+  IDLE = "idle",
+  AGENT_WORKING = "agent_working",
+  EXEC_SHELL = "exec_shell",
+}
+
+export enum AgentReportStatus {
+  IN_PROGRESS = "in_progress",
+  COMPLETED = "completed",
+  NEED_CLARIFICATION = "need_clarification",
+  UNABLE_TO_PROCEED = "unable_to_proceed",
+  NOT_ENOUGH_CONTEXT = "not_enough_context",
 }
 
 export interface Box {
   id: string
   name: string
   model: string
-  status: BoxStatus
+  container_status: ContainerStatus
+  task_status: TaskStatus
+  stop_reason: string | null
+  agent_report_status: AgentReportStatus | null
+  agent_report_message: string | null
+  idle_timeout: number
   system_prompt: string | null
   initial_prompt: string | null
-  auto_stop: boolean
   container_id: string | null
   container_name: string | null
   session_id: string | null
   workspace_path: string | null
-  result_summary: string | null
-  error_message: string | null
   created_at: string
   started_at: string | null
   completed_at: string | null
@@ -61,7 +73,7 @@ export interface BoxCreatePayload {
   model?: string | null
   system_prompt?: string | null
   initial_prompt?: string | null
-  auto_stop?: boolean | null
+  idle_timeout?: number | null
 }
 
 // WebSocket event types from orchestrator
@@ -72,7 +84,21 @@ export type WSEvent =
   | { type: "model_start" }
   | { type: "done"; content: string }
   | { type: "error"; detail: string }
-  | { type: "status_change"; status: BoxStatus }
+  | {
+      type: "status_change"
+      container_status?: ContainerStatus
+      task_status?: TaskStatus
+      stop_reason?: string
+      agent_report_status?: AgentReportStatus
+      agent_report_message?: string
+    }
+  | { type: "task_status_changed"; status: TaskStatus }
+  | {
+      type: "report_status"
+      status: AgentReportStatus
+      message: string
+    }
+  | { type: "shutting_down"; reason: string }
   | { type: "ping" }
   | { type: "exec_output"; output: string }
   | { type: "exec_done"; output: string }
@@ -106,11 +132,18 @@ export type GlobalWSEvent =
       type: "box_created"
       box_id: string
       name: string
-      status: string
+      container_status: string
       model: string
       created_at: string
     }
-  | { type: "box_status_changed"; box_id: string; status: string }
+  | {
+      type: "box_status_changed"
+      box_id: string
+      container_status?: string
+      task_status?: string
+      stop_reason?: string
+      agent_report_status?: string
+    }
   | { type: "box_deleted"; box_id: string }
   | { type: "ping" }
 

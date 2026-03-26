@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowUp01Icon } from "@hugeicons/core-free-icons"
+import { Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
@@ -9,10 +10,14 @@ const MAX_HEIGHT = 200
 export function BoxInput({
   onSendMessage,
   onSendExec,
+  onCancel,
+  isWorking,
   disabled,
 }: {
   onSendMessage: (content: string) => void
   onSendExec: (command: string) => void
+  onCancel?: () => void
+  isWorking?: boolean
   disabled?: boolean
 }) {
   const [input, setInput] = useState("")
@@ -89,13 +94,24 @@ export function BoxInput({
         }}
       />
       <div className="absolute right-3 bottom-3">
-        <Button
-          size="icon-sm"
-          onClick={handleSend}
-          disabled={disabled || !input.trim()}
-        >
-          <HugeiconsIcon icon={ArrowUp01Icon} size={16} strokeWidth={2.5} />
-        </Button>
+        {isWorking ? (
+          <Button
+            size="icon-sm"
+            variant="destructive"
+            onClick={onCancel}
+            title="Stop agent"
+          >
+            <Square size={14} fill="currentColor" />
+          </Button>
+        ) : (
+          <Button
+            size="icon-sm"
+            onClick={handleSend}
+            disabled={disabled || !input.trim()}
+          >
+            <HugeiconsIcon icon={ArrowUp01Icon} size={16} strokeWidth={2.5} />
+          </Button>
+        )}
       </div>
     </div>
   )

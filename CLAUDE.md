@@ -24,17 +24,23 @@ Monorepo for a sandboxed AI coding agent platform. Six sub-projects:
 
 The central concept is a **Box** — a container with an AI model that you interact with via chat. Boxes unify the former "Task" and "Sandbox" concepts:
 
-- **Box**: Container + AI agent. Has a lifecycle: `STARTING → RUNNING → IDLE → COMPLETED/FAILED/CANCELLED/STOPPED`
-  - `initial_prompt` (optional): If set, auto-sent to agent on container start (like a task). If null, box starts in IDLE awaiting user messages.
-  - `auto_stop` (bool): If true, box completes on "done" event. If false, goes to IDLE for follow-up.
-  - `trigger` (nullable): "github_issue", "github_pr", or null for manual creation.
+- **Box**: Container + AI agent. Three-dimensional status model:
+  - `container_status`: `starting`, `running`, `stopped` (system-managed)
+  - `task_status`: `idle`, `agent_working`, `exec_shell` (system-managed)
+  - `agent_report_status`: `completed`, `in_progress`, `need_clarification`, `unable_to_proceed`, `not_enough_context` (agent-managed via `set_status` tool)
+  - `stop_reason` (nullable): `idle_timeout`, `user_stopped`, `container_error`, `orchestrator_shutdown`
+  - `initial_prompt` (optional): If set, auto-sent to agent on container start. If null, box starts idle awaiting user messages.
+  - `idle_timeout` (int): Seconds before auto-stop on idle (default 60).
+  - `trigger` (nullable): "github_issue", "github_pr", or null for manual creation (metadata only, no behavioral branching).
+  - Stopped containers can be restarted with thread history restored.
 - **BoxEvent**: Persisted event stream (token, tool_start, tool_end, done, error, etc.)
 - **FeedbackRequest**: Human-in-the-loop questions from the agent
 
 ### API Endpoints
 
-- REST: `/api/boxes/*` (CRUD + message + files), `/api/containers/*`, `/api/github/*`
-- WS: `/api/boxes/{id}/ws` (client relay), `/api/internal/sandbox/connect` (container callback)
+- REST: `/api/boxes/*` (CRUD + message + files + restart), `/api/containers/*`, `/api/github/*`
+- WS: `/api/boxes/{id}/ws` (client relay)
+- gRPC: port 50051 (sandbox ↔ orchestrator bidirectional streaming)
 
 ## How to Run
 

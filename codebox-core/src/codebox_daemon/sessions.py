@@ -14,6 +14,7 @@ import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from codebox_daemon.agent import create_agent
+from codebox_daemon.tools.status import StatusReporter
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,8 @@ class Session:
     created_at: datetime
     last_active_at: datetime
     model: str
+    status_reporter: StatusReporter = field(default_factory=StatusReporter)
+    idle_timeout: int = 60
     recursion_limit: int = 150
     current_task: asyncio.Task | None = field(default=None, repr=False)
 
@@ -72,6 +75,7 @@ class SessionManager:
         checkpointer = AsyncSqliteSaver(conn)
         await checkpointer.setup()
 
+        status_reporter = StatusReporter()
         agent = create_agent(
             model=model,
             api_key=api_key,
@@ -79,9 +83,11 @@ class SessionManager:
             root_dir=working_dir,
             sandbox_config=sandbox_config,
             checkpointer=checkpointer,
+            status_reporter=status_reporter,
         )
         cfg = sandbox_config or {}
         recursion_limit = cfg.get("recursion_limit", 150)
+        idle_timeout = int(os.environ.get("CODEBOX_IDLE_TIMEOUT", cfg.get("idle_timeout", 60)))
         now = datetime.now(timezone.utc)
         session = Session(
             session_id=session_id,
@@ -90,6 +96,8 @@ class SessionManager:
             created_at=now,
             last_active_at=now,
             model=model,
+            status_reporter=status_reporter,
+            idle_timeout=idle_timeout,
             recursion_limit=recursion_limit,
         )
         self._sessions[session_id] = session

@@ -7,6 +7,7 @@ from langchain_openrouter import ChatOpenRouter
 from deepagents import create_deep_agent
 from deepagents.backends import LocalShellBackend
 
+from codebox_daemon.tools.status import StatusReporter, build_status_tools
 from codebox_daemon.tools.web import build_web_tools
 
 logger = logging.getLogger(__name__)
@@ -19,9 +20,11 @@ PRIMARY_SYSTEM_PROMPT = (
     "You have access to tools for filesystem operations "
     "(ls, read_file, write_file, edit_file, glob, grep), "
     "shell execution (execute), and web access "
-    "(web_search, web_fetch). Use them to help the user with coding tasks.\n\n"
+    "(web_search, web_fetch), and status reporting (set_status). "
+    "Use them to help the user with coding tasks.\n\n"
     "Environment:\n"
-    "- Working directory: /workspace\n"
+    "- Your current working directory is /workspace (you are already there). "
+    "All paths are relative to /workspace unless absolute paths are used.\n"
     "- Python 3.12 (with uv), Node.js 20, Go 1.22 are pre-installed\n"
     "- Package managers: pnpm, yarn, npm/npx (Node); pip, uv (Python); go install (Go)\n"
     "- Build tools: make, gcc\n"
@@ -35,7 +38,13 @@ PRIMARY_SYSTEM_PROMPT = (
     "- `pip install` / `uv pip install` — for Python packages\n"
     "- `pnpm install` / `yarn install` / `npm install` — for Node packages\n\n"
     "Always install the dependencies a project needs before trying to build or run it. "
-    "If a command fails due to a missing tool or library, install it and retry."
+    "If a command fails due to a missing tool or library, install it and retry.\n\n"
+    "Status reporting:\n"
+    "- Use set_status to communicate your progress to the user.\n"
+    "- Call set_status('completed', 'Brief summary') when you finish a task.\n"
+    "- Call set_status('need_clarification', 'What you need') when you need user input.\n"
+    "- Call set_status('unable_to_proceed', 'Why') when you are stuck.\n"
+    "- Always set your status before finishing your response."
 )
 
 
@@ -58,6 +67,7 @@ def create_agent(
     root_dir: str = "/workspace",
     sandbox_config: dict | None = None,
     checkpointer=None,
+    status_reporter: StatusReporter | None = None,
 ):
     """Create a deep agent with the given configuration.
 
@@ -95,9 +105,13 @@ def create_agent(
         inherit_env=True,
     )
 
+    tools = build_web_tools()
+    if status_reporter is not None:
+        tools += build_status_tools(status_reporter)
+
     return create_deep_agent(
         model=llm,
-        tools=build_web_tools(),
+        tools=tools,
         backend=backend,
         system_prompt=_build_system_prompt(secondary_system_prompt),
         checkpointer=checkpointer,

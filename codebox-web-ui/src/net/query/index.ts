@@ -93,6 +93,17 @@ export function useStopBox() {
   })
 }
 
+export function useRestartBox() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (boxId: string) => api.boxes.restart(boxId),
+    onSuccess: (_data, boxId) => {
+      qc.invalidateQueries({ queryKey: ["boxes", boxId] })
+      qc.invalidateQueries({ queryKey: ["boxes"] })
+    },
+  })
+}
+
 export function useCancelBox() {
   const qc = useQueryClient()
   return useMutation({

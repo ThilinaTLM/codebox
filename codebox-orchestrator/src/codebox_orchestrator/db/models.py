@@ -14,14 +14,24 @@ class Base(DeclarativeBase):
     pass
 
 
-class BoxStatus(str, PyEnum):
+class ContainerStatus(str, PyEnum):
     STARTING = "starting"
     RUNNING = "running"
-    IDLE = "idle"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
     STOPPED = "stopped"
+
+
+class TaskStatus(str, PyEnum):
+    IDLE = "idle"
+    AGENT_WORKING = "agent_working"
+    EXEC_SHELL = "exec_shell"
+
+
+class AgentReportStatus(str, PyEnum):
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    NEED_CLARIFICATION = "need_clarification"
+    UNABLE_TO_PROCEED = "unable_to_proceed"
+    NOT_ENOUGH_CONTEXT = "not_enough_context"
 
 
 def _utcnow() -> datetime:
@@ -64,27 +74,30 @@ class Box(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
     name: Mapped[str] = mapped_column(String(255))
     model: Mapped[str] = mapped_column(String(255))
-    status: Mapped[BoxStatus] = mapped_column(
-        Enum(BoxStatus, native_enum=False, length=30),
-        default=BoxStatus.STARTING,
+    container_status: Mapped[ContainerStatus] = mapped_column(
+        Enum(ContainerStatus, native_enum=False, length=30),
+        default=ContainerStatus.STARTING,
     )
+    task_status: Mapped[TaskStatus] = mapped_column(
+        Enum(TaskStatus, native_enum=False, length=30),
+        default=TaskStatus.IDLE,
+    )
+    stop_reason: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    agent_report_status: Mapped[AgentReportStatus | None] = mapped_column(
+        Enum(AgentReportStatus, native_enum=False, length=30), nullable=True
+    )
+    agent_report_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    idle_timeout: Mapped[int] = mapped_column(Integer, default=60)
 
     # Prompts
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     initial_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    # Behaviour
-    auto_stop: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Container connection info
     container_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     container_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     session_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     workspace_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
-
-    # Result
-    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

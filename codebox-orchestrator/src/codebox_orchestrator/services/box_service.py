@@ -22,7 +22,7 @@ from codebox_orchestrator.config import (
     TAVILY_API_KEY,
     WORKSPACE_BASE_DIR,
 )
-from codebox_orchestrator.db.models import Box, BoxEvent, BoxMessage, BoxStatus
+from codebox_orchestrator.db.models import Box, BoxEvent, BoxMessage, ContainerStatus, TaskStatus
 from codebox_orchestrator.services import docker_service
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
 from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
@@ -62,7 +62,7 @@ class BoxService:
         model: str | None = None,
         system_prompt: str | None = None,
         initial_prompt: str | None = None,
-        auto_stop: bool | None = None,
+        idle_timeout: int | None = None,
         # GitHub integration fields
         trigger: str | None = None,
         github_installation_id: str | None = None,
@@ -74,9 +74,11 @@ class BoxService:
         box = Box(
             name=name or "box",
             model=model or OPENROUTER_MODEL,
+            container_status=ContainerStatus.STARTING,
+            task_status=TaskStatus.IDLE,
+            idle_timeout=idle_timeout if idle_timeout is not None else 60,
             system_prompt=system_prompt,
             initial_prompt=initial_prompt,
-            auto_stop=auto_stop if auto_stop is not None else bool(trigger),
             trigger=trigger,
             github_installation_id=github_installation_id,
             github_repo=github_repo,
@@ -98,13 +100,13 @@ class BoxService:
                 await db.commit()
 
         await self._relay.broadcast(
-            box.id, {"type": "status_change", "status": BoxStatus.STARTING.value}
+            box.id, {"type": "status_change", "container_status": ContainerStatus.STARTING.value}
         )
         await self._global_broadcast.broadcast({
             "type": "box_created",
             "box_id": box.id,
             "name": box.name,
-            "status": BoxStatus.STARTING.value,
+            "container_status": ContainerStatus.STARTING.value,
             "model": box.model,
             "created_at": box.created_at.isoformat(),
         })
@@ -118,13 +120,16 @@ class BoxService:
 
     async def list_boxes(
         self,
-        status: BoxStatus | None = None,
+        container_status: ContainerStatus | None = None,
+        task_status: TaskStatus | None = None,
         trigger: str | None = None,
     ) -> list[Box]:
         async with self._sf() as db:
             stmt = select(Box).order_by(Box.created_at.desc())
-            if status is not None:
-                stmt = stmt.where(Box.status == status)
+            if container_status is not None:
+                stmt = stmt.where(Box.container_status == container_status)
+            if task_status is not None:
+                stmt = stmt.where(Box.task_status == task_status)
             if trigger is not None:
                 stmt = stmt.where(Box.trigger == trigger)
             result = await db.execute(stmt)
@@ -211,12 +216,10 @@ class BoxService:
 
         async with self._sf() as db:
             box = await db.get(Box, box_id)
-            if box and box.status in (
-                BoxStatus.STARTING,
-                BoxStatus.RUNNING,
-                BoxStatus.IDLE,
-            ):
-                box.status = BoxStatus.STOPPED
+            if box and box.container_status != ContainerStatus.STOPPED:
+                box.container_status = ContainerStatus.STOPPED
+                box.stop_reason = "user_stopped"
+                box.task_status = TaskStatus.IDLE
                 box.completed_at = datetime.now(timezone.utc)
                 await db.commit()
                 if box.container_name:
@@ -225,13 +228,47 @@ class BoxService:
                     except Exception:
                         pass
                 await self._relay.broadcast(
-                    box_id, {"type": "status_change", "status": BoxStatus.STOPPED.value}
+                    box_id, {
+                        "type": "status_change",
+                        "container_status": ContainerStatus.STOPPED.value,
+                        "stop_reason": "user_stopped",
+                    }
                 )
                 await self._global_broadcast.broadcast({
                     "type": "box_status_changed",
                     "box_id": box_id,
-                    "status": BoxStatus.STOPPED.value,
+                    "container_status": ContainerStatus.STOPPED.value,
+                    "stop_reason": "user_stopped",
                 })
+
+    async def restart_box(self, box_id: str) -> Box:
+        """Restart a stopped box by spawning a new container."""
+        async with self._sf() as db:
+            box = await db.get(Box, box_id)
+            if box is None:
+                raise ValueError("Box not found")
+            if box.container_status != ContainerStatus.STOPPED:
+                raise ValueError("Box is not stopped")
+            box.container_status = ContainerStatus.STARTING
+            box.stop_reason = None
+            box.task_status = TaskStatus.IDLE
+            box.started_at = datetime.now(timezone.utc)
+            box.completed_at = None
+            await db.commit()
+
+        await self._relay.broadcast(
+            box_id, {"type": "status_change", "container_status": ContainerStatus.STARTING.value}
+        )
+        await self._global_broadcast.broadcast({
+            "type": "box_status_changed",
+            "box_id": box_id,
+            "container_status": ContainerStatus.STARTING.value,
+        })
+        bg = asyncio.create_task(self._run_box(box_id))
+        self._running[box_id] = bg
+
+        async with self._sf() as db:
+            return await db.get(Box, box_id)
 
     async def cancel_box(self, box_id: str) -> None:
         """Cancel a running box operation."""
@@ -329,6 +366,13 @@ class BoxService:
             bg = self._running.pop(box_id, None)
             if bg and not bg.done():
                 bg.cancel()
+            async with self._sf() as db:
+                box = await db.get(Box, box_id)
+                if box and box.container_status != ContainerStatus.STOPPED:
+                    box.container_status = ContainerStatus.STOPPED
+                    box.stop_reason = "orchestrator_shutdown"
+                    box.task_status = TaskStatus.IDLE
+                    await db.commit()
 
     # ------------------------------------------------------------------
     # Background container loop
@@ -342,7 +386,7 @@ class BoxService:
             logger.info("Box %s was cancelled", box_id)
         except Exception as exc:
             logger.exception("Box %s failed: %s", box_id, exc)
-            await self._set_failed(box_id, str(exc))
+            await self._set_container_error(box_id, str(exc))
         finally:
             self._running.pop(box_id, None)
 
@@ -354,16 +398,21 @@ class BoxService:
                 return
             model = box.model
             system_prompt = box.system_prompt
+            idle_timeout = box.idle_timeout
             github_repo = box.github_repo
             github_branch = box.github_branch
             github_issue_number = box.github_issue_number
             github_installation_id = box.github_installation_id
+            existing_workspace = box.workspace_path
 
         is_github = bool(github_repo)
 
-        # Create workspace directory
+        # Create workspace directory (reuse existing for restarts)
         os.makedirs(WORKSPACE_BASE_DIR, exist_ok=True)
-        workspace = tempfile.mkdtemp(prefix=f"box-{box_id[:8]}-", dir=WORKSPACE_BASE_DIR)
+        if existing_workspace and os.path.isdir(existing_workspace):
+            workspace = existing_workspace
+        else:
+            workspace = tempfile.mkdtemp(prefix=f"box-{box_id[:8]}-", dir=WORKSPACE_BASE_DIR)
 
         # Generate JWT callback token
         from codebox_orchestrator.services.callback_token import create_callback_token
@@ -375,6 +424,7 @@ class BoxService:
         extra_env: dict[str, str] = {
             "ORCHESTRATOR_GRPC_ADDRESS": ORCHESTRATOR_GRPC_ADDRESS,
             "CALLBACK_TOKEN": callback_token,
+            "CODEBOX_IDLE_TIMEOUT": str(idle_timeout),
         }
         if system_prompt:
             extra_env["SYSTEM_PROMPT"] = system_prompt
@@ -409,7 +459,7 @@ class BoxService:
                 extra_env=extra_env,
             )
         except docker_service.DockerServiceError as exc:
-            await self._set_failed(box_id, f"Failed to spawn container: {exc}")
+            await self._set_container_error(box_id, f"Failed to spawn container: {exc}")
             return
 
         # Update box with container info
@@ -425,7 +475,7 @@ class BoxService:
         # Wait for container to connect back
         connected = await self._registry.wait_for_connection(box_id, timeout=_CALLBACK_TIMEOUT)
         if not connected:
-            await self._set_failed(box_id, "Container did not connect back in time")
+            await self._set_container_error(box_id, "Container did not connect back in time")
             return
 
         # Run pre-start setup commands for GitHub boxes via WebSocket exec
@@ -440,7 +490,7 @@ class BoxService:
                 )
             except Exception as exc:
                 logger.exception("GitHub setup failed for box %s", box_id)
-                await self._set_failed(box_id, f"GitHub setup failed: {exc}")
+                await self._set_container_error(box_id, f"GitHub setup failed: {exc}")
                 return
 
         # Send initial prompt and set status
@@ -450,11 +500,10 @@ class BoxService:
                 return
             initial_prompt = box.initial_prompt
 
+        await self._set_container_running(box_id)
+
         if initial_prompt:
-            await self._set_running(box_id)
             await self.send_message(box_id, initial_prompt)
-        else:
-            await self._set_idle(box_id)
 
         logger.info("Box %s started successfully", box_id)
 
@@ -501,46 +550,36 @@ class BoxService:
     # State updates
     # ------------------------------------------------------------------
 
-    async def _set_running(self, box_id: str) -> None:
+    async def _set_container_running(self, box_id: str) -> None:
         async with self._sf() as db:
             box = await db.get(Box, box_id)
             if box:
-                box.status = BoxStatus.RUNNING
+                box.container_status = ContainerStatus.RUNNING
                 await db.commit()
         await self._relay.broadcast(
-            box_id, {"type": "status_change", "status": BoxStatus.RUNNING.value}
+            box_id, {"type": "status_change", "container_status": ContainerStatus.RUNNING.value}
         )
         await self._global_broadcast.broadcast({
             "type": "box_status_changed",
             "box_id": box_id,
-            "status": BoxStatus.RUNNING.value,
+            "container_status": ContainerStatus.RUNNING.value,
         })
 
-    async def _set_idle(self, box_id: str) -> None:
+    async def _set_container_error(self, box_id: str, error: str) -> None:
         async with self._sf() as db:
             box = await db.get(Box, box_id)
             if box:
-                box.status = BoxStatus.IDLE
-                await db.commit()
-        await self._relay.broadcast(
-            box_id, {"type": "status_change", "status": BoxStatus.IDLE.value}
-        )
-        await self._global_broadcast.broadcast({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "status": BoxStatus.IDLE.value,
-        })
-
-    async def _set_failed(self, box_id: str, error: str) -> None:
-        async with self._sf() as db:
-            box = await db.get(Box, box_id)
-            if box:
-                box.status = BoxStatus.FAILED
-                box.error_message = error
+                box.container_status = ContainerStatus.STOPPED
+                box.stop_reason = "container_error"
+                box.task_status = TaskStatus.IDLE
                 box.completed_at = datetime.now(timezone.utc)
                 await db.commit()
         await self._relay.broadcast(
-            box_id, {"type": "status_change", "status": BoxStatus.FAILED.value}
+            box_id, {
+                "type": "status_change",
+                "container_status": ContainerStatus.STOPPED.value,
+                "stop_reason": "container_error",
+            }
         )
         await self._relay.broadcast(
             box_id, {"type": "error", "detail": error}
@@ -548,5 +587,6 @@ class BoxService:
         await self._global_broadcast.broadcast({
             "type": "box_status_changed",
             "box_id": box_id,
-            "status": BoxStatus.FAILED.value,
+            "container_status": ContainerStatus.STOPPED.value,
+            "stop_reason": "container_error",
         })

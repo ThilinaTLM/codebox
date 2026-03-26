@@ -9,6 +9,7 @@ export interface BoxPageActions {
   onToggleFiles: () => void
   onStop: () => void
   onDelete: () => void
+  onRestart?: () => void
   isStopPending: boolean
   isDeletePending: boolean
 }

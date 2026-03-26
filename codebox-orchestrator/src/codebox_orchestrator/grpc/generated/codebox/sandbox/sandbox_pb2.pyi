@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SandboxEvent(_message.Message):
-    __slots__ = ("register", "token", "model_start", "tool_start", "tool_end", "message_complete", "done", "error", "exec_output", "exec_done", "list_files_result", "read_file_result")
+    __slots__ = ("register", "token", "model_start", "tool_start", "tool_end", "message_complete", "done", "error", "exec_output", "exec_done", "list_files_result", "read_file_result", "task_status_changed", "report_status", "shutting_down")
     REGISTER_FIELD_NUMBER: _ClassVar[int]
     TOKEN_FIELD_NUMBER: _ClassVar[int]
     MODEL_START_FIELD_NUMBER: _ClassVar[int]
@@ -20,6 +20,9 @@ class SandboxEvent(_message.Message):
     EXEC_DONE_FIELD_NUMBER: _ClassVar[int]
     LIST_FILES_RESULT_FIELD_NUMBER: _ClassVar[int]
     READ_FILE_RESULT_FIELD_NUMBER: _ClassVar[int]
+    TASK_STATUS_CHANGED_FIELD_NUMBER: _ClassVar[int]
+    REPORT_STATUS_FIELD_NUMBER: _ClassVar[int]
+    SHUTTING_DOWN_FIELD_NUMBER: _ClassVar[int]
     register: RegisterEvent
     token: TokenEvent
     model_start: ModelStartEvent
@@ -32,7 +35,10 @@ class SandboxEvent(_message.Message):
     exec_done: ExecDoneEvent
     list_files_result: ListFilesResultEvent
     read_file_result: ReadFileResultEvent
-    def __init__(self, register: _Optional[_Union[RegisterEvent, _Mapping]] = ..., token: _Optional[_Union[TokenEvent, _Mapping]] = ..., model_start: _Optional[_Union[ModelStartEvent, _Mapping]] = ..., tool_start: _Optional[_Union[ToolStartEvent, _Mapping]] = ..., tool_end: _Optional[_Union[ToolEndEvent, _Mapping]] = ..., message_complete: _Optional[_Union[MessageCompleteEvent, _Mapping]] = ..., done: _Optional[_Union[DoneEvent, _Mapping]] = ..., error: _Optional[_Union[ErrorEvent, _Mapping]] = ..., exec_output: _Optional[_Union[ExecOutputEvent, _Mapping]] = ..., exec_done: _Optional[_Union[ExecDoneEvent, _Mapping]] = ..., list_files_result: _Optional[_Union[ListFilesResultEvent, _Mapping]] = ..., read_file_result: _Optional[_Union[ReadFileResultEvent, _Mapping]] = ...) -> None: ...
+    task_status_changed: TaskStatusChangedEvent
+    report_status: ReportStatusEvent
+    shutting_down: ShuttingDownEvent
+    def __init__(self, register: _Optional[_Union[RegisterEvent, _Mapping]] = ..., token: _Optional[_Union[TokenEvent, _Mapping]] = ..., model_start: _Optional[_Union[ModelStartEvent, _Mapping]] = ..., tool_start: _Optional[_Union[ToolStartEvent, _Mapping]] = ..., tool_end: _Optional[_Union[ToolEndEvent, _Mapping]] = ..., message_complete: _Optional[_Union[MessageCompleteEvent, _Mapping]] = ..., done: _Optional[_Union[DoneEvent, _Mapping]] = ..., error: _Optional[_Union[ErrorEvent, _Mapping]] = ..., exec_output: _Optional[_Union[ExecOutputEvent, _Mapping]] = ..., exec_done: _Optional[_Union[ExecDoneEvent, _Mapping]] = ..., list_files_result: _Optional[_Union[ListFilesResultEvent, _Mapping]] = ..., read_file_result: _Optional[_Union[ReadFileResultEvent, _Mapping]] = ..., task_status_changed: _Optional[_Union[TaskStatusChangedEvent, _Mapping]] = ..., report_status: _Optional[_Union[ReportStatusEvent, _Mapping]] = ..., shutting_down: _Optional[_Union[ShuttingDownEvent, _Mapping]] = ...) -> None: ...
 
 class RegisterEvent(_message.Message):
     __slots__ = ("session_id",)
@@ -121,6 +127,26 @@ class ReadFileResultEvent(_message.Message):
     data_json: str
     error: str
     def __init__(self, request_id: _Optional[str] = ..., data_json: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
+
+class TaskStatusChangedEvent(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class ReportStatusEvent(_message.Message):
+    __slots__ = ("status", "message")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    message: str
+    def __init__(self, status: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ShuttingDownEvent(_message.Message):
+    __slots__ = ("reason",)
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    reason: str
+    def __init__(self, reason: _Optional[str] = ...) -> None: ...
 
 class OrchestratorCommand(_message.Message):
     __slots__ = ("registered", "message", "exec", "cancel", "thread_restore", "list_files", "read_file")

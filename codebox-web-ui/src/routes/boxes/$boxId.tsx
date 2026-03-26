@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-import type { WSEvent } from "@/net/http/types"
+
+
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BoxInput } from "@/components/box/BoxInput"
@@ -13,11 +14,12 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { useBox, useDeleteBox, useStopBox } from "@/net/query"
+import { useBox, useDeleteBox, useStopBox, useRestartBox } from "@/net/query"
 import { useBoxWebSocket } from "@/net/ws"
-import { BoxStatus } from "@/net/http/types"
+import { ContainerStatus } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
+import { AgentReportBadge } from "@/components/box/BoxStatusBadge"
 
 export const Route = createFileRoute("/boxes/$boxId")({
   component: BoxDetailPage,
@@ -25,18 +27,20 @@ export const Route = createFileRoute("/boxes/$boxId")({
 
 function BoxDetailPage() {
   const { boxId } = Route.useParams()
-  const { data: box, isLoading } = useBox(boxId)
+  const { data: box, isLoading, refetch } = useBox(boxId)
   const navigate = useNavigate()
   const stopMutation = useStopBox()
   const deleteMutation = useDeleteBox()
+  const restartMutation = useRestartBox()
   const [showFiles, setShowFiles] = useState(true)
   const filePanelRef = useRef<PanelImperativeHandle>(null)
   const setBoxPageActions = useSetBoxPageActions()
 
   const isActive =
-    box?.status === BoxStatus.IDLE ||
-    box?.status === BoxStatus.RUNNING ||
-    box?.status === BoxStatus.STARTING
+    box?.container_status === ContainerStatus.RUNNING ||
+    box?.container_status === ContainerStatus.STARTING
+
+  const isStopped = box?.container_status === ContainerStatus.STOPPED
 
   const { events, sendMessage, sendExec, sendCancel, isConnected } =
     useBoxWebSocket({
@@ -44,7 +48,7 @@ function BoxDetailPage() {
       enabled: isActive,
     })
 
-  const activity = useAgentActivity(events, box?.status)
+  const activity = useAgentActivity(events, box?.container_status, box?.task_status)
 
   const handleStop = useCallback(() => {
     sendCancel()
@@ -53,6 +57,16 @@ function BoxDetailPage() {
       onError: () => toast.error("Failed to stop"),
     })
   }, [sendCancel, stopMutation, boxId])
+
+  const handleRestart = useCallback(() => {
+    restartMutation.mutate(boxId, {
+      onSuccess: () => {
+        toast.success("Agent restarting")
+        refetch()
+      },
+      onError: () => toast.error("Failed to restart"),
+    })
+  }, [restartMutation, boxId, refetch])
 
   const handleDelete = useCallback(() => {
     deleteMutation.mutate(boxId, {
@@ -81,20 +95,15 @@ function BoxDetailPage() {
       onToggleFiles: toggleFiles,
       onStop: handleStop,
       onDelete: handleDelete,
+      onRestart: isStopped ? handleRestart : undefined,
       isStopPending: stopMutation.isPending,
       isDeletePending: deleteMutation.isPending,
     })
     return () => setBoxPageActions(null)
-  }, [box, isActive, isConnected, activity, showFiles, toggleFiles, handleStop, handleDelete, stopMutation.isPending, deleteMutation.isPending, setBoxPageActions])
-
-  const localEventsRef = useRef<Array<WSEvent>>([])
+  }, [box, isActive, isConnected, activity, showFiles, isStopped, toggleFiles, handleStop, handleRestart, handleDelete, stopMutation.isPending, deleteMutation.isPending, setBoxPageActions])
 
   const handleSendMessage = useCallback(
     (content: string) => {
-      localEventsRef.current = [
-        ...localEventsRef.current,
-        { type: "status_change", status: BoxStatus.RUNNING } as WSEvent,
-      ]
       sendMessage(content)
     },
     [sendMessage]
@@ -106,6 +115,10 @@ function BoxDetailPage() {
     },
     [sendExec]
   )
+
+  const handleCancel = useCallback(() => {
+    sendCancel()
+  }, [sendCancel])
 
   if (isLoading) return <BoxDetailSkeleton />
 
@@ -129,10 +142,39 @@ function BoxDetailPage() {
   }
 
   const canShowFiles =
-    box.status === BoxStatus.IDLE || box.status === BoxStatus.RUNNING
+    box.container_status === ContainerStatus.RUNNING
 
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col">
+      {/* Agent report banner */}
+      {box.agent_report_status && (
+        <div className="flex items-center gap-2 border-b border-border/40 bg-muted/30 px-4 py-2">
+          <AgentReportBadge status={box.agent_report_status} />
+          {box.agent_report_message && (
+            <span className="text-sm text-muted-foreground">
+              {box.agent_report_message}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Stopped banner with restart */}
+      {isStopped && (
+        <div className="flex items-center gap-2 border-b border-border/40 bg-muted/30 px-4 py-2">
+          <span className="text-sm text-muted-foreground">
+            Container stopped{box.stop_reason ? ` (${box.stop_reason.replace("_", " ")})` : ""}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRestart}
+            disabled={restartMutation.isPending}
+          >
+            {restartMutation.isPending ? "Restarting..." : "Restart"}
+          </Button>
+        </div>
+      )}
+
       {/* Main content area */}
       <div className="min-h-0 flex-1 p-2">
         <ResizablePanelGroup orientation="horizontal" id="box-detail">
@@ -152,7 +194,7 @@ function BoxDetailPage() {
             ) : (
               <div className="flex h-full items-center justify-center">
                 <p className="text-xs text-muted-foreground">
-                  {box.status === BoxStatus.STARTING
+                  {box.container_status === ContainerStatus.STARTING
                     ? "Starting..."
                     : "Not active"}
                 </p>
@@ -175,6 +217,8 @@ function BoxDetailPage() {
                   <BoxInput
                     onSendMessage={handleSendMessage}
                     onSendExec={handleSendExec}
+                    onCancel={handleCancel}
+                    isWorking={activity.isWorking}
                     disabled={!isActive || !isConnected}
                   />
                 </div>

@@ -362,7 +362,7 @@ class GitHubService:
             name=f"[GitHub] #{issue_number}: {issue_title[:100]}",
             initial_prompt=prompt,
             system_prompt=system_prompt,
-            auto_stop=True,
+
             trigger="github_issue",
             github_installation_id=db_installation.id,
             github_repo=repo_full_name,
@@ -481,7 +481,7 @@ class GitHubService:
             name=f"[GitHub PR] #{pr_number}: {pr_title[:100]}",
             initial_prompt=prompt,
             system_prompt=system_prompt,
-            auto_stop=True,
+
             trigger="github_pr",
             github_installation_id=db_installation.id,
             github_repo=repo_full_name,

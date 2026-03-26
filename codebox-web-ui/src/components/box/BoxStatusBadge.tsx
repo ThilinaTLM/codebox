@@ -1,47 +1,53 @@
 import type { AgentActivity } from "@/hooks/useAgentActivity"
 import { Badge } from "@/components/ui/badge"
-import { BoxStatus } from "@/net/http/types"
+import {
+  ContainerStatus,
+  TaskStatus,
+  AgentReportStatus,
+} from "@/net/http/types"
 
-const statusConfig: Record<
-  BoxStatus,
+const containerConfig: Record<
+  ContainerStatus,
   {
     label: string
     variant: "default" | "secondary" | "destructive" | "outline"
     animate?: boolean
   }
 > = {
-  [BoxStatus.STARTING]: {
+  [ContainerStatus.STARTING]: {
     label: "Starting",
     variant: "outline",
     animate: true,
   },
-  [BoxStatus.RUNNING]: { label: "Running", variant: "default", animate: true },
-  [BoxStatus.IDLE]: { label: "Idle", variant: "secondary" },
-  [BoxStatus.COMPLETED]: { label: "Completed", variant: "outline" },
-  [BoxStatus.FAILED]: { label: "Failed", variant: "destructive" },
-  [BoxStatus.CANCELLED]: { label: "Cancelled", variant: "outline" },
-  [BoxStatus.STOPPED]: { label: "Stopped", variant: "outline" },
+  [ContainerStatus.RUNNING]: { label: "Running", variant: "default" },
+  [ContainerStatus.STOPPED]: { label: "Stopped", variant: "outline" },
 }
 
-const statusDot: Record<BoxStatus, string> = {
-  [BoxStatus.STARTING]: "bg-warning",
-  [BoxStatus.RUNNING]: "bg-success",
-  [BoxStatus.IDLE]: "bg-muted-foreground/60",
-  [BoxStatus.COMPLETED]: "bg-success",
-  [BoxStatus.FAILED]: "bg-destructive",
-  [BoxStatus.CANCELLED]: "bg-muted-foreground/40",
-  [BoxStatus.STOPPED]: "bg-muted-foreground/40",
+const taskLabels: Record<TaskStatus, string> = {
+  [TaskStatus.IDLE]: "Idle",
+  [TaskStatus.AGENT_WORKING]: "Working",
+  [TaskStatus.EXEC_SHELL]: "Running command",
+}
+
+const reportLabels: Record<AgentReportStatus, string> = {
+  [AgentReportStatus.IN_PROGRESS]: "In progress",
+  [AgentReportStatus.COMPLETED]: "Completed",
+  [AgentReportStatus.NEED_CLARIFICATION]: "Needs clarification",
+  [AgentReportStatus.UNABLE_TO_PROCEED]: "Unable to proceed",
+  [AgentReportStatus.NOT_ENOUGH_CONTEXT]: "Not enough context",
 }
 
 interface BoxStatusBadgeProps {
-  status: BoxStatus
-  isActive?: boolean
+  containerStatus: ContainerStatus
+  taskStatus?: TaskStatus
+  agentReportStatus?: AgentReportStatus | null
   activity?: AgentActivity
 }
 
 export function BoxStatusBadge({
-  status,
-  isActive,
+  containerStatus,
+  taskStatus,
+  agentReportStatus,
   activity,
 }: BoxStatusBadgeProps) {
   // If we have a live activity override, use it
@@ -53,13 +59,56 @@ export function BoxStatusBadge({
     )
   }
 
-  // Fallback: existing behavior (used on box list page, etc.)
-  const effectiveStatus = isActive ? BoxStatus.RUNNING : status
-  const config = statusConfig[effectiveStatus]
+  const config = containerConfig[containerStatus]
+
+  // For running containers, show task status as the label
+  if (
+    containerStatus === ContainerStatus.RUNNING &&
+    taskStatus &&
+    taskStatus !== TaskStatus.IDLE
+  ) {
+    return (
+      <Badge variant="default" className="text-xs">
+        {taskLabels[taskStatus]}
+      </Badge>
+    )
+  }
+
+  // For stopped containers with agent report, show that
+  if (
+    containerStatus === ContainerStatus.STOPPED &&
+    agentReportStatus === AgentReportStatus.COMPLETED
+  ) {
+    return (
+      <Badge variant="outline" className="text-xs">
+        Completed
+      </Badge>
+    )
+  }
 
   return (
     <Badge variant={config.variant} className="text-xs">
       {config.label}
+    </Badge>
+  )
+}
+
+export function AgentReportBadge({
+  status,
+}: {
+  status: AgentReportStatus
+}) {
+  const variant =
+    status === AgentReportStatus.COMPLETED
+      ? "outline"
+      : status === AgentReportStatus.UNABLE_TO_PROCEED ||
+          status === AgentReportStatus.NOT_ENOUGH_CONTEXT
+        ? "destructive"
+        : "secondary"
+
+  return (
+    <Badge variant={variant} className="text-xs">
+      {reportLabels[status]}
     </Badge>
   )
 }

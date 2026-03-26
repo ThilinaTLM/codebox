@@ -116,8 +116,9 @@ export function TopBar() {
           {/* Center: status + model */}
           <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2.5">
             <BoxStatusBadge
-              status={box.status}
-              isActive={boxPageActions?.isConnected && boxPageActions.isActive}
+              containerStatus={box.container_status}
+              taskStatus={box.task_status}
+              agentReportStatus={box.agent_report_status}
               activity={boxPageActions?.activity}
             />
             {box.model && (
