@@ -26,14 +26,12 @@ export function CreateAgentDialog({
 
   const [name, setName] = useState("")
   const [initialPrompt, setInitialPrompt] = useState("")
-  const [idleTimeout, setIdleTimeout] = useState(60)
 
   const handleCreate = () => {
     createMutation.mutate(
       {
         name: name.trim() || undefined,
         initial_prompt: initialPrompt.trim() || undefined,
-        idle_timeout: idleTimeout,
       },
       {
         onSuccess: (box) => {
@@ -41,7 +39,6 @@ export function CreateAgentDialog({
           onOpenChange(false)
           setName("")
           setInitialPrompt("")
-          setIdleTimeout(60)
           navigate({ to: "/boxes/$boxId", params: { boxId: box.id } })
         },
         onError: () => toast.error("Failed to create agent"),
@@ -103,20 +100,6 @@ export function CreateAgentDialog({
             />
           </div>
 
-          {/* Idle timeout */}
-          <div className="grid gap-1.5">
-            <Label htmlFor="agent-timeout" className="text-xs text-ghost uppercase tracking-wider font-terminal">
-              Idle Timeout (seconds)
-            </Label>
-            <input
-              id="agent-timeout"
-              type="number"
-              value={idleTimeout}
-              onChange={(e) => setIdleTimeout(Number(e.target.value))}
-              min={0}
-              className="h-9 w-full rounded-lg border border-border bg-inset px-3 py-1 text-sm text-foreground font-terminal placeholder:text-muted-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            />
-          </div>
         </div>
 
         <DialogFooter>

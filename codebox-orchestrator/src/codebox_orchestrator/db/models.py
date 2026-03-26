@@ -87,7 +87,6 @@ class Box(Base):
         Enum(AgentReportStatus, native_enum=False, length=30), nullable=True
     )
     agent_report_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    idle_timeout: Mapped[int] = mapped_column(Integer, default=60)
 
     # Prompts
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -25,7 +25,6 @@ class BoxCreate(BaseModel):
     model: str | None = None
     system_prompt: str | None = None
     initial_prompt: str | None = None
-    idle_timeout: int | None = None
 
 
 class BoxMessage(BaseModel):
@@ -48,7 +47,6 @@ class BoxResponse(BaseModel):
     stop_reason: str | None
     agent_report_status: AgentReportStatus | None
     agent_report_message: str | None
-    idle_timeout: int
     system_prompt: str | None
     initial_prompt: str | None
     container_id: str | None

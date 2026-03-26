@@ -27,7 +27,6 @@ class StatusReporter:
 
     def __init__(self) -> None:
         self.send_fn: SendFn | None = None
-        self.on_activity: Callable[[], None] | None = None
 
 
 def build_status_tools(reporter: StatusReporter) -> list[BaseTool]:
@@ -47,10 +46,6 @@ def build_status_tools(reporter: StatusReporter) -> list[BaseTool]:
         event = {"type": "report_status", "status": status, "message": message or ""}
         await reporter.send_fn(event)
         logger.info("set_status: status=%s message=%r", status, message)
-
-        # Reset idle timer so the container stays alive for follow-up messages
-        if reporter.on_activity:
-            reporter.on_activity()
 
         return f"Status set to '{status}'." + (f" Message: {message}" if message else "")
 

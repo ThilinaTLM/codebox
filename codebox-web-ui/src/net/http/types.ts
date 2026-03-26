@@ -27,7 +27,6 @@ export interface Box {
   stop_reason: string | null
   agent_report_status: AgentReportStatus | null
   agent_report_message: string | null
-  idle_timeout: number
   system_prompt: string | null
   initial_prompt: string | null
   container_id: string | null
@@ -73,7 +72,6 @@ export interface BoxCreatePayload {
   model?: string | null
   system_prompt?: string | null
   initial_prompt?: string | null
-  idle_timeout?: number | null
 }
 
 // SSE stream event types from orchestrator
@@ -98,7 +96,6 @@ export type BoxStreamEvent =
       status: AgentReportStatus
       message: string
     }
-  | { type: "shutting_down"; reason: string }
   | { type: "exec_output"; output: string }
   | { type: "exec_done"; output: string }
   | { type: "user_message"; content: string }

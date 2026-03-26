@@ -53,7 +53,6 @@ async def create_box(request: Request, body: BoxCreate) -> BoxResponse:
         model=body.model,
         system_prompt=body.system_prompt,
         initial_prompt=body.initial_prompt,
-        idle_timeout=body.idle_timeout,
     )
     return BoxResponse.from_orm_box(box)
 

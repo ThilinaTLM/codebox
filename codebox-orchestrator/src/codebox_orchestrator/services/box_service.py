@@ -62,7 +62,6 @@ class BoxService:
         model: str | None = None,
         system_prompt: str | None = None,
         initial_prompt: str | None = None,
-        idle_timeout: int | None = None,
         # GitHub integration fields
         trigger: str | None = None,
         github_installation_id: str | None = None,
@@ -76,7 +75,6 @@ class BoxService:
             model=model or OPENROUTER_MODEL,
             container_status=ContainerStatus.STARTING,
             task_status=TaskStatus.IDLE,
-            idle_timeout=idle_timeout if idle_timeout is not None else 60,
             system_prompt=system_prompt,
             initial_prompt=initial_prompt,
             trigger=trigger,
@@ -424,7 +422,6 @@ class BoxService:
                 return
             model = box.model
             system_prompt = box.system_prompt
-            idle_timeout = box.idle_timeout
             github_repo = box.github_repo
             github_branch = box.github_branch
             github_issue_number = box.github_issue_number
@@ -450,7 +447,6 @@ class BoxService:
         extra_env: dict[str, str] = {
             "ORCHESTRATOR_GRPC_ADDRESS": ORCHESTRATOR_GRPC_ADDRESS,
             "CALLBACK_TOKEN": callback_token,
-            "CODEBOX_IDLE_TIMEOUT": str(idle_timeout),
         }
         if system_prompt:
             extra_env["SYSTEM_PROMPT"] = system_prompt

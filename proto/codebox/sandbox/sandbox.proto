@@ -27,7 +27,6 @@ message SandboxEvent {
     ReadFileResultEvent read_file_result = 12;
     TaskStatusChangedEvent task_status_changed = 13;
     ReportStatusEvent report_status = 14;
-    ShuttingDownEvent shutting_down = 15;
   }
 }
 
@@ -93,10 +92,6 @@ message TaskStatusChangedEvent {
 message ReportStatusEvent {
   string status = 1;  // "completed", "in_progress", "need_clarification", etc.
   string message = 2;
-}
-
-message ShuttingDownEvent {
-  string reason = 1;  // "idle_timeout"
 }
 
 // ──────────────────────────────────────────────

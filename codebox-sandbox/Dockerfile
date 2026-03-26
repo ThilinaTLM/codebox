@@ -16,8 +16,14 @@ WORKDIR /app
 # Copy devbox config and install packages
 COPY codebox-sandbox/devbox.json ./
 ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
-ENV DEVBOX_PROJECT_DIR="/app"
 RUN devbox install
+
+# Create a wrapper so `devbox` works from any directory (agent runs from /workspace).
+# -c is a per-subcommand flag, so inject it after the subcommand name.
+# Commands like search/version/help don't need or support -c.
+RUN mv /usr/local/bin/devbox /usr/local/bin/devbox-real \
+    && printf '#!/bin/bash\ncase "$1" in\n  add|rm|install|shell|shellenv|run|update|list|info|services|generate)\n    cmd="$1"; shift; exec devbox-real "$cmd" -c /app "$@" ;;\n  *)\n    exec devbox-real "$@" ;;\nesac\n' > /usr/local/bin/devbox \
+    && chmod +x /usr/local/bin/devbox
 
 # Install codebox-core
 COPY codebox-core/pyproject.toml codebox-core/README.md /tmp/codebox-core/

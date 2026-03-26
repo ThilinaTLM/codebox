@@ -10,8 +10,6 @@ import asyncio
 import json
 import logging
 import os
-import sys
-from datetime import datetime, timezone
 from typing import Any
 
 import grpc
@@ -155,12 +153,6 @@ async def _connect_and_run(
         # Inject the send function into the status reporter so the set_status tool works
         session = manager.get(session_id)
         session.status_reporter.send_fn = send
-        session.status_reporter.on_activity = lambda: setattr(
-            session, "last_active_at", datetime.now(timezone.utc)
-        )
-
-        # Start idle monitor
-        idle_monitor_task = asyncio.create_task(_idle_monitor(session, send))
 
         try:
             async for command in response_stream:
@@ -177,7 +169,6 @@ async def _connect_and_run(
 
                 elif field == "message":
                     content = command.message.content
-                    session.last_active_at = datetime.now(timezone.utc)
                     logger.info("Received message command (len=%d) for session %s", len(content) if content else 0, session_id)
                     if not content:
                         await send({"type": "error", "detail": "Empty message content"})
@@ -192,7 +183,6 @@ async def _connect_and_run(
 
                 elif field == "exec":
                     command_str = command.exec.content
-                    session.last_active_at = datetime.now(timezone.utc)
                     logger.info("Received exec command: %s (session %s)", command_str[:100] if command_str else "", session_id)
                     if not command_str:
                         await send({"type": "error", "detail": "Empty exec command"})
@@ -231,30 +221,9 @@ async def _connect_and_run(
                     await send({"type": "error", "detail": f"Unknown command: {field}"})
 
         finally:
-            idle_monitor_task.cancel()
             await _cancel_current()
             # Signal the event iterator to stop
             await outbound.put(None)
-
-
-async def _idle_monitor(session: Any, send: Any) -> None:
-    """Background task that shuts down the container after idle timeout."""
-    try:
-        while True:
-            await asyncio.sleep(10)
-            if session.current_task is None:
-                elapsed = (datetime.now(timezone.utc) - session.last_active_at).total_seconds()
-                if elapsed > session.idle_timeout:
-                    logger.info(
-                        "Idle timeout reached (%.0fs > %ds) for session %s, shutting down",
-                        elapsed, session.idle_timeout, session.session_id,
-                    )
-                    await send({"type": "shutting_down", "reason": "idle_timeout"})
-                    # Give the event a moment to be sent
-                    await asyncio.sleep(1)
-                    sys.exit(0)
-    except asyncio.CancelledError:
-        pass
 
 
 def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
@@ -357,12 +326,6 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
             report_status=sandbox_pb2.ReportStatusEvent(
                 status=msg.get("status", ""),
                 message=msg.get("message", ""),
-            )
-        )
-    elif msg_type == "shutting_down":
-        return sandbox_pb2.SandboxEvent(
-            shutting_down=sandbox_pb2.ShuttingDownEvent(
-                reason=msg.get("reason", ""),
             )
         )
     else:

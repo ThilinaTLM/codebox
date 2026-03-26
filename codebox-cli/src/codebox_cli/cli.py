@@ -42,7 +42,6 @@ def box_group(ctx: click.Context, url: str | None) -> None:
 @click.option("--prompt", "-p", default=None, help="Initial prompt (auto-executed on start).")
 @click.option("--model", "-m", default=None, help="Override LLM model.")
 @click.option("--system-prompt", default=None, help="Custom system prompt.")
-@click.option("--idle-timeout", "-t", type=int, default=None, help="Idle timeout in seconds.")
 @click.option("--watch", is_flag=True, default=True, help="Stream box output (default: true).")
 @click.option("--no-watch", is_flag=True, help="Don't stream box output.")
 @click.pass_context
@@ -52,7 +51,6 @@ def box_create(
     prompt: str | None,
     model: str | None,
     system_prompt: str | None,
-    idle_timeout: int | None,
     watch: bool,
     no_watch: bool,
 ) -> None:
@@ -64,7 +62,6 @@ def box_create(
             initial_prompt=prompt,
             model=model,
             system_prompt=system_prompt,
-            idle_timeout=idle_timeout,
         )
     except RuntimeError as exc:
         raise click.ClickException(str(exc))
@@ -153,7 +150,6 @@ def box_info(ctx: click.Context, box_id: str) -> None:
         ("Report", b.get("agent_report_status", "") or ""),
         ("Report Message", b.get("agent_report_message", "") or ""),
         ("Stop Reason", b.get("stop_reason", "") or ""),
-        ("Idle Timeout", str(b.get("idle_timeout", ""))),
         ("Trigger", b.get("trigger", "") or ""),
         ("Container ID", (b.get("container_id", "") or "")[:16]),
         ("Session ID", (b.get("session_id", "") or "")[:16]),

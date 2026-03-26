@@ -42,7 +42,7 @@ export function AppSidebar() {
       )}
     >
       {/* Top: Logo */}
-      <div className="flex h-12 shrink-0 items-center border-b border-sidebar-border px-3">
+      <div className={cn("flex h-12 shrink-0 items-center border-b border-sidebar-border px-3", collapsed && "justify-center")}>
         <Link
           to="/"
           className="flex items-center gap-2 overflow-hidden"

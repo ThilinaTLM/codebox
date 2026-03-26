@@ -65,11 +65,6 @@ async def _stream_box_events(
                 if parts:
                     console.print(f"[dim]status: {', '.join(parts)}[/dim]")
 
-            elif etype == "shutting_down":
-                reason = event.get("reason", "")
-                console.print(f"[yellow]Box shutting down: {reason}[/yellow]")
-                return
-
             elif etype == "done":
                 final = event.get("content", "") or ai_text_buffer
                 if final.strip():

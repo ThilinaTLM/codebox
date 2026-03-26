@@ -15,8 +15,6 @@ import mimetypes
 from pathlib import Path
 from typing import Any, Callable, Coroutine
 
-from datetime import datetime, timezone
-
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from codebox_daemon.agent import extract_token
@@ -81,7 +79,6 @@ async def run_agent_stream(
     """Stream agent events, calling send(msg_dict) for each event."""
     logger.info("Agent stream starting for session %s", session_id)
     session = manager.get(session_id)
-    session.last_active_at = datetime.now(timezone.utc)
     ai_text_buffer = ""
 
     config = {
@@ -189,7 +186,6 @@ async def run_exec(
     """
     logger.info("Exec command for session %s: %s", session_id, command[:200])
     session = manager.get(session_id)
-    session.last_active_at = datetime.now(timezone.utc)
     config = {"configurable": {"thread_id": session_id}}
 
     await send({"type": "task_status_changed", "status": "exec_shell"})

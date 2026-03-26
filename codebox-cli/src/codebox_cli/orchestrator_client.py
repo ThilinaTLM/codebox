@@ -71,7 +71,6 @@ class OrchestratorClient:
         initial_prompt: str | None = None,
         model: str | None = None,
         system_prompt: str | None = None,
-        idle_timeout: int | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         if name:
@@ -82,8 +81,6 @@ class OrchestratorClient:
             payload["model"] = model
         if system_prompt:
             payload["system_prompt"] = system_prompt
-        if idle_timeout is not None:
-            payload["idle_timeout"] = idle_timeout
         return self._rest_request("POST", "/api/boxes", payload)
 
     def list_boxes(

@@ -29,10 +29,8 @@ class Session:
     agent: Any  # compiled LangGraph graph
     checkpointer: AsyncSqliteSaver
     created_at: datetime
-    last_active_at: datetime
     model: str
     status_reporter: StatusReporter = field(default_factory=StatusReporter)
-    idle_timeout: int = 60
     recursion_limit: int = 150
     current_task: asyncio.Task | None = field(default=None, repr=False)
 
@@ -87,17 +85,14 @@ class SessionManager:
         )
         cfg = sandbox_config or {}
         recursion_limit = cfg.get("recursion_limit", 150)
-        idle_timeout = int(os.environ.get("CODEBOX_IDLE_TIMEOUT", cfg.get("idle_timeout", 60)))
         now = datetime.now(timezone.utc)
         session = Session(
             session_id=session_id,
             agent=agent,
             checkpointer=checkpointer,
             created_at=now,
-            last_active_at=now,
             model=model,
             status_reporter=status_reporter,
-            idle_timeout=idle_timeout,
             recursion_limit=recursion_limit,
         )
         self._sessions[session_id] = session

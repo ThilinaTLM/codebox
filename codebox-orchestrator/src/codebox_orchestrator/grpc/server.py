@@ -223,11 +223,6 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             message = event_dict.get("message", "")
             await self._set_report_status(box_id, status, message)
 
-        # Handle container shutdown
-        elif event_type == "shutting_down":
-            reason = event_dict.get("reason", "")
-            await self._set_container_stopped(box_id, reason)
-
         # Persist event (skip task_status_changed — too noisy for event log)
         if event_type not in ("task_status_changed",):
             await self._persist_box_event(box_id, event_type, event_dict)
@@ -300,12 +295,6 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 "status": rs.status,
                 "message": rs.message,
             }
-        elif field == "shutting_down":
-            return "shutting_down", {
-                "type": "shutting_down",
-                "reason": event.shutting_down.reason,
-            }
-
         return "", {}
 
     def _chat_message_to_dict(self, msg: sandbox_pb2.ChatMessage) -> dict[str, Any]:
