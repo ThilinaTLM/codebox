@@ -53,11 +53,11 @@ async def run_callback() -> None:
 
     # Create session manager and session
     manager = SessionManager()
-    system_prompt = os.environ.get("SYSTEM_PROMPT")
+    secondary_system_prompt = os.environ.get("SYSTEM_PROMPT")
     session = manager.create(
         model=model,
         api_key=api_key,
-        system_prompt=system_prompt,
+        secondary_system_prompt=secondary_system_prompt,
         sandbox_config=sandbox_config,
     )
     session_id = session.session_id

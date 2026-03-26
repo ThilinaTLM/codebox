@@ -9,7 +9,9 @@ from deepagents.backends import LocalShellBackend
 from codebox_daemon.tools.web import build_web_tools
 
 
-DEFAULT_SYSTEM_PROMPT = (
+# Primary system prompt — always included. Describes the sandbox environment,
+# available tools, and package installation guidance.
+PRIMARY_SYSTEM_PROMPT = (
     "You are a helpful coding assistant running inside a sandboxed container. "
     "You have access to tools for filesystem operations "
     "(ls, read_file, write_file, edit_file, glob, grep), "
@@ -18,20 +20,38 @@ DEFAULT_SYSTEM_PROMPT = (
     "Environment:\n"
     "- Working directory: /workspace\n"
     "- Python 3.12 (with uv), Node.js 20, Go 1.22 are pre-installed\n"
-    "- git, ripgrep (rg), jq, curl are available\n"
-    "- Devbox is available — use `devbox add <pkg>` to install additional language "
-    "toolchains or CLI tools (preferred over apt for dev tools)\n"
-    "- apt is available — use `apt-get install -y <pkg>` for system-level packages\n"
-    "- pip and uv are available for Python packages; npm/npx for Node packages\n\n"
-    "You are inside a disposable sandbox. Install any packages the task requires "
-    "without hesitation — there is nothing to break."
+    "- Package managers: pnpm, yarn, npm/npx (Node); pip, uv (Python); go install (Go)\n"
+    "- Build tools: make, gcc\n"
+    "- CLI utilities: git, gh, ripgrep (rg), fd, tree, jq, curl, unzip, openssh\n\n"
+    "Installing packages:\n"
+    "- This is a fully disposable sandbox — install anything you need without hesitation. "
+    "There is nothing to break and no approval needed.\n"
+    "- `devbox add <pkg>` — preferred for language runtimes and CLI tools "
+    "(e.g. `devbox add ruby`, `devbox add rustup`)\n"
+    "- `apt-get install -y <pkg>` — for system-level libraries and packages\n"
+    "- `pip install` / `uv pip install` — for Python packages\n"
+    "- `pnpm install` / `yarn install` / `npm install` — for Node packages\n\n"
+    "Always install the dependencies a project needs before trying to build or run it. "
+    "If a command fails due to a missing tool or library, install it and retry."
 )
+
+
+def _build_system_prompt(secondary: str | None = None) -> str:
+    """Combine primary and secondary system prompts.
+
+    The primary prompt (environment/tools) is always included.
+    The secondary prompt (task-specific context from the orchestrator) is appended
+    if provided.
+    """
+    if secondary:
+        return PRIMARY_SYSTEM_PROMPT + "\n\n" + secondary
+    return PRIMARY_SYSTEM_PROMPT
 
 
 def create_agent(
     model: str,
     api_key: str,
-    system_prompt: str | None = None,
+    secondary_system_prompt: str | None = None,
     root_dir: str = "/workspace",
     sandbox_config: dict | None = None,
 ):
@@ -40,7 +60,8 @@ def create_agent(
     Args:
         model: The OpenRouter model identifier.
         api_key: The OpenRouter API key.
-        system_prompt: Optional custom system prompt.
+        secondary_system_prompt: Optional task-specific prompt appended to the
+            primary environment prompt.
         root_dir: Root directory for the shell backend.
         sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
 
@@ -68,7 +89,7 @@ def create_agent(
         model=llm,
         tools=build_web_tools(),
         backend=backend,
-        system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
+        system_prompt=_build_system_prompt(secondary_system_prompt),
     )
 
 

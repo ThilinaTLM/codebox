@@ -16,8 +16,18 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+import platform
+import ssl
+
 import httpx
 import jwt
+
+if platform.system() == "Windows":
+    import truststore
+    _ssl_ctx: ssl.SSLContext | bool = truststore.SSLContext()
+else:
+    _ssl_ctx = True  # httpx default: use certifi
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -79,7 +89,7 @@ class GitHubService:
                 return token
 
         app_jwt = self._generate_jwt()
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=_ssl_ctx) as client:
             resp = await client.post(
                 f"{GITHUB_API_BASE}/app/installations/{installation_id}/access_tokens",
                 headers={
@@ -173,7 +183,7 @@ class GitHubService:
         token = await self.get_installation_token(installation_id)
         repos: list[dict] = []
         page = 1
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=_ssl_ctx) as client:
             while True:
                 resp = await client.get(
                     f"{GITHUB_API_BASE}/installation/repositories",
@@ -371,7 +381,7 @@ class GitHubService:
         # Post a reaction on the triggering comment
         try:
             token = await self.get_installation_token(gh_installation_id)
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(verify=_ssl_ctx) as client:
                 await client.post(
                     f"{GITHUB_API_BASE}/repos/{repo_full_name}/issues/comments/{comment['id']}/reactions",
                     json={"content": "rocket"},
@@ -509,7 +519,7 @@ class GitHubService:
 
         context: dict = {"comments": [], "guidelines": ""}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=_ssl_ctx) as client:
             # Fetch comments
             try:
                 resp = await client.get(
@@ -673,7 +683,7 @@ class GitHubService:
     async def fetch_installation_info(self, installation_id: int) -> dict:
         """Fetch installation metadata from GitHub API."""
         app_jwt = self._generate_jwt()
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=_ssl_ctx) as client:
             resp = await client.get(
                 f"{GITHUB_API_BASE}/app/installations/{installation_id}",
                 headers={

@@ -27,7 +27,10 @@ RUN mkdir -p /workspace
 
 LABEL codebox-sandbox="true"
 
-# Add devbox toolchains to PATH so agent shell commands can use node, go, rg, etc.
-ENV PATH="/app/.devbox/nix/profile/default/bin:${PATH}"
+# Entrypoint sources full devbox shell environment (GOPATH, GOROOT, NODE_PATH, etc.)
+# so the daemon and all agent subprocess commands inherit it.
+COPY codebox-sandbox/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
+ENTRYPOINT ["bash", "/app/entrypoint.sh"]
 CMD ["python", "-m", "codebox_daemon"]

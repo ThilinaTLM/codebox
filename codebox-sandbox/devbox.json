@@ -6,6 +6,14 @@
     "git",
     "jq",
     "curl",
-    "gh"
+    "gh",
+    "pnpm",
+    "yarn",
+    "fd",
+    "tree",
+    "unzip",
+    "gnumake",
+    "gcc",
+    "openssh"
   ]
 }
