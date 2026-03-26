@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import tempfile as _tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -18,7 +19,8 @@ CODEBOX_IMAGE: str = os.environ.get("CODEBOX_IMAGE", "codebox-sandbox:latest")
 OPENROUTER_API_KEY: str = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL: str = os.environ.get("OPENROUTER_MODEL", "")
 TAVILY_API_KEY: str = os.environ.get("TAVILY_API_KEY", "")
-WORKSPACE_BASE_DIR: str = os.environ.get("WORKSPACE_BASE_DIR", "/tmp/codebox-workspaces")
+_default_workspace = os.path.join(_tempfile.gettempdir(), "codebox-workspaces")
+WORKSPACE_BASE_DIR: str = os.environ.get("WORKSPACE_BASE_DIR", _default_workspace)
 DOCKER_NETWORK: str = os.environ.get("DOCKER_NETWORK", "codebox-net")
 
 # Container runtime configuration
@@ -28,9 +30,23 @@ CONTAINER_TLS_VERIFY: str = os.environ.get("CONTAINER_TLS_VERIFY", "")
 CONTAINER_TLS_CERT: str = os.environ.get("CONTAINER_TLS_CERT", "")
 CONTAINER_TLS_KEY: str = os.environ.get("CONTAINER_TLS_KEY", "")
 
-ORCHESTRATOR_CALLBACK_URL: str = os.environ.get("ORCHESTRATOR_CALLBACK_URL", "")
 HOST: str = os.environ.get("ORCHESTRATOR_HOST", "0.0.0.0")
 PORT: int = int(os.environ.get("ORCHESTRATOR_PORT", "8080"))
+
+
+def _default_callback_url() -> str:
+    import sys as _sys
+    if _sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
+        # With host networking + mirrored WSL, localhost reaches Windows host.
+        host = "localhost"
+    elif CONTAINER_RUNTIME_TYPE == "podman":
+        host = "host.containers.internal"
+    else:
+        host = "host.docker.internal"
+    return f"ws://{host}:{PORT}"
+
+
+ORCHESTRATOR_CALLBACK_URL: str = os.environ.get("ORCHESTRATOR_CALLBACK_URL", "") or _default_callback_url()
 CORS_ORIGINS: list[str] = [
     o.strip()
     for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")

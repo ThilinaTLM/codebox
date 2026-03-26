@@ -4,13 +4,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates xz-utils bash git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install devbox
-RUN curl -fsSL https://get.jetify.com/devbox | bash -s -- -f
+# Install Nix in single-user / no-daemon mode (no systemd in containers)
+# then install devbox
+RUN curl -fsSL https://install.determinate.systems/nix | \
+    bash -s -- install linux --init none --no-confirm \
+    && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh \
+    && curl -fsSL https://get.jetify.com/devbox | bash -s -- -f
 
 WORKDIR /app
 
 # Copy devbox config and install packages
 COPY codebox-sandbox/devbox.json ./
+ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
 RUN devbox install
 
 # Install codebox-core

@@ -42,10 +42,16 @@ if ! command -v pnpm &>/dev/null; then
     echo ""
 fi
 
-if ! command -v docker &>/dev/null; then
-    echo -e "${RED}docker not found. Docker is required to run sandbox containers.${RESET}"
+if command -v docker &>/dev/null; then
+    CONTAINER_ENGINE="docker"
+elif command -v podman &>/dev/null; then
+    CONTAINER_ENGINE="podman"
+else
+    echo -e "${RED}Neither docker nor podman found. A container engine is required to run sandbox containers.${RESET}"
     exit 1
 fi
+
+ok "Using container engine: $CONTAINER_ENGINE"
 
 if ! command -v openssl &>/dev/null; then
     warn "openssl not found. You'll need to provide your own webhook secret."

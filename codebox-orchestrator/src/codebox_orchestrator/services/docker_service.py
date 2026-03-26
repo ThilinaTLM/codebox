@@ -7,6 +7,8 @@ local sockets, remote TCP/TLS, and SSH.
 from __future__ import annotations
 
 import logging
+import re
+import sys
 from dataclasses import dataclass
 from typing import Any
 
@@ -111,13 +113,13 @@ def spawn(
 
     volumes: dict[str, dict[str, str]] = {}
     if mount_path:
-        volumes[mount_path] = {"bind": "/workspace", "mode": "rw"}
+        host_path = mount_path
+        if sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
+            host_path = _to_wsl_path(mount_path)
+        volumes[host_path] = {"bind": "/workspace", "mode": "rw"}
 
     labels = {CONTAINER_LABEL: "true"}
     net = network or DOCKER_NETWORK
-
-    # Ensure the network exists
-    _ensure_network(client, net)
 
     run_kwargs: dict[str, Any] = {
         "detach": True,
@@ -125,10 +127,17 @@ def spawn(
         "environment": environment,
         "volumes": volumes,
         "labels": labels,
-        "network": net,
     }
-    if CONTAINER_RUNTIME_TYPE != "podman":
-        run_kwargs["extra_hosts"] = {"host.docker.internal": "host-gateway"}
+    if sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
+        # Use host networking so the container shares the WSL VM's network
+        # stack, which with mirrored networking can reach the Windows host.
+        run_kwargs["network_mode"] = "host"
+    else:
+        run_kwargs["network"] = net
+        # Ensure the network exists
+        _ensure_network(client, net)
+        if CONTAINER_RUNTIME_TYPE != "podman":
+            run_kwargs["extra_hosts"] = {"host.docker.internal": "host-gateway"}
 
     try:
         container = client.containers.run(image, **run_kwargs)
@@ -272,6 +281,15 @@ def _get_container(client: docker.DockerClient, container_id_or_name: str):
         ) from exc
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Docker API error: {exc}") from exc
+
+
+def _to_wsl_path(win_path: str) -> str:
+    """Convert a Windows path like C:\\Users\\foo to /mnt/c/Users/foo for WSL."""
+    p = win_path.replace("\\", "/")
+    m = re.match(r"^([A-Za-z]):/(.*)$", p)
+    if m:
+        return f"/mnt/{m.group(1).lower()}/{m.group(2)}"
+    return p
 
 
 def _ensure_network(client: docker.DockerClient, network_name: str) -> None:
