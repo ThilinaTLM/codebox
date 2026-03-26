@@ -1,19 +1,19 @@
 {
-  "packages": [
-    "nodejs@20",
-    "go@1.22",
-    "ripgrep",
-    "git",
-    "jq",
-    "curl",
-    "gh",
-    "pnpm",
-    "yarn",
-    "fd",
-    "tree",
-    "unzip",
-    "gnumake",
-    "gcc",
-    "openssh"
-  ]
+  "packages": {
+    "nodejs":  "20",
+    "go":      "1.22",
+    "ripgrep": "latest",
+    "git":     "latest",
+    "jq":      "latest",
+    "curl":    "latest",
+    "gh":      "latest",
+    "pnpm":    "latest",
+    "yarn":    "latest",
+    "fd":      "latest",
+    "tree":    "latest",
+    "unzip":   "latest",
+    "gnumake": "latest",
+    "gcc":     "latest",
+    "openssh": "latest"
+  }
 }

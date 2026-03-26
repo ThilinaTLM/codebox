@@ -1,0 +1,146 @@
+syntax = "proto3";
+package codebox.sandbox;
+
+service SandboxService {
+  // Sandbox opens this on startup. Stays open for the container's lifetime.
+  // Sandbox sends events, orchestrator sends commands.
+  rpc Connect(stream SandboxEvent) returns (stream OrchestratorCommand);
+}
+
+// ──────────────────────────────────────────────
+// Sandbox → Orchestrator events
+// ──────────────────────────────────────────────
+
+message SandboxEvent {
+  oneof event {
+    RegisterEvent register = 1;
+    TokenEvent token = 2;
+    ModelStartEvent model_start = 3;
+    ToolStartEvent tool_start = 4;
+    ToolEndEvent tool_end = 5;
+    MessageCompleteEvent message_complete = 6;
+    DoneEvent done = 7;
+    ErrorEvent error = 8;
+    ExecOutputEvent exec_output = 9;
+    ExecDoneEvent exec_done = 10;
+    ListFilesResultEvent list_files_result = 11;
+    ReadFileResultEvent read_file_result = 12;
+  }
+}
+
+message RegisterEvent {
+  string session_id = 1;
+}
+
+message TokenEvent {
+  string text = 1;
+}
+
+message ModelStartEvent {}
+
+message ToolStartEvent {
+  string name = 1;
+  string tool_call_id = 2;
+  string input = 3;
+}
+
+message ToolEndEvent {
+  string name = 1;
+  string output = 2;
+}
+
+message MessageCompleteEvent {
+  ChatMessage message = 1;
+}
+
+message DoneEvent {
+  string content = 1;
+}
+
+message ErrorEvent {
+  string detail = 1;
+}
+
+message ExecOutputEvent {
+  string output = 1;
+  string request_id = 2;
+}
+
+message ExecDoneEvent {
+  string output = 1;
+  string request_id = 2;
+}
+
+message ListFilesResultEvent {
+  string request_id = 1;
+  string data_json = 2;   // JSON-encoded directory listing
+  string error = 3;
+}
+
+message ReadFileResultEvent {
+  string request_id = 1;
+  string data_json = 2;   // JSON-encoded file content
+  string error = 3;
+}
+
+// ──────────────────────────────────────────────
+// Orchestrator → Sandbox commands
+// ──────────────────────────────────────────────
+
+message OrchestratorCommand {
+  oneof command {
+    RegisteredCommand registered = 1;
+    SendMessageCommand message = 2;
+    ExecCommand exec = 3;
+    CancelCommand cancel = 4;
+    ThreadRestoreCommand thread_restore = 5;
+    ListFilesCommand list_files = 6;
+    ReadFileCommand read_file = 7;
+  }
+}
+
+message RegisteredCommand {}
+
+message SendMessageCommand {
+  string content = 1;
+}
+
+message ExecCommand {
+  string content = 1;
+  string request_id = 2;
+}
+
+message CancelCommand {}
+
+message ThreadRestoreCommand {
+  repeated ChatMessage messages = 1;
+}
+
+message ListFilesCommand {
+  string path = 1;
+  string request_id = 2;
+}
+
+message ReadFileCommand {
+  string path = 1;
+  string request_id = 2;
+}
+
+// ──────────────────────────────────────────────
+// Shared types
+// ──────────────────────────────────────────────
+
+message ChatMessage {
+  string role = 1;              // "system", "user", "assistant", "tool"
+  string content = 2;
+  repeated ToolCall tool_calls = 3;  // present on assistant messages
+  string tool_call_id = 4;          // present on tool messages
+  string tool_name = 5;             // present on tool messages
+  string metadata_json = 6;         // optional JSON metadata
+}
+
+message ToolCall {
+  string id = 1;
+  string name = 2;
+  string args_json = 3;  // JSON-encoded arguments
+}

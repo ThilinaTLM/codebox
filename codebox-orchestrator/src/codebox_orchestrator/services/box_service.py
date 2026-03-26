@@ -10,7 +10,7 @@ import tempfile
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from codebox_orchestrator.config import (
@@ -18,11 +18,11 @@ from codebox_orchestrator.config import (
     GITHUB_DEFAULT_BASE_BRANCH,
     OPENROUTER_API_KEY,
     OPENROUTER_MODEL,
-    ORCHESTRATOR_CALLBACK_URL,
+    ORCHESTRATOR_GRPC_ADDRESS,
     TAVILY_API_KEY,
     WORKSPACE_BASE_DIR,
 )
-from codebox_orchestrator.db.models import Box, BoxEvent, BoxStatus
+from codebox_orchestrator.db.models import Box, BoxEvent, BoxMessage, BoxStatus
 from codebox_orchestrator.services import docker_service
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
 from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
@@ -140,6 +140,45 @@ class BoxService:
             result = await db.execute(stmt)
             return list(result.scalars().all())
 
+    async def get_box_messages(self, box_id: str) -> list[BoxMessage]:
+        async with self._sf() as db:
+            stmt = (
+                select(BoxMessage)
+                .where(BoxMessage.box_id == box_id)
+                .order_by(BoxMessage.seq)
+            )
+            result = await db.execute(stmt)
+            return list(result.scalars().all())
+
+    async def _persist_box_message(
+        self, box_id: str, msg_data: dict[str, Any]
+    ) -> None:
+        """Persist a structured message to box_messages."""
+        import json as _json
+        async with self._sf() as db:
+            result = await db.execute(
+                select(func.coalesce(func.max(BoxMessage.seq), 0))
+                .where(BoxMessage.box_id == box_id)
+            )
+            max_seq = result.scalar()
+            next_seq = max_seq + 1
+
+            tool_calls = msg_data.get("tool_calls")
+            tool_calls_json = _json.dumps(tool_calls) if tool_calls else None
+
+            bm = BoxMessage(
+                box_id=box_id,
+                seq=next_seq,
+                role=msg_data.get("role", ""),
+                content=msg_data.get("content"),
+                tool_calls=tool_calls_json,
+                tool_call_id=msg_data.get("tool_call_id"),
+                tool_name=msg_data.get("tool_name"),
+                metadata_json=msg_data.get("metadata_json"),
+            )
+            db.add(bm)
+            await db.commit()
+
     async def delete_box(self, box_id: str) -> None:
         """Stop and delete box, including container and DB record."""
         await self.stop_box(box_id)
@@ -168,12 +207,6 @@ class BoxService:
         if bg and not bg.done():
             bg.cancel()
 
-        ws = self._registry.get_connection(box_id)
-        if ws:
-            try:
-                await ws.close()
-            except Exception:
-                pass
         self._registry.remove_fully(box_id)
 
         async with self._sf() as db:
@@ -202,27 +235,32 @@ class BoxService:
 
     async def cancel_box(self, box_id: str) -> None:
         """Cancel a running box operation."""
-        # Send cancel over callback WS
-        ws = self._registry.get_connection(box_id)
-        if ws:
+        conn = self._registry.get_connection(box_id)
+        if conn:
             try:
-                await ws.send_json({"type": "cancel"})
+                await conn.send_json({"type": "cancel"})
             except Exception:
                 pass
 
     async def send_message(self, box_id: str, content: str) -> None:
         """Send a chat message to the box agent."""
-        ws = self._registry.get_connection(box_id)
-        if ws is None:
+        # Persist user message to box_messages before forwarding
+        await self._persist_box_message(box_id, {
+            "role": "user",
+            "content": content,
+        })
+
+        conn = self._registry.get_connection(box_id)
+        if conn is None:
             raise ValueError("No active connection for this box")
-        await ws.send_json({"type": "message", "content": content})
+        await conn.send_json({"type": "message", "content": content})
 
     async def send_exec(self, box_id: str, command: str) -> None:
         """Send a shell command for direct execution."""
-        ws = self._registry.get_connection(box_id)
-        if ws is None:
+        conn = self._registry.get_connection(box_id)
+        if conn is None:
             raise ValueError("No active connection for this box")
-        await ws.send_json({"type": "exec", "content": command})
+        await conn.send_json({"type": "exec", "content": command})
 
     async def send_exec_and_wait(
         self, box_id: str, command: str, timeout: float = 120.0
@@ -231,11 +269,11 @@ class BoxService:
 
         Raises RuntimeError if the command returns a non-zero exit code.
         """
-        ws = self._registry.get_connection(box_id)
-        if ws is None:
+        conn = self._registry.get_connection(box_id)
+        if conn is None:
             raise ValueError("No active connection for this box")
         request_id, fut = self._registry.create_pending_request(box_id)
-        await ws.send_json({
+        await conn.send_json({
             "type": "exec",
             "content": command,
             "request_id": request_id,
@@ -250,32 +288,32 @@ class BoxService:
 
     async def send_cancel(self, box_id: str) -> None:
         """Cancel the current operation."""
-        ws = self._registry.get_connection(box_id)
-        if ws is None:
+        conn = self._registry.get_connection(box_id)
+        if conn is None:
             raise ValueError("No active connection for this box")
-        await ws.send_json({"type": "cancel"})
+        await conn.send_json({"type": "cancel"})
 
     # ------------------------------------------------------------------
-    # File browsing (via callback WS)
+    # File browsing (via callback connection)
     # ------------------------------------------------------------------
 
     async def list_files(self, box_id: str, path: str = "/workspace") -> dict[str, Any]:
-        ws = self._registry.get_connection(box_id)
-        if ws is None:
+        conn = self._registry.get_connection(box_id)
+        if conn is None:
             raise ValueError("No active connection for this box")
         request_id, fut = self._registry.create_pending_request(box_id)
-        await ws.send_json({"type": "list_files", "path": path, "request_id": request_id})
+        await conn.send_json({"type": "list_files", "path": path, "request_id": request_id})
         result = await asyncio.wait_for(fut, timeout=_FILE_OP_TIMEOUT)
         if "error" in result:
             raise RuntimeError(result["error"])
         return result.get("data", {})
 
     async def read_file(self, box_id: str, path: str) -> dict[str, Any]:
-        ws = self._registry.get_connection(box_id)
-        if ws is None:
+        conn = self._registry.get_connection(box_id)
+        if conn is None:
             raise ValueError("No active connection for this box")
         request_id, fut = self._registry.create_pending_request(box_id)
-        await ws.send_json({"type": "read_file", "path": path, "request_id": request_id})
+        await conn.send_json({"type": "read_file", "path": path, "request_id": request_id})
         result = await asyncio.wait_for(fut, timeout=_FILE_OP_TIMEOUT)
         if "error" in result:
             raise RuntimeError(result["error"])
@@ -335,7 +373,7 @@ class BoxService:
         # Build container env vars
         container_name = f"codebox-box-{box_id[:8]}"
         extra_env: dict[str, str] = {
-            "ORCHESTRATOR_CALLBACK_URL": ORCHESTRATOR_CALLBACK_URL,
+            "ORCHESTRATOR_GRPC_ADDRESS": ORCHESTRATOR_GRPC_ADDRESS,
             "CALLBACK_TOKEN": callback_token,
         }
         if system_prompt:

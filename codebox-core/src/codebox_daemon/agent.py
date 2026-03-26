@@ -54,6 +54,7 @@ def create_agent(
     secondary_system_prompt: str | None = None,
     root_dir: str = "/workspace",
     sandbox_config: dict | None = None,
+    checkpointer=None,
 ):
     """Create a deep agent with the given configuration.
 
@@ -64,6 +65,7 @@ def create_agent(
             primary environment prompt.
         root_dir: Root directory for the shell backend.
         sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
+        checkpointer: Optional LangGraph checkpointer for persisting agent state.
 
     Returns:
         A compiled LangGraph agent.
@@ -90,6 +92,7 @@ def create_agent(
         tools=build_web_tools(),
         backend=backend,
         system_prompt=_build_system_prompt(secondary_system_prompt),
+        checkpointer=checkpointer,
     )
 
 

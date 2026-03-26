@@ -8,9 +8,12 @@ and any other transport.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Any, Callable, Coroutine
+
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from codebox_daemon.agent import extract_token
 from codebox_daemon.sessions import SessionManager
@@ -24,20 +27,67 @@ _WORKSPACE_ROOT = Path("/workspace")
 _MAX_FILE_SIZE = 1_048_576  # 1 MB
 
 
+def _langchain_message_to_dict(msg: Any) -> dict[str, Any]:
+    """Convert a LangChain message to a serializable dict for message_complete events."""
+    role = getattr(msg, "type", "unknown")
+    if role == "ai":
+        role = "assistant"
+    elif role == "human":
+        role = "user"
+
+    result: dict[str, Any] = {
+        "role": role,
+        "content": msg.content if isinstance(msg.content, str) else str(msg.content),
+    }
+
+    # Tool calls on assistant messages
+    tool_calls = getattr(msg, "tool_calls", None)
+    if tool_calls:
+        result["tool_calls"] = [
+            {
+                "id": tc.get("id", ""),
+                "name": tc.get("name", ""),
+                "args_json": json.dumps(tc.get("args", {})),
+            }
+            for tc in tool_calls
+        ]
+
+    # Tool result messages
+    tool_call_id = getattr(msg, "tool_call_id", None)
+    if tool_call_id:
+        result["tool_call_id"] = tool_call_id
+    tool_name = getattr(msg, "name", None)
+    if tool_name and role == "tool":
+        result["tool_name"] = tool_name
+
+    # Metadata
+    metadata = getattr(msg, "metadata", None) or {}
+    if metadata:
+        result["metadata_json"] = json.dumps(metadata)
+
+    return result
+
+
 async def run_agent_stream(
     send: SendFn,
     session_id: str,
     manager: SessionManager,
+    new_message: str,
 ) -> None:
     """Stream agent events, calling send(msg_dict) for each event."""
     session = manager.get(session_id)
     ai_text_buffer = ""
 
+    config = {
+        "configurable": {"thread_id": session_id},
+        "recursion_limit": session.recursion_limit,
+    }
+
     try:
         async for event in session.agent.astream_events(
-            {"messages": session.messages},
+            {"messages": [HumanMessage(content=new_message)]},
             version="v2",
-            config={"recursion_limit": session.recursion_limit},
+            config=config,
         ):
             kind = event["event"]
 
@@ -49,8 +99,7 @@ async def run_agent_stream(
                 tool_name = event["name"]
                 run_id = event.get("run_id", "")
                 tool_input = event.get("data", {}).get("input", {})
-                import json as _json
-                input_str = _json.dumps(tool_input) if tool_input else ""
+                input_str = json.dumps(tool_input) if tool_input else ""
                 if len(input_str) > 4000:
                     input_str = input_str[:4000] + "..."
                 await send({
@@ -82,22 +131,28 @@ async def run_agent_stream(
                         ai_text_buffer += token
                         await send({"type": "token", "text": token})
 
+            elif kind == "on_chain_end":
+                # Emit message_complete for messages produced by completed nodes
+                output = event.get("data", {}).get("output", {})
+                if isinstance(output, dict):
+                    messages = output.get("messages", [])
+                    # LangGraph may wrap messages in an Overwrite object
+                    if hasattr(messages, "value"):
+                        messages = messages.value
+                    if not isinstance(messages, list):
+                        messages = []
+                    for msg in messages:
+                        msg_dict = _langchain_message_to_dict(msg)
+                        await send({
+                            "type": "message_complete",
+                            "message": msg_dict,
+                        })
+
         # Stream finished normally
         await send({"type": "done", "content": ai_text_buffer.strip()})
 
-        if ai_text_buffer.strip():
-            session.messages.append({
-                "role": "assistant",
-                "content": ai_text_buffer.strip(),
-            })
-
     except asyncio.CancelledError:
         await send({"type": "done", "content": ai_text_buffer.strip()})
-        if ai_text_buffer.strip():
-            session.messages.append({
-                "role": "assistant",
-                "content": ai_text_buffer.strip(),
-            })
         raise
 
     except Exception as exc:
@@ -109,10 +164,38 @@ async def run_exec(
     send: SendFn,
     command: str,
     session_id: str,
+    manager: SessionManager,
     request_id: str = "",
 ) -> None:
-    """Execute a shell command and stream output via send callback."""
+    """Execute a shell command and stream output via send callback.
+
+    Also records the command and its output in the agent's chat thread
+    so the agent has full context of what the user did.
+    """
+    session = manager.get(session_id)
+    config = {"configurable": {"thread_id": session_id}}
+
+    # Record the shell command in the agent's thread
+    try:
+        await session.agent.aupdate_state(
+            config=config,
+            values={"messages": [HumanMessage(content=f"! {command}")]},
+        )
+    except Exception:
+        logger.debug("Could not record exec command in thread", exc_info=True)
+
+    # Emit message_complete for the command
+    await send({
+        "type": "message_complete",
+        "message": {
+            "role": "user",
+            "content": f"! {command}",
+            "metadata_json": json.dumps({"type": "shell_command"}),
+        },
+    })
+
     proc = None
+    output_lines: list[str] = []
     try:
         proc = await asyncio.create_subprocess_shell(
             command,
@@ -122,14 +205,42 @@ async def run_exec(
         )
 
         async for line in proc.stdout:
+            decoded = line.decode(errors="replace")
+            output_lines.append(decoded)
             await send({
                 "type": "exec_output",
-                "output": line.decode(errors="replace"),
+                "output": decoded,
                 "request_id": request_id,
             })
 
         await proc.wait()
-        await send({"type": "exec_done", "output": str(proc.returncode), "request_id": request_id})
+        exit_code = proc.returncode
+        await send({"type": "exec_done", "output": str(exit_code), "request_id": request_id})
+
+        # Record output in the agent's thread
+        full_output = "".join(output_lines)
+        # Truncate to avoid huge messages
+        if len(full_output) > 10000:
+            full_output = full_output[:10000] + "\n... (truncated)"
+        shell_output_content = f"Exit code: {exit_code}\n\n{full_output}"
+
+        try:
+            await session.agent.aupdate_state(
+                config=config,
+                values={"messages": [SystemMessage(content=shell_output_content)]},
+            )
+        except Exception:
+            logger.debug("Could not record exec output in thread", exc_info=True)
+
+        # Emit message_complete for the output
+        await send({
+            "type": "message_complete",
+            "message": {
+                "role": "system",
+                "content": shell_output_content,
+                "metadata_json": json.dumps({"type": "shell_output", "exit_code": exit_code}),
+            },
+        })
 
     except asyncio.CancelledError:
         if proc and proc.returncode is None:

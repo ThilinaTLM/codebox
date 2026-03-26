@@ -1,24 +1,41 @@
 """In-memory registry for sandbox callback connections.
 
-Tracks pending callback tokens and active WebSocket connections
-from sandbox containers that have connected back to the orchestrator.
+Tracks active connections from sandbox containers and manages
+pending request/response pairs (file ops, exec).
+
+Transport-agnostic: uses an asyncio.Queue-based ConnectionHandle
+instead of WebSocket directly.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from typing import Any
 
-from fastapi import WebSocket
+
+class ConnectionHandle:
+    """Abstraction over a command channel to a sandbox container."""
+
+    def __init__(self) -> None:
+        self.command_queue: asyncio.Queue[Any] = asyncio.Queue()
+
+    async def send_command(self, command: Any) -> None:
+        """Put a command (protobuf or dict) on the queue."""
+        await self.command_queue.put(command)
+
+    async def send_json(self, msg: dict[str, Any]) -> None:
+        """Convenience for dict-based commands (backward compat during migration)."""
+        await self.command_queue.put(msg)
 
 
 class CallbackRegistry:
-    """Maps callback tokens to entity IDs and manages active WS connections."""
+    """Maps entity IDs to active connections and manages pending requests."""
 
     def __init__(self) -> None:
-        # entity_id → WebSocket (inbound from sandbox)
-        self._connections: dict[str, WebSocket] = {}
+        # entity_id → ConnectionHandle
+        self._connections: dict[str, ConnectionHandle] = {}
         # entity_id → asyncio.Event (signals when sandbox connects)
         self._connected_events: dict[str, asyncio.Event] = {}
         # (entity_id, request_id) → asyncio.Future for file/exec ops
@@ -29,19 +46,19 @@ class CallbackRegistry:
         if entity_id not in self._connected_events:
             self._connected_events[entity_id] = asyncio.Event()
 
-    def set_connection(self, entity_id: str, ws: WebSocket) -> None:
-        """Store the WebSocket connection from a sandbox container."""
-        self._connections[entity_id] = ws
+    def set_connection(self, entity_id: str, handle: ConnectionHandle) -> None:
+        """Store the connection handle from a sandbox container."""
+        self._connections[entity_id] = handle
         event = self._connected_events.get(entity_id)
         if event:
             event.set()
 
-    def get_connection(self, entity_id: str) -> WebSocket | None:
-        """Get the active WebSocket for an entity."""
+    def get_connection(self, entity_id: str) -> ConnectionHandle | None:
+        """Get the active connection handle for an entity."""
         return self._connections.get(entity_id)
 
     def remove(self, entity_id: str) -> None:
-        """Clean up connection state for an entity (keeps token alive for reconnection)."""
+        """Clean up connection state (keeps token alive for reconnection)."""
         self._connections.pop(entity_id, None)
         self._connected_events.pop(entity_id, None)
         # Cancel any pending file-op futures

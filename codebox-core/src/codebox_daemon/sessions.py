@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+import aiosqlite
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+
 from codebox_daemon.agent import create_agent
+
+_CHECKPOINT_DB_PATH = "/workspace/.codebox/checkpoints.db"
 
 
 @dataclass
@@ -17,7 +23,7 @@ class Session:
 
     session_id: str
     agent: Any  # compiled LangGraph graph
-    messages: list[dict]
+    checkpointer: AsyncSqliteSaver
     created_at: datetime
     last_active_at: datetime
     model: str
@@ -31,7 +37,7 @@ class SessionManager:
     def __init__(self) -> None:
         self._sessions: dict[str, Session] = {}
 
-    def create(
+    async def create(
         self,
         model: str,
         api_key: str,
@@ -39,7 +45,7 @@ class SessionManager:
         working_dir: str = "/workspace",
         sandbox_config: dict | None = None,
     ) -> Session:
-        """Create a new session with a fresh agent.
+        """Create a new session with a fresh agent and checkpointer.
 
         Args:
             model: The OpenRouter model identifier.
@@ -53,12 +59,21 @@ class SessionManager:
             The newly created Session.
         """
         session_id = str(uuid.uuid4())
+
+        # Ensure checkpoint directory exists
+        os.makedirs(os.path.dirname(_CHECKPOINT_DB_PATH), exist_ok=True)
+
+        conn = await aiosqlite.connect(_CHECKPOINT_DB_PATH)
+        checkpointer = AsyncSqliteSaver(conn)
+        await checkpointer.setup()
+
         agent = create_agent(
             model=model,
             api_key=api_key,
             secondary_system_prompt=secondary_system_prompt,
             root_dir=working_dir,
             sandbox_config=sandbox_config,
+            checkpointer=checkpointer,
         )
         cfg = sandbox_config or {}
         recursion_limit = cfg.get("recursion_limit", 150)
@@ -66,7 +81,7 @@ class SessionManager:
         session = Session(
             session_id=session_id,
             agent=agent,
-            messages=[],
+            checkpointer=checkpointer,
             created_at=now,
             last_active_at=now,
             model=model,

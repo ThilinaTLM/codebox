@@ -16,13 +16,13 @@ from codebox_orchestrator.config import (
     GITHUB_APP_SLUG,
     GITHUB_BOT_NAME,
     GITHUB_WEBHOOK_SECRET,
+    GRPC_PORT,
     github_enabled,
 )
 from codebox_orchestrator.db.engine import async_session_factory, engine
 from codebox_orchestrator.db.migrations import run_migrations
 from codebox_orchestrator.db.models import Base
 from codebox_orchestrator.routes import api, ws_relay
-from codebox_orchestrator.routes import ws_callback
 from codebox_orchestrator.routes import ws_global
 from codebox_orchestrator.routes import github as github_routes
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
@@ -83,23 +83,35 @@ def create_app() -> FastAPI:
         except docker_service.DockerServiceError as exc:
             _logging.getLogger(__name__).warning("Container runtime not available: %s", exc)
 
+        # Start gRPC server for sandbox connections
+        from codebox_orchestrator.grpc.server import start_grpc_server
+
+        grpc_server = await start_grpc_server(
+            port=GRPC_PORT,
+            session_factory=async_session_factory,
+            relay=relay,
+            registry=registry,
+            global_broadcast=global_broadcast,
+        )
+
         app.state.relay_service = relay
         app.state.callback_registry = registry
         app.state.global_broadcast = global_broadcast
         app.state.box_service = box_service
         app.state.github_service = github_service
-        # Expose session factory for ws_callback route
+        # Expose session factory for routes that need direct DB access
         app.state._sf = async_session_factory
 
         yield
 
         # Shutdown
+        await grpc_server.stop(grace=5)
         await box_service.shutdown()
         await engine.dispose()
 
     app = FastAPI(
         title="Codebox Orchestrator",
-        version="0.2.0",
+        version="0.3.0",
         lifespan=lifespan,
     )
 
@@ -114,7 +126,6 @@ def create_app() -> FastAPI:
 
     app.include_router(api.router)
     app.include_router(ws_relay.router)
-    app.include_router(ws_callback.router)
     app.include_router(ws_global.router)
     app.include_router(github_routes.router)
 

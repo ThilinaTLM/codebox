@@ -7,7 +7,9 @@ requires-python = ">=3.12"
 dependencies = [
     "deepagents",
     "langchain-openrouter",
-    "websockets",
+    "langgraph-checkpoint-sqlite",
+    "grpcio>=1.60.0",
+    "protobuf>=4.25.0",
     "python-dotenv",
     "tavily-python",
     "markdownify",

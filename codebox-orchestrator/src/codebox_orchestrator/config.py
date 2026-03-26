@@ -34,19 +34,22 @@ HOST: str = os.environ.get("ORCHESTRATOR_HOST", "0.0.0.0")
 PORT: int = int(os.environ.get("ORCHESTRATOR_PORT", "8080"))
 
 
-def _default_callback_url() -> str:
+# gRPC port for sandbox connections
+GRPC_PORT: int = int(os.environ.get("GRPC_PORT", "50051"))
+
+
+def _default_grpc_address() -> str:
     import sys as _sys
     if _sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
-        # With host networking + mirrored WSL, localhost reaches Windows host.
         host = "localhost"
     elif CONTAINER_RUNTIME_TYPE == "podman":
         host = "host.containers.internal"
     else:
         host = "host.docker.internal"
-    return f"ws://{host}:{PORT}"
+    return f"{host}:{GRPC_PORT}"
 
 
-ORCHESTRATOR_CALLBACK_URL: str = os.environ.get("ORCHESTRATOR_CALLBACK_URL", "") or _default_callback_url()
+ORCHESTRATOR_GRPC_ADDRESS: str = os.environ.get("ORCHESTRATOR_GRPC_ADDRESS", "") or _default_grpc_address()
 CORS_ORIGINS: list[str] = [
     o.strip()
     for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")

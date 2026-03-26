@@ -11,6 +11,7 @@ from codebox_orchestrator.schemas import (
     BoxCreate,
     BoxEventResponse,
     BoxMessage,
+    BoxMessageResponse,
     BoxResponse,
     ContainerResponse,
 )
@@ -87,6 +88,17 @@ async def get_box_events(request: Request, box_id: str) -> list[BoxEventResponse
         raise HTTPException(404, "Box not found")
     events = await bs.get_box_events(box_id)
     return [BoxEventResponse.from_orm_event(e) for e in events]
+
+
+@router.get("/boxes/{box_id}/messages")
+async def get_box_messages(request: Request, box_id: str) -> list[BoxMessageResponse]:
+    """Return structured chat thread for a box."""
+    bs = _bs(request)
+    box = await bs.get_box(box_id)
+    if box is None:
+        raise HTTPException(404, "Box not found")
+    messages = await bs.get_box_messages(box_id)
+    return [BoxMessageResponse.from_orm_message(m) for m in messages]
 
 
 @router.post("/boxes/{box_id}/stop")

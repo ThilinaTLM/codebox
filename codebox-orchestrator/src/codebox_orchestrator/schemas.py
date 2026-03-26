@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from codebox_orchestrator.db.models import (
     Box,
     BoxEvent,
+    BoxMessage as BoxMessageModel,
     BoxStatus,
 )
 
@@ -87,6 +88,48 @@ class BoxEventResponse(BaseModel):
             event_type=event.event_type,
             data=data,
             created_at=event.created_at,
+        )
+
+
+class BoxMessageResponse(BaseModel):
+    id: str
+    box_id: str
+    seq: int
+    role: str
+    content: str | None
+    tool_calls: list[dict] | None = None
+    tool_call_id: str | None = None
+    tool_name: str | None = None
+    metadata: dict | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_orm_message(cls, msg: BoxMessageModel) -> BoxMessageResponse:
+        tool_calls = None
+        if msg.tool_calls:
+            try:
+                tool_calls = json.loads(msg.tool_calls)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        metadata = None
+        if msg.metadata_json:
+            try:
+                metadata = json.loads(msg.metadata_json)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return cls(
+            id=msg.id,
+            box_id=msg.box_id,
+            seq=msg.seq,
+            role=msg.role,
+            content=msg.content,
+            tool_calls=tool_calls,
+            tool_call_id=msg.tool_call_id,
+            tool_name=msg.tool_name,
+            metadata=metadata,
+            created_at=msg.created_at,
         )
 
 

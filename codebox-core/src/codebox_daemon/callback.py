@@ -1,7 +1,7 @@
-"""Callback client: connects outbound to the orchestrator via WebSocket.
+"""Callback client: connects outbound to the orchestrator via gRPC.
 
 On startup, creates a session locally, then connects to the orchestrator's
-callback endpoint and enters a bidirectional message loop.
+gRPC SandboxService and enters a bidirectional streaming loop.
 """
 
 from __future__ import annotations
@@ -12,8 +12,8 @@ import logging
 import os
 from typing import Any
 
-import websockets
-import websockets.asyncio.client
+import grpc
+from grpc import aio as grpc_aio
 
 from codebox_daemon.agent_runner import (
     handle_list_files,
@@ -21,6 +21,7 @@ from codebox_daemon.agent_runner import (
     run_agent_stream,
     run_exec,
 )
+from codebox_daemon.grpc.generated.codebox.sandbox import sandbox_pb2, sandbox_pb2_grpc
 from codebox_daemon.sessions import SessionManager
 
 logger = logging.getLogger(__name__)
@@ -31,13 +32,13 @@ _RECONNECT_MAX_DELAY = 30.0
 
 async def run_callback() -> None:
     """Main entry point for callback mode."""
-    callback_url = os.environ.get("ORCHESTRATOR_CALLBACK_URL", "")
+    grpc_address = os.environ.get("ORCHESTRATOR_GRPC_ADDRESS", "")
     callback_token = os.environ.get("CALLBACK_TOKEN", "")
     model = os.environ.get("OPENROUTER_MODEL", "")
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
 
-    if not callback_url:
-        raise RuntimeError("ORCHESTRATOR_CALLBACK_URL is required")
+    if not grpc_address:
+        raise RuntimeError("ORCHESTRATOR_GRPC_ADDRESS is required")
     if not callback_token:
         raise RuntimeError("CALLBACK_TOKEN is required")
     if not model:
@@ -54,7 +55,7 @@ async def run_callback() -> None:
     # Create session manager and session
     manager = SessionManager()
     secondary_system_prompt = os.environ.get("SYSTEM_PROMPT")
-    session = manager.create(
+    session = await manager.create(
         model=model,
         api_key=api_key,
         secondary_system_prompt=secondary_system_prompt,
@@ -63,23 +64,22 @@ async def run_callback() -> None:
     session_id = session.session_id
     logger.info("Created session %s with model %s", session_id, model)
 
-    # Build the full callback URL
-    ws_url = f"{callback_url}/api/internal/sandbox/connect?token={callback_token}"
-
     delay = _RECONNECT_BASE_DELAY
     while True:
         try:
-            await _connect_and_run(ws_url, session_id, manager)
-            # Clean exit (orchestrator closed connection gracefully)
+            await _connect_and_run(grpc_address, session_id, manager, callback_token)
+            # Clean exit
             break
-        except (
-            websockets.exceptions.ConnectionClosed,
-            websockets.exceptions.InvalidStatusCode,
-            ConnectionRefusedError,
-            OSError,
-        ) as exc:
+        except grpc_aio.AioRpcError as exc:
             logger.warning(
-                "Connection to orchestrator lost (%s), retrying in %.1fs",
+                "gRPC connection to orchestrator lost (%s), retrying in %.1fs",
+                exc.code(), delay,
+            )
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, _RECONNECT_MAX_DELAY)
+        except (ConnectionRefusedError, OSError) as exc:
+            logger.warning(
+                "Connection to orchestrator failed (%s), retrying in %.1fs",
                 exc, delay,
             )
             await asyncio.sleep(delay)
@@ -91,37 +91,46 @@ async def run_callback() -> None:
 
 
 async def _connect_and_run(
-    ws_url: str,
+    grpc_address: str,
     session_id: str,
     manager: SessionManager,
+    callback_token: str,
 ) -> None:
-    """Connect to orchestrator and run the message loop."""
-    logger.info("Connecting to orchestrator at %s", ws_url.split("?")[0])
+    """Connect to orchestrator via gRPC and run the bidirectional stream."""
+    logger.info("Connecting to orchestrator gRPC at %s", grpc_address)
 
-    async with websockets.connect(ws_url) as ws:
-        # Register with orchestrator
-        await ws.send(json.dumps({
-            "type": "register",
-            "session_id": session_id,
-        }))
+    async with grpc_aio.insecure_channel(grpc_address) as channel:
+        stub = sandbox_pb2_grpc.SandboxServiceStub(channel)
 
-        # Wait for acknowledgment
-        raw = await ws.recv()
-        ack = json.loads(raw)
-        if ack.get("type") != "registered":
-            raise RuntimeError(f"Unexpected registration response: {ack}")
+        # Outbound event queue
+        outbound: asyncio.Queue[sandbox_pb2.SandboxEvent | None] = asyncio.Queue()
 
-        logger.info("Registered with orchestrator, session %s", session_id)
+        async def event_iterator():
+            """Async generator that yields events to send to the orchestrator."""
+            # First event is always Register
+            yield sandbox_pb2.SandboxEvent(
+                register=sandbox_pb2.RegisterEvent(session_id=session_id)
+            )
+            while True:
+                event = await outbound.get()
+                if event is None:
+                    break
+                yield event
 
-        # Create send callback that writes to the WS
+        # Send callback
         async def send(msg: dict) -> None:
+            """Convert a dict event to protobuf and enqueue it."""
             try:
-                await ws.send(json.dumps(msg))
+                event = _dict_to_event(msg)
+                if event:
+                    await outbound.put(event)
             except Exception:
-                pass
+                logger.debug("Failed to enqueue event", exc_info=True)
 
-        # Message loop — long-running tasks (agent, exec) run as background
-        # tasks so the loop stays responsive to file-op and cancel messages.
+        metadata = [("authorization", f"Bearer {callback_token}")]
+        response_stream = stub.Connect(event_iterator(), metadata=metadata)
+
+        # Message loop
         current_task: asyncio.Task | None = None
 
         async def _cancel_current() -> None:
@@ -142,57 +151,204 @@ async def _connect_and_run(
                 session.current_task = None
 
         try:
-            async for raw_msg in ws:
-                msg = json.loads(raw_msg)
-                msg_type = msg.get("type", "")
-
+            async for command in response_stream:
+                field = command.WhichOneof("command")
                 session = manager.get(session_id)
 
-                if msg_type == "message":
-                    content = msg.get("content", "")
+                if field == "registered":
+                    logger.info("Registered with orchestrator via gRPC, session %s", session_id)
+
+                elif field == "thread_restore":
+                    messages = command.thread_restore.messages
+                    if messages:
+                        await _handle_thread_restore(session, messages)
+
+                elif field == "message":
+                    content = command.message.content
                     if not content:
                         await send({"type": "error", "detail": "Empty message content"})
                         continue
 
                     await _cancel_current()
-                    session.messages.append({"role": "user", "content": content})
-
                     current_task = asyncio.create_task(
-                        run_agent_stream(send, session_id, manager)
+                        run_agent_stream(send, session_id, manager, new_message=content)
                     )
                     session.current_task = current_task
                     current_task.add_done_callback(_on_task_done)
 
-                elif msg_type == "exec":
-                    command = msg.get("content", "")
-                    if not command:
+                elif field == "exec":
+                    command_str = command.exec.content
+                    if not command_str:
                         await send({"type": "error", "detail": "Empty exec command"})
                         continue
 
-                    request_id = msg.get("request_id", "")
+                    request_id = command.exec.request_id
                     await _cancel_current()
                     current_task = asyncio.create_task(
-                        run_exec(send, command, session_id, request_id=request_id)
+                        run_exec(send, command_str, session_id, manager, request_id=request_id)
                     )
                     session.current_task = current_task
                     current_task.add_done_callback(_on_task_done)
 
-                elif msg_type == "cancel":
+                elif field == "cancel":
                     await _cancel_current()
                     session.current_task = None
                     logger.info("Cancelled running task for session %s", session_id)
 
-                elif msg_type == "list_files":
-                    path = msg.get("path", "/workspace")
-                    request_id = msg.get("request_id", "")
+                elif field == "list_files":
+                    path = command.list_files.path or "/workspace"
+                    request_id = command.list_files.request_id
                     await handle_list_files(send, path, request_id)
 
-                elif msg_type == "read_file":
-                    path = msg.get("path", "")
-                    request_id = msg.get("request_id", "")
+                elif field == "read_file":
+                    path = command.read_file.path
+                    request_id = command.read_file.request_id
                     await handle_read_file(send, path, request_id)
 
                 else:
-                    await send({"type": "error", "detail": f"Unknown message type: {msg_type}"})
+                    await send({"type": "error", "detail": f"Unknown command: {field}"})
+
         finally:
             await _cancel_current()
+            # Signal the event iterator to stop
+            await outbound.put(None)
+
+
+def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
+    """Convert a dict event to a protobuf SandboxEvent."""
+    msg_type = msg.get("type", "")
+
+    if msg_type == "token":
+        return sandbox_pb2.SandboxEvent(
+            token=sandbox_pb2.TokenEvent(text=msg.get("text", ""))
+        )
+    elif msg_type == "model_start":
+        return sandbox_pb2.SandboxEvent(
+            model_start=sandbox_pb2.ModelStartEvent()
+        )
+    elif msg_type == "tool_start":
+        return sandbox_pb2.SandboxEvent(
+            tool_start=sandbox_pb2.ToolStartEvent(
+                name=msg.get("name", ""),
+                tool_call_id=msg.get("tool_call_id", ""),
+                input=msg.get("input", ""),
+            )
+        )
+    elif msg_type == "tool_end":
+        return sandbox_pb2.SandboxEvent(
+            tool_end=sandbox_pb2.ToolEndEvent(
+                name=msg.get("name", ""),
+                output=msg.get("output", ""),
+            )
+        )
+    elif msg_type == "message_complete":
+        msg_data = msg.get("message", {})
+        tool_calls = []
+        for tc in msg_data.get("tool_calls", []):
+            tool_calls.append(sandbox_pb2.ToolCall(
+                id=tc.get("id", ""),
+                name=tc.get("name", ""),
+                args_json=tc.get("args_json", ""),
+            ))
+        chat_msg = sandbox_pb2.ChatMessage(
+            role=msg_data.get("role", ""),
+            content=msg_data.get("content", ""),
+            tool_calls=tool_calls,
+            tool_call_id=msg_data.get("tool_call_id", ""),
+            tool_name=msg_data.get("tool_name", ""),
+            metadata_json=msg_data.get("metadata_json", ""),
+        )
+        return sandbox_pb2.SandboxEvent(
+            message_complete=sandbox_pb2.MessageCompleteEvent(message=chat_msg)
+        )
+    elif msg_type == "done":
+        return sandbox_pb2.SandboxEvent(
+            done=sandbox_pb2.DoneEvent(content=msg.get("content", ""))
+        )
+    elif msg_type == "error":
+        return sandbox_pb2.SandboxEvent(
+            error=sandbox_pb2.ErrorEvent(detail=msg.get("detail", ""))
+        )
+    elif msg_type == "exec_output":
+        return sandbox_pb2.SandboxEvent(
+            exec_output=sandbox_pb2.ExecOutputEvent(
+                output=msg.get("output", ""),
+                request_id=msg.get("request_id", ""),
+            )
+        )
+    elif msg_type == "exec_done":
+        return sandbox_pb2.SandboxEvent(
+            exec_done=sandbox_pb2.ExecDoneEvent(
+                output=msg.get("output", ""),
+                request_id=msg.get("request_id", ""),
+            )
+        )
+    elif msg_type == "list_files_result":
+        data = msg.get("data")
+        error = msg.get("error", "")
+        return sandbox_pb2.SandboxEvent(
+            list_files_result=sandbox_pb2.ListFilesResultEvent(
+                request_id=msg.get("request_id", ""),
+                data_json=json.dumps(data) if data else "",
+                error=error or "",
+            )
+        )
+    elif msg_type == "read_file_result":
+        data = msg.get("data")
+        error = msg.get("error", "")
+        return sandbox_pb2.SandboxEvent(
+            read_file_result=sandbox_pb2.ReadFileResultEvent(
+                request_id=msg.get("request_id", ""),
+                data_json=json.dumps(data) if data else "",
+                error=error or "",
+            )
+        )
+    else:
+        logger.debug("Unknown event type for protobuf conversion: %s", msg_type)
+        return None
+
+
+async def _handle_thread_restore(
+    session: Any, messages: list[sandbox_pb2.ChatMessage]
+) -> None:
+    """Seed the agent's checkpointer with restored messages from the orchestrator."""
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
+    config = {"configurable": {"thread_id": session.session_id}}
+
+    # Check if local checkpoint already has state
+    try:
+        state = await session.agent.aget_state(config)
+        if state and state.values and state.values.get("messages"):
+            logger.info("Local checkpoint already has state, skipping thread restore")
+            return
+    except Exception:
+        pass
+
+    # Convert protobuf messages to LangChain message objects
+    lc_messages = []
+    for msg in messages:
+        role = msg.role
+        content = msg.content
+        if role == "user":
+            lc_messages.append(HumanMessage(content=content))
+        elif role == "assistant":
+            lc_messages.append(AIMessage(content=content))
+        elif role == "system":
+            lc_messages.append(SystemMessage(content=content))
+        elif role == "tool":
+            lc_messages.append(ToolMessage(
+                content=content,
+                tool_call_id=msg.tool_call_id or "",
+                name=msg.tool_name or "",
+            ))
+
+    if lc_messages:
+        try:
+            await session.agent.aupdate_state(
+                config=config,
+                values={"messages": lc_messages},
+            )
+            logger.info("Restored %d messages from orchestrator", len(lc_messages))
+        except Exception:
+            logger.exception("Failed to restore thread state")

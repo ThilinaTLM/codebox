@@ -108,6 +108,9 @@ class Box(Base):
     events: Mapped[list[BoxEvent]] = relationship(
         back_populates="box", cascade="all, delete-orphan", order_by="BoxEvent.id"
     )
+    messages: Mapped[list[BoxMessage]] = relationship(
+        back_populates="box", cascade="all, delete-orphan", order_by="BoxMessage.seq"
+    )
     feedback_requests: Mapped[list[FeedbackRequest]] = relationship(
         back_populates="box", cascade="all, delete-orphan"
     )
@@ -123,6 +126,25 @@ class BoxEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     box: Mapped[Box] = relationship(back_populates="events")
+
+
+class BoxMessage(Base):
+    """Structured chat message — stores the full thread for a box."""
+
+    __tablename__ = "box_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    box_id: Mapped[str] = mapped_column(String(36), ForeignKey("boxes.id"))
+    seq: Mapped[int] = mapped_column(Integer)  # ordering within a box
+    role: Mapped[str] = mapped_column(String(20))  # system, user, assistant, tool
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tool_calls: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    tool_call_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    tool_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    box: Mapped[Box] = relationship(back_populates="messages")
 
 
 class FeedbackRequest(Base):
