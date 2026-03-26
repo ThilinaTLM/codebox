@@ -93,7 +93,7 @@ export function TopBar() {
                 render={<Link to="/containers" />}
                 className={cn(
                   "gap-1.5",
-                  currentPath === "/containers" && "bg-muted",
+                  currentPath.startsWith("/containers") && "bg-muted",
                 )}
               >
                 <HugeiconsIcon icon={ContainerIcon} size={16} strokeWidth={2} />

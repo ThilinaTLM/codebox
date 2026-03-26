@@ -75,6 +75,7 @@ async def run_agent_stream(
     new_message: str,
 ) -> None:
     """Stream agent events, calling send(msg_dict) for each event."""
+    logger.info("Agent stream starting for session %s", session_id)
     session = manager.get(session_id)
     ai_text_buffer = ""
 
@@ -93,10 +94,12 @@ async def run_agent_stream(
 
             if kind == "on_chat_model_start":
                 ai_text_buffer = ""
+                logger.debug("Model invocation started for session %s", session_id)
                 await send({"type": "model_start"})
 
             elif kind == "on_tool_start":
                 tool_name = event["name"]
+                logger.info("Tool start: %s (session %s)", tool_name, session_id)
                 run_id = event.get("run_id", "")
                 tool_input = event.get("data", {}).get("input", {})
                 input_str = json.dumps(tool_input) if tool_input else ""
@@ -111,6 +114,7 @@ async def run_agent_stream(
 
             elif kind == "on_tool_end":
                 tool_name = event["name"]
+                logger.info("Tool end: %s (session %s)", tool_name, session_id)
                 output = event["data"].get("output", "")
                 output_str = str(
                     output.content if hasattr(output, "content") else output
@@ -149,6 +153,7 @@ async def run_agent_stream(
                         })
 
         # Stream finished normally
+        logger.info("Agent stream completed for session %s", session_id)
         await send({"type": "done", "content": ai_text_buffer.strip()})
 
     except asyncio.CancelledError:
@@ -172,6 +177,7 @@ async def run_exec(
     Also records the command and its output in the agent's chat thread
     so the agent has full context of what the user did.
     """
+    logger.info("Exec command for session %s: %s", session_id, command[:200])
     session = manager.get(session_id)
     config = {"configurable": {"thread_id": session_id}}
 
@@ -268,6 +274,7 @@ async def handle_list_files(
     request_id: str,
 ) -> None:
     """List directory contents and send result back."""
+    logger.debug("list_files: path=%s, request_id=%s", path, request_id)
     try:
         dir_path = _validate_workspace_path(path)
 
@@ -319,6 +326,7 @@ async def handle_read_file(
     request_id: str,
 ) -> None:
     """Read file content and send result back."""
+    logger.debug("read_file: path=%s, request_id=%s", path, request_id)
     try:
         file_path = _validate_workspace_path(path)
 

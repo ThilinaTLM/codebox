@@ -61,6 +61,19 @@ export function useContainers() {
   })
 }
 
+export function useContainerLogs(
+  containerId: string | null,
+  tail: number = 200,
+  autoRefresh: boolean = false,
+) {
+  return useQuery({
+    queryKey: ["containers", containerId, "logs", tail],
+    queryFn: () => api.containers.logs(containerId!, tail),
+    enabled: !!containerId,
+    refetchInterval: autoRefresh ? 3000 : false,
+  })
+}
+
 // ── Box mutations ────────────────────────────────────────────
 
 export function useCreateBox() {

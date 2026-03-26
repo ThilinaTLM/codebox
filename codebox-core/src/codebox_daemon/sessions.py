@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import uuid
 from dataclasses import dataclass, field
@@ -13,6 +14,8 @@ import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from codebox_daemon.agent import create_agent
+
+logger = logging.getLogger(__name__)
 
 _CHECKPOINT_DB_PATH = "/workspace/.codebox/checkpoints.db"
 
@@ -59,10 +62,12 @@ class SessionManager:
             The newly created Session.
         """
         session_id = str(uuid.uuid4())
+        logger.info("Creating session %s: model=%s, working_dir=%s", session_id, model, working_dir)
 
         # Ensure checkpoint directory exists
         os.makedirs(os.path.dirname(_CHECKPOINT_DB_PATH), exist_ok=True)
 
+        logger.debug("Opening checkpoint DB at %s", _CHECKPOINT_DB_PATH)
         conn = await aiosqlite.connect(_CHECKPOINT_DB_PATH)
         checkpointer = AsyncSqliteSaver(conn)
         await checkpointer.setup()
@@ -88,6 +93,9 @@ class SessionManager:
             recursion_limit=recursion_limit,
         )
         self._sessions[session_id] = session
+        logger.info(
+            "Session %s created: recursion_limit=%d", session_id, recursion_limit,
+        )
         return session
 
     def get(self, session_id: str) -> Session:
@@ -110,8 +118,11 @@ class SessionManager:
         if session_id not in self._sessions:
             raise KeyError(f"Session not found: {session_id}")
         session = self._sessions.pop(session_id)
+        cancelled = False
         if session.current_task and not session.current_task.done():
             session.current_task.cancel()
+            cancelled = True
+        logger.info("Session %s deleted (task_cancelled=%s)", session_id, cancelled)
 
     def list(self) -> list[Session]:
         """Return all active sessions."""

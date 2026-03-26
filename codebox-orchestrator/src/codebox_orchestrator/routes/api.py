@@ -13,6 +13,7 @@ from codebox_orchestrator.schemas import (
     BoxMessage,
     BoxMessageResponse,
     BoxResponse,
+    ContainerLogsResponse,
     ContainerResponse,
 )
 from codebox_orchestrator.services import docker_service
@@ -184,6 +185,15 @@ async def list_containers() -> list[ContainerResponse]:
         )
         for c in containers
     ]
+
+
+@router.get("/containers/{container_id}/logs")
+async def get_container_logs(container_id: str, tail: int = 200) -> ContainerLogsResponse:
+    try:
+        logs = docker_service.get_logs(container_id, tail=tail)
+    except docker_service.DockerServiceError as exc:
+        raise HTTPException(400, str(exc))
+    return ContainerLogsResponse(logs=logs)
 
 
 @router.post("/containers/{container_id}/stop")

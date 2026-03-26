@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { ContainerTable } from "@/components/container/ContainerTable"
 import { useContainers } from "@/net/query"
 
-export const Route = createFileRoute("/containers")({
+export const Route = createFileRoute("/containers/")({
   component: ContainersPage,
 })
 

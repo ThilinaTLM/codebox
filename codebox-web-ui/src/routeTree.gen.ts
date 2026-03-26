@@ -9,17 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ContainersRouteImport } from './routes/containers'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as ContainersIndexRouteImport } from './routes/containers/index'
 import { Route as SettingsGithubRouteImport } from './routes/settings/github'
 import { Route as BoxesBoxIdRouteImport } from './routes/boxes/$boxId'
+import { Route as ContainersContainerIdLogsRouteImport } from './routes/containers/$containerId.logs'
 
-const ContainersRoute = ContainersRouteImport.update({
-  id: '/containers',
-  path: '/containers',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -28,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContainersIndexRoute = ContainersIndexRouteImport.update({
+  id: '/containers/',
+  path: '/containers/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsGithubRoute = SettingsGithubRouteImport.update({
@@ -40,65 +41,76 @@ const BoxesBoxIdRoute = BoxesBoxIdRouteImport.update({
   path: '/boxes/$boxId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContainersContainerIdLogsRoute =
+  ContainersContainerIdLogsRouteImport.update({
+    id: '/containers/$containerId/logs',
+    path: '/containers/$containerId/logs',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/containers': typeof ContainersRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/settings/github': typeof SettingsGithubRoute
+  '/containers/': typeof ContainersIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/containers/$containerId/logs': typeof ContainersContainerIdLogsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/containers': typeof ContainersRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/settings/github': typeof SettingsGithubRoute
+  '/containers': typeof ContainersIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/containers/$containerId/logs': typeof ContainersContainerIdLogsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/containers': typeof ContainersRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/settings/github': typeof SettingsGithubRoute
+  '/containers/': typeof ContainersIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/containers/$containerId/logs': typeof ContainersContainerIdLogsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/containers'
     | '/boxes/$boxId'
     | '/settings/github'
+    | '/containers/'
     | '/settings/'
+    | '/containers/$containerId/logs'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/containers' | '/boxes/$boxId' | '/settings/github' | '/settings'
+  to:
+    | '/'
+    | '/boxes/$boxId'
+    | '/settings/github'
+    | '/containers'
+    | '/settings'
+    | '/containers/$containerId/logs'
   id:
     | '__root__'
     | '/'
-    | '/containers'
     | '/boxes/$boxId'
     | '/settings/github'
+    | '/containers/'
     | '/settings/'
+    | '/containers/$containerId/logs'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ContainersRoute: typeof ContainersRoute
   BoxesBoxIdRoute: typeof BoxesBoxIdRoute
   SettingsGithubRoute: typeof SettingsGithubRoute
+  ContainersIndexRoute: typeof ContainersIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  ContainersContainerIdLogsRoute: typeof ContainersContainerIdLogsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/containers': {
-      id: '/containers'
-      path: '/containers'
-      fullPath: '/containers'
-      preLoaderRoute: typeof ContainersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -111,6 +123,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/containers/': {
+      id: '/containers/'
+      path: '/containers'
+      fullPath: '/containers/'
+      preLoaderRoute: typeof ContainersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/github': {
@@ -127,15 +146,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BoxesBoxIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/containers/$containerId/logs': {
+      id: '/containers/$containerId/logs'
+      path: '/containers/$containerId/logs'
+      fullPath: '/containers/$containerId/logs'
+      preLoaderRoute: typeof ContainersContainerIdLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ContainersRoute: ContainersRoute,
   BoxesBoxIdRoute: BoxesBoxIdRoute,
   SettingsGithubRoute: SettingsGithubRoute,
+  ContainersIndexRoute: ContainersIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  ContainersContainerIdLogsRoute: ContainersContainerIdLogsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

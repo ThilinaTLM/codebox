@@ -241,6 +241,19 @@ def remove(container_id_or_name: str) -> None:
         raise DockerServiceError(f"Failed to remove container: {exc}") from exc
 
 
+def get_logs(container_id_or_name: str, tail: int = 200) -> str:
+    """Fetch stdout/stderr logs from a container."""
+    client = _get_client()
+    container = _get_container(client, container_id_or_name)
+    try:
+        output = container.logs(
+            stdout=True, stderr=True, tail=tail, timestamps=True,
+        )
+        return output.decode("utf-8", errors="replace")
+    except docker.errors.APIError as exc:
+        raise DockerServiceError(f"Failed to get logs: {exc}") from exc
+
+
 def exec_commands(
     container_id_or_name: str, commands: list[str]
 ) -> list[tuple[int, str]]:

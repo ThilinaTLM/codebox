@@ -143,6 +143,10 @@ class ContainerResponse(BaseModel):
     created_at: str | None = None
 
 
+class ContainerLogsResponse(BaseModel):
+    logs: str
+
+
 # ── GitHub schemas ──────────────────────────────────────────────
 
 

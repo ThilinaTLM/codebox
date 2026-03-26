@@ -1,5 +1,6 @@
 """Agent creation and token extraction utilities."""
 
+import logging
 import os
 
 from langchain_openrouter import ChatOpenRouter
@@ -7,6 +8,8 @@ from deepagents import create_deep_agent
 from deepagents.backends import LocalShellBackend
 
 from codebox_daemon.tools.web import build_web_tools
+
+logger = logging.getLogger(__name__)
 
 
 # Primary system prompt — always included. Describes the sandbox environment,
@@ -73,6 +76,11 @@ def create_agent(
     cfg = sandbox_config or {}
     temperature = cfg.get("temperature", 0)
     timeout = cfg.get("timeout", 120)
+
+    logger.info(
+        "Creating agent: model=%s, temperature=%s, timeout=%s, root_dir=%s, secondary_prompt=%s",
+        model, temperature, timeout, root_dir, bool(secondary_system_prompt),
+    )
 
     llm = ChatOpenRouter(
         model=model,

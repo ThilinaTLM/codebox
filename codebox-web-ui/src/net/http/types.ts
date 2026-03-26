@@ -52,6 +52,10 @@ export interface Container {
   created_at: string | null
 }
 
+export interface ContainerLogs {
+  logs: string
+}
+
 export interface BoxCreatePayload {
   name?: string | null
   model?: string | null

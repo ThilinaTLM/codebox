@@ -4,6 +4,7 @@ import type {
   BoxCreatePayload,
   BoxEvent,
   Container,
+  ContainerLogs,
   FileContent,
   FileListResponse,
   GitHubInstallation,
@@ -87,6 +88,13 @@ export const api = {
     },
     delete: async (containerId: string): Promise<void> => {
       await client.delete(`/api/containers/${containerId}`)
+    },
+    logs: async (containerId: string, tail: number = 200): Promise<ContainerLogs> => {
+      const { data } = await client.get<ContainerLogs>(
+        `/api/containers/${containerId}/logs`,
+        { params: { tail } },
+      )
+      return data
     },
   },
   github: {

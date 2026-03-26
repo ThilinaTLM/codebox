@@ -165,6 +165,7 @@ async def _connect_and_run(
 
                 elif field == "message":
                     content = command.message.content
+                    logger.info("Received message command (len=%d) for session %s", len(content) if content else 0, session_id)
                     if not content:
                         await send({"type": "error", "detail": "Empty message content"})
                         continue
@@ -178,6 +179,7 @@ async def _connect_and_run(
 
                 elif field == "exec":
                     command_str = command.exec.content
+                    logger.info("Received exec command: %s (session %s)", command_str[:100] if command_str else "", session_id)
                     if not command_str:
                         await send({"type": "error", "detail": "Empty exec command"})
                         continue
@@ -198,14 +200,20 @@ async def _connect_and_run(
                 elif field == "list_files":
                     path = command.list_files.path or "/workspace"
                     request_id = command.list_files.request_id
+                    logger.debug("Received list_files command: path=%s", path)
                     await handle_list_files(send, path, request_id)
 
                 elif field == "read_file":
                     path = command.read_file.path
                     request_id = command.read_file.request_id
+                    logger.debug("Received read_file command: path=%s", path)
                     await handle_read_file(send, path, request_id)
 
+                elif field == "thread_restore":
+                    pass  # already handled above
+
                 else:
+                    logger.warning("Unknown command type: %s", field)
                     await send({"type": "error", "detail": f"Unknown command: {field}"})
 
         finally:

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "@tanstack/react-router"
 import { formatDistanceToNow } from "date-fns"
 import { Button } from "@/components/ui/button"
 import {
@@ -113,6 +114,19 @@ function ContainerRow({ container }: { container: Container }) {
         </TableCell>
         <TableCell>
           <div className="flex items-center justify-end gap-1.5">
+            <Button
+              variant="outline"
+              size="xs"
+              nativeButton={false}
+              render={
+                <Link
+                  to="/containers/$containerId/logs"
+                  params={{ containerId: container.id }}
+                />
+              }
+            >
+              Logs
+            </Button>
             {isRunning && (
               <Button
                 variant="outline"
