@@ -1,0 +1,20 @@
+[
+  {
+    "label": "Orchestrator",
+    "command": "uv run python -m codebox_orchestrator",
+    "cwd": "${ZED_WORKTREE_ROOT}/codebox-orchestrator",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never"
+  },
+  {
+    "label": "Web UI",
+    "command": "pnpm dev",
+    "cwd": "${ZED_WORKTREE_ROOT}/codebox-web-ui",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never"
+  }
+]
