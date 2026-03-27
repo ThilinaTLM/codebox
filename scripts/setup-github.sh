@@ -3,10 +3,12 @@ set -euo pipefail
 
 # Interactive setup wizard for the GitHub App integration.
 # Guides you through creating a GitHub App and configuring .env.local.
+# Re-run to reconfigure, verify, or start the smee webhook proxy.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$REPO_ROOT/codebox-orchestrator/.env.local"
+STATE_FILE="$SCRIPT_DIR/.github-setup-state"
 
 BOLD='\033[1m'
 DIM='\033[2m'
@@ -20,6 +22,7 @@ header() { echo -e "\n${BOLD}${CYAN}=== $1 ===${RESET}\n"; }
 info()   { echo -e "${DIM}$1${RESET}"; }
 ok()     { echo -e "${GREEN}$1${RESET}"; }
 warn()   { echo -e "${YELLOW}$1${RESET}"; }
+err()    { echo -e "${RED}$1${RESET}"; }
 
 prompt() {
     local var_name="$1" prompt_text="$2" default="${3:-}"
@@ -32,142 +35,323 @@ prompt() {
     fi
 }
 
-# ─── Step 1: Prerequisites ──────────────────────────────────
+# ─── State & env loading ────────────────────────────────────
 
-header "Step 1: Prerequisites"
+SAVED_SMEE_URL="" SAVED_APP_ID="" SAVED_APP_SLUG="" SAVED_PEM_PATH="" SAVED_BOT_NAME="" SAVED_SETUP_TIMESTAMP=""
+HAS_STATE=false
 
-if ! command -v pnpm &>/dev/null; then
-    warn "pnpm not found. It's needed to run the smee webhook proxy."
-    warn "Install: curl -fsSL https://get.pnpm.io/install.sh | sh"
-    echo ""
-fi
-
-if command -v docker &>/dev/null; then
-    CONTAINER_ENGINE="docker"
-elif command -v podman &>/dev/null; then
-    CONTAINER_ENGINE="podman"
-else
-    echo -e "${RED}Neither docker nor podman found. A container engine is required to run sandbox containers.${RESET}"
-    exit 1
-fi
-
-ok "Using container engine: $CONTAINER_ENGINE"
-
-if ! command -v openssl &>/dev/null; then
-    warn "openssl not found. You'll need to provide your own webhook secret."
-fi
-
-ok "Prerequisites OK"
-
-# ─── Step 2: smee.io Channel ────────────────────────────────
-
-header "Step 2: Webhook Tunnel (smee.io)"
-
-echo "GitHub needs a public URL to deliver webhooks. smee.io proxies them to localhost."
-echo ""
-echo "1. Go to https://smee.io and click 'Start a new channel'"
-echo "2. Copy the channel URL (e.g. https://smee.io/AbCdEfGhIjKl)"
-echo ""
-
-prompt SMEE_URL "Paste your smee.io channel URL"
-
-if [[ ! "$SMEE_URL" =~ ^https://smee\.io/ ]]; then
-    warn "That doesn't look like a smee.io URL, but continuing anyway."
-fi
-
-# ─── Step 3: GitHub App Creation Guide ──────────────────────
-
-header "Step 3: Create a GitHub App"
-
-echo "Go to: https://github.com/settings/apps/new"
-echo ""
-echo "Fill in these settings:"
-echo ""
-echo -e "  ${BOLD}App name:${RESET}          codebox-dev (or your preferred name)"
-echo -e "  ${BOLD}Homepage URL:${RESET}      http://localhost:3000"
-echo -e "  ${BOLD}Webhook URL:${RESET}       ${CYAN}$SMEE_URL${RESET}"
-echo -e "  ${BOLD}Setup URL:${RESET}         ${CYAN}http://localhost:8080/api/github/callback${RESET}"
-echo -e "                     (check 'Redirect on update')"
-echo ""
-echo -e "  ${BOLD}Permissions:${RESET}"
-echo "    Contents:         Read & Write"
-echo "    Pull requests:    Read & Write"
-echo "    Issues:           Read & Write"
-echo "    Commit statuses:  Read & Write"
-echo "    Metadata:         Read"
-echo ""
-echo -e "  ${BOLD}Subscribe to events:${RESET}"
-echo "    Issue comment"
-echo "    Pull request review comment"
-echo "    Installation"
-echo ""
-echo "After creating the app, generate a private key (button at the bottom"
-echo "of the app settings page). It will download a .pem file."
-echo ""
-
-read -rp "Press Enter when you've created the app and downloaded the private key..."
-
-# ─── Step 4: Collect Credentials ────────────────────────────
-
-header "Step 4: Configure Credentials"
-
-echo "You can find these values on your GitHub App's settings page."
-echo ""
-
-prompt APP_ID "GitHub App ID (number from the app's About section)"
-prompt APP_SLUG "GitHub App slug (the URL-friendly name)" "codebox-dev"
-
-echo ""
-echo "Webhook secret — used to verify webhook signatures."
-if command -v openssl &>/dev/null; then
-    GENERATED_SECRET=$(openssl rand -hex 20)
-    echo -e "  Auto-generated: ${DIM}$GENERATED_SECRET${RESET}"
-    prompt WEBHOOK_SECRET "Webhook secret (Enter to use generated, or paste your own)" "$GENERATED_SECRET"
-else
-    prompt WEBHOOK_SECRET "Webhook secret"
-fi
-
-echo ""
-echo -e "${YELLOW}Important:${RESET} Set this same webhook secret in your GitHub App settings"
-echo -e "  (GitHub App settings > General > Webhook secret)"
-echo ""
-
-prompt PEM_PATH "Path to the downloaded .pem private key file"
-
-# Expand ~ in path
-PEM_PATH="${PEM_PATH/#\~/$HOME}"
-
-if [[ ! -f "$PEM_PATH" ]]; then
-    echo -e "${RED}File not found: $PEM_PATH${RESET}"
-    echo "Please check the path and re-run this script."
-    exit 1
-fi
-
-prompt BOT_NAME "Bot trigger name (users will type @<name> in comments)" "$APP_SLUG"
-
-# ─── Step 5: Write .env.local ───────────────────────────────
-
-header "Step 5: Write Configuration"
-
-# Check if GitHub vars already exist
-if grep -q "GITHUB_APP_ID" "$ENV_FILE" 2>/dev/null; then
-    warn "GitHub configuration already exists in $ENV_FILE"
-    read -rp "Overwrite existing GitHub settings? [y/N]: " overwrite
-    if [[ "${overwrite,,}" != "y" ]]; then
-        echo "Aborted. No changes made."
-        exit 0
+load_state() {
+    HAS_STATE=false
+    if [[ -f "$STATE_FILE" ]]; then
+        while IFS='=' read -r key value; do
+            [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
+            declare -g "SAVED_$key=$value"
+        done < "$STATE_FILE"
+        HAS_STATE=true
     fi
-    # Remove existing GitHub lines
-    sed -i '/^GITHUB_APP_ID=/d' "$ENV_FILE"
-    sed -i '/^GITHUB_APP_SLUG=/d' "$ENV_FILE"
-    sed -i '/^GITHUB_APP_PRIVATE_KEY_PATH=/d' "$ENV_FILE"
-    sed -i '/^GITHUB_WEBHOOK_SECRET=/d' "$ENV_FILE"
-    sed -i '/^GITHUB_BOT_NAME=/d' "$ENV_FILE"
-    # Remove trailing blank lines
-    sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$ENV_FILE"
-fi
+}
 
-cat >> "$ENV_FILE" << EOF
+ENV_APP_ID="" ENV_APP_SLUG="" ENV_PEM_PATH="" ENV_WEBHOOK_SECRET="" ENV_BOT_NAME=""
+HAS_ENV=false
+
+load_env_vars() {
+    HAS_ENV=false
+    if [[ -f "$ENV_FILE" ]] && grep -q "^GITHUB_APP_ID=" "$ENV_FILE" 2>/dev/null; then
+        ENV_APP_ID=$(grep "^GITHUB_APP_ID=" "$ENV_FILE" | cut -d= -f2-)
+        ENV_APP_SLUG=$(grep "^GITHUB_APP_SLUG=" "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
+        ENV_PEM_PATH=$(grep "^GITHUB_APP_PRIVATE_KEY_PATH=" "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
+        ENV_WEBHOOK_SECRET=$(grep "^GITHUB_WEBHOOK_SECRET=" "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
+        ENV_BOT_NAME=$(grep "^GITHUB_BOT_NAME=" "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
+        [[ -n "$ENV_APP_ID" ]] && HAS_ENV=true
+    fi
+}
+
+save_state() {
+    cat > "$STATE_FILE" << EOF
+# Auto-generated by setup-github.sh — do not edit manually
+SMEE_URL=$SMEE_URL
+APP_ID=$APP_ID
+APP_SLUG=$APP_SLUG
+PEM_PATH=$PEM_PATH
+BOT_NAME=$BOT_NAME
+SETUP_TIMESTAMP=$(date -Iseconds)
+EOF
+    info "State saved to $STATE_FILE"
+}
+
+# ─── Status & verification ──────────────────────────────────
+
+show_status() {
+    header "Current GitHub App Configuration"
+
+    local app_id="${ENV_APP_ID:-${SAVED_APP_ID:-(not set)}}"
+    local app_slug="${ENV_APP_SLUG:-${SAVED_APP_SLUG:-(not set)}}"
+    local pem_path="${ENV_PEM_PATH:-${SAVED_PEM_PATH:-(not set)}}"
+    local bot_name="${ENV_BOT_NAME:-${SAVED_BOT_NAME:-(not set)}}"
+    local smee_url="${SAVED_SMEE_URL:-(not saved)}"
+    local secret_status="not set"
+    [[ -n "$ENV_WEBHOOK_SECRET" ]] && secret_status="${ENV_WEBHOOK_SECRET:0:8}..."
+
+    echo -e "  ${BOLD}App ID:${RESET}          ${CYAN}$app_id${RESET}"
+    echo -e "  ${BOLD}App slug:${RESET}        ${CYAN}$app_slug${RESET}"
+    echo -e "  ${BOLD}Bot name:${RESET}        ${CYAN}$bot_name${RESET}"
+    echo -e "  ${BOLD}Private key:${RESET}     ${CYAN}$pem_path${RESET}"
+    echo -e "  ${BOLD}Webhook secret:${RESET}  ${CYAN}$secret_status${RESET}"
+    echo -e "  ${BOLD}Smee URL:${RESET}        ${CYAN}$smee_url${RESET}"
+
+    if [[ -n "$SAVED_SETUP_TIMESTAMP" ]]; then
+        echo ""
+        info "Last configured: $SAVED_SETUP_TIMESTAMP"
+    fi
+}
+
+verify_config() {
+    header "Verifying Configuration"
+    local all_ok=true
+
+    # Check env vars
+    for var in GITHUB_APP_ID GITHUB_APP_SLUG GITHUB_APP_PRIVATE_KEY_PATH GITHUB_WEBHOOK_SECRET GITHUB_BOT_NAME; do
+        if grep -q "^$var=" "$ENV_FILE" 2>/dev/null; then
+            local val
+            val=$(grep "^$var=" "$ENV_FILE" | cut -d= -f2-)
+            if [[ -n "$val" ]]; then
+                ok "  $var is set"
+            else
+                warn "  $var is empty"
+                all_ok=false
+            fi
+        else
+            warn "  $var is MISSING"
+            all_ok=false
+        fi
+    done
+
+    # Check PEM file
+    local pem="${ENV_PEM_PATH:-}"
+    if [[ -n "$pem" && -f "$pem" ]]; then
+        ok "  Private key file exists"
+    elif [[ -n "$pem" ]]; then
+        err "  Private key file NOT FOUND: $pem"
+        all_ok=false
+    else
+        warn "  Private key path not set"
+        all_ok=false
+    fi
+
+    # Check smee URL
+    if [[ -n "${SAVED_SMEE_URL:-}" ]]; then
+        ok "  Smee URL saved: $SAVED_SMEE_URL"
+    else
+        warn "  Smee URL not saved (run setup to save it)"
+    fi
+
+    echo ""
+    if $all_ok; then
+        ok "All checks passed!"
+    else
+        warn "Some checks failed — run setup to fix."
+    fi
+}
+
+# ─── Smee proxy ─────────────────────────────────────────────
+
+start_smee() {
+    local url="${SAVED_SMEE_URL:-}"
+    if [[ -z "$url" ]]; then
+        echo "No smee URL saved."
+        prompt url "Enter your smee.io URL"
+        # Save just the smee URL to state
+        if [[ -f "$STATE_FILE" ]]; then
+            if grep -q "^SMEE_URL=" "$STATE_FILE"; then
+                sed -i "s|^SMEE_URL=.*|SMEE_URL=$url|" "$STATE_FILE"
+            else
+                echo "SMEE_URL=$url" >> "$STATE_FILE"
+            fi
+        else
+            echo "# Auto-generated by setup-github.sh" > "$STATE_FILE"
+            echo "SMEE_URL=$url" >> "$STATE_FILE"
+        fi
+    fi
+
+    if ! command -v pnpm &>/dev/null; then
+        err "pnpm is required to run smee-client."
+        echo "Install: curl -fsSL https://get.pnpm.io/install.sh | sh"
+        exit 1
+    fi
+
+    echo -e "Starting smee proxy: ${CYAN}$url${RESET} -> http://localhost:8080/api/github/webhook"
+    echo -e "${DIM}Press Ctrl+C to stop${RESET}"
+    echo ""
+    exec pnpm dlx smee-client -u "$url" --target http://localhost:8080/api/github/webhook
+}
+
+# ─── Wizard ─────────────────────────────────────────────────
+
+run_wizard() {
+    local use_defaults="${1:-false}"
+
+    # Merge defaults: env takes precedence over state
+    local DEFAULT_APP_ID="${ENV_APP_ID:-$SAVED_APP_ID}"
+    local DEFAULT_APP_SLUG="${ENV_APP_SLUG:-${SAVED_APP_SLUG:-codebox-dev}}"
+    local DEFAULT_PEM_PATH="${ENV_PEM_PATH:-$SAVED_PEM_PATH}"
+    local DEFAULT_BOT_NAME="${ENV_BOT_NAME:-$SAVED_BOT_NAME}"
+    local DEFAULT_SMEE_URL="${SAVED_SMEE_URL:-}"
+
+    # ─── Step 1: Prerequisites ──────────────────────────────
+
+    header "Step 1: Prerequisites"
+
+    if ! command -v pnpm &>/dev/null; then
+        warn "pnpm not found. It's needed to run the smee webhook proxy."
+        warn "Install: curl -fsSL https://get.pnpm.io/install.sh | sh"
+        echo ""
+    fi
+
+    if command -v docker &>/dev/null; then
+        CONTAINER_ENGINE="docker"
+    elif command -v podman &>/dev/null; then
+        CONTAINER_ENGINE="podman"
+    else
+        err "Neither docker nor podman found. A container engine is required."
+        exit 1
+    fi
+
+    ok "Using container engine: $CONTAINER_ENGINE"
+
+    if ! command -v openssl &>/dev/null; then
+        warn "openssl not found. You'll need to provide your own webhook secret."
+    fi
+
+    ok "Prerequisites OK"
+
+    # ─── Step 2: smee.io Channel ────────────────────────────
+
+    header "Step 2: Webhook Tunnel (smee.io)"
+
+    if [[ -n "$DEFAULT_SMEE_URL" ]]; then
+        echo -e "Previously used smee URL: ${CYAN}$DEFAULT_SMEE_URL${RESET}"
+        echo ""
+    fi
+
+    echo "GitHub needs a public URL to deliver webhooks. smee.io proxies them to localhost."
+    echo ""
+
+    if [[ -z "$DEFAULT_SMEE_URL" ]]; then
+        echo "1. Go to https://smee.io and click 'Start a new channel'"
+        echo "2. Copy the channel URL (e.g. https://smee.io/AbCdEfGhIjKl)"
+        echo ""
+    fi
+
+    prompt SMEE_URL "Smee.io channel URL" "$DEFAULT_SMEE_URL"
+
+    if [[ ! "$SMEE_URL" =~ ^https://smee\.io/ ]]; then
+        warn "That doesn't look like a smee.io URL, but continuing anyway."
+    fi
+
+    # ─── Step 3: GitHub App Creation Guide ──────────────────
+
+    header "Step 3: GitHub App"
+
+    if [[ "$use_defaults" == "true" && -n "$DEFAULT_APP_ID" ]]; then
+        echo -e "Existing app: ${BOLD}$DEFAULT_APP_SLUG${RESET} (ID: ${CYAN}$DEFAULT_APP_ID${RESET})"
+        echo ""
+        echo "Update your app's webhook URL if it changed:"
+        echo -e "  Webhook URL: ${CYAN}$SMEE_URL${RESET}"
+        echo ""
+        info "Need the full setup instructions? Run with --fresh"
+        echo ""
+    else
+        echo "Go to: https://github.com/settings/apps/new"
+        echo ""
+        echo "Fill in these settings:"
+        echo ""
+        echo -e "  ${BOLD}App name:${RESET}          codebox-dev (or your preferred name)"
+        echo -e "  ${BOLD}Homepage URL:${RESET}      http://localhost:3000"
+        echo -e "  ${BOLD}Webhook URL:${RESET}       ${CYAN}$SMEE_URL${RESET}"
+        echo -e "  ${BOLD}Setup URL:${RESET}         ${CYAN}http://localhost:8080/api/github/callback${RESET}"
+        echo "                     (check 'Redirect on update')"
+        echo ""
+        echo -e "  ${BOLD}Permissions:${RESET}"
+        echo "    Contents:         Read & Write"
+        echo "    Pull requests:    Read & Write"
+        echo "    Issues:           Read & Write"
+        echo "    Commit statuses:  Read & Write"
+        echo "    Metadata:         Read"
+        echo ""
+        echo -e "  ${BOLD}Subscribe to events:${RESET}"
+        echo "    Issue comment"
+        echo "    Pull request review comment"
+        echo "    Installation"
+        echo ""
+        echo "After creating the app, generate a private key (button at the bottom"
+        echo "of the app settings page). It will download a .pem file."
+        echo ""
+
+        read -rp "Press Enter when you've created the app and downloaded the private key..."
+    fi
+
+    # ─── Step 4: Collect Credentials ────────────────────────
+
+    header "Step 4: Configure Credentials"
+
+    echo "You can find these values on your GitHub App's settings page."
+    echo ""
+
+    prompt APP_ID "GitHub App ID (number from the app's About section)" "$DEFAULT_APP_ID"
+    prompt APP_SLUG "GitHub App slug (the URL-friendly name)" "$DEFAULT_APP_SLUG"
+
+    echo ""
+    echo "Webhook secret — used to verify webhook signatures."
+    if command -v openssl &>/dev/null; then
+        GENERATED_SECRET=$(openssl rand -hex 20)
+        echo -e "  Auto-generated: ${DIM}$GENERATED_SECRET${RESET}"
+        prompt WEBHOOK_SECRET "Webhook secret (Enter to use generated, or paste your own)" "$GENERATED_SECRET"
+    else
+        prompt WEBHOOK_SECRET "Webhook secret"
+    fi
+
+    echo ""
+    echo -e "${YELLOW}Important:${RESET} Set this same webhook secret in your GitHub App settings"
+    echo -e "  (GitHub App settings > General > Webhook secret)"
+    echo ""
+
+    prompt PEM_PATH "Path to the downloaded .pem private key file" "$DEFAULT_PEM_PATH"
+
+    # Expand ~ in path
+    PEM_PATH="${PEM_PATH/#\~/$HOME}"
+
+    if [[ ! -f "$PEM_PATH" ]]; then
+        err "File not found: $PEM_PATH"
+        echo "Please check the path and re-run this script."
+        exit 1
+    fi
+
+    prompt BOT_NAME "Bot trigger name (users will type @<name> in comments)" "${DEFAULT_BOT_NAME:-$APP_SLUG}"
+
+    # ─── Step 5: Write .env.local ───────────────────────────
+
+    header "Step 5: Write Configuration"
+
+    # Check if GitHub vars already exist
+    if grep -q "GITHUB_APP_ID" "$ENV_FILE" 2>/dev/null; then
+        warn "GitHub configuration already exists in $ENV_FILE"
+        read -rp "Overwrite existing GitHub settings? [Y/n]: " overwrite
+        if [[ "${overwrite,,}" == "n" ]]; then
+            echo "Aborted. No changes made."
+            exit 0
+        fi
+        # Remove existing GitHub lines
+        sed -i '/^GITHUB_APP_ID=/d' "$ENV_FILE"
+        sed -i '/^GITHUB_APP_SLUG=/d' "$ENV_FILE"
+        sed -i '/^GITHUB_APP_PRIVATE_KEY_PATH=/d' "$ENV_FILE"
+        sed -i '/^GITHUB_WEBHOOK_SECRET=/d' "$ENV_FILE"
+        sed -i '/^GITHUB_BOT_NAME=/d' "$ENV_FILE"
+        sed -i '/^# GitHub App integration$/d' "$ENV_FILE"
+        # Remove trailing blank lines
+        sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$ENV_FILE"
+    fi
+
+    cat >> "$ENV_FILE" << EOF
 
 # GitHub App integration
 GITHUB_APP_ID=$APP_ID
@@ -177,40 +361,138 @@ GITHUB_WEBHOOK_SECRET=$WEBHOOK_SECRET
 GITHUB_BOT_NAME=$BOT_NAME
 EOF
 
-ok "Written to $ENV_FILE"
-echo ""
-echo "Values saved:"
-echo -e "  GITHUB_APP_ID=${CYAN}$APP_ID${RESET}"
-echo -e "  GITHUB_APP_SLUG=${CYAN}$APP_SLUG${RESET}"
-echo -e "  GITHUB_APP_PRIVATE_KEY_PATH=${CYAN}$PEM_PATH${RESET}"
-echo -e "  GITHUB_WEBHOOK_SECRET=${CYAN}${WEBHOOK_SECRET:0:8}...${RESET}"
-echo -e "  GITHUB_BOT_NAME=${CYAN}$BOT_NAME${RESET}"
+    ok "Written to $ENV_FILE"
+    echo ""
+    echo "Values saved:"
+    echo -e "  GITHUB_APP_ID=${CYAN}$APP_ID${RESET}"
+    echo -e "  GITHUB_APP_SLUG=${CYAN}$APP_SLUG${RESET}"
+    echo -e "  GITHUB_APP_PRIVATE_KEY_PATH=${CYAN}$PEM_PATH${RESET}"
+    echo -e "  GITHUB_WEBHOOK_SECRET=${CYAN}${WEBHOOK_SECRET:0:8}...${RESET}"
+    echo -e "  GITHUB_BOT_NAME=${CYAN}$BOT_NAME${RESET}"
 
-# ─── Step 6: Next Steps ────────────────────────────────────
+    # Save state for next run
+    save_state
 
-header "Step 6: Next Steps"
+    # ─── Step 6: Next Steps ────────────────────────────────
 
-echo "1. Start the webhook tunnel (keep running in a separate terminal):"
-echo ""
-echo -e "   ${BOLD}pnpm dlx smee-client -u $SMEE_URL --target http://localhost:8080/api/github/webhook${RESET}"
-echo ""
-echo "2. Build the sandbox image (if not already done):"
-echo ""
-echo -e "   ${BOLD}bash scripts/build-sandbox.sh${RESET}"
-echo ""
-echo "3. Start the orchestrator:"
-echo ""
-echo -e "   ${BOLD}cd codebox-orchestrator && python -m codebox_orchestrator${RESET}"
-echo ""
-echo "4. Install the GitHub App on a test repo:"
-echo ""
-echo -e "   ${BOLD}https://github.com/apps/$APP_SLUG/installations/new${RESET}"
-echo ""
-echo "5. Add the installation via the web UI (http://localhost:3000/settings/github)"
-echo "   or manually via the API."
-echo ""
-echo "6. Comment on an issue to trigger the agent:"
-echo ""
-echo -e "   ${BOLD}@$BOT_NAME implement this feature${RESET}"
-echo ""
-ok "Setup complete!"
+    header "Next Steps"
+
+    echo "1. Start the webhook tunnel (keep running in a separate terminal):"
+    echo ""
+    echo -e "   ${BOLD}pnpm dlx smee-client -u $SMEE_URL --target http://localhost:8080/api/github/webhook${RESET}"
+    echo -e "   ${DIM}or: bash scripts/setup-github.sh --smee${RESET}"
+    echo ""
+    echo "2. Build the sandbox image (if not already done):"
+    echo ""
+    echo -e "   ${BOLD}bash scripts/build-sandbox.sh${RESET}"
+    echo ""
+    echo "3. Start the orchestrator:"
+    echo ""
+    echo -e "   ${BOLD}cd codebox-orchestrator && python -m codebox_orchestrator${RESET}"
+    echo ""
+    echo "4. Install the GitHub App on a test repo:"
+    echo ""
+    echo -e "   ${BOLD}https://github.com/apps/$APP_SLUG/installations/new${RESET}"
+    echo ""
+    echo "5. Add the installation via the web UI (http://localhost:3000/settings/github)"
+    echo "   or manually via the API."
+    echo ""
+    echo "6. Comment on an issue to trigger the agent:"
+    echo ""
+    echo -e "   ${BOLD}@$BOT_NAME implement this feature${RESET}"
+    echo ""
+    ok "Setup complete!"
+}
+
+# ─── Menu ───────────────────────────────────────────────────
+
+show_menu() {
+    echo ""
+    echo -e "${BOLD}What would you like to do?${RESET}"
+    echo ""
+    echo "  1) Verify configuration"
+    echo "  2) Reconfigure (wizard with current values as defaults)"
+    echo "  3) Start smee proxy"
+    echo "  4) Fresh setup (start from scratch)"
+    echo "  q) Quit"
+    echo ""
+
+    read -rp "Choose [1-4, q]: " choice
+    case "$choice" in
+        1) verify_config ;;
+        2) run_wizard true ;;
+        3) start_smee ;;
+        4) run_wizard false ;;
+        q|Q) exit 0 ;;
+        *) warn "Invalid choice."; show_menu ;;
+    esac
+}
+
+# ─── CLI flags & usage ──────────────────────────────────────
+
+show_usage() {
+    echo "Usage: $(basename "$0") [OPTIONS]"
+    echo ""
+    echo "Interactive setup wizard for the GitHub App integration."
+    echo ""
+    echo "Options:"
+    echo "  --status   Show current configuration"
+    echo "  --verify   Verify all settings are correct"
+    echo "  --smee     Start the smee webhook proxy"
+    echo "  --fresh    Run the full setup wizard from scratch"
+    echo "  -h, --help Show this help message"
+    echo ""
+    echo "With no options, shows a menu if already configured, or runs"
+    echo "the full wizard on first run."
+}
+
+ACTION=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --smee)    ACTION="smee"; shift ;;
+        --verify)  ACTION="verify"; shift ;;
+        --status)  ACTION="status"; shift ;;
+        --fresh)   ACTION="fresh"; shift ;;
+        -h|--help) show_usage; exit 0 ;;
+        *) echo "Unknown option: $1"; show_usage; exit 1 ;;
+    esac
+done
+
+# ─── Main ───────────────────────────────────────────────────
+
+load_state
+load_env_vars
+
+# Dispatch CLI flags
+if [[ -n "$ACTION" ]]; then
+    case "$ACTION" in
+        status) show_status ;;
+        verify) verify_config ;;
+        smee)   start_smee ;;
+        fresh)  run_wizard false ;;
+    esac
+    exit 0
+fi
+
+# Interactive mode
+if $HAS_ENV; then
+    show_status
+    show_menu
+elif $HAS_STATE; then
+    echo ""
+    info "Found previous setup state but GitHub vars are not in .env.local."
+    echo ""
+    echo "  1) Reconfigure using saved defaults"
+    echo "  2) Fresh setup"
+    echo "  q) Quit"
+    echo ""
+    read -rp "Choose [1-2, q]: " choice
+    case "$choice" in
+        1) run_wizard true ;;
+        2) run_wizard false ;;
+        q|Q) exit 0 ;;
+        *) warn "Invalid choice."; exit 1 ;;
+    esac
+else
+    run_wizard false
+fi

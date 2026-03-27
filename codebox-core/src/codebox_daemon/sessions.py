@@ -18,7 +18,7 @@ from codebox_daemon.tools.status import StatusReporter
 
 logger = logging.getLogger(__name__)
 
-_CHECKPOINT_DB_PATH = "/workspace/.codebox/checkpoints.db"
+_CHECKPOINT_DB_PATH = "/app/codebox/checkpoints.db"
 
 
 @dataclass

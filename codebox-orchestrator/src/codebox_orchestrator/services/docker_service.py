@@ -118,6 +118,10 @@ def spawn(
             host_path = _to_wsl_path(mount_path)
         volumes[host_path] = {"bind": "/workspace", "mode": "rw"}
 
+    # Named volume for /app so devbox cache and codebox state persist across restarts
+    app_vol_name = f"{name}-app" if name else f"codebox-app-{id(client)}"
+    volumes[app_vol_name] = {"bind": "/app", "mode": "rw"}
+
     labels = {CONTAINER_LABEL: "true"}
     net = network or DOCKER_NETWORK
 
@@ -232,13 +236,24 @@ def start(container_id_or_name: str) -> None:
 
 
 def remove(container_id_or_name: str) -> None:
-    """Remove a container (running or stopped)."""
+    """Remove a container (running or stopped) and its /app named volume."""
     client = _get_client()
     container = _get_container(client, container_id_or_name)
+    container_name = container.name
     try:
         container.remove(force=True)
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Failed to remove container: {exc}") from exc
+
+    # Clean up the per-box /app named volume
+    if container_name:
+        try:
+            vol = client.volumes.get(f"{container_name}-app")
+            vol.remove(force=True)
+        except docker.errors.NotFound:
+            pass
+        except docker.errors.APIError:
+            pass
 
 
 def get_logs(container_id_or_name: str, tail: int = 200) -> str:

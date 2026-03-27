@@ -13,6 +13,9 @@ wheels/
 .env.local
 .env.compose
 
+# Setup wizard state
+scripts/.github-setup-state
+
 # IDE
 .idea/
 .vscode/

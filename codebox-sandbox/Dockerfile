@@ -30,7 +30,7 @@ COPY codebox-core/pyproject.toml codebox-core/README.md /tmp/codebox-core/
 COPY codebox-core/src/ /tmp/codebox-core/src/
 RUN pip install uv && uv pip install --system /tmp/codebox-core && rm -rf /tmp/codebox-core
 
-RUN mkdir -p /workspace
+RUN mkdir -p /workspace /app/codebox
 
 LABEL codebox-sandbox="true"
 

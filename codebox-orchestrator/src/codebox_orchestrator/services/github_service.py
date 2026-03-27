@@ -597,7 +597,7 @@ class GitHubService:
             "",
             "## Instructions",
             f"- The repository is cloned into /workspace (your CWD) and you are on branch {branch}",
-            f"- Full issue context is also available at /workspace/.codebox/context.md",
+            f"- Full issue context is also available at /app/codebox/context.md",
             "- Implement the requested changes",
             "- Write tests if applicable",
             "- Commit your changes with descriptive messages",
@@ -655,11 +655,8 @@ class GitHubService:
             # Install pre-push safety hook
             f"cat > /workspace/.git/hooks/pre-push << 'HOOKEOF'\n{pre_push_hook}\nHOOKEOF",
             "chmod +x /workspace/.git/hooks/pre-push",
-            # Create .codebox metadata directory (excluded from git)
-            "mkdir -p /workspace/.codebox",
-            "echo '.codebox/' >> /workspace/.git/info/exclude",
             # Write context file
-            f"cat > /workspace/.codebox/context.md << 'CTXEOF'\n{context_md}\nCTXEOF",
+            f"cat > /app/codebox/context.md << 'CTXEOF'\n{context_md}\nCTXEOF",
         ]
 
         return commands
