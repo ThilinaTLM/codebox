@@ -194,6 +194,7 @@ run_wizard() {
     local DEFAULT_APP_ID="${ENV_APP_ID:-$SAVED_APP_ID}"
     local DEFAULT_APP_SLUG="${ENV_APP_SLUG:-${SAVED_APP_SLUG:-codebox-dev}}"
     local DEFAULT_PEM_PATH="${ENV_PEM_PATH:-$SAVED_PEM_PATH}"
+    local DEFAULT_WEBHOOK_SECRET="${ENV_WEBHOOK_SECRET:-}"
     local DEFAULT_BOT_NAME="${ENV_BOT_NAME:-$SAVED_BOT_NAME}"
     local DEFAULT_SMEE_URL="${SAVED_SMEE_URL:-}"
 
@@ -255,38 +256,35 @@ run_wizard() {
     if [[ "$use_defaults" == "true" && -n "$DEFAULT_APP_ID" ]]; then
         echo -e "Existing app: ${BOLD}$DEFAULT_APP_SLUG${RESET} (ID: ${CYAN}$DEFAULT_APP_ID${RESET})"
         echo ""
-        echo "Update your app's webhook URL if it changed:"
-        echo -e "  Webhook URL: ${CYAN}$SMEE_URL${RESET}"
-        echo ""
-        info "Need the full setup instructions? Run with --fresh"
-        echo ""
+        echo "Verify/update these settings on your GitHub App's settings page:"
     else
         echo "Go to: https://github.com/settings/apps/new"
-        echo ""
-        echo "Fill in these settings:"
-        echo ""
-        echo -e "  ${BOLD}App name:${RESET}          codebox-dev (or your preferred name)"
-        echo -e "  ${BOLD}Homepage URL:${RESET}      http://localhost:3000"
-        echo -e "  ${BOLD}Webhook URL:${RESET}       ${CYAN}$SMEE_URL${RESET}"
-        echo -e "  ${BOLD}Setup URL:${RESET}         ${CYAN}http://localhost:8080/api/github/callback${RESET}"
-        echo "                     (check 'Redirect on update')"
-        echo ""
-        echo -e "  ${BOLD}Permissions:${RESET}"
-        echo "    Contents:         Read & Write"
-        echo "    Pull requests:    Read & Write"
-        echo "    Issues:           Read & Write"
-        echo "    Commit statuses:  Read & Write"
-        echo "    Metadata:         Read"
-        echo ""
-        echo -e "  ${BOLD}Subscribe to events:${RESET}"
-        echo "    Issue comment"
-        echo "    Pull request review comment"
-        echo "    Installation"
-        echo ""
-        echo "After creating the app, generate a private key (button at the bottom"
-        echo "of the app settings page). It will download a .pem file."
-        echo ""
+    fi
 
+    echo ""
+    echo -e "  ${BOLD}App name:${RESET}          codebox-dev (or your preferred name)"
+    echo -e "  ${BOLD}Homepage URL:${RESET}      http://localhost:3000"
+    echo -e "  ${BOLD}Webhook URL:${RESET}       ${CYAN}$SMEE_URL${RESET}"
+    echo -e "  ${BOLD}Setup URL:${RESET}         ${CYAN}http://localhost:8080/api/github/callback${RESET}"
+    echo "                     (check 'Redirect on update')"
+    echo ""
+    echo -e "  ${BOLD}Permissions:${RESET}"
+    echo "    Contents:         Read & Write"
+    echo "    Pull requests:    Read & Write"
+    echo "    Issues:           Read & Write"
+    echo "    Commit statuses:  Read & Write"
+    echo "    Metadata:         Read"
+    echo ""
+    echo -e "  ${BOLD}Subscribe to events:${RESET}"
+    echo "    Issue comment"
+    echo "    Pull request review comment"
+    echo "    Installation"
+    echo ""
+    echo "After creating the app, generate a private key (button at the bottom"
+    echo "of the app settings page). It will download a .pem file."
+    echo ""
+
+    if [[ "$use_defaults" != "true" || -z "$DEFAULT_APP_ID" ]]; then
         read -rp "Press Enter when you've created the app and downloaded the private key..."
     fi
 
@@ -302,7 +300,9 @@ run_wizard() {
 
     echo ""
     echo "Webhook secret — used to verify webhook signatures."
-    if command -v openssl &>/dev/null; then
+    if [[ -n "$DEFAULT_WEBHOOK_SECRET" ]]; then
+        prompt WEBHOOK_SECRET "Webhook secret (Enter to keep existing)" "$DEFAULT_WEBHOOK_SECRET"
+    elif command -v openssl &>/dev/null; then
         GENERATED_SECRET=$(openssl rand -hex 20)
         echo -e "  Auto-generated: ${DIM}$GENERATED_SECRET${RESET}"
         prompt WEBHOOK_SECRET "Webhook secret (Enter to use generated, or paste your own)" "$GENERATED_SECRET"
@@ -402,6 +402,13 @@ EOF
     echo -e "   ${BOLD}@$BOT_NAME implement this feature${RESET}"
     echo ""
     ok "Setup complete!"
+
+    echo ""
+    read -rp "Start the smee webhook proxy now? [Y/n]: " start_smee_choice
+    if [[ "${start_smee_choice,,}" != "n" ]]; then
+        echo ""
+        start_smee
+    fi
 }
 
 # ─── Menu ───────────────────────────────────────────────────

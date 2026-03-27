@@ -104,7 +104,7 @@ def create_agent(
 
     backend = LocalShellBackend(
         root_dir=root_dir,
-        virtual_mode=True,
+        virtual_mode=False,
         timeout=timeout,
         inherit_env=True,
     )
