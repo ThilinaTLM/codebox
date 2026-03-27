@@ -98,6 +98,18 @@ class OrchestratorClient:
             params["trigger"] = trigger
         return self._rest_request("GET", "/api/boxes", params=params or None)
 
+    def resolve_box_id(self, prefix: str) -> str:
+        """Resolve a short ID prefix to a full box ID."""
+        boxes = self.list_boxes()
+        matches = [b["id"] for b in boxes if b["id"].startswith(prefix)]
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise RuntimeError(f"No box found matching prefix '{prefix}'")
+        raise RuntimeError(
+            f"Ambiguous prefix '{prefix}', matches: {', '.join(m[:8] for m in matches)}"
+        )
+
     def get_box(self, box_id: str) -> dict[str, Any]:
         return self._rest_request("GET", f"/api/boxes/{box_id}")
 

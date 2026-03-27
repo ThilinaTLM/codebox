@@ -106,9 +106,11 @@ async def orchestrator_chat_loop(
     console.print("[dim]Codebox Chat[/dim]")
     console.print("[dim]Type 'exit' to quit. Ctrl+C to cancel. Prefix with ! for shell.[/dim]\n")
 
-    # Stream initial events if any
-    await _stream_box_events(client, box_id, console)
-    console.print()
+    # Stream initial events only if the agent is currently working
+    box = client.get_box(box_id)
+    if box.get("task_status") == "agent_working":
+        await _stream_box_events(client, box_id, console)
+        console.print()
 
     # Interactive chat
     while True:

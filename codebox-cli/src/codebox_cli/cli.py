@@ -15,6 +15,14 @@ from codebox_cli.orchestrator_client import OrchestratorClient
 from codebox_cli.orchestrator_chat import orchestrator_chat_loop
 
 
+def _resolve(orch: OrchestratorClient, box_id: str) -> str:
+    """Resolve a short box ID prefix to the full UUID."""
+    try:
+        return orch.resolve_box_id(box_id)
+    except RuntimeError as exc:
+        raise click.ClickException(str(exc))
+
+
 @click.group()
 def cli() -> None:
     """Codebox — manage and connect to sandboxed coding agents."""
@@ -135,6 +143,7 @@ def box_list(
 def box_info(ctx: click.Context, box_id: str) -> None:
     """Show detailed information about a box."""
     orch: OrchestratorClient = ctx.obj["orch"]
+    box_id = _resolve(orch, box_id)
     try:
         b = orch.get_box(box_id)
     except RuntimeError as exc:
@@ -190,6 +199,7 @@ def box_info(ctx: click.Context, box_id: str) -> None:
 def box_connect(ctx: click.Context, box_id: str) -> None:
     """Connect to a box for interactive chat."""
     orch: OrchestratorClient = ctx.obj["orch"]
+    box_id = _resolve(orch, box_id)
     asyncio.run(orchestrator_chat_loop(orch, box_id))
 
 
@@ -199,6 +209,7 @@ def box_connect(ctx: click.Context, box_id: str) -> None:
 def box_stop(ctx: click.Context, box_id: str) -> None:
     """Stop a running box."""
     orch: OrchestratorClient = ctx.obj["orch"]
+    box_id = _resolve(orch, box_id)
     try:
         box = orch.stop_box(box_id)
         click.echo(f"Box {box_id[:8]} stopped (status: {box['container_status']})")
@@ -214,6 +225,7 @@ def box_stop(ctx: click.Context, box_id: str) -> None:
 def box_restart(ctx: click.Context, box_id: str, watch: bool, no_watch: bool) -> None:
     """Restart a stopped box."""
     orch: OrchestratorClient = ctx.obj["orch"]
+    box_id = _resolve(orch, box_id)
     try:
         box = orch.restart_box(box_id)
     except RuntimeError as exc:
@@ -231,6 +243,7 @@ def box_restart(ctx: click.Context, box_id: str, watch: bool, no_watch: bool) ->
 def box_delete(ctx: click.Context, box_id: str) -> None:
     """Delete a box and its container."""
     orch: OrchestratorClient = ctx.obj["orch"]
+    box_id = _resolve(orch, box_id)
     try:
         orch.delete_box(box_id)
         click.echo(f"Box {box_id[:8]} deleted.")
@@ -245,6 +258,7 @@ def box_delete(ctx: click.Context, box_id: str) -> None:
 def box_events(ctx: click.Context, box_id: str, limit: int) -> None:
     """Show persisted events for a box."""
     orch: OrchestratorClient = ctx.obj["orch"]
+    box_id = _resolve(orch, box_id)
     try:
         events = orch.get_box_events(box_id)
     except RuntimeError as exc:
