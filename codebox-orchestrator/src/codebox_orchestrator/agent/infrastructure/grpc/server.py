@@ -234,17 +234,17 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             elif rfr.data_json:
                 result["data"] = json.loads(rfr.data_json)
             return "read_file_result", result
-        elif field == "task_status_changed":
-            return "task_status_changed", {
-                "type": "task_status_changed",
-                "status": event.task_status_changed.status,
+        elif field == "activity_changed":
+            return "activity_changed", {
+                "type": "activity_changed",
+                "status": event.activity_changed.status,
             }
-        elif field == "report_status":
-            rs = event.report_status
-            return "report_status", {
-                "type": "report_status",
-                "status": rs.status,
-                "message": rs.message,
+        elif field == "task_outcome":
+            to = event.task_outcome
+            return "task_outcome", {
+                "type": "task_outcome",
+                "status": to.status,
+                "message": to.message,
             }
         return "", {}
 

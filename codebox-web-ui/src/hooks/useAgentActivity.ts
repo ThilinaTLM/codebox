@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import type { BoxStreamEvent } from "@/net/http/types"
-import { ContainerStatus, TaskStatus } from "@/net/http/types"
+import { Activity, ContainerStatus } from "@/net/http/types"
 
 export interface AgentActivity {
   label: string
@@ -12,7 +12,7 @@ export interface AgentActivity {
 export function useAgentActivity(
   events: Array<BoxStreamEvent>,
   containerStatus: ContainerStatus | undefined,
-  taskStatus: TaskStatus | undefined
+  activity: Activity | undefined
 ): AgentActivity {
   return useMemo(() => {
     if (!containerStatus || containerStatus === ContainerStatus.STARTING) {
@@ -49,11 +49,11 @@ export function useAgentActivity(
           }
         case "error":
           return { label: "Error", animate: false, dotColor: "bg-destructive", isWorking: false }
-        case "task_status_changed":
-          if (ev.status === TaskStatus.AGENT_WORKING) {
+        case "activity_changed":
+          if (ev.status === Activity.AGENT_WORKING) {
             return { label: "Working", animate: true, dotColor: "bg-success", isWorking: true }
           }
-          if (ev.status === TaskStatus.EXEC_SHELL) {
+          if (ev.status === Activity.EXEC_SHELL) {
             return { label: "Running command", animate: true, dotColor: "bg-warning", isWorking: true }
           }
           return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60", isWorking: false }
@@ -65,11 +65,11 @@ export function useAgentActivity(
       }
     }
 
-    // Fallback based on task status
-    if (taskStatus === TaskStatus.AGENT_WORKING) {
+    // Fallback based on activity
+    if (activity === Activity.AGENT_WORKING) {
       return { label: "Working", animate: true, dotColor: "bg-success", isWorking: true }
     }
-    if (taskStatus === TaskStatus.EXEC_SHELL) {
+    if (activity === Activity.EXEC_SHELL) {
       return { label: "Running command", animate: true, dotColor: "bg-warning", isWorking: true }
     }
     return {
@@ -78,5 +78,5 @@ export function useAgentActivity(
       dotColor: "bg-muted-foreground/60",
       isWorking: false,
     }
-  }, [events, containerStatus, taskStatus])
+  }, [events, containerStatus, activity])
 }

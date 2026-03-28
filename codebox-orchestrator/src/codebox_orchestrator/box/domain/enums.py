@@ -9,13 +9,13 @@ class ContainerStatus(str, PyEnum):
     STOPPED = "stopped"
 
 
-class TaskStatus(str, PyEnum):
+class Activity(str, PyEnum):
     IDLE = "idle"
     AGENT_WORKING = "agent_working"
     EXEC_SHELL = "exec_shell"
 
 
-class AgentReportStatus(str, PyEnum):
+class TaskOutcome(str, PyEnum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     NEED_CLARIFICATION = "need_clarification"

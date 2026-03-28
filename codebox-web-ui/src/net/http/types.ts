@@ -4,13 +4,13 @@ export enum ContainerStatus {
   STOPPED = "stopped",
 }
 
-export enum TaskStatus {
+export enum Activity {
   IDLE = "idle",
   AGENT_WORKING = "agent_working",
   EXEC_SHELL = "exec_shell",
 }
 
-export enum AgentReportStatus {
+export enum TaskOutcome {
   IN_PROGRESS = "in_progress",
   COMPLETED = "completed",
   NEED_CLARIFICATION = "need_clarification",
@@ -23,10 +23,10 @@ export interface Box {
   name: string
   model: string
   container_status: ContainerStatus
-  task_status: TaskStatus
-  stop_reason: string | null
-  agent_report_status: AgentReportStatus | null
-  agent_report_message: string | null
+  activity: Activity
+  container_stop_reason: string | null
+  task_outcome: TaskOutcome | null
+  task_outcome_message: string | null
   system_prompt: string | null
   initial_prompt: string | null
   container_id: string | null
@@ -85,15 +85,15 @@ export type BoxStreamEvent =
   | {
       type: "status_change"
       container_status?: ContainerStatus
-      task_status?: TaskStatus
-      stop_reason?: string
-      agent_report_status?: AgentReportStatus
-      agent_report_message?: string
+      activity?: Activity
+      container_stop_reason?: string
+      task_outcome?: TaskOutcome
+      task_outcome_message?: string
     }
-  | { type: "task_status_changed"; status: TaskStatus }
+  | { type: "activity_changed"; status: Activity }
   | {
-      type: "report_status"
-      status: AgentReportStatus
+      type: "task_outcome"
+      status: TaskOutcome
       message: string
     }
   | { type: "exec_output"; output: string }

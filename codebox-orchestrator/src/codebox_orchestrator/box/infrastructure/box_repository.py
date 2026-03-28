@@ -47,8 +47,8 @@ class SqlAlchemyBoxRepository:
             if filters:
                 if filters.container_status is not None:
                     stmt = stmt.where(orm.Box.container_status == filters.container_status)
-                if filters.task_status is not None:
-                    stmt = stmt.where(orm.Box.task_status == filters.task_status)
+                if filters.activity is not None:
+                    stmt = stmt.where(orm.Box.activity == filters.activity)
                 if filters.trigger is not None:
                     stmt = stmt.where(orm.Box.trigger == filters.trigger)
             result = await db.execute(stmt)

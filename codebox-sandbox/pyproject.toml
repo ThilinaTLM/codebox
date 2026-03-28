@@ -1,7 +1,24 @@
 [project]
 name = "codebox-sandbox"
 version = "0.1.0"
-description = "Docker packaging for codebox sandbox containers"
+description = "Container runner for codebox agent — gRPC callback to orchestrator"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "codebox-agent",
+    "grpcio>=1.60.0",
+    "protobuf>=4.25.0",
+]
+
+[project.scripts]
+codebox-sandbox = "codebox_sandbox.__main__:main"
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codebox_sandbox"]

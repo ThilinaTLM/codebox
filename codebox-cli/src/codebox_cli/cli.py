@@ -82,13 +82,13 @@ def box_create(
 
 @box_group.command(name="list")
 @click.option("--container-status", "-cs", default=None, help="Filter by container status (starting/running/stopped).")
-@click.option("--task-status", "-ts", default=None, help="Filter by task status (idle/agent_working/exec_shell).")
+@click.option("--activity", "-a", default=None, help="Filter by activity (idle/agent_working/exec_shell).")
 @click.option("--trigger", default=None, help="Filter by trigger (github_issue/github_pr).")
 @click.pass_context
 def box_list(
     ctx: click.Context,
     container_status: str | None,
-    task_status: str | None,
+    activity: str | None,
     trigger: str | None,
 ) -> None:
     """List boxes from the orchestrator."""
@@ -96,7 +96,7 @@ def box_list(
     try:
         boxes = orch.list_boxes(
             container_status=container_status,
-            task_status=task_status,
+            activity=activity,
             trigger=trigger,
         )
     except RuntimeError as exc:
@@ -110,8 +110,8 @@ def box_list(
     table.add_column("ID", style="dim", max_width=10)
     table.add_column("Name")
     table.add_column("Container")
-    table.add_column("Task")
-    table.add_column("Report", style="dim")
+    table.add_column("Activity")
+    table.add_column("Outcome", style="dim")
     table.add_column("Model", style="dim")
 
     STATUS_COLORS = {
@@ -123,14 +123,14 @@ def box_list(
 
     for b in boxes:
         cs = b.get("container_status", "")
-        ts = b.get("task_status", "")
-        rs = b.get("agent_report_status", "") or ""
+        act = b.get("activity", "")
+        outcome = b.get("task_outcome", "") or ""
         table.add_row(
             b["id"][:8],
             b["name"],
             f"[{STATUS_COLORS.get(cs, '')}]{cs}[/]",
-            f"[{STATUS_COLORS.get(ts, '')}]{ts}[/]",
-            f"[{STATUS_COLORS.get(rs, '')}]{rs}[/]" if rs else "",
+            f"[{STATUS_COLORS.get(act, '')}]{act}[/]",
+            f"[{STATUS_COLORS.get(outcome, '')}]{outcome}[/]" if outcome else "",
             b.get("model", ""),
         )
 
@@ -155,10 +155,10 @@ def box_info(ctx: click.Context, box_id: str) -> None:
     rows = [
         ("Model", b.get("model", "")),
         ("Container", b.get("container_status", "")),
-        ("Task", b.get("task_status", "")),
-        ("Report", b.get("agent_report_status", "") or ""),
-        ("Report Message", b.get("agent_report_message", "") or ""),
-        ("Stop Reason", b.get("stop_reason", "") or ""),
+        ("Activity", b.get("activity", "")),
+        ("Outcome", b.get("task_outcome", "") or ""),
+        ("Outcome Message", b.get("task_outcome_message", "") or ""),
+        ("Stop Reason", b.get("container_stop_reason", "") or ""),
         ("Trigger", b.get("trigger", "") or ""),
         ("Container ID", (b.get("container_id", "") or "")[:16]),
         ("Session ID", (b.get("session_id", "") or "")[:16]),

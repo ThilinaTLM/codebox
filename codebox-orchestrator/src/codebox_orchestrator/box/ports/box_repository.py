@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from codebox_orchestrator.box.domain.entities import Box, BoxEvent, BoxMessage, FeedbackRequest
-from codebox_orchestrator.box.domain.enums import ContainerStatus, TaskStatus
+from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
 
 
 class BoxFilters:
@@ -14,11 +14,11 @@ class BoxFilters:
     def __init__(
         self,
         container_status: ContainerStatus | None = None,
-        task_status: TaskStatus | None = None,
+        activity: Activity | None = None,
         trigger: str | None = None,
     ) -> None:
         self.container_status = container_status
-        self.task_status = task_status
+        self.activity = activity
         self.trigger = trigger
 
 

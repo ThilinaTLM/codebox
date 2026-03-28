@@ -1,0 +1,46 @@
+name: 'Codebox Agent'
+description: 'AI coding agent triggered by issue comments'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  openrouter-api-key:
+    description: 'OpenRouter API key'
+    required: true
+  openrouter-model:
+    description: 'OpenRouter model identifier'
+    required: false
+    default: 'anthropic/claude-sonnet-4'
+  trigger-keyword:
+    description: 'Comment keyword that triggers the agent'
+    required: false
+    default: '/codebox'
+  tavily-api-key:
+    description: 'Tavily API key for web search (optional)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+
+    - name: Install codebox
+      shell: bash
+      run: uv pip install --system ${{ github.action_path }}/../codebox-agent ${{ github.action_path }}
+
+    - name: Run agent
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        OPENROUTER_MODEL: ${{ inputs.openrouter-model }}
+        TRIGGER_KEYWORD: ${{ inputs.trigger-keyword }}
+        TAVILY_API_KEY: ${{ inputs.tavily-api-key }}
+      run: python -m codebox_github_action

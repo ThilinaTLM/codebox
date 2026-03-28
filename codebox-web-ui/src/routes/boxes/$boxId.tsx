@@ -64,7 +64,7 @@ function BoxDetailPage() {
   const sendExecMutation = useSendExec()
   const cancelMutation = useCancelBox()
 
-  const activity = useAgentActivity(events, box?.container_status, box?.task_status)
+  const activity = useAgentActivity(events, box?.container_status, box?.activity)
 
   const handleStop = useCallback(() => {
     stopMutation.mutate(boxId, {
@@ -208,8 +208,8 @@ function BoxDetailPage() {
                   </span>
                   <BoxStatusBadge
                     containerStatus={box.container_status}
-                    taskStatus={box.task_status}
-                    agentReportStatus={box.agent_report_status}
+                    boxActivity={box.activity}
+                    taskOutcome={box.task_outcome}
                     activity={activity}
                   />
                   <span className="font-terminal text-xs text-muted-foreground">

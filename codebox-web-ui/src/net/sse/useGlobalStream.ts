@@ -43,12 +43,12 @@ export function useGlobalStream() {
               const updates: Partial<Box> = {}
               if (event.container_status)
                 updates.container_status = event.container_status
-              if (event.task_status)
-                updates.task_status = event.task_status
-              if (event.stop_reason !== undefined)
-                updates.stop_reason = event.stop_reason
-              if (event.agent_report_status)
-                updates.agent_report_status = event.agent_report_status
+              if (event.activity)
+                updates.activity = event.activity
+              if (event.container_stop_reason !== undefined)
+                updates.container_stop_reason = event.container_stop_reason
+              if (event.task_outcome)
+                updates.task_outcome = event.task_outcome
               return { ...old, ...updates }
             }
           )

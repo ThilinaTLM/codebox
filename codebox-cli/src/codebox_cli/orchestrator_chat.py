@@ -45,23 +45,22 @@ async def _stream_box_events(
                 if exit_code and exit_code != "0":
                     console.print(f"\n[yellow]exit code: {exit_code}[/yellow]")
 
-            elif etype == "task_status_changed":
+            elif etype == "activity_changed":
                 status = event.get("status", "")
-                console.print(f"[dim]task: {status}[/dim]")
+                console.print(f"[dim]activity: {status}[/dim]")
 
-            elif etype == "report_status":
+            elif etype == "task_outcome":
                 status = event.get("status", "")
                 message = event.get("message", "")
-                console.print(f"[bold]Report: {status}[/bold]")
+                console.print(f"[bold]Outcome: {status}[/bold]")
                 if message:
                     console.print(f"  {message}")
 
             elif etype == "status_change":
                 parts = []
-                for key in ("container_status", "task_status", "agent_report_status", "stop_reason"):
+                for key in ("container_status", "activity", "task_outcome", "container_stop_reason"):
                     if key in event:
-                        label = key.replace("_status", "").replace("_", " ")
-                        parts.append(f"{label}={event[key]}")
+                        parts.append(f"{key}={event[key]}")
                 if parts:
                     console.print(f"[dim]status: {', '.join(parts)}[/dim]")
 
@@ -108,7 +107,7 @@ async def orchestrator_chat_loop(
 
     # Stream initial events only if the agent is currently working
     box = client.get_box(box_id)
-    if box.get("task_status") == "agent_working":
+    if box.get("activity") == "agent_working":
         await _stream_box_events(client, box_id, console)
         console.print()
 

@@ -48,7 +48,7 @@ from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEv
 from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
 from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
 from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
-from codebox_orchestrator.box.domain.enums import ContainerStatus, TaskStatus
+from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
 from codebox_orchestrator.box.domain.exceptions import BoxNotFound, InvalidStatusTransition
 
 logger = logging.getLogger(__name__)
@@ -87,24 +87,24 @@ async def create_box(
 @router.get("/boxes")
 async def list_boxes(
     container_status: str | None = None,
-    task_status: str | None = None,
+    activity: str | None = None,
     trigger: str | None = None,
     handler: ListBoxesHandler = Depends(get_list_boxes),
 ) -> list[BoxResponse]:
-    """List boxes, optionally filtered by container_status, task_status, or trigger."""
+    """List boxes, optionally filtered by container_status, activity, or trigger."""
     cs = None
     if container_status:
         try:
             cs = ContainerStatus(container_status)
         except ValueError:
             raise HTTPException(400, f"Invalid container_status: {container_status}")
-    ts = None
-    if task_status:
+    act = None
+    if activity:
         try:
-            ts = TaskStatus(task_status)
+            act = Activity(activity)
         except ValueError:
-            raise HTTPException(400, f"Invalid task_status: {task_status}")
-    boxes = await handler.execute(container_status=cs, task_status=ts, trigger=trigger)
+            raise HTTPException(400, f"Invalid activity: {activity}")
+    boxes = await handler.execute(container_status=cs, activity=act, trigger=trigger)
     return [BoxResponse.from_entity(b) for b in boxes]
 
 

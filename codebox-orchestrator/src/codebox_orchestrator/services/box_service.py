@@ -22,7 +22,7 @@ from codebox_orchestrator.config import (
     TAVILY_API_KEY,
     WORKSPACE_BASE_DIR,
 )
-from codebox_orchestrator.db.models import Box, BoxEvent, BoxMessage, ContainerStatus, TaskStatus
+from codebox_orchestrator.db.models import Activity, Box, BoxEvent, BoxMessage, ContainerStatus
 from codebox_orchestrator.services import docker_service
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
 from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
@@ -74,7 +74,7 @@ class BoxService:
             name=name or "box",
             model=model or OPENROUTER_MODEL,
             container_status=ContainerStatus.STARTING,
-            task_status=TaskStatus.IDLE,
+            activity=Activity.IDLE,
             system_prompt=system_prompt,
             initial_prompt=initial_prompt,
             trigger=trigger,
@@ -119,15 +119,15 @@ class BoxService:
     async def list_boxes(
         self,
         container_status: ContainerStatus | None = None,
-        task_status: TaskStatus | None = None,
+        activity: Activity | None = None,
         trigger: str | None = None,
     ) -> list[Box]:
         async with self._sf() as db:
             stmt = select(Box).order_by(Box.created_at.desc())
             if container_status is not None:
                 stmt = stmt.where(Box.container_status == container_status)
-            if task_status is not None:
-                stmt = stmt.where(Box.task_status == task_status)
+            if activity is not None:
+                stmt = stmt.where(Box.activity == activity)
             if trigger is not None:
                 stmt = stmt.where(Box.trigger == trigger)
             result = await db.execute(stmt)
@@ -216,8 +216,8 @@ class BoxService:
             box = await db.get(Box, box_id)
             if box and box.container_status != ContainerStatus.STOPPED:
                 box.container_status = ContainerStatus.STOPPED
-                box.stop_reason = "user_stopped"
-                box.task_status = TaskStatus.IDLE
+                box.container_stop_reason = "user_stopped"
+                box.activity = Activity.IDLE
                 box.completed_at = datetime.now(timezone.utc)
                 await db.commit()
                 if box.container_name:
@@ -229,14 +229,14 @@ class BoxService:
                     box_id, {
                         "type": "status_change",
                         "container_status": ContainerStatus.STOPPED.value,
-                        "stop_reason": "user_stopped",
+                        "container_stop_reason": "user_stopped",
                     }
                 )
                 await self._global_broadcast.broadcast({
                     "type": "box_status_changed",
                     "box_id": box_id,
                     "container_status": ContainerStatus.STOPPED.value,
-                    "stop_reason": "user_stopped",
+                    "container_stop_reason": "user_stopped",
                 })
 
     async def restart_box(self, box_id: str) -> Box:
@@ -248,8 +248,8 @@ class BoxService:
             if box.container_status != ContainerStatus.STOPPED:
                 raise ValueError("Box is not stopped")
             box.container_status = ContainerStatus.STARTING
-            box.stop_reason = None
-            box.task_status = TaskStatus.IDLE
+            box.container_stop_reason = None
+            box.activity = Activity.IDLE
             box.started_at = datetime.now(timezone.utc)
             box.completed_at = None
             await db.commit()
@@ -394,8 +394,8 @@ class BoxService:
                 box = await db.get(Box, box_id)
                 if box and box.container_status != ContainerStatus.STOPPED:
                     box.container_status = ContainerStatus.STOPPED
-                    box.stop_reason = "orchestrator_shutdown"
-                    box.task_status = TaskStatus.IDLE
+                    box.container_stop_reason = "orchestrator_shutdown"
+                    box.activity = Activity.IDLE
                     await db.commit()
 
     # ------------------------------------------------------------------
@@ -592,15 +592,15 @@ class BoxService:
             box = await db.get(Box, box_id)
             if box:
                 box.container_status = ContainerStatus.STOPPED
-                box.stop_reason = "container_error"
-                box.task_status = TaskStatus.IDLE
+                box.container_stop_reason = "container_error"
+                box.activity = Activity.IDLE
                 box.completed_at = datetime.now(timezone.utc)
                 await db.commit()
         await self._relay.broadcast(
             box_id, {
                 "type": "status_change",
                 "container_status": ContainerStatus.STOPPED.value,
-                "stop_reason": "container_error",
+                "container_stop_reason": "container_error",
             }
         )
         await self._relay.broadcast(
@@ -610,5 +610,5 @@ class BoxService:
             "type": "box_status_changed",
             "box_id": box_id,
             "container_status": ContainerStatus.STOPPED.value,
-            "stop_reason": "container_error",
+            "container_stop_reason": "container_error",
         })

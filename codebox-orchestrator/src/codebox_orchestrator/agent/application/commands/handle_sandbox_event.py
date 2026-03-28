@@ -12,9 +12,9 @@ from typing import Any
 from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
 from codebox_orchestrator.box.domain.entities import BoxMessage
 from codebox_orchestrator.box.domain.enums import (
-    AgentReportStatus,
+    Activity,
     ContainerStatus,
-    TaskStatus,
+    TaskOutcome,
 )
 from codebox_orchestrator.box.ports.box_repository import BoxRepository
 from codebox_orchestrator.box.ports.event_publisher import EventPublisher
@@ -57,19 +57,19 @@ class HandleSandboxEventHandler:
             msg_data = event_dict.get("message", {})
             await self._persist_message(box_id, msg_data)
 
-        # Handle task status changes
-        if event_type == "task_status_changed":
+        # Handle activity changes
+        if event_type == "activity_changed":
             status = event_dict.get("status", "")
-            await self._set_task_status(box_id, status)
+            await self._set_activity(box_id, status)
 
-        # Handle agent report status
-        elif event_type == "report_status":
+        # Handle task outcome
+        elif event_type == "task_outcome":
             status = event_dict.get("status", "")
             message = event_dict.get("message", "")
-            await self._set_report_status(box_id, status, message)
+            await self._set_task_outcome(box_id, status, message)
 
-        # Persist event (skip task_status_changed — too noisy)
-        if event_type not in ("task_status_changed",):
+        # Persist event (skip activity_changed — too noisy)
+        if event_type not in ("activity_changed",):
             await self._repo.add_event(box_id, event_type, json.dumps(event_dict))
 
         # Broadcast to subscribers
@@ -85,14 +85,14 @@ class HandleSandboxEventHandler:
                 box_id, {
                     "type": "status_change",
                     "container_status": ContainerStatus.STOPPED.value,
-                    "stop_reason": reason,
+                    "container_stop_reason": reason,
                 }
             )
             await self._publisher.publish_global_event({
                 "type": "box_status_changed",
                 "box_id": box_id,
                 "container_status": ContainerStatus.STOPPED.value,
-                "stop_reason": reason,
+                "container_stop_reason": reason,
             })
 
     async def set_container_stopped_if_running(self, box_id: str, reason: str) -> None:
@@ -117,45 +117,45 @@ class HandleSandboxEventHandler:
         )
         await self._repo.add_message(box_id, msg)
 
-    async def _set_task_status(self, box_id: str, status: str) -> None:
+    async def _set_activity(self, box_id: str, status: str) -> None:
         try:
-            ts = TaskStatus(status)
+            act = Activity(status)
         except ValueError:
-            logger.warning("Invalid task status: %s", status)
+            logger.warning("Invalid activity: %s", status)
             return
         box = await self._repo.get(box_id)
         if box:
-            box.task_status = ts
+            box.activity = act
             await self._repo.save(box)
         await self._publisher.publish_box_event(
-            box_id, {"type": "status_change", "task_status": ts.value}
+            box_id, {"type": "status_change", "activity": act.value}
         )
         await self._publisher.publish_global_event({
             "type": "box_status_changed",
             "box_id": box_id,
-            "task_status": ts.value,
+            "activity": act.value,
         })
 
-    async def _set_report_status(self, box_id: str, status: str, message: str) -> None:
+    async def _set_task_outcome(self, box_id: str, status: str, message: str) -> None:
         try:
-            rs = AgentReportStatus(status)
+            outcome = TaskOutcome(status)
         except ValueError:
-            logger.warning("Invalid agent report status: %s", status)
+            logger.warning("Invalid task outcome: %s", status)
             return
         box = await self._repo.get(box_id)
         if box:
-            box.agent_report_status = rs
-            box.agent_report_message = message or None
+            box.task_outcome = outcome
+            box.task_outcome_message = message or None
             await self._repo.save(box)
         await self._publisher.publish_box_event(
             box_id, {
                 "type": "status_change",
-                "agent_report_status": rs.value,
-                "agent_report_message": message,
+                "task_outcome": outcome.value,
+                "task_outcome_message": message,
             }
         )
         await self._publisher.publish_global_event({
             "type": "box_status_changed",
             "box_id": box_id,
-            "agent_report_status": rs.value,
+            "task_outcome": outcome.value,
         })

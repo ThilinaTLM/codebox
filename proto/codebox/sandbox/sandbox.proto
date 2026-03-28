@@ -25,8 +25,8 @@ message SandboxEvent {
     ExecDoneEvent exec_done = 10;
     ListFilesResultEvent list_files_result = 11;
     ReadFileResultEvent read_file_result = 12;
-    TaskStatusChangedEvent task_status_changed = 13;
-    ReportStatusEvent report_status = 14;
+    ActivityChangedEvent activity_changed = 13;
+    TaskOutcomeEvent task_outcome = 14;
   }
 }
 
@@ -85,11 +85,11 @@ message ReadFileResultEvent {
   string error = 3;
 }
 
-message TaskStatusChangedEvent {
+message ActivityChangedEvent {
   string status = 1;  // "idle", "agent_working", "exec_shell"
 }
 
-message ReportStatusEvent {
+message TaskOutcomeEvent {
   string status = 1;  // "completed", "in_progress", "need_clarification", etc.
   string message = 2;
 }

@@ -13,12 +13,10 @@ from typing import Any
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-from codebox_daemon.agent import create_agent
-from codebox_daemon.tools.status import StatusReporter
+from codebox_agent.agent import create_agent
+from codebox_agent.tools.status import StatusReporter
 
 logger = logging.getLogger(__name__)
-
-_CHECKPOINT_DB_PATH = "/app/codebox/checkpoints.db"
 
 
 @dataclass
@@ -38,13 +36,15 @@ class Session:
 class SessionManager:
     """Manages creation, retrieval, and deletion of agent sessions."""
 
-    def __init__(self) -> None:
+    def __init__(self, checkpoint_db_path: str = "/tmp/codebox-checkpoints.db") -> None:
         self._sessions: dict[str, Session] = {}
+        self._checkpoint_db_path = checkpoint_db_path
 
     async def create(
         self,
         model: str,
         api_key: str,
+        environment_prompt: str | None = None,
         secondary_system_prompt: str | None = None,
         working_dir: str = "/workspace",
         sandbox_config: dict | None = None,
@@ -54,8 +54,9 @@ class SessionManager:
         Args:
             model: The OpenRouter model identifier.
             api_key: The OpenRouter API key.
+            environment_prompt: Optional runner-specific environment prompt.
             secondary_system_prompt: Optional task-specific prompt appended to
-                the primary environment prompt.
+                the environment prompt.
             working_dir: Root directory for the shell backend.
             sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
 
@@ -66,10 +67,10 @@ class SessionManager:
         logger.info("Creating session %s: model=%s, working_dir=%s", session_id, model, working_dir)
 
         # Ensure checkpoint directory exists
-        os.makedirs(os.path.dirname(_CHECKPOINT_DB_PATH), exist_ok=True)
+        os.makedirs(os.path.dirname(self._checkpoint_db_path), exist_ok=True)
 
-        logger.debug("Opening checkpoint DB at %s", _CHECKPOINT_DB_PATH)
-        conn = await aiosqlite.connect(_CHECKPOINT_DB_PATH)
+        logger.debug("Opening checkpoint DB at %s", self._checkpoint_db_path)
+        conn = await aiosqlite.connect(self._checkpoint_db_path)
         checkpointer = AsyncSqliteSaver(conn)
         await checkpointer.setup()
 
@@ -77,6 +78,7 @@ class SessionManager:
         agent = create_agent(
             model=model,
             api_key=api_key,
+            environment_prompt=environment_prompt,
             secondary_system_prompt=secondary_system_prompt,
             root_dir=working_dir,
             sandbox_config=sandbox_config,

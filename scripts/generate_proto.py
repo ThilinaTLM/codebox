@@ -14,8 +14,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PROTO_DIR = REPO_ROOT / "proto"
 
 OUT_DIRS = [
-    REPO_ROOT / "codebox-core/src/codebox_daemon/grpc/generated",
+    REPO_ROOT / "codebox-sandbox/src/codebox_sandbox/grpc/generated",
     REPO_ROOT / "codebox-orchestrator/src/codebox_orchestrator/grpc/generated",
+    REPO_ROOT / "codebox-orchestrator/src/codebox_orchestrator/agent/infrastructure/grpc/generated",
 ]
 
 for out_dir in OUT_DIRS:

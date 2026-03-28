@@ -4,20 +4,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Monorepo for a sandboxed AI coding agent platform. Six sub-projects:
+Monorepo for a sandboxed AI coding agent platform. Seven sub-projects:
 
-- **codebox-core** — FastAPI daemon (REST + WebSocket API) for AI agent sessions, runs inside sandbox containers
+- **codebox-agent** — Portable AI agent foundation (LangGraph + deepagents). Shared library used by runners.
+- **codebox-sandbox** — Container runner: packages codebox-agent with Devbox toolchains into a Docker image, connects to orchestrator via gRPC
+- **codebox-github-action** — GitHub Action runner: triggers codebox-agent from issue comments on GitHub Actions
+- **codebox-orchestrator** — Backend API service (FastAPI) that manages "boxes" (sandbox containers with AI agents), relays events between containers and clients
 - **codebox-cli** — CLI client that connects to the orchestrator for box management and interactive chat
-- **codebox-sandbox** — Dockerfile packaging codebox-core with Devbox toolchains into a container
-- **codebox-orchestrator** — Backend API service (FastAPI) that manages "boxes" (sandbox containers with AI agents), relays WebSocket events between containers and clients
 - **codebox-web-ui** — React frontend (TanStack Start + shadcn) that connects to the orchestrator via REST + WebSocket
 - **demo-deepagents** — Standalone terminal demo, same agent framework without Docker
 
 ## Architecture
 
 ```
-[codebox-web-ui]  --(REST + WS)--> [codebox-orchestrator] --(REST + WS)--> [sandbox containers (codebox-core)]
-[codebox-cli]     --(REST + WS)--> [codebox-orchestrator] --(REST + WS)--> [sandbox containers (codebox-core)]
+[codebox-web-ui]  --(REST + WS)--> [codebox-orchestrator] --(gRPC)--> [sandbox containers (codebox-sandbox)]
+[codebox-cli]     --(REST + WS)--> [codebox-orchestrator] --(gRPC)--> [sandbox containers (codebox-sandbox)]
+[GitHub Issues]   --(webhook)----> [codebox-github-action on GitHub Actions runner]
+```
+
+All runners share **codebox-agent** as the foundation:
+```
+codebox-agent (portable: agent, tools, sessions, prompts)
+  ├── codebox-sandbox   (container runner: gRPC callback + Devbox environment)
+  └── codebox-github-action (GitHub Actions runner: issue comment → agent → PR)
 ```
 
 ### Domain Model
@@ -26,9 +35,9 @@ The central concept is a **Box** — a container with an AI model that you inter
 
 - **Box**: Container + AI agent. Three-dimensional status model:
   - `container_status`: `starting`, `running`, `stopped` (system-managed)
-  - `task_status`: `idle`, `agent_working`, `exec_shell` (system-managed)
-  - `agent_report_status`: `completed`, `in_progress`, `need_clarification`, `unable_to_proceed`, `not_enough_context` (agent-managed via `set_status` tool)
-  - `stop_reason` (nullable): `user_stopped`, `container_error`, `orchestrator_shutdown`
+  - `activity`: `idle`, `agent_working`, `exec_shell` (system-managed — what's happening in the box right now)
+  - `task_outcome`: `completed`, `in_progress`, `need_clarification`, `unable_to_proceed`, `not_enough_context` (agent-managed via `set_status` tool)
+  - `container_stop_reason` (nullable): `user_stopped`, `container_error`, `orchestrator_shutdown`
   - `initial_prompt` (optional): If set, auto-sent to agent on container start. If null, box starts idle awaiting user messages.
   - `trigger` (nullable): "github_issue", "github_pr", or null for manual creation (metadata only, no behavioral branching).
   - Stopped containers can be restarted with thread history restored.
@@ -68,9 +77,11 @@ codebox box connect <box_id>
 
 ## Tech Stack
 
+- **codebox-agent**: Python 3.12, LangGraph, deepagents, langchain-openrouter
+- **codebox-sandbox**: Python 3.12, gRPC, Devbox/Nix (container toolchain)
+- **codebox-github-action**: Python 3.12, gh CLI
 - **codebox-orchestrator**: Python 3.12, FastAPI, SQLAlchemy (async SQLite), Docker SDK, websockets
 - **codebox-web-ui**: React 19, TanStack Start/Router, Base UI (radix-mira), TanStack Query, Axios, Tailwind v4
 - **codebox-cli**: Python 3.12, Click, websockets, Rich, prompt-toolkit
-- **codebox-core**: Python 3.12, FastAPI, LangGraph agent framework
 
 Each Python sub-project has its own `.venv` and `pyproject.toml`. The orchestrator requires `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` env vars (set in `codebox-orchestrator/.env.local`); these are passed to sandbox containers automatically.

@@ -7,9 +7,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from codebox_orchestrator.box.domain.enums import (
-    AgentReportStatus,
+    Activity,
     ContainerStatus,
-    TaskStatus,
+    TaskOutcome,
 )
 
 
@@ -28,10 +28,10 @@ class Box:
 
     id: str = field(default_factory=_new_uuid)
     container_status: ContainerStatus = ContainerStatus.STARTING
-    task_status: TaskStatus = TaskStatus.IDLE
-    stop_reason: str | None = None
-    agent_report_status: AgentReportStatus | None = None
-    agent_report_message: str | None = None
+    activity: Activity = Activity.IDLE
+    container_stop_reason: str | None = None
+    task_outcome: TaskOutcome | None = None
+    task_outcome_message: str | None = None
 
     # Prompts
     system_prompt: str | None = None
@@ -64,8 +64,8 @@ class Box:
     def stop(self, reason: str) -> None:
         """Transition to STOPPED state."""
         self.container_status = ContainerStatus.STOPPED
-        self.task_status = TaskStatus.IDLE
-        self.stop_reason = reason
+        self.activity = Activity.IDLE
+        self.container_stop_reason = reason
         self.completed_at = datetime.now(timezone.utc)
 
     def mark_running(self) -> None:
@@ -75,7 +75,7 @@ class Box:
     def mark_starting(self) -> None:
         """Transition to STARTING state (e.g. on restart)."""
         self.container_status = ContainerStatus.STARTING
-        self.stop_reason = None
+        self.container_stop_reason = None
         self.started_at = datetime.now(timezone.utc)
         self.completed_at = None
 

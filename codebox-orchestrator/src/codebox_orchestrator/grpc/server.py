@@ -18,12 +18,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from codebox_orchestrator.db.models import (
-    AgentReportStatus,
+    Activity,
     Box,
     BoxEvent,
     BoxMessage,
     ContainerStatus,
-    TaskStatus,
+    TaskOutcome,
 )
 from codebox_orchestrator.grpc.generated.codebox.sandbox import sandbox_pb2, sandbox_pb2_grpc
 from codebox_orchestrator.services.callback_registry import CallbackRegistry, ConnectionHandle
@@ -212,19 +212,19 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             msg_data = event_dict.get("message", {})
             await self._persist_box_message(box_id, msg_data)
 
-        # Handle task status changes
-        if event_type == "task_status_changed":
+        # Handle activity changes
+        if event_type == "activity_changed":
             status = event_dict.get("status", "")
-            await self._set_task_status(box_id, status)
+            await self._set_activity(box_id, status)
 
-        # Handle agent report status
-        elif event_type == "report_status":
+        # Handle task outcome
+        elif event_type == "task_outcome":
             status = event_dict.get("status", "")
             message = event_dict.get("message", "")
-            await self._set_report_status(box_id, status, message)
+            await self._set_task_outcome(box_id, status, message)
 
-        # Persist event (skip task_status_changed — too noisy for event log)
-        if event_type not in ("task_status_changed",):
+        # Persist event (skip activity_changed — too noisy for event log)
+        if event_type not in ("activity_changed",):
             await self._persist_box_event(box_id, event_type, event_dict)
 
         # Broadcast to subscribers
@@ -283,17 +283,17 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             elif rfr.data_json:
                 result["data"] = json.loads(rfr.data_json)
             return "read_file_result", result
-        elif field == "task_status_changed":
-            return "task_status_changed", {
-                "type": "task_status_changed",
-                "status": event.task_status_changed.status,
+        elif field == "activity_changed":
+            return "activity_changed", {
+                "type": "activity_changed",
+                "status": event.activity_changed.status,
             }
-        elif field == "report_status":
-            rs = event.report_status
-            return "report_status", {
-                "type": "report_status",
-                "status": rs.status,
-                "message": rs.message,
+        elif field == "task_outcome":
+            to = event.task_outcome
+            return "task_outcome", {
+                "type": "task_outcome",
+                "status": to.status,
+                "message": to.message,
             }
         return "", {}
 
@@ -432,49 +432,49 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             ))
         return proto_messages
 
-    async def _set_task_status(self, box_id: str, status: str) -> None:
+    async def _set_activity(self, box_id: str, status: str) -> None:
         try:
-            ts = TaskStatus(status)
+            act = Activity(status)
         except ValueError:
-            logger.warning("Invalid task status: %s", status)
+            logger.warning("Invalid activity: %s", status)
             return
         async with self._sf() as db:
             box = await db.get(Box, box_id)
             if box:
-                box.task_status = ts
+                box.activity = act
                 await db.commit()
         await self._relay.broadcast(
-            box_id, {"type": "status_change", "task_status": ts.value}
+            box_id, {"type": "status_change", "activity": act.value}
         )
         await self._global_broadcast.broadcast({
             "type": "box_status_changed",
             "box_id": box_id,
-            "task_status": ts.value,
+            "activity": act.value,
         })
 
-    async def _set_report_status(self, box_id: str, status: str, message: str) -> None:
+    async def _set_task_outcome(self, box_id: str, status: str, message: str) -> None:
         try:
-            rs = AgentReportStatus(status)
+            outcome = TaskOutcome(status)
         except ValueError:
-            logger.warning("Invalid agent report status: %s", status)
+            logger.warning("Invalid task outcome: %s", status)
             return
         async with self._sf() as db:
             box = await db.get(Box, box_id)
             if box:
-                box.agent_report_status = rs
-                box.agent_report_message = message or None
+                box.task_outcome = outcome
+                box.task_outcome_message = message or None
                 await db.commit()
         await self._relay.broadcast(
             box_id, {
                 "type": "status_change",
-                "agent_report_status": rs.value,
-                "agent_report_message": message,
+                "task_outcome": outcome.value,
+                "task_outcome_message": message,
             }
         )
         await self._global_broadcast.broadcast({
             "type": "box_status_changed",
             "box_id": box_id,
-            "agent_report_status": rs.value,
+            "task_outcome": outcome.value,
         })
 
     async def _set_container_stopped(self, box_id: str, reason: str) -> None:
@@ -482,22 +482,22 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             box = await db.get(Box, box_id)
             if box:
                 box.container_status = ContainerStatus.STOPPED
-                box.stop_reason = reason
-                box.task_status = TaskStatus.IDLE
+                box.container_stop_reason = reason
+                box.activity = Activity.IDLE
                 box.completed_at = datetime.now(timezone.utc)
                 await db.commit()
         await self._relay.broadcast(
             box_id, {
                 "type": "status_change",
                 "container_status": ContainerStatus.STOPPED.value,
-                "stop_reason": reason,
+                "container_stop_reason": reason,
             }
         )
         await self._global_broadcast.broadcast({
             "type": "box_status_changed",
             "box_id": box_id,
             "container_status": ContainerStatus.STOPPED.value,
-            "stop_reason": reason,
+            "container_stop_reason": reason,
         })
 
     async def _set_container_stopped_if_running(self, box_id: str, reason: str) -> None:
@@ -506,22 +506,22 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             box = await db.get(Box, box_id)
             if box and box.container_status == ContainerStatus.RUNNING:
                 box.container_status = ContainerStatus.STOPPED
-                box.stop_reason = reason
-                box.task_status = TaskStatus.IDLE
+                box.container_stop_reason = reason
+                box.activity = Activity.IDLE
                 box.completed_at = datetime.now(timezone.utc)
                 await db.commit()
                 await self._relay.broadcast(
                     box_id, {
                         "type": "status_change",
                         "container_status": ContainerStatus.STOPPED.value,
-                        "stop_reason": reason,
+                        "container_stop_reason": reason,
                     }
                 )
                 await self._global_broadcast.broadcast({
                     "type": "box_status_changed",
                     "box_id": box_id,
                     "container_status": ContainerStatus.STOPPED.value,
-                    "stop_reason": reason,
+                    "container_stop_reason": reason,
                 })
 
 

@@ -80,14 +80,14 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
     // These events should not flush currentExec — they can arrive mid-exec
     if (
       event.type === "status_change" ||
-      event.type === "task_status_changed" ||
-      event.type === "report_status"
+      event.type === "activity_changed" ||
+      event.type === "task_outcome"
     ) {
       flushText()
       if (event.type === "status_change") {
         blocks.push({
           kind: "status_change",
-          status: event.container_status ?? event.task_status ?? "",
+          status: event.container_status ?? event.activity ?? "",
         })
       }
       continue

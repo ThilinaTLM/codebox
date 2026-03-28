@@ -1,8 +1,8 @@
 import type { AgentActivity } from "@/hooks/useAgentActivity"
 import {
-  AgentReportStatus,
+  Activity,
   ContainerStatus,
-  TaskStatus,
+  TaskOutcome,
 } from "@/net/http/types"
 
 const containerConfig: Record<
@@ -28,32 +28,32 @@ const containerConfig: Record<
   },
 }
 
-const taskLabels: Record<TaskStatus, string> = {
-  [TaskStatus.IDLE]: "Idle",
-  [TaskStatus.AGENT_WORKING]: "Working",
-  [TaskStatus.EXEC_SHELL]: "Running command",
+const activityLabels: Record<Activity, string> = {
+  [Activity.IDLE]: "Idle",
+  [Activity.AGENT_WORKING]: "Working",
+  [Activity.EXEC_SHELL]: "Running command",
 }
 
-const taskDotColors: Record<TaskStatus, string> = {
-  [TaskStatus.IDLE]: "bg-state-idle",
-  [TaskStatus.AGENT_WORKING]: "bg-state-writing",
-  [TaskStatus.EXEC_SHELL]: "bg-state-thinking",
+const activityDotColors: Record<Activity, string> = {
+  [Activity.IDLE]: "bg-state-idle",
+  [Activity.AGENT_WORKING]: "bg-state-writing",
+  [Activity.EXEC_SHELL]: "bg-state-thinking",
 }
 
-const reportLabels: Record<AgentReportStatus, string> = {
-  [AgentReportStatus.IN_PROGRESS]: "In progress",
-  [AgentReportStatus.COMPLETED]: "Completed",
-  [AgentReportStatus.NEED_CLARIFICATION]: "Needs clarification",
-  [AgentReportStatus.UNABLE_TO_PROCEED]: "Unable to proceed",
-  [AgentReportStatus.NOT_ENOUGH_CONTEXT]: "Not enough context",
+const outcomeLabels: Record<TaskOutcome, string> = {
+  [TaskOutcome.IN_PROGRESS]: "In progress",
+  [TaskOutcome.COMPLETED]: "Completed",
+  [TaskOutcome.NEED_CLARIFICATION]: "Needs clarification",
+  [TaskOutcome.UNABLE_TO_PROCEED]: "Unable to proceed",
+  [TaskOutcome.NOT_ENOUGH_CONTEXT]: "Not enough context",
 }
 
-const reportDotColors: Record<AgentReportStatus, string> = {
-  [AgentReportStatus.IN_PROGRESS]: "bg-state-writing",
-  [AgentReportStatus.COMPLETED]: "bg-state-completed",
-  [AgentReportStatus.NEED_CLARIFICATION]: "bg-state-thinking",
-  [AgentReportStatus.UNABLE_TO_PROCEED]: "bg-state-error",
-  [AgentReportStatus.NOT_ENOUGH_CONTEXT]: "bg-state-error",
+const outcomeDotColors: Record<TaskOutcome, string> = {
+  [TaskOutcome.IN_PROGRESS]: "bg-state-writing",
+  [TaskOutcome.COMPLETED]: "bg-state-completed",
+  [TaskOutcome.NEED_CLARIFICATION]: "bg-state-thinking",
+  [TaskOutcome.UNABLE_TO_PROCEED]: "bg-state-error",
+  [TaskOutcome.NOT_ENOUGH_CONTEXT]: "bg-state-error",
 }
 
 function StatusDot({ color, animate }: { color: string; animate?: boolean }) {
@@ -71,23 +71,23 @@ function StatusDot({ color, animate }: { color: string; animate?: boolean }) {
 
 interface BoxStatusBadgeProps {
   containerStatus: ContainerStatus
-  taskStatus?: TaskStatus
-  agentReportStatus?: AgentReportStatus | null
+  boxActivity?: Activity
+  taskOutcome?: TaskOutcome | null
   activity?: AgentActivity
 }
 
 export function BoxStatusBadge({
   containerStatus,
-  taskStatus,
-  agentReportStatus,
+  boxActivity,
+  taskOutcome,
   activity,
 }: BoxStatusBadgeProps) {
   // If we have a live activity override, use it
   if (activity) {
-    const activityDotColor = getActivityDotColor(activity.label)
+    const dotColor = getLiveActivityDotColor(activity.label)
     return (
       <span className="inline-flex items-center gap-1.5 font-terminal text-xs text-muted-foreground">
-        <StatusDot color={activityDotColor} animate={activity.animate} />
+        <StatusDot color={dotColor} animate={activity.animate} />
         {activity.label}
       </span>
     )
@@ -95,24 +95,24 @@ export function BoxStatusBadge({
 
   const config = containerConfig[containerStatus]
 
-  // For running containers, show task status as the label
+  // For running containers, show activity as the label
   if (
     containerStatus === ContainerStatus.RUNNING &&
-    taskStatus &&
-    taskStatus !== TaskStatus.IDLE
+    boxActivity &&
+    boxActivity !== Activity.IDLE
   ) {
     return (
       <span className="inline-flex items-center gap-1.5 font-terminal text-xs text-muted-foreground">
-        <StatusDot color={taskDotColors[taskStatus]} animate />
-        {taskLabels[taskStatus]}
+        <StatusDot color={activityDotColors[boxActivity]} animate />
+        {activityLabels[boxActivity]}
       </span>
     )
   }
 
-  // For stopped containers with agent report, show that
+  // For stopped containers with completed outcome, show that
   if (
     containerStatus === ContainerStatus.STOPPED &&
-    agentReportStatus === AgentReportStatus.COMPLETED
+    taskOutcome === TaskOutcome.COMPLETED
   ) {
     return (
       <span className="inline-flex items-center gap-1.5 font-terminal text-xs text-muted-foreground">
@@ -130,20 +130,20 @@ export function BoxStatusBadge({
   )
 }
 
-export function AgentReportBadge({
+export function TaskOutcomeBadge({
   status,
 }: {
-  status: AgentReportStatus
+  status: TaskOutcome
 }) {
   return (
     <span className="inline-flex items-center gap-1.5 font-terminal text-xs text-muted-foreground">
-      <StatusDot color={reportDotColors[status]} />
-      {reportLabels[status]}
+      <StatusDot color={outcomeDotColors[status]} />
+      {outcomeLabels[status]}
     </span>
   )
 }
 
-function getActivityDotColor(label: string): string {
+function getLiveActivityDotColor(label: string): string {
   if (label.includes("Thinking")) return "bg-state-thinking"
   if (label.includes("Writing")) return "bg-state-writing"
   if (label.includes("Using")) return "bg-state-tool-use"

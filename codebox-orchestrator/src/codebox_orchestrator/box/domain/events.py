@@ -16,9 +16,9 @@ class BoxCreated:
 class BoxStatusChanged:
     box_id: str
     container_status: str | None = None
-    task_status: str | None = None
-    agent_report_status: str | None = None
-    stop_reason: str | None = None
+    activity: str | None = None
+    task_outcome: str | None = None
+    container_stop_reason: str | None = None
 
 
 @dataclass(frozen=True)

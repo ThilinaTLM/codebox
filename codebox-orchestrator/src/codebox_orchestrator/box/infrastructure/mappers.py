@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from codebox_orchestrator.box.domain import entities as domain
-from codebox_orchestrator.box.domain.enums import AgentReportStatus, ContainerStatus, TaskStatus
+from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus, TaskOutcome
 from codebox_orchestrator.box.infrastructure import orm_models as orm
 
 
@@ -14,10 +14,10 @@ def box_to_domain(db_box: orm.Box) -> domain.Box:
         name=db_box.name,
         model=db_box.model,
         container_status=db_box.container_status,
-        task_status=db_box.task_status,
-        stop_reason=db_box.stop_reason,
-        agent_report_status=db_box.agent_report_status,
-        agent_report_message=db_box.agent_report_message,
+        activity=db_box.activity,
+        container_stop_reason=db_box.container_stop_reason,
+        task_outcome=db_box.task_outcome,
+        task_outcome_message=db_box.task_outcome_message,
         system_prompt=db_box.system_prompt,
         initial_prompt=db_box.initial_prompt,
         container_id=db_box.container_id,
@@ -44,10 +44,10 @@ def domain_to_orm(box: domain.Box) -> orm.Box:
         name=box.name,
         model=box.model,
         container_status=box.container_status,
-        task_status=box.task_status,
-        stop_reason=box.stop_reason,
-        agent_report_status=box.agent_report_status,
-        agent_report_message=box.agent_report_message,
+        activity=box.activity,
+        container_stop_reason=box.container_stop_reason,
+        task_outcome=box.task_outcome,
+        task_outcome_message=box.task_outcome_message,
         system_prompt=box.system_prompt,
         initial_prompt=box.initial_prompt,
         container_id=box.container_id,
@@ -72,10 +72,10 @@ def update_orm_from_domain(db_box: orm.Box, box: domain.Box) -> None:
     db_box.name = box.name
     db_box.model = box.model
     db_box.container_status = box.container_status
-    db_box.task_status = box.task_status
-    db_box.stop_reason = box.stop_reason
-    db_box.agent_report_status = box.agent_report_status
-    db_box.agent_report_message = box.agent_report_message
+    db_box.activity = box.activity
+    db_box.container_stop_reason = box.container_stop_reason
+    db_box.task_outcome = box.task_outcome
+    db_box.task_outcome_message = box.task_outcome_message
     db_box.system_prompt = box.system_prompt
     db_box.initial_prompt = box.initial_prompt
     db_box.container_id = box.container_id

@@ -86,14 +86,14 @@ class OrchestratorClient:
     def list_boxes(
         self,
         container_status: str | None = None,
-        task_status: str | None = None,
+        activity: str | None = None,
         trigger: str | None = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, str] = {}
         if container_status:
             params["container_status"] = container_status
-        if task_status:
-            params["task_status"] = task_status
+        if activity:
+            params["activity"] = activity
         if trigger:
             params["trigger"] = trigger
         return self._rest_request("GET", "/api/boxes", params=params or None)

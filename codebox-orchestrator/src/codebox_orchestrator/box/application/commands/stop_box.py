@@ -46,12 +46,12 @@ class StopBoxHandler:
             box_id, {
                 "type": "status_change",
                 "container_status": ContainerStatus.STOPPED.value,
-                "stop_reason": "user_stopped",
+                "container_stop_reason": "user_stopped",
             }
         )
         await self._publisher.publish_global_event({
             "type": "box_status_changed",
             "box_id": box_id,
             "container_status": ContainerStatus.STOPPED.value,
-            "stop_reason": "user_stopped",
+            "container_stop_reason": "user_stopped",
         })

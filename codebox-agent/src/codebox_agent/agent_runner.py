@@ -1,8 +1,7 @@
 """Shared agent streaming and exec logic.
 
 Provides generic functions that accept an async send callback,
-so they can be used from both the callback client (outbound WS to orchestrator)
-and any other transport.
+so they can be used from any transport (gRPC, direct calls, etc.).
 """
 
 from __future__ import annotations
@@ -17,15 +16,14 @@ from typing import Any, Callable, Coroutine
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from codebox_daemon.agent import extract_token
-from codebox_daemon.sessions import SessionManager
+from codebox_agent.agent import extract_token
+from codebox_agent.sessions import SessionManager
 
 logger = logging.getLogger(__name__)
 
 SendFn = Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
 
 _MAX_TOOL_OUTPUT = 2000
-_WORKSPACE_ROOT = Path("/workspace")
 _MAX_FILE_SIZE = 1_048_576  # 1 MB
 
 
@@ -86,7 +84,7 @@ async def run_agent_stream(
         "recursion_limit": session.recursion_limit,
     }
 
-    await send({"type": "task_status_changed", "status": "agent_working"})
+    await send({"type": "activity_changed", "status": "agent_working"})
 
     try:
         async for event in session.agent.astream_events(
@@ -159,17 +157,17 @@ async def run_agent_stream(
         # Stream finished normally
         logger.info("Agent stream completed for session %s", session_id)
         await send({"type": "done", "content": ai_text_buffer.strip()})
-        await send({"type": "task_status_changed", "status": "idle"})
+        await send({"type": "activity_changed", "status": "idle"})
 
     except asyncio.CancelledError:
         await send({"type": "done", "content": ai_text_buffer.strip()})
-        await send({"type": "task_status_changed", "status": "idle"})
+        await send({"type": "activity_changed", "status": "idle"})
         raise
 
     except Exception as exc:
         logger.exception("Agent stream error for session %s", session_id)
         await send({"type": "error", "detail": str(exc)})
-        await send({"type": "task_status_changed", "status": "idle"})
+        await send({"type": "activity_changed", "status": "idle"})
 
 
 async def run_exec(
@@ -178,6 +176,7 @@ async def run_exec(
     session_id: str,
     manager: SessionManager,
     request_id: str = "",
+    workspace_root: Path = Path("/workspace"),
 ) -> None:
     """Execute a shell command and stream output via send callback.
 
@@ -188,7 +187,7 @@ async def run_exec(
     session = manager.get(session_id)
     config = {"configurable": {"thread_id": session_id}}
 
-    await send({"type": "task_status_changed", "status": "exec_shell"})
+    await send({"type": "activity_changed", "status": "exec_shell"})
 
     # Record the shell command in the agent's thread
     try:
@@ -216,7 +215,7 @@ async def run_exec(
             command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
-            cwd="/workspace",
+            cwd=str(workspace_root),
         )
 
         async for line in proc.stdout:
@@ -256,20 +255,20 @@ async def run_exec(
                 "metadata_json": json.dumps({"type": "shell_output", "exit_code": exit_code}),
             },
         })
-        await send({"type": "task_status_changed", "status": "idle"})
+        await send({"type": "activity_changed", "status": "idle"})
 
     except asyncio.CancelledError:
         if proc and proc.returncode is None:
             proc.kill()
             await proc.wait()
         await send({"type": "exec_done", "output": "cancelled", "request_id": request_id})
-        await send({"type": "task_status_changed", "status": "idle"})
+        await send({"type": "activity_changed", "status": "idle"})
         raise
 
     except Exception as exc:
         logger.exception("Exec error for session %s", session_id)
         await send({"type": "error", "detail": str(exc)})
-        await send({"type": "task_status_changed", "status": "idle"})
+        await send({"type": "activity_changed", "status": "idle"})
 
 
 _TEXT_MIME_PREFIXES = (
@@ -305,11 +304,11 @@ def _is_binary_file(path: Path) -> bool:
         return True
 
 
-def _validate_workspace_path(raw_path: str) -> Path:
-    """Resolve a path and ensure it lives under /workspace."""
+def _validate_workspace_path(raw_path: str, workspace_root: Path) -> Path:
+    """Resolve a path and ensure it lives under the workspace root."""
     resolved = Path(raw_path).resolve()
-    if not (resolved == _WORKSPACE_ROOT or _WORKSPACE_ROOT in resolved.parents):
-        raise ValueError("Path must be under /workspace")
+    if not (resolved == workspace_root or workspace_root in resolved.parents):
+        raise ValueError(f"Path must be under {workspace_root}")
     return resolved
 
 
@@ -317,11 +316,12 @@ async def handle_list_files(
     send: SendFn,
     path: str,
     request_id: str,
+    workspace_root: Path = Path("/workspace"),
 ) -> None:
     """List directory contents and send result back."""
     logger.debug("list_files: path=%s, request_id=%s", path, request_id)
     try:
-        dir_path = _validate_workspace_path(path)
+        dir_path = _validate_workspace_path(path, workspace_root)
 
         if not dir_path.exists():
             await send({
@@ -371,11 +371,12 @@ async def handle_read_file(
     send: SendFn,
     path: str,
     request_id: str,
+    workspace_root: Path = Path("/workspace"),
 ) -> None:
     """Read file content and send result back."""
     logger.debug("read_file: path=%s, request_id=%s", path, request_id)
     try:
-        file_path = _validate_workspace_path(path)
+        file_path = _validate_workspace_path(path, workspace_root)
 
         if not file_path.exists():
             await send({

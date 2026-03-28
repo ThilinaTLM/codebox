@@ -6,7 +6,7 @@ import { Github01Icon } from "@hugeicons/core-free-icons"
 import { Square, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import type { Box } from "@/net/http/types"
-import { AgentReportStatus, ContainerStatus, TaskStatus } from "@/net/http/types"
+import { Activity, ContainerStatus, TaskOutcome } from "@/net/http/types"
 import { useDeleteBox, useStopBox } from "@/net/query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,7 +29,7 @@ interface AgentTableProps {
 
 function getStatusDotClass(box: Box): string {
   if (box.container_status === ContainerStatus.RUNNING) {
-    if (box.task_status === TaskStatus.AGENT_WORKING || box.task_status === TaskStatus.EXEC_SHELL) {
+    if (box.activity === Activity.AGENT_WORKING || box.activity === Activity.EXEC_SHELL) {
       return "bg-state-writing"
     }
     return "bg-state-idle"
@@ -38,12 +38,12 @@ function getStatusDotClass(box: Box): string {
     return "bg-state-starting"
   }
   // stopped
-  if (box.agent_report_status === AgentReportStatus.COMPLETED) {
+  if (box.task_outcome === TaskOutcome.COMPLETED) {
     return "bg-state-completed"
   }
   if (
-    box.stop_reason === "container_error" ||
-    box.agent_report_status === AgentReportStatus.UNABLE_TO_PROCEED
+    box.container_stop_reason === "container_error" ||
+    box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED
   ) {
     return "bg-state-error"
   }
@@ -52,7 +52,7 @@ function getStatusDotClass(box: Box): string {
 
 function getRowBorderClass(box: Box): string {
   if (box.container_status === ContainerStatus.RUNNING) {
-    if (box.task_status === TaskStatus.AGENT_WORKING || box.task_status === TaskStatus.EXEC_SHELL) {
+    if (box.activity === Activity.AGENT_WORKING || box.activity === Activity.EXEC_SHELL) {
       return "border-l-state-writing"
     }
     return "border-l-state-idle"
@@ -60,12 +60,12 @@ function getRowBorderClass(box: Box): string {
   if (box.container_status === ContainerStatus.STARTING) {
     return "border-l-state-starting"
   }
-  if (box.agent_report_status === AgentReportStatus.COMPLETED) {
+  if (box.task_outcome === TaskOutcome.COMPLETED) {
     return "border-l-state-completed"
   }
   if (
-    box.stop_reason === "container_error" ||
-    box.agent_report_status === AgentReportStatus.UNABLE_TO_PROCEED
+    box.container_stop_reason === "container_error" ||
+    box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED
   ) {
     return "border-l-state-error"
   }
@@ -168,7 +168,7 @@ function AgentRow({
         ? `PR #${box.github_pr_number ?? ""}`
         : null
 
-  const preview = box.agent_report_message ?? box.initial_prompt ?? ""
+  const preview = box.task_outcome_message ?? box.initial_prompt ?? ""
 
   return (
     <>
@@ -319,18 +319,18 @@ function StatusLabel({ box }: { box: Box }) {
     return <span className="text-xs text-state-starting">Starting</span>
   }
   if (box.container_status === ContainerStatus.RUNNING) {
-    if (box.task_status === TaskStatus.AGENT_WORKING) {
+    if (box.activity === Activity.AGENT_WORKING) {
       return <span className="text-xs text-state-writing">Working</span>
     }
-    if (box.task_status === TaskStatus.EXEC_SHELL) {
+    if (box.activity === Activity.EXEC_SHELL) {
       return <span className="text-xs text-state-writing">Running command</span>
     }
     return <span className="text-xs text-state-idle">Idle</span>
   }
-  if (box.agent_report_status === AgentReportStatus.COMPLETED) {
+  if (box.task_outcome === TaskOutcome.COMPLETED) {
     return <span className="text-xs text-state-completed">Completed</span>
   }
-  if (box.stop_reason === "container_error") {
+  if (box.container_stop_reason === "container_error") {
     return <span className="text-xs text-state-error">Error</span>
   }
   return <span className="text-xs text-state-idle">Stopped</span>

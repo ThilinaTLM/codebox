@@ -10,7 +10,7 @@ from pathlib import PurePosixPath
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
-from codebox_orchestrator.db.models import ContainerStatus, TaskStatus
+from codebox_orchestrator.db.models import Activity, ContainerStatus
 from codebox_orchestrator.schemas import (
     BoxCreate,
     BoxEventResponse,
@@ -61,10 +61,10 @@ async def create_box(request: Request, body: BoxCreate) -> BoxResponse:
 async def list_boxes(
     request: Request,
     container_status: str | None = None,
-    task_status: str | None = None,
+    activity: str | None = None,
     trigger: str | None = None,
 ) -> list[BoxResponse]:
-    """List boxes, optionally filtered by container_status, task_status, or trigger."""
+    """List boxes, optionally filtered by container_status, activity, or trigger."""
     bs = _bs(request)
     cs = None
     if container_status:
@@ -72,13 +72,13 @@ async def list_boxes(
             cs = ContainerStatus(container_status)
         except ValueError:
             raise HTTPException(400, f"Invalid container_status: {container_status}")
-    ts = None
-    if task_status:
+    act = None
+    if activity:
         try:
-            ts = TaskStatus(task_status)
+            act = Activity(activity)
         except ValueError:
-            raise HTTPException(400, f"Invalid task_status: {task_status}")
-    boxes = await bs.list_boxes(container_status=cs, task_status=ts, trigger=trigger)
+            raise HTTPException(400, f"Invalid activity: {activity}")
+    boxes = await bs.list_boxes(container_status=cs, activity=act, trigger=trigger)
     return [BoxResponse.from_orm_box(b) for b in boxes]
 
 

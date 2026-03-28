@@ -1,15 +1,15 @@
-"""Entrypoint for running the codebox daemon in callback mode."""
+"""Entry point for the sandbox daemon in callback mode."""
 
 import asyncio
 import logging
 
-from codebox_daemon.callback import run_callback
+from codebox_sandbox.callback import run_callback
 
 
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
     asyncio.run(run_callback())
 

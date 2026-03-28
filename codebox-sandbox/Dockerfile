@@ -25,10 +25,16 @@ RUN mv /usr/local/bin/devbox /usr/local/bin/devbox-real \
     && printf '#!/bin/bash\ncase "$1" in\n  add|rm|install|shell|shellenv|run|update|list|info|services|generate)\n    cmd="$1"; shift; exec devbox-real "$cmd" -c /app "$@" ;;\n  *)\n    exec devbox-real "$@" ;;\nesac\n' > /usr/local/bin/devbox \
     && chmod +x /usr/local/bin/devbox
 
-# Install codebox-core
-COPY codebox-core/pyproject.toml codebox-core/README.md /tmp/codebox-core/
-COPY codebox-core/src/ /tmp/codebox-core/src/
-RUN pip install uv && uv pip install --system /tmp/codebox-core && rm -rf /tmp/codebox-core
+# Install codebox-agent (foundation library)
+COPY codebox-agent/pyproject.toml codebox-agent/README.md /tmp/codebox-agent/
+COPY codebox-agent/src/ /tmp/codebox-agent/src/
+
+# Install codebox-sandbox (container runner)
+COPY codebox-sandbox/pyproject.toml codebox-sandbox/README.md /tmp/codebox-sandbox/
+COPY codebox-sandbox/src/ /tmp/codebox-sandbox/src/
+
+RUN pip install uv && uv pip install --system /tmp/codebox-agent /tmp/codebox-sandbox \
+    && rm -rf /tmp/codebox-agent /tmp/codebox-sandbox
 
 RUN mkdir -p /workspace /app/codebox
 
@@ -40,4 +46,4 @@ COPY codebox-sandbox/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 ENTRYPOINT ["bash", "/app/entrypoint.sh"]
-CMD ["python", "-m", "codebox_daemon"]
+CMD ["python", "-m", "codebox_sandbox"]

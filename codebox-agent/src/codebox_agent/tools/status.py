@@ -23,7 +23,7 @@ SendFn = Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
 
 
 class StatusReporter:
-    """Mutable holder for the send function, injected after gRPC connects."""
+    """Mutable holder for the send function, injected after transport connects."""
 
     def __init__(self) -> None:
         self.send_fn: SendFn | None = None
@@ -43,7 +43,7 @@ def build_status_tools(reporter: StatusReporter) -> list[BaseTool]:
             logger.warning("set_status called but send_fn not yet available")
             return "Error: Status reporting not yet connected."
 
-        event = {"type": "report_status", "status": status, "message": message or ""}
+        event = {"type": "task_outcome", "status": status, "message": message or ""}
         await reporter.send_fn(event)
         logger.info("set_status: status=%s message=%r", status, message)
 

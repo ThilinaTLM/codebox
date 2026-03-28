@@ -9,7 +9,7 @@ import tempfile
 from datetime import datetime, timezone
 from typing import Any
 
-from codebox_orchestrator.box.domain.enums import ContainerStatus, TaskStatus
+from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
 from codebox_orchestrator.box.ports.box_repository import BoxRepository
 from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
 from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
@@ -75,8 +75,8 @@ class BoxLifecycleService:
             box = await self._repo.get(box_id)
             if box and box.container_status != ContainerStatus.STOPPED:
                 box.container_status = ContainerStatus.STOPPED
-                box.stop_reason = "orchestrator_shutdown"
-                box.task_status = TaskStatus.IDLE
+                box.container_stop_reason = "orchestrator_shutdown"
+                box.activity = Activity.IDLE
                 await self._repo.save(box)
 
     async def _run_box(self, box_id: str) -> None:
@@ -247,7 +247,7 @@ class BoxLifecycleService:
             box_id, {
                 "type": "status_change",
                 "container_status": ContainerStatus.STOPPED.value,
-                "stop_reason": "container_error",
+                "container_stop_reason": "container_error",
             }
         )
         await self._publisher.publish_box_event(
@@ -257,5 +257,5 @@ class BoxLifecycleService:
             "type": "box_status_changed",
             "box_id": box_id,
             "container_status": ContainerStatus.STOPPED.value,
-            "stop_reason": "container_error",
+            "container_stop_reason": "container_error",
         })

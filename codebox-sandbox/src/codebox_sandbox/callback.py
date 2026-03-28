@@ -10,24 +10,29 @@ import asyncio
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 import grpc
 from grpc import aio as grpc_aio
 
-from codebox_daemon.agent_runner import (
+from codebox_agent.agent_runner import (
     handle_list_files,
     handle_read_file,
     run_agent_stream,
     run_exec,
 )
-from codebox_daemon.grpc.generated.codebox.sandbox import sandbox_pb2, sandbox_pb2_grpc
-from codebox_daemon.sessions import SessionManager
+from codebox_agent.sessions import SessionManager
+from codebox_sandbox.grpc.generated.codebox.sandbox import sandbox_pb2, sandbox_pb2_grpc
+from codebox_sandbox.prompts import SANDBOX_ENVIRONMENT_PROMPT
 
 logger = logging.getLogger(__name__)
 
 _RECONNECT_BASE_DELAY = 1.0
 _RECONNECT_MAX_DELAY = 30.0
+
+_WORKSPACE_ROOT = Path("/workspace")
+_CHECKPOINT_DB_PATH = "/app/codebox/checkpoints.db"
 
 
 async def run_callback() -> None:
@@ -53,11 +58,12 @@ async def run_callback() -> None:
         sandbox_config = json.loads(sandbox_config_raw)
 
     # Create session manager and session
-    manager = SessionManager()
+    manager = SessionManager(checkpoint_db_path=_CHECKPOINT_DB_PATH)
     secondary_system_prompt = os.environ.get("SYSTEM_PROMPT")
     session = await manager.create(
         model=model,
         api_key=api_key,
+        environment_prompt=SANDBOX_ENVIRONMENT_PROMPT,
         secondary_system_prompt=secondary_system_prompt,
         sandbox_config=sandbox_config,
     )
@@ -191,7 +197,7 @@ async def _connect_and_run(
                     request_id = command.exec.request_id
                     await _cancel_current()
                     current_task = asyncio.create_task(
-                        run_exec(send, command_str, session_id, manager, request_id=request_id)
+                        run_exec(send, command_str, session_id, manager, request_id=request_id, workspace_root=_WORKSPACE_ROOT)
                     )
                     session.current_task = current_task
                     current_task.add_done_callback(_on_task_done)
@@ -202,19 +208,16 @@ async def _connect_and_run(
                     logger.info("Cancelled running task for session %s", session_id)
 
                 elif field == "list_files":
-                    path = command.list_files.path or "/workspace"
+                    path = command.list_files.path or str(_WORKSPACE_ROOT)
                     request_id = command.list_files.request_id
                     logger.debug("Received list_files command: path=%s", path)
-                    await handle_list_files(send, path, request_id)
+                    await handle_list_files(send, path, request_id, workspace_root=_WORKSPACE_ROOT)
 
                 elif field == "read_file":
                     path = command.read_file.path
                     request_id = command.read_file.request_id
                     logger.debug("Received read_file command: path=%s", path)
-                    await handle_read_file(send, path, request_id)
-
-                elif field == "thread_restore":
-                    pass  # already handled above
+                    await handle_read_file(send, path, request_id, workspace_root=_WORKSPACE_ROOT)
 
                 else:
                     logger.warning("Unknown command type: %s", field)
@@ -315,15 +318,15 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
                 error=error or "",
             )
         )
-    elif msg_type == "task_status_changed":
+    elif msg_type == "activity_changed":
         return sandbox_pb2.SandboxEvent(
-            task_status_changed=sandbox_pb2.TaskStatusChangedEvent(
+            activity_changed=sandbox_pb2.ActivityChangedEvent(
                 status=msg.get("status", ""),
             )
         )
-    elif msg_type == "report_status":
+    elif msg_type == "task_outcome":
         return sandbox_pb2.SandboxEvent(
-            report_status=sandbox_pb2.ReportStatusEvent(
+            task_outcome=sandbox_pb2.TaskOutcomeEvent(
                 status=msg.get("status", ""),
                 message=msg.get("message", ""),
             )

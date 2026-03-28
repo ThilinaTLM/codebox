@@ -9,9 +9,9 @@ from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Tex
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from codebox_orchestrator.box.domain.enums import (
-    AgentReportStatus,
+    Activity,
     ContainerStatus,
-    TaskStatus,
+    TaskOutcome,
 )
 
 
@@ -37,15 +37,15 @@ class Box(Base):
         Enum(ContainerStatus, native_enum=False, length=30),
         default=ContainerStatus.STARTING,
     )
-    task_status: Mapped[TaskStatus] = mapped_column(
-        Enum(TaskStatus, native_enum=False, length=30),
-        default=TaskStatus.IDLE,
+    activity: Mapped[Activity] = mapped_column(
+        Enum(Activity, native_enum=False, length=30),
+        default=Activity.IDLE,
     )
-    stop_reason: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    agent_report_status: Mapped[AgentReportStatus | None] = mapped_column(
-        Enum(AgentReportStatus, native_enum=False, length=30), nullable=True
+    container_stop_reason: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    task_outcome: Mapped[TaskOutcome | None] = mapped_column(
+        Enum(TaskOutcome, native_enum=False, length=30), nullable=True
     )
-    agent_report_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    task_outcome_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Prompts
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from codebox_orchestrator.box.domain.entities import Box
-from codebox_orchestrator.box.domain.enums import ContainerStatus, TaskStatus
+from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
 from codebox_orchestrator.box.ports.box_repository import BoxRepository
 from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 from codebox_orchestrator.config import OPENROUTER_MODEL
@@ -33,7 +33,7 @@ class CreateBoxHandler:
             name=name or "box",
             model=model or OPENROUTER_MODEL,
             container_status=ContainerStatus.STARTING,
-            task_status=TaskStatus.IDLE,
+            activity=Activity.IDLE,
             system_prompt=system_prompt,
             initial_prompt=initial_prompt,
             trigger=trigger,
