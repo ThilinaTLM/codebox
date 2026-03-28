@@ -9,7 +9,7 @@ from codebox_orchestrator.config import HOST, PORT
 
 def main() -> None:
     uvicorn.run(
-        "codebox_orchestrator.app:create_app",
+        "codebox_orchestrator.api.app:create_app",
         factory=True,
         host=HOST,
         port=PORT,
