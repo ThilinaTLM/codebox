@@ -39,7 +39,7 @@
     transition: box-shadow 0.3s ease, transform 0.2s ease;
   }
   .card-glow:hover {
-    box-shadow: 0 0 0 1px oklch(0.72 0.15 195 / 0.15), 0 8px 25px -5px oklch(0.93 0.01 90 / 0.08);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--primary) 15%, transparent), 0 8px 25px -5px color-mix(in oklch, var(--foreground) 8%, transparent);
     transform: translateY(-1px);
   }
 

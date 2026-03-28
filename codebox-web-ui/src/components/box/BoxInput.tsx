@@ -67,7 +67,7 @@ export function BoxInput({
     <div>
       <div
         className={cn(
-          "relative rounded-lg border bg-inset shadow-[0_-1px_3px_-1px_rgba(0,0,0,0.3)] transition-colors duration-300",
+          "relative rounded-lg border bg-inset shadow-sm transition-colors duration-300",
           isWorking
             ? "border-state-thinking/30 animate-glow-pulse"
             : "border-border"

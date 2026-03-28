@@ -14,15 +14,15 @@ function getFileColorClass(name: string, isDir: boolean): string {
   switch (ext) {
     case "ts":
     case "tsx":
-      return "text-blue-400"
+      return "text-file-ts"
     case "py":
-      return "text-yellow-400"
+      return "text-file-py"
     case "json":
-      return "text-green-400"
+      return "text-file-json"
     case "md":
       return "text-muted-foreground"
     case "css":
-      return "text-pink-400"
+      return "text-file-css"
     default:
       return "text-muted-foreground"
   }
