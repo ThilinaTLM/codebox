@@ -26,11 +26,11 @@ RUN mv /usr/local/bin/devbox /usr/local/bin/devbox-real \
     && chmod +x /usr/local/bin/devbox
 
 # Install codebox-agent (foundation library)
-COPY codebox-agent/pyproject.toml codebox-agent/README.md /tmp/codebox-agent/
+COPY codebox-agent/pyproject.toml codebox-agent/uv.lock codebox-agent/README.md /tmp/codebox-agent/
 COPY codebox-agent/src/ /tmp/codebox-agent/src/
 
 # Install codebox-sandbox (container runner)
-COPY codebox-sandbox/pyproject.toml codebox-sandbox/README.md /tmp/codebox-sandbox/
+COPY codebox-sandbox/pyproject.toml codebox-sandbox/uv.lock codebox-sandbox/README.md /tmp/codebox-sandbox/
 COPY codebox-sandbox/src/ /tmp/codebox-sandbox/src/
 
 RUN pip install uv && uv pip install --system /tmp/codebox-agent /tmp/codebox-sandbox \

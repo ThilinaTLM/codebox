@@ -11,6 +11,9 @@ dependencies = [
 [tool.uv]
 package = true
 
+[tool.uv.sources]
+codebox-agent = { path = "../codebox-agent" }
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
