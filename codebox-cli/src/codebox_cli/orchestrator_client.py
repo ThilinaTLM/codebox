@@ -70,7 +70,7 @@ class OrchestratorClient:
         name: str | None = None,
         initial_prompt: str | None = None,
         model: str | None = None,
-        system_prompt: str | None = None,
+        dynamic_system_prompt: str | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         if name:
@@ -79,8 +79,8 @@ class OrchestratorClient:
             payload["initial_prompt"] = initial_prompt
         if model:
             payload["model"] = model
-        if system_prompt:
-            payload["system_prompt"] = system_prompt
+        if dynamic_system_prompt:
+            payload["dynamic_system_prompt"] = dynamic_system_prompt
         return self._rest_request("POST", "/api/boxes", payload)
 
     def list_boxes(

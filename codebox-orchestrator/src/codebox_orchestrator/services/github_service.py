@@ -340,19 +340,11 @@ class GitHubService:
             guidelines=context.get("guidelines", ""),
         )
 
-        # Build system prompt
-        system_prompt = (
-            "You are a coding agent running inside a sandboxed container. "
-            "You have access to tools for filesystem operations "
-            "(ls, read_file, write_file, edit_file, glob, grep), "
-            "shell execution (execute), and web access "
-            "(web_search, web_fetch). Use them to help with coding tasks.\n\n"
-            "Environment:\n"
-            "- Working directory: /workspace\n"
-            "- Python 3.12, Node.js 20, Go 1.22 are pre-installed\n"
-            "- git, gh CLI, ripgrep, jq, curl are available\n"
-            "- GH_TOKEN is set for GitHub API access (git push and gh CLI)\n"
-            "- You are inside a disposable sandbox."
+        # Build dynamic system prompt (GitHub-specific context only;
+        # environment info is provided by the sandbox's environment system prompt)
+        dynamic_system_prompt = (
+            "GH_TOKEN is set — use it for GitHub API access via git push and gh CLI.\n"
+            "Commit your changes to a new branch and create a pull request using gh pr create."
         )
 
         # Create box
@@ -361,7 +353,7 @@ class GitHubService:
         box = await bs.create_box(
             name=f"[GitHub] #{issue_number}: {issue_title[:100]}",
             initial_prompt=prompt,
-            system_prompt=system_prompt,
+            dynamic_system_prompt=dynamic_system_prompt,
 
             trigger="github_issue",
             github_installation_id=db_installation.id,
@@ -461,18 +453,9 @@ class GitHubService:
             guidelines="",
         )
 
-        system_prompt = (
-            "You are a coding agent running inside a sandboxed container. "
-            "You have access to tools for filesystem operations "
-            "(ls, read_file, write_file, edit_file, glob, grep), "
-            "shell execution (execute), and web access "
-            "(web_search, web_fetch). Use them to help with coding tasks.\n\n"
-            "Environment:\n"
-            "- Working directory: /workspace\n"
-            "- Python 3.12, Node.js 20, Go 1.22 are pre-installed\n"
-            "- git, gh CLI, ripgrep, jq, curl are available\n"
-            "- GH_TOKEN is set for GitHub API access (git push and gh CLI)\n"
-            "- You are inside a disposable sandbox."
+        dynamic_system_prompt = (
+            "GH_TOKEN is set — use it for GitHub API access via git push and gh CLI.\n"
+            "Commit your changes to a new branch and create a pull request using gh pr create."
         )
 
         from codebox_orchestrator.services.box_service import BoxService
@@ -480,7 +463,7 @@ class GitHubService:
         box = await bs.create_box(
             name=f"[GitHub PR] #{pr_number}: {pr_title[:100]}",
             initial_prompt=prompt,
-            system_prompt=system_prompt,
+            dynamic_system_prompt=dynamic_system_prompt,
 
             trigger="github_pr",
             github_installation_id=db_installation.id,

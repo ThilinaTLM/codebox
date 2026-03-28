@@ -115,8 +115,8 @@ class BoxLifecycleService:
             "ORCHESTRATOR_GRPC_ADDRESS": ORCHESTRATOR_GRPC_ADDRESS,
             "CALLBACK_TOKEN": callback_token,
         }
-        if box.system_prompt:
-            extra_env["SYSTEM_PROMPT"] = box.system_prompt
+        if box.dynamic_system_prompt:
+            extra_env["DYNAMIC_SYSTEM_PROMPT"] = box.dynamic_system_prompt
 
         # For GitHub boxes, get installation token and inject env vars
         gh_token: str | None = None

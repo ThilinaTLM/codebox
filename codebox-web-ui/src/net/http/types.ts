@@ -27,7 +27,7 @@ export interface Box {
   container_stop_reason: string | null
   task_outcome: TaskOutcome | null
   task_outcome_message: string | null
-  system_prompt: string | null
+  dynamic_system_prompt: string | null
   initial_prompt: string | null
   container_id: string | null
   container_name: string | null
@@ -70,7 +70,7 @@ export interface ContainerLogs {
 export interface BoxCreatePayload {
   name?: string | null
   model?: string | null
-  system_prompt?: string | null
+  dynamic_system_prompt?: string | null
   initial_prompt?: string | null
 }
 

@@ -18,7 +18,7 @@ def box_to_domain(db_box: orm.Box) -> domain.Box:
         container_stop_reason=db_box.container_stop_reason,
         task_outcome=db_box.task_outcome,
         task_outcome_message=db_box.task_outcome_message,
-        system_prompt=db_box.system_prompt,
+        dynamic_system_prompt=db_box.dynamic_system_prompt,
         initial_prompt=db_box.initial_prompt,
         container_id=db_box.container_id,
         container_name=db_box.container_name,
@@ -48,7 +48,7 @@ def domain_to_orm(box: domain.Box) -> orm.Box:
         container_stop_reason=box.container_stop_reason,
         task_outcome=box.task_outcome,
         task_outcome_message=box.task_outcome_message,
-        system_prompt=box.system_prompt,
+        dynamic_system_prompt=box.dynamic_system_prompt,
         initial_prompt=box.initial_prompt,
         container_id=box.container_id,
         container_name=box.container_name,
@@ -76,7 +76,7 @@ def update_orm_from_domain(db_box: orm.Box, box: domain.Box) -> None:
     db_box.container_stop_reason = box.container_stop_reason
     db_box.task_outcome = box.task_outcome
     db_box.task_outcome_message = box.task_outcome_message
-    db_box.system_prompt = box.system_prompt
+    db_box.dynamic_system_prompt = box.dynamic_system_prompt
     db_box.initial_prompt = box.initial_prompt
     db_box.container_id = box.container_id
     db_box.container_name = box.container_name

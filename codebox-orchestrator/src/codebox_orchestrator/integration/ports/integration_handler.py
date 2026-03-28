@@ -12,7 +12,7 @@ class BoxCreateRequest:
 
     name: str
     initial_prompt: str
-    system_prompt: str | None = None
+    dynamic_system_prompt: str | None = None
     model: str | None = None
     trigger: str | None = None
     trigger_url: str | None = None

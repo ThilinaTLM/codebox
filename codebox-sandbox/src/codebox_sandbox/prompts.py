@@ -1,6 +1,6 @@
-"""Sandbox-specific environment prompt."""
+"""Sandbox-specific environment system prompt."""
 
-SANDBOX_ENVIRONMENT_PROMPT = """\
+SANDBOX_ENVIRONMENT_SYSTEM_PROMPT = """\
 Environment:
 - Your current working directory is /workspace (you are already there). \
 All paths are relative to /workspace unless absolute paths are used.

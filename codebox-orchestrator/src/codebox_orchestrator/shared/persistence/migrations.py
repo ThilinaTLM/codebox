@@ -24,12 +24,27 @@ _LEGACY_TABLES = [
 
 
 async def run_migrations(engine: AsyncEngine) -> None:
-    """Drop legacy tables if they exist (idempotent — safe to run on every startup)."""
+    """Run idempotent migrations on every startup."""
     async with engine.begin() as conn:
         existing = await conn.run_sync(
             lambda sync_conn: inspect(sync_conn).get_table_names()
         )
+
+        # Drop legacy tables from the old Task + Sandbox split
         for table in _LEGACY_TABLES:
             if table in existing:
                 await conn.execute(text(f"DROP TABLE IF EXISTS {table}"))
                 logger.info("Migration: dropped legacy table %s", table)
+
+        # Rename system_prompt → dynamic_system_prompt (SQLite 3.25+)
+        if "boxes" in existing:
+            columns = await conn.run_sync(
+                lambda sync_conn: [
+                    col["name"] for col in inspect(sync_conn).get_columns("boxes")
+                ]
+            )
+            if "system_prompt" in columns and "dynamic_system_prompt" not in columns:
+                await conn.execute(
+                    text("ALTER TABLE boxes RENAME COLUMN system_prompt TO dynamic_system_prompt")
+                )
+                logger.info("Migration: renamed boxes.system_prompt → dynamic_system_prompt")

@@ -14,7 +14,7 @@ from codebox_agent.agent_runner import SendFn, run_agent_stream
 from codebox_agent.sessions import SessionManager
 from codebox_agent.tools.status import StatusReporter
 
-from codebox_github_action.prompts import GITHUB_ACTIONS_ENVIRONMENT_PROMPT
+from codebox_github_action.prompts import GITHUB_ACTIONS_ENVIRONMENT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -100,10 +100,12 @@ async def run() -> None:
         raise RuntimeError("OPENROUTER_API_KEY is required")
 
     manager = SessionManager(checkpoint_db_path="/tmp/codebox-checkpoints.db")
+    dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
     session = await manager.create(
         model=model,
         api_key=api_key,
-        environment_prompt=GITHUB_ACTIONS_ENVIRONMENT_PROMPT,
+        environment_system_prompt=GITHUB_ACTIONS_ENVIRONMENT_SYSTEM_PROMPT,
+        dynamic_system_prompt=dynamic_system_prompt,
         working_dir=workspace,
     )
 

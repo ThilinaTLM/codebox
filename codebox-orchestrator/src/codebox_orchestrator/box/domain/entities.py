@@ -34,7 +34,7 @@ class Box:
     task_outcome_message: str | None = None
 
     # Prompts
-    system_prompt: str | None = None
+    dynamic_system_prompt: str | None = None
     initial_prompt: str | None = None
 
     # Container connection info

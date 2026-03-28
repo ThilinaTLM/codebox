@@ -106,7 +106,7 @@ async def _process_webhook_safe(
             box = await create_box_handler.execute(
                 name=box_req.name,
                 model=box_req.model,
-                system_prompt=box_req.system_prompt,
+                dynamic_system_prompt=box_req.dynamic_system_prompt,
                 initial_prompt=box_req.initial_prompt,
                 trigger=box_req.trigger,
                 github_installation_id=box_req.integration_id,

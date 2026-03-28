@@ -15,29 +15,28 @@ logger = logging.getLogger(__name__)
 
 
 def _build_system_prompt(
-    environment_prompt: str | None = None,
-    secondary: str | None = None,
+    environment_system_prompt: str | None = None,
+    dynamic_system_prompt: str | None = None,
 ) -> str:
-    """Combine core, environment, and secondary system prompts.
+    """Combine core, environment, and dynamic system prompts.
 
     The core prompt (capabilities/tools) is always included.
     The environment prompt (runner-specific context) is appended if provided.
-    The secondary prompt (task-specific context from the caller) is appended
-    if provided.
+    The dynamic prompt (caller-provided context) is appended if provided.
     """
     parts = [CORE_SYSTEM_PROMPT]
-    if environment_prompt:
-        parts.append(environment_prompt)
-    if secondary:
-        parts.append(secondary)
+    if environment_system_prompt:
+        parts.append(environment_system_prompt)
+    if dynamic_system_prompt:
+        parts.append(dynamic_system_prompt)
     return "\n\n".join(parts)
 
 
 def create_agent(
     model: str,
     api_key: str,
-    environment_prompt: str | None = None,
-    secondary_system_prompt: str | None = None,
+    environment_system_prompt: str | None = None,
+    dynamic_system_prompt: str | None = None,
     root_dir: str = "/workspace",
     sandbox_config: dict | None = None,
     checkpointer=None,
@@ -48,10 +47,10 @@ def create_agent(
     Args:
         model: The OpenRouter model identifier.
         api_key: The OpenRouter API key.
-        environment_prompt: Optional runner-specific environment prompt appended
-            after the core prompt (e.g. sandbox or GitHub Actions context).
-        secondary_system_prompt: Optional task-specific prompt appended after
-            the environment prompt.
+        environment_system_prompt: Optional runner-specific environment prompt
+            appended after the core prompt (e.g. sandbox or GitHub Actions context).
+        dynamic_system_prompt: Optional caller-provided prompt appended after
+            the environment prompt (e.g. from orchestrator or workflow config).
         root_dir: Root directory for the shell backend.
         sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
         checkpointer: Optional LangGraph checkpointer for persisting agent state.
@@ -65,8 +64,8 @@ def create_agent(
     timeout = cfg.get("timeout", 120)
 
     logger.info(
-        "Creating agent: model=%s, temperature=%s, timeout=%s, root_dir=%s, env_prompt=%s, secondary_prompt=%s",
-        model, temperature, timeout, root_dir, bool(environment_prompt), bool(secondary_system_prompt),
+        "Creating agent: model=%s, temperature=%s, timeout=%s, root_dir=%s, env_prompt=%s, dynamic_prompt=%s",
+        model, temperature, timeout, root_dir, bool(environment_system_prompt), bool(dynamic_system_prompt),
     )
 
     llm = ChatOpenRouter(
@@ -90,7 +89,7 @@ def create_agent(
         model=llm,
         tools=tools,
         backend=backend,
-        system_prompt=_build_system_prompt(environment_prompt, secondary_system_prompt),
+        system_prompt=_build_system_prompt(environment_system_prompt, dynamic_system_prompt),
         checkpointer=checkpointer,
     )
 

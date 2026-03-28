@@ -140,7 +140,7 @@ class GitHubWebhookHandler:
             guidelines=context.get("guidelines", ""),
         )
 
-        system_prompt = self._default_system_prompt()
+        dynamic_system_prompt = self._default_dynamic_system_prompt()
 
         # Post reaction
         try:
@@ -151,7 +151,7 @@ class GitHubWebhookHandler:
         return BoxCreateRequest(
             name=f"[GitHub] #{issue_number}: {issue_title[:100]}",
             initial_prompt=prompt,
-            system_prompt=system_prompt,
+            dynamic_system_prompt=dynamic_system_prompt,
             trigger="github_issue",
             trigger_url=comment_url,
             integration_id=db_installation.id,
@@ -214,12 +214,12 @@ class GitHubWebhookHandler:
             guidelines="",
         )
 
-        system_prompt = self._default_system_prompt()
+        dynamic_system_prompt = self._default_dynamic_system_prompt()
 
         return BoxCreateRequest(
             name=f"[GitHub PR] #{pr_number}: {pr_title[:100]}",
             initial_prompt=prompt,
-            system_prompt=system_prompt,
+            dynamic_system_prompt=dynamic_system_prompt,
             trigger="github_pr",
             trigger_url=comment_url,
             integration_id=db_installation.id,
@@ -339,17 +339,8 @@ class GitHubWebhookHandler:
         return f"codebox/{uuid.uuid4().hex[:8]}"
 
     @staticmethod
-    def _default_system_prompt() -> str:
+    def _default_dynamic_system_prompt() -> str:
         return (
-            "You are a coding agent running inside a sandboxed container. "
-            "You have access to tools for filesystem operations "
-            "(ls, read_file, write_file, edit_file, glob, grep), "
-            "shell execution (execute), and web access "
-            "(web_search, web_fetch). Use them to help with coding tasks.\n\n"
-            "Environment:\n"
-            "- Working directory: /workspace\n"
-            "- Python 3.12, Node.js 20, Go 1.22 are pre-installed\n"
-            "- git, gh CLI, ripgrep, jq, curl are available\n"
-            "- GH_TOKEN is set for GitHub API access (git push and gh CLI)\n"
-            "- You are inside a disposable sandbox."
+            "GH_TOKEN is set — use it for GitHub API access via git push and gh CLI.\n"
+            "Commit your changes to a new branch and create a pull request using gh pr create."
         )

@@ -44,8 +44,8 @@ class SessionManager:
         self,
         model: str,
         api_key: str,
-        environment_prompt: str | None = None,
-        secondary_system_prompt: str | None = None,
+        environment_system_prompt: str | None = None,
+        dynamic_system_prompt: str | None = None,
         working_dir: str = "/workspace",
         sandbox_config: dict | None = None,
     ) -> Session:
@@ -54,8 +54,8 @@ class SessionManager:
         Args:
             model: The OpenRouter model identifier.
             api_key: The OpenRouter API key.
-            environment_prompt: Optional runner-specific environment prompt.
-            secondary_system_prompt: Optional task-specific prompt appended to
+            environment_system_prompt: Optional runner-specific environment prompt.
+            dynamic_system_prompt: Optional caller-provided prompt appended after
                 the environment prompt.
             working_dir: Root directory for the shell backend.
             sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
@@ -78,8 +78,8 @@ class SessionManager:
         agent = create_agent(
             model=model,
             api_key=api_key,
-            environment_prompt=environment_prompt,
-            secondary_system_prompt=secondary_system_prompt,
+            environment_system_prompt=environment_system_prompt,
+            dynamic_system_prompt=dynamic_system_prompt,
             root_dir=working_dir,
             sandbox_config=sandbox_config,
             checkpointer=checkpointer,

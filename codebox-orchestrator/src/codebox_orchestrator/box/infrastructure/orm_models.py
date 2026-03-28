@@ -48,7 +48,7 @@ class Box(Base):
     task_outcome_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Prompts
-    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dynamic_system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     initial_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Container connection info

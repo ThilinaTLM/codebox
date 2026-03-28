@@ -60,7 +60,7 @@ class BoxService:
         self,
         name: str | None = None,
         model: str | None = None,
-        system_prompt: str | None = None,
+        dynamic_system_prompt: str | None = None,
         initial_prompt: str | None = None,
         # GitHub integration fields
         trigger: str | None = None,
@@ -75,7 +75,7 @@ class BoxService:
             model=model or OPENROUTER_MODEL,
             container_status=ContainerStatus.STARTING,
             activity=Activity.IDLE,
-            system_prompt=system_prompt,
+            dynamic_system_prompt=dynamic_system_prompt,
             initial_prompt=initial_prompt,
             trigger=trigger,
             github_installation_id=github_installation_id,
@@ -421,7 +421,7 @@ class BoxService:
             if box is None:
                 return
             model = box.model
-            system_prompt = box.system_prompt
+            dynamic_system_prompt = box.dynamic_system_prompt
             github_repo = box.github_repo
             github_branch = box.github_branch
             github_issue_number = box.github_issue_number
@@ -448,8 +448,8 @@ class BoxService:
             "ORCHESTRATOR_GRPC_ADDRESS": ORCHESTRATOR_GRPC_ADDRESS,
             "CALLBACK_TOKEN": callback_token,
         }
-        if system_prompt:
-            extra_env["SYSTEM_PROMPT"] = system_prompt
+        if dynamic_system_prompt:
+            extra_env["DYNAMIC_SYSTEM_PROMPT"] = dynamic_system_prompt
 
         # For GitHub boxes, get installation token and inject env vars
         gh_token: str | None = None

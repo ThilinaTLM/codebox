@@ -51,7 +51,7 @@ async def create_box(request: Request, body: BoxCreate) -> BoxResponse:
     box = await bs.create_box(
         name=body.name,
         model=body.model,
-        system_prompt=body.system_prompt,
+        dynamic_system_prompt=body.dynamic_system_prompt,
         initial_prompt=body.initial_prompt,
     )
     return BoxResponse.from_orm_box(box)

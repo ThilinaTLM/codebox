@@ -19,6 +19,9 @@ inputs:
   tavily-api-key:
     description: 'Tavily API key for web search (optional)'
     required: false
+  dynamic-system-prompt:
+    description: 'Additional system prompt appended after the core and environment prompts (optional)'
+    required: false
 
 runs:
   using: 'composite'
@@ -43,4 +46,5 @@ runs:
         OPENROUTER_MODEL: ${{ inputs.openrouter-model }}
         TRIGGER_KEYWORD: ${{ inputs.trigger-keyword }}
         TAVILY_API_KEY: ${{ inputs.tavily-api-key }}
+        DYNAMIC_SYSTEM_PROMPT: ${{ inputs.dynamic-system-prompt }}
       run: python -m codebox_github_action

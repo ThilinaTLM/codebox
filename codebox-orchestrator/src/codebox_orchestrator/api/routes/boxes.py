@@ -77,7 +77,7 @@ async def create_box(
     box = await handler.execute(
         name=body.name,
         model=body.model,
-        system_prompt=body.system_prompt,
+        dynamic_system_prompt=body.dynamic_system_prompt,
         initial_prompt=body.initial_prompt,
     )
     lifecycle.start_box(box.id)

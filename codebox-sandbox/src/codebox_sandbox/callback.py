@@ -24,7 +24,7 @@ from codebox_agent.agent_runner import (
 )
 from codebox_agent.sessions import SessionManager
 from codebox_sandbox.grpc.generated.codebox.sandbox import sandbox_pb2, sandbox_pb2_grpc
-from codebox_sandbox.prompts import SANDBOX_ENVIRONMENT_PROMPT
+from codebox_sandbox.prompts import SANDBOX_ENVIRONMENT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +59,12 @@ async def run_callback() -> None:
 
     # Create session manager and session
     manager = SessionManager(checkpoint_db_path=_CHECKPOINT_DB_PATH)
-    secondary_system_prompt = os.environ.get("SYSTEM_PROMPT")
+    dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
     session = await manager.create(
         model=model,
         api_key=api_key,
-        environment_prompt=SANDBOX_ENVIRONMENT_PROMPT,
-        secondary_system_prompt=secondary_system_prompt,
+        environment_system_prompt=SANDBOX_ENVIRONMENT_SYSTEM_PROMPT,
+        dynamic_system_prompt=dynamic_system_prompt,
         sandbox_config=sandbox_config,
     )
     session_id = session.session_id

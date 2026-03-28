@@ -29,7 +29,7 @@ from codebox_orchestrator.box.domain.entities import (
 class BoxCreate(BaseModel):
     name: str | None = None
     model: str | None = None
-    system_prompt: str | None = None
+    dynamic_system_prompt: str | None = None
     initial_prompt: str | None = None
 
 
@@ -53,7 +53,7 @@ class BoxResponse(BaseModel):
     container_stop_reason: str | None
     task_outcome: TaskOutcome | None
     task_outcome_message: str | None
-    system_prompt: str | None
+    dynamic_system_prompt: str | None
     initial_prompt: str | None
     container_id: str | None
     container_name: str | None
