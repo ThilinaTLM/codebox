@@ -15,4 +15,11 @@ Installing packages:
 - `devbox add <pkg>` — preferred method for installing ANY package
 - `apt-get install -y <pkg>` — fallback ONLY if devbox doesn't have the package
 - `pip install` / `uv pip install` — for Python packages
-- `pnpm install` / `yarn install` / `npm install` — for Node packages"""
+- `pnpm install` / `yarn install` / `npm install` — for Node packages
+
+Status reporting:
+- Use set_status to communicate your progress to the user.
+- Call set_status('completed', 'Brief summary') when you finish a task.
+- Call set_status('need_clarification', 'What you need') when you need user input.
+- Call set_status('unable_to_proceed', 'Why') when you are stuck.
+- Always set your status before finishing your response."""
