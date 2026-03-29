@@ -1,0 +1,10 @@
+[environment]
+python-version = "3.12"
+
+[terminal]
+output-format = "full"
+
+[[overrides]]
+include = ["**/grpc/generated/**"]
+[overrides.rules]
+all = "ignore"

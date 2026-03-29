@@ -1,9 +1,17 @@
 """GitHub installation management service."""
+
 from __future__ import annotations
 
-from codebox_orchestrator.integration.github.domain.entities import GitHubInstallation
-from codebox_orchestrator.integration.github.infrastructure.github_api_client import GitHubApiClient
-from codebox_orchestrator.integration.github.infrastructure.github_repository import SqlAlchemyGitHubRepository
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.integration.github.domain.entities import GitHubInstallation
+    from codebox_orchestrator.integration.github.infrastructure.github_api_client import (
+        GitHubApiClient,
+    )
+    from codebox_orchestrator.integration.github.infrastructure.github_repository import (
+        SqlAlchemyGitHubRepository,
+    )
 
 
 class GitHubInstallationService:

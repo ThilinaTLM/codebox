@@ -7,15 +7,15 @@ replacing the WebSocket callback handler.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 import grpc
 from grpc import aio as grpc_aio
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from codebox_orchestrator.db.models import (
     Activity,
@@ -28,8 +28,14 @@ from codebox_orchestrator.db.models import (
 from codebox_orchestrator.grpc.generated.codebox.sandbox import sandbox_pb2, sandbox_pb2_grpc
 from codebox_orchestrator.services.callback_registry import CallbackRegistry, ConnectionHandle
 from codebox_orchestrator.services.callback_token import decode_callback_token
-from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
-from codebox_orchestrator.services.relay_service import RelayService
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
+    from codebox_orchestrator.services.relay_service import RelayService
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +67,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         if not auth_header.startswith("Bearer "):
             await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing auth token")
             return
-        token = auth_header[len("Bearer "):]
+        token = auth_header[len("Bearer ") :]
 
         result = decode_callback_token(token)
         if result is None:
@@ -114,29 +120,25 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         logger.info("Box %s registered via gRPC (session %s)", entity_id, session_id)
 
         # Send RegisteredCommand
-        yield sandbox_pb2.OrchestratorCommand(
-            registered=sandbox_pb2.RegisteredCommand()
-        )
+        yield sandbox_pb2.OrchestratorCommand(registered=sandbox_pb2.RegisteredCommand())
 
         # Send ThreadRestoreCommand if there are existing messages
         try:
             restore_messages = await self._get_restore_messages(entity_id)
             if restore_messages:
                 yield sandbox_pb2.OrchestratorCommand(
-                    thread_restore=sandbox_pb2.ThreadRestoreCommand(
-                        messages=restore_messages
-                    )
+                    thread_restore=sandbox_pb2.ThreadRestoreCommand(messages=restore_messages)
                 )
-                logger.info("Sent thread_restore with %d messages for %s", len(restore_messages), entity_id)
+                logger.info(
+                    "Sent thread_restore with %d messages for %s", len(restore_messages), entity_id
+                )
         except Exception:
             logger.exception("Failed to send thread_restore for %s", entity_id)
 
         # Start two concurrent tasks:
         # 1. Read events from sandbox and process them
         # 2. Read commands from the handle queue and yield them
-        event_reader_task = asyncio.create_task(
-            self._read_events(request_iterator, entity_id)
-        )
+        event_reader_task = asyncio.create_task(self._read_events(request_iterator, entity_id))
 
         try:
             while not context.cancelled():
@@ -150,21 +152,17 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
 
                 # Wait for command or event reader completion
                 try:
-                    cmd = await asyncio.wait_for(
-                        handle.command_queue.get(), timeout=1.0
-                    )
+                    cmd = await asyncio.wait_for(handle.command_queue.get(), timeout=1.0)
                     yield self._dict_to_command(cmd)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
         except asyncio.CancelledError:
             pass
         finally:
             if not event_reader_task.done():
                 event_reader_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError, Exception):
                     await event_reader_task
-                except (asyncio.CancelledError, Exception):
-                    pass
             self._registry.remove(entity_id)
             # If container was still RUNNING when stream dropped, mark as stopped
             await self._set_container_stopped_if_running(entity_id, "container_error")
@@ -224,7 +222,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             await self._set_task_outcome(box_id, status, message)
 
         # Persist event (skip activity_changed — too noisy for event log)
-        if event_type not in ("activity_changed",):
+        if event_type != "activity_changed":
             await self._persist_box_event(box_id, event_type, event_dict)
 
         # Broadcast to subscribers
@@ -238,11 +236,11 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
 
         if field == "register":
             return "register", {"type": "register", "session_id": event.register.session_id}
-        elif field == "token":
+        if field == "token":
             return "token", {"type": "token", "text": event.token.text}
-        elif field == "model_start":
+        if field == "model_start":
             return "model_start", {"type": "model_start"}
-        elif field == "tool_start":
+        if field == "tool_start":
             ts = event.tool_start
             return "tool_start", {
                 "type": "tool_start",
@@ -250,24 +248,32 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 "tool_call_id": ts.tool_call_id,
                 "input": ts.input,
             }
-        elif field == "tool_end":
+        if field == "tool_end":
             te = event.tool_end
             return "tool_end", {"type": "tool_end", "name": te.name, "output": te.output}
-        elif field == "message_complete":
+        if field == "message_complete":
             mc = event.message_complete
             msg = self._chat_message_to_dict(mc.message)
             return "message_complete", {"type": "message_complete", "message": msg}
-        elif field == "done":
+        if field == "done":
             return "done", {"type": "done", "content": event.done.content}
-        elif field == "error":
+        if field == "error":
             return "error", {"type": "error", "detail": event.error.detail}
-        elif field == "exec_output":
+        if field == "exec_output":
             eo = event.exec_output
-            return "exec_output", {"type": "exec_output", "output": eo.output, "request_id": eo.request_id}
-        elif field == "exec_done":
+            return "exec_output", {
+                "type": "exec_output",
+                "output": eo.output,
+                "request_id": eo.request_id,
+            }
+        if field == "exec_done":
             ed = event.exec_done
-            return "exec_done", {"type": "exec_done", "output": ed.output, "request_id": ed.request_id}
-        elif field == "list_files_result":
+            return "exec_done", {
+                "type": "exec_done",
+                "output": ed.output,
+                "request_id": ed.request_id,
+            }
+        if field == "list_files_result":
             lfr = event.list_files_result
             result: dict[str, Any] = {"type": "list_files_result", "request_id": lfr.request_id}
             if lfr.error:
@@ -275,7 +281,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             elif lfr.data_json:
                 result["data"] = json.loads(lfr.data_json)
             return "list_files_result", result
-        elif field == "read_file_result":
+        if field == "read_file_result":
             rfr = event.read_file_result
             result = {"type": "read_file_result", "request_id": rfr.request_id}
             if rfr.error:
@@ -283,12 +289,12 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             elif rfr.data_json:
                 result["data"] = json.loads(rfr.data_json)
             return "read_file_result", result
-        elif field == "activity_changed":
+        if field == "activity_changed":
             return "activity_changed", {
                 "type": "activity_changed",
                 "status": event.activity_changed.status,
             }
-        elif field == "task_outcome":
+        if field == "task_outcome":
             to = event.task_outcome
             return "task_outcome", {
                 "type": "task_outcome",
@@ -305,8 +311,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         }
         if msg.tool_calls:
             result["tool_calls"] = [
-                {"id": tc.id, "name": tc.name, "args_json": tc.args_json}
-                for tc in msg.tool_calls
+                {"id": tc.id, "name": tc.name, "args_json": tc.args_json} for tc in msg.tool_calls
             ]
         if msg.tool_call_id:
             result["tool_call_id"] = msg.tool_call_id
@@ -323,42 +328,37 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             return sandbox_pb2.OrchestratorCommand(
                 message=sandbox_pb2.SendMessageCommand(content=cmd.get("content", ""))
             )
-        elif cmd_type == "exec":
+        if cmd_type == "exec":
             return sandbox_pb2.OrchestratorCommand(
                 exec=sandbox_pb2.ExecCommand(
                     content=cmd.get("content", ""),
                     request_id=cmd.get("request_id", ""),
                 )
             )
-        elif cmd_type == "cancel":
-            return sandbox_pb2.OrchestratorCommand(
-                cancel=sandbox_pb2.CancelCommand()
-            )
-        elif cmd_type == "list_files":
+        if cmd_type == "cancel":
+            return sandbox_pb2.OrchestratorCommand(cancel=sandbox_pb2.CancelCommand())
+        if cmd_type == "list_files":
             return sandbox_pb2.OrchestratorCommand(
                 list_files=sandbox_pb2.ListFilesCommand(
                     path=cmd.get("path", ""),
                     request_id=cmd.get("request_id", ""),
                 )
             )
-        elif cmd_type == "read_file":
+        if cmd_type == "read_file":
             return sandbox_pb2.OrchestratorCommand(
                 read_file=sandbox_pb2.ReadFileCommand(
                     path=cmd.get("path", ""),
                     request_id=cmd.get("request_id", ""),
                 )
             )
-        else:
-            logger.warning("Unknown command type: %s", cmd_type)
-            return sandbox_pb2.OrchestratorCommand()
+        logger.warning("Unknown command type: %s", cmd_type)
+        return sandbox_pb2.OrchestratorCommand()
 
     # ------------------------------------------------------------------
     # DB helpers
     # ------------------------------------------------------------------
 
-    async def _persist_box_event(
-        self, box_id: str, event_type: str, data: dict[str, Any]
-    ) -> None:
+    async def _persist_box_event(self, box_id: str, event_type: str, data: dict[str, Any]) -> None:
         async with self._sf() as db:
             ev = BoxEvent(
                 box_id=box_id,
@@ -368,13 +368,12 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             db.add(ev)
             await db.commit()
 
-    async def _persist_box_message(
-        self, box_id: str, msg_data: dict[str, Any]
-    ) -> None:
+    async def _persist_box_message(self, box_id: str, msg_data: dict[str, Any]) -> None:
         async with self._sf() as db:
             result = await db.execute(
-                select(func.coalesce(func.max(BoxMessage.seq), 0))
-                .where(BoxMessage.box_id == box_id)
+                select(func.coalesce(func.max(BoxMessage.seq), 0)).where(
+                    BoxMessage.box_id == box_id
+                )
             )
             max_seq = result.scalar()
             next_seq = max_seq + 1
@@ -399,9 +398,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         """Load box_messages and convert to protobuf ChatMessage list."""
         async with self._sf() as db:
             result = await db.execute(
-                select(BoxMessage)
-                .where(BoxMessage.box_id == box_id)
-                .order_by(BoxMessage.seq)
+                select(BoxMessage).where(BoxMessage.box_id == box_id).order_by(BoxMessage.seq)
             )
             messages = result.scalars().all()
 
@@ -422,14 +419,16 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 except (json.JSONDecodeError, TypeError):
                     pass
 
-            proto_messages.append(sandbox_pb2.ChatMessage(
-                role=m.role or "",
-                content=m.content or "",
-                tool_calls=tool_calls,
-                tool_call_id=m.tool_call_id or "",
-                tool_name=m.tool_name or "",
-                metadata_json=m.metadata_json or "",
-            ))
+            proto_messages.append(
+                sandbox_pb2.ChatMessage(
+                    role=m.role or "",
+                    content=m.content or "",
+                    tool_calls=tool_calls,
+                    tool_call_id=m.tool_call_id or "",
+                    tool_name=m.tool_name or "",
+                    metadata_json=m.metadata_json or "",
+                )
+            )
         return proto_messages
 
     async def _set_activity(self, box_id: str, status: str) -> None:
@@ -443,14 +442,14 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             if box:
                 box.activity = act
                 await db.commit()
-        await self._relay.broadcast(
-            box_id, {"type": "status_change", "activity": act.value}
+        await self._relay.broadcast(box_id, {"type": "status_change", "activity": act.value})
+        await self._global_broadcast.broadcast(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
+                "activity": act.value,
+            }
         )
-        await self._global_broadcast.broadcast({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "activity": act.value,
-        })
 
     async def _set_task_outcome(self, box_id: str, status: str, message: str) -> None:
         try:
@@ -465,17 +464,20 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 box.task_outcome_message = message or None
                 await db.commit()
         await self._relay.broadcast(
-            box_id, {
+            box_id,
+            {
                 "type": "status_change",
                 "task_outcome": outcome.value,
                 "task_outcome_message": message,
+            },
+        )
+        await self._global_broadcast.broadcast(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
+                "task_outcome": outcome.value,
             }
         )
-        await self._global_broadcast.broadcast({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "task_outcome": outcome.value,
-        })
 
     async def _set_container_stopped(self, box_id: str, reason: str) -> None:
         async with self._sf() as db:
@@ -484,21 +486,24 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 box.container_status = ContainerStatus.STOPPED
                 box.container_stop_reason = reason
                 box.activity = Activity.IDLE
-                box.completed_at = datetime.now(timezone.utc)
+                box.completed_at = datetime.now(UTC)
                 await db.commit()
         await self._relay.broadcast(
-            box_id, {
+            box_id,
+            {
                 "type": "status_change",
+                "container_status": ContainerStatus.STOPPED.value,
+                "container_stop_reason": reason,
+            },
+        )
+        await self._global_broadcast.broadcast(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
                 "container_status": ContainerStatus.STOPPED.value,
                 "container_stop_reason": reason,
             }
         )
-        await self._global_broadcast.broadcast({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "container_status": ContainerStatus.STOPPED.value,
-            "container_stop_reason": reason,
-        })
 
     async def _set_container_stopped_if_running(self, box_id: str, reason: str) -> None:
         """Set container to stopped only if it's currently running."""
@@ -508,21 +513,24 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 box.container_status = ContainerStatus.STOPPED
                 box.container_stop_reason = reason
                 box.activity = Activity.IDLE
-                box.completed_at = datetime.now(timezone.utc)
+                box.completed_at = datetime.now(UTC)
                 await db.commit()
                 await self._relay.broadcast(
-                    box_id, {
+                    box_id,
+                    {
                         "type": "status_change",
+                        "container_status": ContainerStatus.STOPPED.value,
+                        "container_stop_reason": reason,
+                    },
+                )
+                await self._global_broadcast.broadcast(
+                    {
+                        "type": "box_status_changed",
+                        "box_id": box_id,
                         "container_status": ContainerStatus.STOPPED.value,
                         "container_stop_reason": reason,
                     }
                 )
-                await self._global_broadcast.broadcast({
-                    "type": "box_status_changed",
-                    "box_id": box_id,
-                    "container_status": ContainerStatus.STOPPED.value,
-                    "container_stop_reason": reason,
-                })
 
 
 async def start_grpc_server(

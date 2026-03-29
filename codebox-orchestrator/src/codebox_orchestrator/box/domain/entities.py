@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from codebox_orchestrator.box.domain.enums import (
     Activity,
@@ -18,7 +18,7 @@ def _new_uuid() -> str:
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass
@@ -66,7 +66,7 @@ class Box:
         self.container_status = ContainerStatus.STOPPED
         self.activity = Activity.IDLE
         self.container_stop_reason = reason
-        self.completed_at = datetime.now(timezone.utc)
+        self.completed_at = datetime.now(UTC)
 
     def mark_running(self) -> None:
         """Transition to RUNNING state."""
@@ -76,7 +76,7 @@ class Box:
         """Transition to STARTING state (e.g. on restart)."""
         self.container_status = ContainerStatus.STARTING
         self.container_stop_reason = None
-        self.started_at = datetime.now(timezone.utc)
+        self.started_at = datetime.now(UTC)
         self.completed_at = None
 
 

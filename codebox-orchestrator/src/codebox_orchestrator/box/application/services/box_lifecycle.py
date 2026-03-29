@@ -1,4 +1,5 @@
 """Box lifecycle service — background container orchestration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,24 +7,24 @@ import json
 import logging
 import os
 import tempfile
-from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
-from codebox_orchestrator.box.ports.box_repository import BoxRepository
-from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
-from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
-from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 from codebox_orchestrator.compute.domain.entities import ContainerConfig
 from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
     GITHUB_DEFAULT_BASE_BRANCH,
     OPENROUTER_API_KEY,
-    OPENROUTER_MODEL,
     ORCHESTRATOR_GRPC_ADDRESS,
     TAVILY_API_KEY,
     WORKSPACE_BASE_DIR,
 )
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
+    from codebox_orchestrator.box.ports.box_repository import BoxRepository
+    from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
+    from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -232,11 +233,13 @@ class BoxLifecycleService:
         await self._publisher.publish_box_event(
             box_id, {"type": "status_change", "container_status": ContainerStatus.RUNNING.value}
         )
-        await self._publisher.publish_global_event({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "container_status": ContainerStatus.RUNNING.value,
-        })
+        await self._publisher.publish_global_event(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
+                "container_status": ContainerStatus.RUNNING.value,
+            }
+        )
 
     async def _set_container_error(self, box_id: str, error: str) -> None:
         box = await self._repo.get(box_id)
@@ -244,18 +247,19 @@ class BoxLifecycleService:
             box.stop("container_error")
             await self._repo.save(box)
         await self._publisher.publish_box_event(
-            box_id, {
+            box_id,
+            {
                 "type": "status_change",
+                "container_status": ContainerStatus.STOPPED.value,
+                "container_stop_reason": "container_error",
+            },
+        )
+        await self._publisher.publish_box_event(box_id, {"type": "error", "detail": error})
+        await self._publisher.publish_global_event(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
                 "container_status": ContainerStatus.STOPPED.value,
                 "container_stop_reason": "container_error",
             }
         )
-        await self._publisher.publish_box_event(
-            box_id, {"type": "error", "detail": error}
-        )
-        await self._publisher.publish_global_event({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "container_status": ContainerStatus.STOPPED.value,
-            "container_stop_reason": "container_error",
-        })

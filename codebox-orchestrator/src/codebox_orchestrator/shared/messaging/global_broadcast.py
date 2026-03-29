@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import Any
 
 
@@ -25,7 +26,5 @@ class GlobalBroadcastService:
     async def broadcast(self, event: dict[str, Any]) -> None:
         """Push an event to all subscribers."""
         for queue in self._subscribers:
-            try:
+            with contextlib.suppress(asyncio.QueueFull):
                 queue.put_nowait(event)
-            except asyncio.QueueFull:
-                pass

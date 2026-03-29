@@ -10,7 +10,6 @@ instead of WebSocket directly.
 from __future__ import annotations
 
 import asyncio
-import json
 import uuid
 from typing import Any
 
@@ -80,7 +79,7 @@ class CallbackRegistry:
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
             return True
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return False
 
     def create_pending_request(self, entity_id: str) -> tuple[str, asyncio.Future[dict[str, Any]]]:

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 import urllib.parse
 import urllib.request
-import urllib.error
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 import httpx
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 class OrchestratorClient:
@@ -46,9 +49,7 @@ class OrchestratorClient:
                 f"Orchestrator {method} {path} failed ({exc.code}): {detail}"
             ) from exc
         except urllib.error.URLError as exc:
-            raise RuntimeError(
-                f"Cannot reach orchestrator at {url}: {exc.reason}"
-            ) from exc
+            raise RuntimeError(f"Cannot reach orchestrator at {url}: {exc.reason}") from exc
 
     # ------------------------------------------------------------------
     # Health
@@ -129,14 +130,10 @@ class OrchestratorClient:
         return self._rest_request("GET", f"/api/boxes/{box_id}/messages")
 
     def list_files(self, box_id: str, path: str = "/workspace") -> Any:
-        return self._rest_request(
-            "GET", f"/api/boxes/{box_id}/files", params={"path": path}
-        )
+        return self._rest_request("GET", f"/api/boxes/{box_id}/files", params={"path": path})
 
     def read_file(self, box_id: str, path: str) -> Any:
-        return self._rest_request(
-            "GET", f"/api/boxes/{box_id}/files/read", params={"path": path}
-        )
+        return self._rest_request("GET", f"/api/boxes/{box_id}/files/read", params={"path": path})
 
     # ------------------------------------------------------------------
     # Commands (REST)

@@ -1,21 +1,21 @@
 """Box domain enums."""
 
-from enum import Enum as PyEnum
+from enum import StrEnum
 
 
-class ContainerStatus(str, PyEnum):
+class ContainerStatus(StrEnum):
     STARTING = "starting"
     RUNNING = "running"
     STOPPED = "stopped"
 
 
-class Activity(str, PyEnum):
+class Activity(StrEnum):
     IDLE = "idle"
     AGENT_WORKING = "agent_working"
     EXEC_SHELL = "exec_shell"
 
 
-class TaskOutcome(str, PyEnum):
+class TaskOutcome(StrEnum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     NEED_CLARIFICATION = "need_clarification"

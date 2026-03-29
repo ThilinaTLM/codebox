@@ -3,21 +3,24 @@
 Processes events from sandbox containers, consolidating the logic
 previously duplicated between BoxService and SandboxServiceServicer.
 """
+
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
 from codebox_orchestrator.box.domain.entities import BoxMessage
 from codebox_orchestrator.box.domain.enums import (
     Activity,
     ContainerStatus,
     TaskOutcome,
 )
-from codebox_orchestrator.box.ports.box_repository import BoxRepository
-from codebox_orchestrator.box.ports.event_publisher import EventPublisher
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
+    from codebox_orchestrator.box.ports.box_repository import BoxRepository
+    from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +72,7 @@ class HandleSandboxEventHandler:
             await self._set_task_outcome(box_id, status, message)
 
         # Persist event (skip activity_changed — too noisy)
-        if event_type not in ("activity_changed",):
+        if event_type != "activity_changed":
             await self._repo.add_event(box_id, event_type, json.dumps(event_dict))
 
         # Broadcast to subscribers
@@ -82,18 +85,21 @@ class HandleSandboxEventHandler:
             box.stop(reason)
             await self._repo.save(box)
             await self._publisher.publish_box_event(
-                box_id, {
+                box_id,
+                {
                     "type": "status_change",
+                    "container_status": ContainerStatus.STOPPED.value,
+                    "container_stop_reason": reason,
+                },
+            )
+            await self._publisher.publish_global_event(
+                {
+                    "type": "box_status_changed",
+                    "box_id": box_id,
                     "container_status": ContainerStatus.STOPPED.value,
                     "container_stop_reason": reason,
                 }
             )
-            await self._publisher.publish_global_event({
-                "type": "box_status_changed",
-                "box_id": box_id,
-                "container_status": ContainerStatus.STOPPED.value,
-                "container_stop_reason": reason,
-            })
 
     async def set_container_stopped_if_running(self, box_id: str, reason: str) -> None:
         """Mark as stopped only if currently running."""
@@ -130,11 +136,13 @@ class HandleSandboxEventHandler:
         await self._publisher.publish_box_event(
             box_id, {"type": "status_change", "activity": act.value}
         )
-        await self._publisher.publish_global_event({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "activity": act.value,
-        })
+        await self._publisher.publish_global_event(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
+                "activity": act.value,
+            }
+        )
 
     async def _set_task_outcome(self, box_id: str, status: str, message: str) -> None:
         try:
@@ -148,14 +156,17 @@ class HandleSandboxEventHandler:
             box.task_outcome_message = message or None
             await self._repo.save(box)
         await self._publisher.publish_box_event(
-            box_id, {
+            box_id,
+            {
                 "type": "status_change",
                 "task_outcome": outcome.value,
                 "task_outcome_message": message,
+            },
+        )
+        await self._publisher.publish_global_event(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
+                "task_outcome": outcome.value,
             }
         )
-        await self._publisher.publish_global_event({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "task_outcome": outcome.value,
-        })

@@ -9,14 +9,17 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any, AsyncGenerator
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from codebox_orchestrator.services.box_service import BoxService
-from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
-from codebox_orchestrator.services.relay_service import RelayService
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from codebox_orchestrator.services.box_service import BoxService
+    from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
+    from codebox_orchestrator.services.relay_service import RelayService
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +60,7 @@ async def _box_event_generator(
         while True:
             try:
                 event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_INTERVAL)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # SSE comment as heartbeat to keep connection alive
                 yield ":\n\n"
                 continue
@@ -77,7 +80,7 @@ async def _global_event_generator(
         while True:
             try:
                 event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_INTERVAL)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 yield ":\n\n"
                 continue
             yield _sse_line(event)

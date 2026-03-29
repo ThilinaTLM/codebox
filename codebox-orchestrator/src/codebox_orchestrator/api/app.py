@@ -1,4 +1,5 @@
 """FastAPI application factory -- composition root."""
+
 from __future__ import annotations
 
 import logging
@@ -29,11 +30,11 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # --- Database setup ---
-        from codebox_orchestrator.shared.persistence.engine import async_session_factory, engine
-        from codebox_orchestrator.shared.persistence.migrations import run_migrations
-        from codebox_orchestrator.box.infrastructure.orm_models import Base as BoxBase
         # Import GitHub ORM models so they register with Base.metadata
         import codebox_orchestrator.integration.github.infrastructure.orm_models  # noqa: F401
+        from codebox_orchestrator.box.infrastructure.orm_models import Base as BoxBase
+        from codebox_orchestrator.shared.persistence.engine import async_session_factory, engine
+        from codebox_orchestrator.shared.persistence.migrations import run_migrations
 
         if DATABASE_URL.startswith("sqlite"):
             db_path = DATABASE_URL.split("///", 1)[-1]
@@ -44,18 +45,20 @@ def create_app() -> FastAPI:
             await conn.run_sync(BoxBase.metadata.create_all)
 
         # --- Shared infrastructure ---
-        from codebox_orchestrator.shared.messaging.relay import RelayService
         from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
+        from codebox_orchestrator.shared.messaging.relay import RelayService
 
         relay = RelayService()
         global_broadcast = GlobalBroadcastService()
 
         # --- Infrastructure adapters ---
+        from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
+        from codebox_orchestrator.agent.infrastructure.connection_adapter import (
+            AgentConnectionAdapter,
+        )
         from codebox_orchestrator.box.infrastructure.box_repository import SqlAlchemyBoxRepository
         from codebox_orchestrator.box.infrastructure.event_publisher import EventPublisherAdapter
         from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
-        from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
-        from codebox_orchestrator.agent.infrastructure.connection_adapter import AgentConnectionAdapter
 
         box_repo = SqlAlchemyBoxRepository(async_session_factory)
         event_publisher = EventPublisherAdapter(relay, global_broadcast)
@@ -64,23 +67,29 @@ def create_app() -> FastAPI:
         agent_connections = AgentConnectionAdapter(registry)
 
         # --- Application layer: Box commands ---
-        from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
-        from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
-        from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
-        from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
         from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
+        from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
+        from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
+        from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
+        from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
 
         create_box_handler = CreateBoxHandler(box_repo, event_publisher)
-        stop_box_handler = StopBoxHandler(box_repo, container_runtime, agent_connections, event_publisher)
+        stop_box_handler = StopBoxHandler(
+            box_repo, container_runtime, agent_connections, event_publisher
+        )
         restart_box_handler = RestartBoxHandler(box_repo, event_publisher)
-        delete_box_handler = DeleteBoxHandler(box_repo, container_runtime, event_publisher, stop_box_handler)
+        delete_box_handler = DeleteBoxHandler(
+            box_repo, container_runtime, event_publisher, stop_box_handler
+        )
         cancel_box_handler = CancelBoxHandler(agent_connections)
 
         # --- Application layer: Box queries ---
         from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
-        from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
         from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
-        from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
+        from codebox_orchestrator.box.application.queries.get_box_messages import (
+            GetBoxMessagesHandler,
+        )
+        from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
 
         get_box_handler = GetBoxHandler(box_repo)
         list_boxes_handler = ListBoxesHandler(box_repo)
@@ -88,10 +97,15 @@ def create_app() -> FastAPI:
         get_box_messages_handler = GetBoxMessagesHandler(box_repo)
 
         # --- Application layer: Agent commands & queries ---
-        from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
+        from codebox_orchestrator.agent.application.commands.handle_sandbox_event import (
+            HandleSandboxEventHandler,
+        )
         from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
-        from codebox_orchestrator.agent.application.commands.handle_sandbox_event import HandleSandboxEventHandler
-        from codebox_orchestrator.agent.application.queries.box_files import ListFilesHandler, ReadFileHandler
+        from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
+        from codebox_orchestrator.agent.application.queries.box_files import (
+            ListFilesHandler,
+            ReadFileHandler,
+        )
 
         send_message_handler = SendMessageHandler(box_repo, event_publisher, agent_connections)
         send_exec_handler = SendExecHandler(box_repo, event_publisher, agent_connections)
@@ -100,9 +114,8 @@ def create_app() -> FastAPI:
         read_file_handler = ReadFileHandler(agent_connections)
 
         # --- Box lifecycle service ---
-        from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
-
         from codebox_orchestrator.agent.infrastructure.callback_token import create_callback_token
+        from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
 
         lifecycle = BoxLifecycleService(
             repo=box_repo,
@@ -118,10 +131,18 @@ def create_app() -> FastAPI:
         webhook_handler = None
         installation_service = None
         if github_enabled():
-            from codebox_orchestrator.integration.github.infrastructure.github_api_client import GitHubApiClient
-            from codebox_orchestrator.integration.github.infrastructure.github_repository import SqlAlchemyGitHubRepository
-            from codebox_orchestrator.integration.github.application.webhook_handler import GitHubWebhookHandler
-            from codebox_orchestrator.integration.github.application.installation_service import GitHubInstallationService
+            from codebox_orchestrator.integration.github.application.installation_service import (
+                GitHubInstallationService,
+            )
+            from codebox_orchestrator.integration.github.application.webhook_handler import (
+                GitHubWebhookHandler,
+            )
+            from codebox_orchestrator.integration.github.infrastructure.github_api_client import (
+                GitHubApiClient,
+            )
+            from codebox_orchestrator.integration.github.infrastructure.github_repository import (
+                SqlAlchemyGitHubRepository,
+            )
 
             api_client = GitHubApiClient(
                 app_id=GITHUB_APP_ID,
@@ -197,7 +218,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    from codebox_orchestrator.api.routes import boxes, containers, sse, github
+    from codebox_orchestrator.api.routes import boxes, containers, github, sse
+
     app.include_router(boxes.router)
     app.include_router(containers.router)
     app.include_router(sse.router)

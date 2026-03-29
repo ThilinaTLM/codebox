@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+from typing import TYPE_CHECKING
 
 from codebox_orchestrator.box.domain.enums import ContainerStatus
-from codebox_orchestrator.box.ports.box_repository import BoxRepository
-from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
-from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
-from codebox_orchestrator.box.ports.event_publisher import EventPublisher
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
+    from codebox_orchestrator.box.ports.box_repository import BoxRepository
+    from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
+    from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -37,21 +41,22 @@ class StopBoxHandler:
         await self._repo.save(box)
 
         if box.container_name:
-            try:
+            with contextlib.suppress(Exception):
                 self._runtime.stop(box.container_name)
-            except Exception:
-                pass
 
         await self._publisher.publish_box_event(
-            box_id, {
+            box_id,
+            {
                 "type": "status_change",
+                "container_status": ContainerStatus.STOPPED.value,
+                "container_stop_reason": "user_stopped",
+            },
+        )
+        await self._publisher.publish_global_event(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
                 "container_status": ContainerStatus.STOPPED.value,
                 "container_stop_reason": "user_stopped",
             }
         )
-        await self._publisher.publish_global_event({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "container_status": ContainerStatus.STOPPED.value,
-            "container_stop_reason": "user_stopped",
-        })

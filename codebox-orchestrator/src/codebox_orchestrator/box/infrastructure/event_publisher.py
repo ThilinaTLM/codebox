@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
-from codebox_orchestrator.shared.messaging.relay import RelayService
+if TYPE_CHECKING:
+    from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
+    from codebox_orchestrator.shared.messaging.relay import RelayService
 
 
 class EventPublisherAdapter:

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
-from codebox_orchestrator.box.domain.entities import Box, BoxEvent, BoxMessage, FeedbackRequest
-from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
+if TYPE_CHECKING:
+    from codebox_orchestrator.box.domain.entities import Box, BoxEvent, BoxMessage
+    from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
 
 
 class BoxFilters:

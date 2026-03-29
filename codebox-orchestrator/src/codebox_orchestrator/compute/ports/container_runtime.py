@@ -6,9 +6,10 @@ box/ports/container_runtime.py re-exports this for convenience.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
-from codebox_orchestrator.compute.domain.entities import ContainerConfig, ContainerInfo
+if TYPE_CHECKING:
+    from codebox_orchestrator.compute.domain.entities import ContainerConfig, ContainerInfo
 
 
 class ContainerRuntime(Protocol):

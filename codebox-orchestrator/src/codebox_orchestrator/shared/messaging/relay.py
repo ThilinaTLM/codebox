@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import Any
 
 
@@ -32,7 +33,5 @@ class RelayService:
         if task_id not in self._subscribers:
             return
         for queue in self._subscribers[task_id]:
-            try:
+            with contextlib.suppress(asyncio.QueueFull):
                 queue.put_nowait(event)
-            except asyncio.QueueFull:
-                pass

@@ -1,13 +1,17 @@
 """Send message command handler."""
+
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from codebox_orchestrator.agent.domain.exceptions import NoActiveConnection
-from codebox_orchestrator.agent.ports.agent_connection import AgentConnectionManager
 from codebox_orchestrator.box.domain.entities import BoxMessage
-from codebox_orchestrator.box.ports.box_repository import BoxRepository
-from codebox_orchestrator.box.ports.event_publisher import EventPublisher
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.agent.ports.agent_connection import AgentConnectionManager
+    from codebox_orchestrator.box.ports.box_repository import BoxRepository
+    from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 
 class SendMessageHandler:

@@ -74,7 +74,12 @@ def _web_fetch(
         return f"Error: Failed to fetch {url} — {exc}"
 
     content_type = resp.headers.get("content-type", "")
-    logger.info("web_fetch: status=%d, content_type=%s, length=%d", resp.status_code, content_type, len(resp.text))
+    logger.info(
+        "web_fetch: status=%d, content_type=%s, length=%d",
+        resp.status_code,
+        content_type,
+        len(resp.text),
+    )
 
     if "html" in content_type:
         text = markdownify.markdownify(

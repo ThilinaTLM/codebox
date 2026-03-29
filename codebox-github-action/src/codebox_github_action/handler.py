@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -11,10 +10,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from codebox_agent.agent_runner import SendFn, run_agent_stream
+from codebox_agent.agent_runner import run_agent_stream
 from codebox_agent.sessions import SessionManager
-from codebox_agent.tools.status import StatusReporter
-
 from codebox_github_action.prompts import GITHUB_ACTIONS_ENVIRONMENT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -27,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 def _human_print(msg: str) -> None:
     """Print a clean message to stdout for GitHub Actions logs."""
-    print(msg, flush=True)
 
 
 def _send_human(msg_type: str, msg: dict[str, Any]) -> None:
@@ -186,20 +182,20 @@ def _fetch_comments(repo: str, issue_number: int) -> list[dict[str, str]]:
         return []
     comments = []
     for c in data[-30:]:  # Last 30 comments
-        comments.append({
-            "user": c.get("user", {}).get("login", "unknown"),
-            "body": c.get("body", ""),
-            "created_at": c.get("created_at", ""),
-        })
+        comments.append(
+            {
+                "user": c.get("user", {}).get("login", "unknown"),
+                "body": c.get("body", ""),
+                "created_at": c.get("created_at", ""),
+            }
+        )
     return comments
 
 
 def _fetch_pr_files(repo: str, pr_number: int) -> list[str]:
     """Fetch changed files for a PR via gh CLI."""
     try:
-        data = json.loads(
-            _gh("api", f"repos/{repo}/pulls/{pr_number}/files", "--paginate")
-        )
+        data = json.loads(_gh("api", f"repos/{repo}/pulls/{pr_number}/files", "--paginate"))
     except (json.JSONDecodeError, ValueError):
         return []
     status_map = {"added": "A", "modified": "M", "removed": "D", "renamed": "R", "copied": "C"}
@@ -219,8 +215,12 @@ def _fetch_guidelines(repo: str) -> str:
     """Fetch CLAUDE.md and CONTRIBUTING.md from the repo if they exist."""
     parts = []
     for filename in ("CLAUDE.md", "CONTRIBUTING.md"):
-        content = _gh("api", f"repos/{repo}/contents/{filename}",
-                       "-H", "Accept: application/vnd.github.raw+json")
+        content = _gh(
+            "api",
+            f"repos/{repo}/contents/{filename}",
+            "-H",
+            "Accept: application/vnd.github.raw+json",
+        )
         if content:
             truncated = content[:2000]
             parts.append(f"### {filename}\n{truncated}")
@@ -233,8 +233,18 @@ def _agent_already_created_pr(repo: str, issue_number: int) -> bool:
         return False
     # Look for open PRs that mention this issue number in the body
     raw = _gh(
-        "pr", "list", "--repo", repo, "--state", "open",
-        "--search", f"#{issue_number}", "--json", "number", "--limit", "5",
+        "pr",
+        "list",
+        "--repo",
+        repo,
+        "--state",
+        "open",
+        "--search",
+        f"#{issue_number}",
+        "--json",
+        "number",
+        "--limit",
+        "5",
     )
     if not raw:
         return False
@@ -330,8 +340,7 @@ async def run() -> None:
     # React to the comment to acknowledge
     comment_id = comment.get("id")
     if comment_id and repo:
-        _gh("api", f"repos/{repo}/issues/comments/{comment_id}/reactions",
-             "-f", "content=eyes")
+        _gh("api", f"repos/{repo}/issues/comments/{comment_id}/reactions", "-f", "content=eyes")
 
     # Post a greeting comment
     if issue_number:
@@ -422,7 +431,9 @@ async def run() -> None:
     # may have already committed, pushed, and opened a PR itself).
     git_status = subprocess.run(
         ["git", "status", "--porcelain"],
-        capture_output=True, text=True, cwd=workspace,
+        capture_output=True,
+        text=True,
+        cwd=workspace,
     )
     if git_status.stdout.strip():
         logger.info("Agent left uncommitted changes, creating PR")
@@ -431,11 +442,13 @@ async def run() -> None:
         subprocess.run(["git", "add", "-A"], cwd=workspace, check=True)
         subprocess.run(
             ["git", "commit", "-m", f"codebox: address issue #{issue_number}"],
-            cwd=workspace, check=True,
+            cwd=workspace,
+            check=True,
         )
         subprocess.run(
             ["git", "push", "-u", "--force", "origin", branch_name],
-            cwd=workspace, check=True,
+            cwd=workspace,
+            check=True,
         )
 
         pr_body = (
@@ -443,10 +456,14 @@ async def run() -> None:
             f"{final_text[:2000] if final_text else 'See issue for details.'}"
         )
         pr_url = _gh(
-            "pr", "create",
-            "--title", f"Fix: {issue_title}",
-            "--body", pr_body,
-            "--head", branch_name,
+            "pr",
+            "create",
+            "--title",
+            f"Fix: {issue_title}",
+            "--body",
+            pr_body,
+            "--head",
+            branch_name,
         )
         logger.info("PR created on branch %s: %s", branch_name, pr_url)
 

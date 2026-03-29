@@ -7,13 +7,13 @@ gRPC SandboxService and enters a bidirectional streaming loop.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
 from pathlib import Path
 from typing import Any
 
-import grpc
 from grpc import aio as grpc_aio
 
 from codebox_agent.agent_runner import (
@@ -79,14 +79,16 @@ async def run_callback() -> None:
         except grpc_aio.AioRpcError as exc:
             logger.warning(
                 "gRPC connection to orchestrator lost (%s), retrying in %.1fs",
-                exc.code(), delay,
+                exc.code(),
+                delay,
             )
             await asyncio.sleep(delay)
             delay = min(delay * 2, _RECONNECT_MAX_DELAY)
         except (ConnectionRefusedError, OSError) as exc:
             logger.warning(
                 "Connection to orchestrator failed (%s), retrying in %.1fs",
-                exc, delay,
+                exc,
+                delay,
             )
             await asyncio.sleep(delay)
             delay = min(delay * 2, _RECONNECT_MAX_DELAY)
@@ -143,10 +145,8 @@ async def _connect_and_run(
             nonlocal current_task
             if current_task and not current_task.done():
                 current_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError, Exception):
                     await current_task
-                except (asyncio.CancelledError, Exception):
-                    pass
             current_task = None
 
         def _on_task_done(task: asyncio.Task) -> None:
@@ -175,7 +175,11 @@ async def _connect_and_run(
 
                 elif field == "message":
                     content = command.message.content
-                    logger.info("Received message command (len=%d) for session %s", len(content) if content else 0, session_id)
+                    logger.info(
+                        "Received message command (len=%d) for session %s",
+                        len(content) if content else 0,
+                        session_id,
+                    )
                     if not content:
                         await send({"type": "error", "detail": "Empty message content"})
                         continue
@@ -189,7 +193,11 @@ async def _connect_and_run(
 
                 elif field == "exec":
                     command_str = command.exec.content
-                    logger.info("Received exec command: %s (session %s)", command_str[:100] if command_str else "", session_id)
+                    logger.info(
+                        "Received exec command: %s (session %s)",
+                        command_str[:100] if command_str else "",
+                        session_id,
+                    )
                     if not command_str:
                         await send({"type": "error", "detail": "Empty exec command"})
                         continue
@@ -197,7 +205,14 @@ async def _connect_and_run(
                     request_id = command.exec.request_id
                     await _cancel_current()
                     current_task = asyncio.create_task(
-                        run_exec(send, command_str, session_id, manager, request_id=request_id, workspace_root=_WORKSPACE_ROOT)
+                        run_exec(
+                            send,
+                            command_str,
+                            session_id,
+                            manager,
+                            request_id=request_id,
+                            workspace_root=_WORKSPACE_ROOT,
+                        )
                     )
                     session.current_task = current_task
                     current_task.add_done_callback(_on_task_done)
@@ -234,14 +249,10 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
     msg_type = msg.get("type", "")
 
     if msg_type == "token":
-        return sandbox_pb2.SandboxEvent(
-            token=sandbox_pb2.TokenEvent(text=msg.get("text", ""))
-        )
-    elif msg_type == "model_start":
-        return sandbox_pb2.SandboxEvent(
-            model_start=sandbox_pb2.ModelStartEvent()
-        )
-    elif msg_type == "tool_start":
+        return sandbox_pb2.SandboxEvent(token=sandbox_pb2.TokenEvent(text=msg.get("text", "")))
+    if msg_type == "model_start":
+        return sandbox_pb2.SandboxEvent(model_start=sandbox_pb2.ModelStartEvent())
+    if msg_type == "tool_start":
         return sandbox_pb2.SandboxEvent(
             tool_start=sandbox_pb2.ToolStartEvent(
                 name=msg.get("name", ""),
@@ -249,22 +260,24 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
                 input=msg.get("input", ""),
             )
         )
-    elif msg_type == "tool_end":
+    if msg_type == "tool_end":
         return sandbox_pb2.SandboxEvent(
             tool_end=sandbox_pb2.ToolEndEvent(
                 name=msg.get("name", ""),
                 output=msg.get("output", ""),
             )
         )
-    elif msg_type == "message_complete":
+    if msg_type == "message_complete":
         msg_data = msg.get("message", {})
         tool_calls = []
         for tc in msg_data.get("tool_calls", []):
-            tool_calls.append(sandbox_pb2.ToolCall(
-                id=tc.get("id", ""),
-                name=tc.get("name", ""),
-                args_json=tc.get("args_json", ""),
-            ))
+            tool_calls.append(
+                sandbox_pb2.ToolCall(
+                    id=tc.get("id", ""),
+                    name=tc.get("name", ""),
+                    args_json=tc.get("args_json", ""),
+                )
+            )
         chat_msg = sandbox_pb2.ChatMessage(
             role=msg_data.get("role", ""),
             content=msg_data.get("content", ""),
@@ -276,29 +289,25 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
         return sandbox_pb2.SandboxEvent(
             message_complete=sandbox_pb2.MessageCompleteEvent(message=chat_msg)
         )
-    elif msg_type == "done":
-        return sandbox_pb2.SandboxEvent(
-            done=sandbox_pb2.DoneEvent(content=msg.get("content", ""))
-        )
-    elif msg_type == "error":
-        return sandbox_pb2.SandboxEvent(
-            error=sandbox_pb2.ErrorEvent(detail=msg.get("detail", ""))
-        )
-    elif msg_type == "exec_output":
+    if msg_type == "done":
+        return sandbox_pb2.SandboxEvent(done=sandbox_pb2.DoneEvent(content=msg.get("content", "")))
+    if msg_type == "error":
+        return sandbox_pb2.SandboxEvent(error=sandbox_pb2.ErrorEvent(detail=msg.get("detail", "")))
+    if msg_type == "exec_output":
         return sandbox_pb2.SandboxEvent(
             exec_output=sandbox_pb2.ExecOutputEvent(
                 output=msg.get("output", ""),
                 request_id=msg.get("request_id", ""),
             )
         )
-    elif msg_type == "exec_done":
+    if msg_type == "exec_done":
         return sandbox_pb2.SandboxEvent(
             exec_done=sandbox_pb2.ExecDoneEvent(
                 output=msg.get("output", ""),
                 request_id=msg.get("request_id", ""),
             )
         )
-    elif msg_type == "list_files_result":
+    if msg_type == "list_files_result":
         data = msg.get("data")
         error = msg.get("error", "")
         return sandbox_pb2.SandboxEvent(
@@ -308,7 +317,7 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
                 error=error or "",
             )
         )
-    elif msg_type == "read_file_result":
+    if msg_type == "read_file_result":
         data = msg.get("data")
         error = msg.get("error", "")
         return sandbox_pb2.SandboxEvent(
@@ -318,27 +327,24 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
                 error=error or "",
             )
         )
-    elif msg_type == "activity_changed":
+    if msg_type == "activity_changed":
         return sandbox_pb2.SandboxEvent(
             activity_changed=sandbox_pb2.ActivityChangedEvent(
                 status=msg.get("status", ""),
             )
         )
-    elif msg_type == "task_outcome":
+    if msg_type == "task_outcome":
         return sandbox_pb2.SandboxEvent(
             task_outcome=sandbox_pb2.TaskOutcomeEvent(
                 status=msg.get("status", ""),
                 message=msg.get("message", ""),
             )
         )
-    else:
-        logger.debug("Unknown event type for protobuf conversion: %s", msg_type)
-        return None
+    logger.debug("Unknown event type for protobuf conversion: %s", msg_type)
+    return None
 
 
-async def _handle_thread_restore(
-    session: Any, messages: list[sandbox_pb2.ChatMessage]
-) -> None:
+async def _handle_thread_restore(session: Any, messages: list[sandbox_pb2.ChatMessage]) -> None:
     """Seed the agent's checkpointer with restored messages from the orchestrator."""
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
@@ -365,11 +371,13 @@ async def _handle_thread_restore(
         elif role == "system":
             lc_messages.append(SystemMessage(content=content))
         elif role == "tool":
-            lc_messages.append(ToolMessage(
-                content=content,
-                tool_call_id=msg.tool_call_id or "",
-                name=msg.tool_name or "",
-            ))
+            lc_messages.append(
+                ToolMessage(
+                    content=content,
+                    tool_call_id=msg.tool_call_id or "",
+                    name=msg.tool_name or "",
+                )
+            )
 
     if lc_messages:
         try:

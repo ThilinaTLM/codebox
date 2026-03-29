@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
+if TYPE_CHECKING:
+    from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
 
 
 class AgentConnectionAdapter:

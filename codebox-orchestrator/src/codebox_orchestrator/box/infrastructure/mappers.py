@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from codebox_orchestrator.box.domain import entities as domain
-from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus, TaskOutcome
 from codebox_orchestrator.box.infrastructure import orm_models as orm
 
 

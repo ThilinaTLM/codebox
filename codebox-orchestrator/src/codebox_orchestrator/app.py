@@ -24,10 +24,10 @@ from codebox_orchestrator.db.migrations import run_migrations
 from codebox_orchestrator.db.models import Base
 from codebox_orchestrator.routes import api, sse
 from codebox_orchestrator.routes import github as github_routes
+from codebox_orchestrator.services.box_service import BoxService
 from codebox_orchestrator.services.callback_registry import CallbackRegistry
 from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
 from codebox_orchestrator.services.relay_service import RelayService
-from codebox_orchestrator.services.box_service import BoxService
 
 
 def create_app() -> FastAPI:
@@ -74,6 +74,7 @@ def create_app() -> FastAPI:
 
         # Verify container runtime connectivity
         import logging as _logging
+
         from codebox_orchestrator.services import docker_service
 
         try:

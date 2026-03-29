@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from codebox_orchestrator.box.domain.entities import Box
+from typing import TYPE_CHECKING
+
 from codebox_orchestrator.box.domain.enums import ContainerStatus
 from codebox_orchestrator.box.domain.exceptions import BoxNotFound, InvalidStatusTransition
-from codebox_orchestrator.box.ports.box_repository import BoxRepository
-from codebox_orchestrator.box.ports.event_publisher import EventPublisher
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.box.domain.entities import Box
+    from codebox_orchestrator.box.ports.box_repository import BoxRepository
+    from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 
 class RestartBoxHandler:
@@ -27,9 +31,11 @@ class RestartBoxHandler:
         await self._publisher.publish_box_event(
             box_id, {"type": "status_change", "container_status": ContainerStatus.STARTING.value}
         )
-        await self._publisher.publish_global_event({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "container_status": ContainerStatus.STARTING.value,
-        })
+        await self._publisher.publish_global_event(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
+                "container_status": ContainerStatus.STARTING.value,
+            }
+        )
         return box

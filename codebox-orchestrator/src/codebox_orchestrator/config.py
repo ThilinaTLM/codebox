@@ -40,6 +40,7 @@ GRPC_PORT: int = int(os.environ.get("GRPC_PORT", "50051"))
 
 def _default_grpc_address() -> str:
     import sys as _sys
+
     if _sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
         host = "localhost"
     elif CONTAINER_RUNTIME_TYPE == "podman":
@@ -49,7 +50,9 @@ def _default_grpc_address() -> str:
     return f"{host}:{GRPC_PORT}"
 
 
-ORCHESTRATOR_GRPC_ADDRESS: str = os.environ.get("ORCHESTRATOR_GRPC_ADDRESS", "") or _default_grpc_address()
+ORCHESTRATOR_GRPC_ADDRESS: str = (
+    os.environ.get("ORCHESTRATOR_GRPC_ADDRESS", "") or _default_grpc_address()
+)
 CORS_ORIGINS: list[str] = [
     o.strip()
     for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
@@ -77,8 +80,10 @@ def get_callback_secret() -> str:
         return CALLBACK_SECRET
     if not _fallback_secret:
         import secrets as _secrets
+
         _fallback_secret = _secrets.token_urlsafe(64)
         import logging as _logging
+
         _logging.getLogger(__name__).warning(
             "CALLBACK_SECRET not set -- using ephemeral secret (tokens won't survive restart)"
         )

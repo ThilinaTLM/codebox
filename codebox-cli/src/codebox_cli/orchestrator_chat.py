@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from rich.console import Console
 from rich.markdown import Markdown
 
-from codebox_cli.orchestrator_client import OrchestratorClient
+if TYPE_CHECKING:
+    from codebox_cli.orchestrator_client import OrchestratorClient
 
 
 async def _stream_box_events(
@@ -58,7 +61,12 @@ async def _stream_box_events(
 
             elif etype == "status_change":
                 parts = []
-                for key in ("container_status", "activity", "task_outcome", "container_stop_reason"):
+                for key in (
+                    "container_status",
+                    "activity",
+                    "task_outcome",
+                    "container_stop_reason",
+                ):
                     if key in event:
                         parts.append(f"{key}={event[key]}")
                 if parts:
@@ -98,9 +106,7 @@ async def orchestrator_chat_loop(
         return
 
     # Interactive mode: prompt for follow-up messages
-    prompt_session: PromptSession[str] = PromptSession(
-        history=FileHistory(".codebox_history")
-    )
+    prompt_session: PromptSession[str] = PromptSession(history=FileHistory(".codebox_history"))
 
     console.print("[dim]Codebox Chat[/dim]")
     console.print("[dim]Type 'exit' to quit. Ctrl+C to cancel. Prefix with ! for shell.[/dim]\n")

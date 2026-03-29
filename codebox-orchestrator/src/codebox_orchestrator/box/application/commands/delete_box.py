@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+from typing import TYPE_CHECKING
 
-from codebox_orchestrator.box.ports.box_repository import BoxRepository
-from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
-from codebox_orchestrator.box.ports.event_publisher import EventPublisher
+if TYPE_CHECKING:
+    from codebox_orchestrator.box.ports.box_repository import BoxRepository
+    from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
+    from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +32,13 @@ class DeleteBoxHandler:
 
         box = await self._repo.get(box_id)
         if box and box.container_name:
-            try:
+            with contextlib.suppress(Exception):
                 self._runtime.remove(box.container_name)
-            except Exception:
-                pass
 
         await self._repo.delete(box_id)
-        await self._publisher.publish_global_event({
-            "type": "box_deleted",
-            "box_id": box_id,
-        })
+        await self._publisher.publish_global_event(
+            {
+                "type": "box_deleted",
+                "box_id": box_id,
+            }
+        )

@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from codebox_orchestrator.db.models import (
-    Activity,
-    Box,
-    BoxEvent,
-    BoxMessage as BoxMessageModel,
-    ContainerStatus,
-    TaskOutcome,
-)
+if TYPE_CHECKING:
+    from datetime import datetime
 
+    from codebox_orchestrator.db.models import (
+        Activity,
+        Box,
+        BoxEvent,
+        ContainerStatus,
+        TaskOutcome,
+    )
+    from codebox_orchestrator.db.models import (
+        BoxMessage as BoxMessageModel,
+    )
 
 # ── Request schemas ──────────────────────────────────────────────
 
@@ -115,16 +120,12 @@ class BoxMessageResponse(BaseModel):
     def from_orm_message(cls, msg: BoxMessageModel) -> BoxMessageResponse:
         tool_calls = None
         if msg.tool_calls:
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 tool_calls = json.loads(msg.tool_calls)
-            except (json.JSONDecodeError, TypeError):
-                pass
         metadata = None
         if msg.metadata_json:
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 metadata = json.loads(msg.metadata_json)
-            except (json.JSONDecodeError, TypeError):
-                pass
         return cls(
             id=msg.id,
             box_id=msg.box_id,

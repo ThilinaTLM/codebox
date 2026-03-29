@@ -6,13 +6,11 @@ import base64
 import logging
 import mimetypes
 from pathlib import PurePosixPath
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
-from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
-from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
-from codebox_orchestrator.agent.application.queries.box_files import ListFilesHandler, ReadFileHandler
 from codebox_orchestrator.agent.domain.exceptions import NoActiveConnection
 from codebox_orchestrator.api.dependencies import (
     get_box_events,
@@ -38,18 +36,26 @@ from codebox_orchestrator.api.schemas import (
     BoxMessageResponse,
     BoxResponse,
 )
-from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
-from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
-from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
-from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
-from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
-from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
-from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
-from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
-from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
-from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
 from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
 from codebox_orchestrator.box.domain.exceptions import BoxNotFound, InvalidStatusTransition
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
+    from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
+    from codebox_orchestrator.agent.application.queries.box_files import (
+        ListFilesHandler,
+        ReadFileHandler,
+    )
+    from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
+    from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
+    from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
+    from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
+    from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
+    from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
+    from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
+    from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
+    from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
+    from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
 
 logger = logging.getLogger(__name__)
 

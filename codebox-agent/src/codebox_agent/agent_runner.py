@@ -11,13 +11,16 @@ import base64
 import json
 import logging
 import mimetypes
+from collections.abc import Callable, Coroutine
 from pathlib import Path
-from typing import Any, Callable, Coroutine
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from codebox_agent.agent import extract_token
-from codebox_agent.sessions import SessionManager
+
+if TYPE_CHECKING:
+    from codebox_agent.sessions import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -107,27 +110,29 @@ async def run_agent_stream(
                 input_str = json.dumps(tool_input) if tool_input else ""
                 if len(input_str) > 4000:
                     input_str = input_str[:4000] + "..."
-                await send({
-                    "type": "tool_start",
-                    "name": tool_name,
-                    "tool_call_id": run_id,
-                    "input": input_str,
-                })
+                await send(
+                    {
+                        "type": "tool_start",
+                        "name": tool_name,
+                        "tool_call_id": run_id,
+                        "input": input_str,
+                    }
+                )
 
             elif kind == "on_tool_end":
                 tool_name = event["name"]
                 logger.info("Tool end: %s (session %s)", tool_name, session_id)
                 output = event["data"].get("output", "")
-                output_str = str(
-                    output.content if hasattr(output, "content") else output
-                )
+                output_str = str(output.content if hasattr(output, "content") else output)
                 if len(output_str) > _MAX_TOOL_OUTPUT:
                     output_str = output_str[:_MAX_TOOL_OUTPUT] + "..."
-                await send({
-                    "type": "tool_end",
-                    "name": tool_name,
-                    "output": output_str,
-                })
+                await send(
+                    {
+                        "type": "tool_end",
+                        "name": tool_name,
+                        "output": output_str,
+                    }
+                )
 
             elif kind == "on_chat_model_stream":
                 chunk = event["data"].get("chunk")
@@ -149,10 +154,12 @@ async def run_agent_stream(
                         messages = []
                     for msg in messages:
                         msg_dict = _langchain_message_to_dict(msg)
-                        await send({
-                            "type": "message_complete",
-                            "message": msg_dict,
-                        })
+                        await send(
+                            {
+                                "type": "message_complete",
+                                "message": msg_dict,
+                            }
+                        )
 
         # Stream finished normally
         logger.info("Agent stream completed for session %s", session_id)
@@ -199,14 +206,16 @@ async def run_exec(
         logger.debug("Could not record exec command in thread", exc_info=True)
 
     # Emit message_complete for the command
-    await send({
-        "type": "message_complete",
-        "message": {
-            "role": "user",
-            "content": f"! {command}",
-            "metadata_json": json.dumps({"type": "shell_command"}),
-        },
-    })
+    await send(
+        {
+            "type": "message_complete",
+            "message": {
+                "role": "user",
+                "content": f"! {command}",
+                "metadata_json": json.dumps({"type": "shell_command"}),
+            },
+        }
+    )
 
     proc = None
     output_lines: list[str] = []
@@ -221,11 +230,13 @@ async def run_exec(
         async for line in proc.stdout:
             decoded = line.decode(errors="replace")
             output_lines.append(decoded)
-            await send({
-                "type": "exec_output",
-                "output": decoded,
-                "request_id": request_id,
-            })
+            await send(
+                {
+                    "type": "exec_output",
+                    "output": decoded,
+                    "request_id": request_id,
+                }
+            )
 
         await proc.wait()
         exit_code = proc.returncode
@@ -247,14 +258,16 @@ async def run_exec(
             logger.debug("Could not record exec output in thread", exc_info=True)
 
         # Emit message_complete for the output
-        await send({
-            "type": "message_complete",
-            "message": {
-                "role": "system",
-                "content": shell_output_content,
-                "metadata_json": json.dumps({"type": "shell_output", "exit_code": exit_code}),
-            },
-        })
+        await send(
+            {
+                "type": "message_complete",
+                "message": {
+                    "role": "system",
+                    "content": shell_output_content,
+                    "metadata_json": json.dumps({"type": "shell_output", "exit_code": exit_code}),
+                },
+            }
+        )
         await send({"type": "activity_changed", "status": "idle"})
 
     except asyncio.CancelledError:
@@ -324,18 +337,22 @@ async def handle_list_files(
         dir_path = _validate_workspace_path(path, workspace_root)
 
         if not dir_path.exists():
-            await send({
-                "type": "list_files_result",
-                "request_id": request_id,
-                "error": f"Path not found: {path}",
-            })
+            await send(
+                {
+                    "type": "list_files_result",
+                    "request_id": request_id,
+                    "error": f"Path not found: {path}",
+                }
+            )
             return
         if not dir_path.is_dir():
-            await send({
-                "type": "list_files_result",
-                "request_id": request_id,
-                "error": f"Not a directory: {path}",
-            })
+            await send(
+                {
+                    "type": "list_files_result",
+                    "request_id": request_id,
+                    "error": f"Not a directory: {path}",
+                }
+            )
             return
 
         entries = []
@@ -343,28 +360,34 @@ async def handle_list_files(
             try:
                 stat = child.stat()
                 is_dir = child.is_dir()
-                entries.append({
-                    "name": child.name,
-                    "path": str(child),
-                    "is_dir": is_dir,
-                    "size": stat.st_size if child.is_file() else None,
-                    "is_binary": not is_dir and _is_likely_binary_by_name(child.name),
-                })
+                entries.append(
+                    {
+                        "name": child.name,
+                        "path": str(child),
+                        "is_dir": is_dir,
+                        "size": stat.st_size if child.is_file() else None,
+                        "is_binary": not is_dir and _is_likely_binary_by_name(child.name),
+                    }
+                )
             except OSError:
                 continue
 
-        await send({
-            "type": "list_files_result",
-            "request_id": request_id,
-            "data": {"path": str(dir_path), "entries": entries},
-        })
+        await send(
+            {
+                "type": "list_files_result",
+                "request_id": request_id,
+                "data": {"path": str(dir_path), "entries": entries},
+            }
+        )
 
     except Exception as exc:
-        await send({
-            "type": "list_files_result",
-            "request_id": request_id,
-            "error": str(exc),
-        })
+        await send(
+            {
+                "type": "list_files_result",
+                "request_id": request_id,
+                "error": str(exc),
+            }
+        )
 
 
 async def handle_read_file(
@@ -379,18 +402,22 @@ async def handle_read_file(
         file_path = _validate_workspace_path(path, workspace_root)
 
         if not file_path.exists():
-            await send({
-                "type": "read_file_result",
-                "request_id": request_id,
-                "error": f"File not found: {path}",
-            })
+            await send(
+                {
+                    "type": "read_file_result",
+                    "request_id": request_id,
+                    "error": f"File not found: {path}",
+                }
+            )
             return
         if not file_path.is_file():
-            await send({
-                "type": "read_file_result",
-                "request_id": request_id,
-                "error": f"Not a file: {path}",
-            })
+            await send(
+                {
+                    "type": "read_file_result",
+                    "request_id": request_id,
+                    "error": f"Not a file: {path}",
+                }
+            )
             return
 
         size = file_path.stat().st_size
@@ -421,15 +448,19 @@ async def handle_read_file(
                 "is_binary": False,
             }
 
-        await send({
-            "type": "read_file_result",
-            "request_id": request_id,
-            "data": data,
-        })
+        await send(
+            {
+                "type": "read_file_result",
+                "request_id": request_id,
+                "data": data,
+            }
+        )
 
     except Exception as exc:
-        await send({
-            "type": "read_file_result",
-            "request_id": request_id,
-            "error": str(exc),
-        })
+        await send(
+            {
+                "type": "read_file_result",
+                "request_id": request_id,
+                "error": str(exc),
+            }
+        )

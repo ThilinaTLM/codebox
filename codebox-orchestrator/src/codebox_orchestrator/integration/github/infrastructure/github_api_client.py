@@ -6,15 +6,19 @@ import hashlib
 import hmac
 import logging
 import platform
-import ssl
 import time
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import httpx
 import jwt
 
+if TYPE_CHECKING:
+    import ssl
+
 if platform.system() == "Windows":
     import truststore
+
     _ssl_ctx: ssl.SSLContext | bool = truststore.SSLContext()
 else:
     _ssl_ctx = True  # httpx default: use certifi
@@ -90,7 +94,7 @@ class GitHubApiClient:
 
         token = data["token"]
         expires_at_str = data["expires_at"]  # ISO 8601
-        expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00")).timestamp()
+        expires_at = datetime.fromisoformat(expires_at_str).timestamp()
         self._token_cache[installation_id] = (token, expires_at)
         return token
 
@@ -147,11 +151,13 @@ class GitHubApiClient:
                 resp.raise_for_status()
                 data = resp.json()
                 for repo in data.get("repositories", []):
-                    repos.append({
-                        "full_name": repo["full_name"],
-                        "private": repo["private"],
-                        "default_branch": repo.get("default_branch", "main"),
-                    })
+                    repos.append(
+                        {
+                            "full_name": repo["full_name"],
+                            "private": repo["private"],
+                            "default_branch": repo.get("default_branch", "main"),
+                        }
+                    )
                 if len(data.get("repositories", [])) < 100:
                     break
                 page += 1
@@ -193,11 +199,13 @@ class GitHubApiClient:
                 )
                 resp.raise_for_status()
                 for c in resp.json():
-                    context["comments"].append({
-                        "user": c.get("user", {}).get("login", ""),
-                        "body": c.get("body", ""),
-                        "created_at": c.get("created_at", ""),
-                    })
+                    context["comments"].append(
+                        {
+                            "user": c.get("user", {}).get("login", ""),
+                            "body": c.get("body", ""),
+                            "created_at": c.get("created_at", ""),
+                        }
+                    )
             except Exception:
                 logger.warning("Failed to fetch issue comments", exc_info=True)
 
@@ -217,8 +225,11 @@ class GitHubApiClient:
             if is_pull_request:
                 # Fetch changed files
                 status_map = {
-                    "added": "A", "modified": "M", "removed": "D",
-                    "renamed": "R", "copied": "C",
+                    "added": "A",
+                    "modified": "M",
+                    "removed": "D",
+                    "renamed": "R",
+                    "copied": "C",
                 }
                 try:
                     resp = await client.get(
@@ -232,9 +243,7 @@ class GitHubApiClient:
                         filename = f.get("filename", "")
                         adds = f.get("additions", 0)
                         dels = f.get("deletions", 0)
-                        context["changed_files"].append(
-                            f"{status} {filename} (+{adds}, -{dels})"
-                        )
+                        context["changed_files"].append(f"{status} {filename} (+{adds}, -{dels})")
                 except Exception:
                     logger.warning("Failed to fetch PR files", exc_info=True)
 
@@ -247,12 +256,14 @@ class GitHubApiClient:
                     )
                     resp.raise_for_status()
                     for c in resp.json():
-                        context["review_comments"].append({
-                            "user": c.get("user", {}).get("login", ""),
-                            "body": c.get("body", ""),
-                            "path": c.get("path", ""),
-                            "created_at": c.get("created_at", ""),
-                        })
+                        context["review_comments"].append(
+                            {
+                                "user": c.get("user", {}).get("login", ""),
+                                "body": c.get("body", ""),
+                                "path": c.get("path", ""),
+                                "created_at": c.get("created_at", ""),
+                            }
+                        )
                 except Exception:
                     logger.warning("Failed to fetch PR review comments", exc_info=True)
 

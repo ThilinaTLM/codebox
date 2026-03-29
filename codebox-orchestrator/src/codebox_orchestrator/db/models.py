@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from enum import Enum as PyEnum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -14,19 +14,19 @@ class Base(DeclarativeBase):
     pass
 
 
-class ContainerStatus(str, PyEnum):
+class ContainerStatus(StrEnum):
     STARTING = "starting"
     RUNNING = "running"
     STOPPED = "stopped"
 
 
-class Activity(str, PyEnum):
+class Activity(StrEnum):
     IDLE = "idle"
     AGENT_WORKING = "agent_working"
     EXEC_SHELL = "exec_shell"
 
 
-class TaskOutcome(str, PyEnum):
+class TaskOutcome(StrEnum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     NEED_CLARIFICATION = "need_clarification"
@@ -35,7 +35,7 @@ class TaskOutcome(str, PyEnum):
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _new_uuid() -> str:
@@ -62,9 +62,7 @@ class GitHubEvent(Base):
     action: Mapped[str] = mapped_column(String(100))
     repository: Mapped[str] = mapped_column(String(255))  # "owner/repo"
     payload: Mapped[str] = mapped_column(Text)  # JSON
-    box_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("boxes.id"), nullable=True
-    )
+    box_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("boxes.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 

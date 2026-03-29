@@ -60,7 +60,9 @@ def _get_client() -> docker.DockerClient:
             if CONTAINER_TLS_CERT and CONTAINER_TLS_KEY:
                 tls_config = docker.tls.TLSConfig(
                     client_cert=(CONTAINER_TLS_CERT, CONTAINER_TLS_KEY),
-                    ca_cert=CONTAINER_TLS_VERIFY if CONTAINER_TLS_VERIFY not in ("", "true", "false") else None,
+                    ca_cert=CONTAINER_TLS_VERIFY
+                    if CONTAINER_TLS_VERIFY not in ("", "true", "false")
+                    else None,
                     verify=CONTAINER_TLS_VERIFY != "false",
                 )
                 kwargs["tls"] = tls_config
@@ -262,16 +264,17 @@ def get_logs(container_id_or_name: str, tail: int = 200) -> str:
     container = _get_container(client, container_id_or_name)
     try:
         output = container.logs(
-            stdout=True, stderr=True, tail=tail, timestamps=True,
+            stdout=True,
+            stderr=True,
+            tail=tail,
+            timestamps=True,
         )
         return output.decode("utf-8", errors="replace")
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Failed to get logs: {exc}") from exc
 
 
-def exec_commands(
-    container_id_or_name: str, commands: list[str]
-) -> list[tuple[int, str]]:
+def exec_commands(container_id_or_name: str, commands: list[str]) -> list[tuple[int, str]]:
     """Execute a list of shell commands inside a running container.
 
     Raises DockerServiceError if any command returns a non-zero exit code.
@@ -283,9 +286,7 @@ def exec_commands(
     for cmd in commands:
         exit_code, output = container.exec_run(["bash", "-c", cmd], workdir="/")
         output_str = (
-            output.decode("utf-8", errors="replace")
-            if isinstance(output, bytes)
-            else str(output)
+            output.decode("utf-8", errors="replace") if isinstance(output, bytes) else str(output)
         )
         results.append((exit_code, output_str))
         if exit_code != 0:
@@ -304,9 +305,7 @@ def _get_container(client: docker.DockerClient, container_id_or_name: str):
     try:
         return client.containers.get(container_id_or_name)
     except docker.errors.NotFound as exc:
-        raise DockerServiceError(
-            f"Container not found: {container_id_or_name}"
-        ) from exc
+        raise DockerServiceError(f"Container not found: {container_id_or_name}") from exc
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Docker API error: {exc}") from exc
 
@@ -329,6 +328,4 @@ def _ensure_network(client: docker.DockerClient, network_name: str) -> None:
             client.networks.create(network_name, driver="bridge")
             logger.info("Created Docker network: %s", network_name)
         except docker.errors.APIError as exc:
-            raise DockerServiceError(
-                f"Failed to create network {network_name}: {exc}"
-            ) from exc
+            raise DockerServiceError(f"Failed to create network {network_name}: {exc}") from exc

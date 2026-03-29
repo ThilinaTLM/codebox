@@ -71,9 +71,7 @@ async def _process_webhook_safe(github_service, event_type, delivery_id, payload
     try:
         await github_service.process_webhook(event_type, delivery_id, payload, box_service)
     except Exception:
-        logger.exception(
-            "Error processing webhook %s (delivery %s)", event_type, delivery_id
-        )
+        logger.exception("Error processing webhook %s (delivery %s)", event_type, delivery_id)
 
 
 @router.get("/callback", response_model=None)

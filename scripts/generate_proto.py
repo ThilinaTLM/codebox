@@ -16,20 +16,23 @@ PROTO_DIR = REPO_ROOT / "proto"
 OUT_DIRS = [
     REPO_ROOT / "codebox-sandbox/src/codebox_sandbox/grpc/generated",
     REPO_ROOT / "codebox-orchestrator/src/codebox_orchestrator/grpc/generated",
-    REPO_ROOT / "codebox-orchestrator/src/codebox_orchestrator/agent/infrastructure/grpc/generated",
+    REPO_ROOT
+    / "codebox-orchestrator/src/codebox_orchestrator/agent/infrastructure/grpc/generated",
 ]
 
 for out_dir in OUT_DIRS:
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    result = protoc.main([
-        "grpc_tools.protoc",
-        f"-I{PROTO_DIR}",
-        f"--python_out={out_dir}",
-        f"--grpc_python_out={out_dir}",
-        f"--pyi_out={out_dir}",
-        str(PROTO_DIR / "codebox/sandbox/sandbox.proto"),
-    ])
+    result = protoc.main(
+        [
+            "grpc_tools.protoc",
+            f"-I{PROTO_DIR}",
+            f"--python_out={out_dir}",
+            f"--grpc_python_out={out_dir}",
+            f"--pyi_out={out_dir}",
+            str(PROTO_DIR / "codebox/sandbox/sandbox.proto"),
+        ]
+    )
     if result != 0:
         raise SystemExit(f"protoc failed with code {result} for {out_dir}")
 

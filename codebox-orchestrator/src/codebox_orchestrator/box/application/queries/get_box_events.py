@@ -1,8 +1,12 @@
 """Get box events query handler."""
+
 from __future__ import annotations
 
-from codebox_orchestrator.box.domain.entities import BoxEvent
-from codebox_orchestrator.box.ports.box_repository import BoxRepository
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.box.domain.entities import BoxEvent
+    from codebox_orchestrator.box.ports.box_repository import BoxRepository
 
 
 class GetBoxEventsHandler:

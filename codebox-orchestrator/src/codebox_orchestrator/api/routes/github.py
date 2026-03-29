@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -23,11 +24,17 @@ from codebox_orchestrator.api.schemas import (
     GitHubRepoResponse,
     GitHubStatusResponse,
 )
-from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
-from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
 from codebox_orchestrator.config import GITHUB_APP_SLUG, github_enabled
-from codebox_orchestrator.integration.github.application.installation_service import GitHubInstallationService
-from codebox_orchestrator.integration.github.application.webhook_handler import GitHubWebhookHandler
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
+    from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
+    from codebox_orchestrator.integration.github.application.installation_service import (
+        GitHubInstallationService,
+    )
+    from codebox_orchestrator.integration.github.application.webhook_handler import (
+        GitHubWebhookHandler,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +88,12 @@ async def github_webhook(
     # Process asynchronously — GitHub expects a fast 200 response
     asyncio.create_task(
         _process_webhook_safe(
-            webhook_handler, event_type, delivery_id, payload,
-            create_box_handler, lifecycle,
+            webhook_handler,
+            event_type,
+            delivery_id,
+            payload,
+            create_box_handler,
+            lifecycle,
         )
     )
 
@@ -99,9 +110,7 @@ async def _process_webhook_safe(
 ) -> None:
     """Wrapper to catch and log errors from async webhook processing."""
     try:
-        box_req, event_id = await webhook_handler.process_webhook(
-            event_type, delivery_id, payload
-        )
+        box_req, event_id = await webhook_handler.process_webhook(event_type, delivery_id, payload)
         if box_req is not None:
             box = await create_box_handler.execute(
                 name=box_req.name,
@@ -119,9 +128,7 @@ async def _process_webhook_safe(
             if event_id:
                 await webhook_handler.update_event_box_id(event_id, box.id)
     except Exception:
-        logger.exception(
-            "Error processing webhook %s (delivery %s)", event_type, delivery_id
-        )
+        logger.exception("Error processing webhook %s (delivery %s)", event_type, delivery_id)
 
 
 @router.get("/callback", response_model=None)

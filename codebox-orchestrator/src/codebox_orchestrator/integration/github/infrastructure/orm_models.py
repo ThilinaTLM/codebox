@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -12,7 +12,7 @@ from codebox_orchestrator.box.infrastructure.orm_models import Base
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _new_uuid() -> str:
@@ -39,7 +39,5 @@ class GitHubEvent(Base):
     action: Mapped[str] = mapped_column(String(100))
     repository: Mapped[str] = mapped_column(String(255))  # "owner/repo"
     payload: Mapped[str] = mapped_column(Text)  # JSON
-    box_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("boxes.id"), nullable=True
-    )
+    box_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("boxes.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any, AsyncGenerator
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -20,10 +20,14 @@ from codebox_orchestrator.api.dependencies import (
     get_global_broadcast,
     get_relay,
 )
-from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
-from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
-from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
-from codebox_orchestrator.shared.messaging.relay import RelayService
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
+    from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
+    from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
+    from codebox_orchestrator.shared.messaging.relay import RelayService
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +68,7 @@ async def _box_event_generator(
         while True:
             try:
                 event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_INTERVAL)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # SSE comment as heartbeat to keep connection alive
                 yield ":\n\n"
                 continue
@@ -84,7 +88,7 @@ async def _global_event_generator(
         while True:
             try:
                 event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_INTERVAL)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 yield ":\n\n"
                 continue
             yield _sse_line(event)

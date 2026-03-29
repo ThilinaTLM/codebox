@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from codebox_orchestrator.integration.github.domain import entities as domain
 from codebox_orchestrator.integration.github.infrastructure import orm_models as orm
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 class SqlAlchemyGitHubRepository:
@@ -20,7 +24,9 @@ class SqlAlchemyGitHubRepository:
                 return None
             return self._to_domain_installation(inst)
 
-    async def get_installation_by_github_id(self, installation_id: int) -> domain.GitHubInstallation | None:
+    async def get_installation_by_github_id(
+        self, installation_id: int
+    ) -> domain.GitHubInstallation | None:
         async with self._sf() as db:
             stmt = select(orm.GitHubInstallation).where(
                 orm.GitHubInstallation.installation_id == installation_id
@@ -33,7 +39,9 @@ class SqlAlchemyGitHubRepository:
 
     async def list_installations(self) -> list[domain.GitHubInstallation]:
         async with self._sf() as db:
-            stmt = select(orm.GitHubInstallation).order_by(orm.GitHubInstallation.created_at.desc())
+            stmt = select(orm.GitHubInstallation).order_by(
+                orm.GitHubInstallation.created_at.desc()
+            )
             result = await db.execute(stmt)
             return [self._to_domain_installation(i) for i in result.scalars().all()]
 

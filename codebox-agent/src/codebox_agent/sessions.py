@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from codebox_agent.agent import create_agent
 from codebox_agent.tools.status import StatusReporter
+
+if TYPE_CHECKING:
+    import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,9 @@ class SessionManager:
             The newly created Session.
         """
         session_id = str(uuid.uuid4())
-        logger.info("Creating session %s: model=%s, working_dir=%s", session_id, model, working_dir)
+        logger.info(
+            "Creating session %s: model=%s, working_dir=%s", session_id, model, working_dir
+        )
 
         # Ensure checkpoint directory exists
         os.makedirs(os.path.dirname(self._checkpoint_db_path), exist_ok=True)
@@ -87,7 +91,7 @@ class SessionManager:
         )
         cfg = sandbox_config or {}
         recursion_limit = cfg.get("recursion_limit", 150)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         session = Session(
             session_id=session_id,
             agent=agent,
@@ -99,7 +103,9 @@ class SessionManager:
         )
         self._sessions[session_id] = session
         logger.info(
-            "Session %s created: recursion_limit=%d", session_id, recursion_limit,
+            "Session %s created: recursion_limit=%d",
+            session_id,
+            recursion_limit,
         )
         return session
 

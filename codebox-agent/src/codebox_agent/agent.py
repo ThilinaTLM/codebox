@@ -1,11 +1,10 @@
 """Agent creation and token extraction utilities."""
 
 import logging
-import os
 
-from langchain_openrouter import ChatOpenRouter
 from deepagents import create_deep_agent
 from deepagents.backends import LocalShellBackend
+from langchain_openrouter import ChatOpenRouter
 
 from codebox_agent.prompts import CORE_SYSTEM_PROMPT
 from codebox_agent.tools.status import StatusReporter, build_status_tools
@@ -65,7 +64,12 @@ def create_agent(
 
     logger.info(
         "Creating agent: model=%s, temperature=%s, timeout=%s, root_dir=%s, env_prompt=%s, dynamic_prompt=%s",
-        model, temperature, timeout, root_dir, bool(environment_system_prompt), bool(dynamic_system_prompt),
+        model,
+        temperature,
+        timeout,
+        root_dir,
+        bool(environment_system_prompt),
+        bool(dynamic_system_prompt),
     )
 
     llm = ChatOpenRouter(
@@ -101,10 +105,6 @@ def extract_token(chunk) -> str:
     """
     if isinstance(chunk.content, str):
         return chunk.content
-    elif isinstance(chunk.content, list):
-        return "".join(
-            b.get("text", "")
-            for b in chunk.content
-            if isinstance(b, dict)
-        )
+    if isinstance(chunk.content, list):
+        return "".join(b.get("text", "") for b in chunk.content if isinstance(b, dict))
     return ""

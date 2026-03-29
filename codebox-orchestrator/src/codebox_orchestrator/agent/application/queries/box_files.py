@@ -1,10 +1,13 @@
 """File operation query handlers."""
+
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from codebox_orchestrator.agent.domain.exceptions import NoActiveConnection
-from codebox_orchestrator.agent.ports.agent_connection import AgentConnectionManager
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.agent.ports.agent_connection import AgentConnectionManager
 
 _FILE_OP_TIMEOUT = 10.0
 

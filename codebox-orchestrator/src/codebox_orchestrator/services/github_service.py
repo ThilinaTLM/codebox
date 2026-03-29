@@ -10,29 +10,38 @@ import hashlib
 import hmac
 import json
 import logging
+import platform
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-
-import platform
-import ssl
+from typing import TYPE_CHECKING
 
 import httpx
 import jwt
 
+if TYPE_CHECKING:
+    import ssl
+
+    from codebox_orchestrator.services.box_service import BoxService
+
 if platform.system() == "Windows":
     import truststore
+
     _ssl_ctx: ssl.SSLContext | bool = truststore.SSLContext()
 else:
     _ssl_ctx = True  # httpx default: use certifi
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from codebox_orchestrator.config import GITHUB_DEFAULT_BASE_BRANCH
 from codebox_orchestrator.db.models import GitHubEvent, GitHubInstallation
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +112,7 @@ class GitHubService:
 
         token = data["token"]
         expires_at_str = data["expires_at"]  # ISO 8601
-        expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00")).timestamp()
+        expires_at = datetime.fromisoformat(expires_at_str).timestamp()
         self._token_cache[installation_id] = (token, expires_at)
         return token
 
@@ -197,11 +206,13 @@ class GitHubService:
                 resp.raise_for_status()
                 data = resp.json()
                 for repo in data.get("repositories", []):
-                    repos.append({
-                        "full_name": repo["full_name"],
-                        "private": repo["private"],
-                        "default_branch": repo.get("default_branch", "main"),
-                    })
+                    repos.append(
+                        {
+                            "full_name": repo["full_name"],
+                            "private": repo["private"],
+                            "default_branch": repo.get("default_branch", "main"),
+                        }
+                    )
                 if len(data.get("repositories", [])) < 100:
                     break
                 page += 1
@@ -348,13 +359,12 @@ class GitHubService:
         )
 
         # Create box
-        from codebox_orchestrator.services.box_service import BoxService
+
         bs: BoxService = box_service  # type: ignore[assignment]
         box = await bs.create_box(
             name=f"[GitHub] #{issue_number}: {issue_title[:100]}",
             initial_prompt=prompt,
             dynamic_system_prompt=dynamic_system_prompt,
-
             trigger="github_issue",
             github_installation_id=db_installation.id,
             github_repo=repo_full_name,
@@ -388,7 +398,9 @@ class GitHubService:
 
         logger.info(
             "Created box %s from issue comment on %s#%d",
-            box.id, repo_full_name, issue_number,
+            box.id,
+            repo_full_name,
+            issue_number,
         )
         return box.id
 
@@ -458,13 +470,12 @@ class GitHubService:
             "Commit your changes to a new branch and create a pull request using gh pr create."
         )
 
-        from codebox_orchestrator.services.box_service import BoxService
+
         bs: BoxService = box_service  # type: ignore[assignment]
         box = await bs.create_box(
             name=f"[GitHub PR] #{pr_number}: {pr_title[:100]}",
             initial_prompt=prompt,
             dynamic_system_prompt=dynamic_system_prompt,
-
             trigger="github_pr",
             github_installation_id=db_installation.id,
             github_repo=repo_full_name,
@@ -481,7 +492,9 @@ class GitHubService:
 
         logger.info(
             "Created box %s from PR review comment on %s#%d",
-            box.id, repo_full_name, pr_number,
+            box.id,
+            repo_full_name,
+            pr_number,
         )
         return box.id
 
@@ -512,11 +525,13 @@ class GitHubService:
                 )
                 resp.raise_for_status()
                 for c in resp.json():
-                    context["comments"].append({
-                        "user": c.get("user", {}).get("login", ""),
-                        "body": c.get("body", ""),
-                        "created_at": c.get("created_at", ""),
-                    })
+                    context["comments"].append(
+                        {
+                            "user": c.get("user", {}).get("login", ""),
+                            "body": c.get("body", ""),
+                            "created_at": c.get("created_at", ""),
+                        }
+                    )
             except Exception:
                 logger.warning("Failed to fetch issue comments", exc_info=True)
 
@@ -576,17 +591,19 @@ class GitHubService:
             parts.append("## Repository Guidelines")
             parts.append(guidelines)
 
-        parts.extend([
-            "",
-            "## Instructions",
-            f"- The repository is cloned into /workspace (your CWD) and you are on branch {branch}",
-            f"- Full issue context is also available at /app/codebox/context.md",
-            "- Implement the requested changes",
-            "- Write tests if applicable",
-            "- Commit your changes with descriptive messages",
-            "- Push your branch and open a pull request using `gh pr create`",
-            f"- Reference issue #{issue_number} in the PR description",
-        ])
+        parts.extend(
+            [
+                "",
+                "## Instructions",
+                f"- The repository is cloned into /workspace (your CWD) and you are on branch {branch}",
+                "- Full issue context is also available at /app/codebox/context.md",
+                "- Implement the requested changes",
+                "- Write tests if applicable",
+                "- Commit your changes with descriptive messages",
+                "- Push your branch and open a pull request using `gh pr create`",
+                f"- Reference issue #{issue_number} in the PR description",
+            ]
+        )
 
         return "\n".join(parts)
 
@@ -613,7 +630,7 @@ class GitHubService:
         pre_push_hook = (
             "#!/bin/bash\n"
             "while read local_ref local_sha remote_ref remote_sha; do\n"
-            '    branch=$(echo "$remote_ref" | sed \'s|refs/heads/||\')\n'
+            "    branch=$(echo \"$remote_ref\" | sed 's|refs/heads/||')\n"
             '    if [[ ! "$branch" =~ ^codebox/ ]]; then\n'
             '        echo "ERROR: Push rejected. Can only push to codebox/* branches."\n'
             '        echo "Attempted to push to: $branch"\n'

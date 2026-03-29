@@ -6,6 +6,7 @@ import base64
 import logging
 import mimetypes
 from pathlib import PurePosixPath
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
@@ -22,7 +23,9 @@ from codebox_orchestrator.schemas import (
     ContainerResponse,
 )
 from codebox_orchestrator.services import docker_service
-from codebox_orchestrator.services.box_service import BoxService
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.services.box_service import BoxService
 
 logger = logging.getLogger(__name__)
 
@@ -168,9 +171,7 @@ async def delete_box(request: Request, box_id: str):
 
 
 @router.get("/boxes/{box_id}/files")
-async def box_list_files(
-    request: Request, box_id: str, path: str = "/workspace"
-):
+async def box_list_files(request: Request, box_id: str, path: str = "/workspace"):
     """List directory contents in a box workspace."""
     bs = _bs(request)
     box = await bs.get_box(box_id)

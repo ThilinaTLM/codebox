@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
 import tempfile
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
@@ -24,9 +24,13 @@ from codebox_orchestrator.config import (
 )
 from codebox_orchestrator.db.models import Activity, Box, BoxEvent, BoxMessage, ContainerStatus
 from codebox_orchestrator.services import docker_service
-from codebox_orchestrator.services.callback_registry import CallbackRegistry
-from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
-from codebox_orchestrator.services.relay_service import RelayService
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from codebox_orchestrator.services.callback_registry import CallbackRegistry
+    from codebox_orchestrator.services.global_broadcast_service import GlobalBroadcastService
+    from codebox_orchestrator.services.relay_service import RelayService
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +94,7 @@ class BoxService:
             await db.refresh(box)
 
         # Start container in background
-        box.started_at = datetime.now(timezone.utc)
+        box.started_at = datetime.now(UTC)
         async with self._sf() as db:
             db_box = await db.get(Box, box.id)
             if db_box:
@@ -100,14 +104,16 @@ class BoxService:
         await self._relay.broadcast(
             box.id, {"type": "status_change", "container_status": ContainerStatus.STARTING.value}
         )
-        await self._global_broadcast.broadcast({
-            "type": "box_created",
-            "box_id": box.id,
-            "name": box.name,
-            "container_status": ContainerStatus.STARTING.value,
-            "model": box.model,
-            "created_at": box.created_at.isoformat(),
-        })
+        await self._global_broadcast.broadcast(
+            {
+                "type": "box_created",
+                "box_id": box.id,
+                "name": box.name,
+                "container_status": ContainerStatus.STARTING.value,
+                "model": box.model,
+                "created_at": box.created_at.isoformat(),
+            }
+        )
         bg = asyncio.create_task(self._run_box(box.id))
         self._running[box.id] = bg
         return box
@@ -135,33 +141,25 @@ class BoxService:
 
     async def get_box_events(self, box_id: str) -> list[BoxEvent]:
         async with self._sf() as db:
-            stmt = (
-                select(BoxEvent)
-                .where(BoxEvent.box_id == box_id)
-                .order_by(BoxEvent.id)
-            )
+            stmt = select(BoxEvent).where(BoxEvent.box_id == box_id).order_by(BoxEvent.id)
             result = await db.execute(stmt)
             return list(result.scalars().all())
 
     async def get_box_messages(self, box_id: str) -> list[BoxMessage]:
         async with self._sf() as db:
-            stmt = (
-                select(BoxMessage)
-                .where(BoxMessage.box_id == box_id)
-                .order_by(BoxMessage.seq)
-            )
+            stmt = select(BoxMessage).where(BoxMessage.box_id == box_id).order_by(BoxMessage.seq)
             result = await db.execute(stmt)
             return list(result.scalars().all())
 
-    async def _persist_box_message(
-        self, box_id: str, msg_data: dict[str, Any]
-    ) -> None:
+    async def _persist_box_message(self, box_id: str, msg_data: dict[str, Any]) -> None:
         """Persist a structured message to box_messages."""
         import json as _json
+
         async with self._sf() as db:
             result = await db.execute(
-                select(func.coalesce(func.max(BoxMessage.seq), 0))
-                .where(BoxMessage.box_id == box_id)
+                select(func.coalesce(func.max(BoxMessage.seq), 0)).where(
+                    BoxMessage.box_id == box_id
+                )
             )
             max_seq = result.scalar()
             next_seq = max_seq + 1
@@ -189,16 +187,16 @@ class BoxService:
             box = await db.get(Box, box_id)
             if box:
                 if box.container_name:
-                    try:
+                    with contextlib.suppress(Exception):
                         docker_service.remove(box.container_name)
-                    except Exception:
-                        pass
                 await db.delete(box)
                 await db.commit()
-        await self._global_broadcast.broadcast({
-            "type": "box_deleted",
-            "box_id": box_id,
-        })
+        await self._global_broadcast.broadcast(
+            {
+                "type": "box_deleted",
+                "box_id": box_id,
+            }
+        )
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -218,26 +216,27 @@ class BoxService:
                 box.container_status = ContainerStatus.STOPPED
                 box.container_stop_reason = "user_stopped"
                 box.activity = Activity.IDLE
-                box.completed_at = datetime.now(timezone.utc)
+                box.completed_at = datetime.now(UTC)
                 await db.commit()
                 if box.container_name:
-                    try:
+                    with contextlib.suppress(Exception):
                         docker_service.stop(box.container_name)
-                    except Exception:
-                        pass
                 await self._relay.broadcast(
-                    box_id, {
+                    box_id,
+                    {
                         "type": "status_change",
+                        "container_status": ContainerStatus.STOPPED.value,
+                        "container_stop_reason": "user_stopped",
+                    },
+                )
+                await self._global_broadcast.broadcast(
+                    {
+                        "type": "box_status_changed",
+                        "box_id": box_id,
                         "container_status": ContainerStatus.STOPPED.value,
                         "container_stop_reason": "user_stopped",
                     }
                 )
-                await self._global_broadcast.broadcast({
-                    "type": "box_status_changed",
-                    "box_id": box_id,
-                    "container_status": ContainerStatus.STOPPED.value,
-                    "container_stop_reason": "user_stopped",
-                })
 
     async def restart_box(self, box_id: str) -> Box:
         """Restart a stopped box by spawning a new container."""
@@ -250,18 +249,20 @@ class BoxService:
             box.container_status = ContainerStatus.STARTING
             box.container_stop_reason = None
             box.activity = Activity.IDLE
-            box.started_at = datetime.now(timezone.utc)
+            box.started_at = datetime.now(UTC)
             box.completed_at = None
             await db.commit()
 
         await self._relay.broadcast(
             box_id, {"type": "status_change", "container_status": ContainerStatus.STARTING.value}
         )
-        await self._global_broadcast.broadcast({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "container_status": ContainerStatus.STARTING.value,
-        })
+        await self._global_broadcast.broadcast(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
+                "container_status": ContainerStatus.STARTING.value,
+            }
+        )
         bg = asyncio.create_task(self._run_box(box_id))
         self._running[box_id] = bg
 
@@ -272,27 +273,30 @@ class BoxService:
         """Cancel a running box operation."""
         conn = self._registry.get_connection(box_id)
         if conn:
-            try:
+            with contextlib.suppress(Exception):
                 await conn.send_json({"type": "cancel"})
-            except Exception:
-                pass
 
     async def send_message(self, box_id: str, content: str) -> None:
         """Send a chat message to the box agent."""
         # Persist user message to box_messages before forwarding
-        await self._persist_box_message(box_id, {
-            "role": "user",
-            "content": content,
-        })
+        await self._persist_box_message(
+            box_id,
+            {
+                "role": "user",
+                "content": content,
+            },
+        )
 
         # Persist as event so it appears on reconnect/replay
         event_data = {"type": "user_message", "content": content}
         async with self._sf() as db:
-            db.add(BoxEvent(
-                box_id=box_id,
-                event_type="user_message",
-                data=json.dumps(event_data),
-            ))
+            db.add(
+                BoxEvent(
+                    box_id=box_id,
+                    event_type="user_message",
+                    data=json.dumps(event_data),
+                )
+            )
             await db.commit()
 
         # Broadcast to SSE/relay subscribers
@@ -308,11 +312,13 @@ class BoxService:
         # Persist as event so it appears on reconnect/replay
         event_data = {"type": "user_exec", "command": command}
         async with self._sf() as db:
-            db.add(BoxEvent(
-                box_id=box_id,
-                event_type="user_exec",
-                data=json.dumps(event_data),
-            ))
+            db.add(
+                BoxEvent(
+                    box_id=box_id,
+                    event_type="user_exec",
+                    data=json.dumps(event_data),
+                )
+            )
             await db.commit()
 
         # Broadcast to SSE/relay subscribers
@@ -323,9 +329,7 @@ class BoxService:
             raise ValueError("No active connection for this box")
         await conn.send_json({"type": "exec", "content": command})
 
-    async def send_exec_and_wait(
-        self, box_id: str, command: str, timeout: float = 120.0
-    ) -> dict:
+    async def send_exec_and_wait(self, box_id: str, command: str, timeout: float = 120.0) -> dict:
         """Send a shell command and wait for exec_done response.
 
         Raises RuntimeError if the command returns a non-zero exit code.
@@ -334,17 +338,17 @@ class BoxService:
         if conn is None:
             raise ValueError("No active connection for this box")
         request_id, fut = self._registry.create_pending_request(box_id)
-        await conn.send_json({
-            "type": "exec",
-            "content": command,
-            "request_id": request_id,
-        })
+        await conn.send_json(
+            {
+                "type": "exec",
+                "content": command,
+                "request_id": request_id,
+            }
+        )
         result = await asyncio.wait_for(fut, timeout=timeout)
         exit_code = result.get("output", "")
         if exit_code not in ("0", ""):
-            raise RuntimeError(
-                f"Setup command failed (exit {exit_code}): {command}"
-            )
+            raise RuntimeError(f"Setup command failed (exit {exit_code}): {command}")
         return result
 
     async def send_cancel(self, box_id: str) -> None:
@@ -439,6 +443,7 @@ class BoxService:
 
         # Generate JWT callback token
         from codebox_orchestrator.services.callback_token import create_callback_token
+
         callback_token = create_callback_token(box_id, entity_type="box")
         self._registry.init_connection_state(box_id)
 
@@ -541,6 +546,7 @@ class BoxService:
 
         async with self._sf() as db:
             from codebox_orchestrator.db.models import GitHubInstallation
+
             installation = await db.get(GitHubInstallation, github_installation_id)
             if installation is None:
                 raise RuntimeError(f"GitHub installation not found: {github_installation_id}")
@@ -581,11 +587,13 @@ class BoxService:
         await self._relay.broadcast(
             box_id, {"type": "status_change", "container_status": ContainerStatus.RUNNING.value}
         )
-        await self._global_broadcast.broadcast({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "container_status": ContainerStatus.RUNNING.value,
-        })
+        await self._global_broadcast.broadcast(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
+                "container_status": ContainerStatus.RUNNING.value,
+            }
+        )
 
     async def _set_container_error(self, box_id: str, error: str) -> None:
         async with self._sf() as db:
@@ -594,21 +602,22 @@ class BoxService:
                 box.container_status = ContainerStatus.STOPPED
                 box.container_stop_reason = "container_error"
                 box.activity = Activity.IDLE
-                box.completed_at = datetime.now(timezone.utc)
+                box.completed_at = datetime.now(UTC)
                 await db.commit()
         await self._relay.broadcast(
-            box_id, {
+            box_id,
+            {
                 "type": "status_change",
+                "container_status": ContainerStatus.STOPPED.value,
+                "container_stop_reason": "container_error",
+            },
+        )
+        await self._relay.broadcast(box_id, {"type": "error", "detail": error})
+        await self._global_broadcast.broadcast(
+            {
+                "type": "box_status_changed",
+                "box_id": box_id,
                 "container_status": ContainerStatus.STOPPED.value,
                 "container_stop_reason": "container_error",
             }
         )
-        await self._relay.broadcast(
-            box_id, {"type": "error", "detail": error}
-        )
-        await self._global_broadcast.broadcast({
-            "type": "box_status_changed",
-            "box_id": box_id,
-            "container_status": ContainerStatus.STOPPED.value,
-            "container_stop_reason": "container_error",
-        })

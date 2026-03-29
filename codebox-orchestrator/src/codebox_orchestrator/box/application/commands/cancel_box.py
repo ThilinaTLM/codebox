@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
+import contextlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
 
 
 class CancelBoxHandler:
@@ -11,7 +15,5 @@ class CancelBoxHandler:
 
     async def execute(self, box_id: str) -> None:
         if self._connections.has_connection(box_id):
-            try:
+            with contextlib.suppress(Exception):
                 await self._connections.send_command(box_id, {"type": "cancel"})
-            except Exception:
-                pass

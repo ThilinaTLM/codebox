@@ -2,39 +2,48 @@
 
 from __future__ import annotations
 
-from fastapi import Request
-
-# Box commands
-from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
-from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
-from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
-from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
-from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
-
-# Box queries
-from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
-from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
-from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
-from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
-
-# Box lifecycle
-from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
+from typing import TYPE_CHECKING
 
 # Agent commands & queries
-from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
-from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
-from codebox_orchestrator.agent.application.queries.box_files import ListFilesHandler, ReadFileHandler
+
+# Box commands
+
+# Box queries
+# Box lifecycle
 
 # Compute
-from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
 
 # Integration
-from codebox_orchestrator.integration.github.application.webhook_handler import GitHubWebhookHandler
-from codebox_orchestrator.integration.github.application.installation_service import GitHubInstallationService
-
 # Shared messaging (for SSE direct subscription)
-from codebox_orchestrator.shared.messaging.relay import RelayService
-from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
+
+if TYPE_CHECKING:
+    from fastapi import Request
+
+    from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
+    from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
+    from codebox_orchestrator.agent.application.queries.box_files import (
+        ListFilesHandler,
+        ReadFileHandler,
+    )
+    from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
+    from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
+    from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
+    from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
+    from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
+    from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
+    from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
+    from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
+    from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
+    from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
+    from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
+    from codebox_orchestrator.integration.github.application.installation_service import (
+        GitHubInstallationService,
+    )
+    from codebox_orchestrator.integration.github.application.webhook_handler import (
+        GitHubWebhookHandler,
+    )
+    from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
+    from codebox_orchestrator.shared.messaging.relay import RelayService
 
 
 def get_create_box(request: Request) -> CreateBoxHandler:

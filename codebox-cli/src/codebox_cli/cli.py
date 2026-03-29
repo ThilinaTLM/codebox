@@ -11,8 +11,8 @@ from rich.markdown import Markdown
 from rich.table import Table
 
 from codebox_cli.config import ORCHESTRATOR_URL
-from codebox_cli.orchestrator_client import OrchestratorClient
 from codebox_cli.orchestrator_chat import orchestrator_chat_loop
+from codebox_cli.orchestrator_client import OrchestratorClient
 
 
 def _resolve(orch: OrchestratorClient, box_id: str) -> str:
@@ -49,7 +49,11 @@ def box_group(ctx: click.Context, url: str | None) -> None:
 @click.option("--name", "-n", default=None, help="Box name.")
 @click.option("--prompt", "-p", default=None, help="Initial prompt (auto-executed on start).")
 @click.option("--model", "-m", default=None, help="Override LLM model.")
-@click.option("--dynamic-system-prompt", default=None, help="Dynamic system prompt appended after core and environment prompts.")
+@click.option(
+    "--dynamic-system-prompt",
+    default=None,
+    help="Dynamic system prompt appended after core and environment prompts.",
+)
 @click.option("--watch", is_flag=True, default=True, help="Stream box output (default: true).")
 @click.option("--no-watch", is_flag=True, help="Don't stream box output.")
 @click.pass_context
@@ -81,8 +85,15 @@ def box_create(
 
 
 @box_group.command(name="list")
-@click.option("--container-status", "-cs", default=None, help="Filter by container status (starting/running/stopped).")
-@click.option("--activity", "-a", default=None, help="Filter by activity (idle/agent_working/exec_shell).")
+@click.option(
+    "--container-status",
+    "-cs",
+    default=None,
+    help="Filter by container status (starting/running/stopped).",
+)
+@click.option(
+    "--activity", "-a", default=None, help="Filter by activity (idle/agent_working/exec_shell)."
+)
 @click.option("--trigger", default=None, help="Filter by trigger (github_issue/github_pr).")
 @click.pass_context
 def box_list(
@@ -115,10 +126,17 @@ def box_list(
     table.add_column("Model", style="dim")
 
     STATUS_COLORS = {
-        "running": "green", "starting": "yellow", "stopped": "dim",
-        "idle": "green", "agent_working": "yellow", "exec_shell": "yellow",
-        "completed": "green", "in_progress": "yellow",
-        "need_clarification": "red", "unable_to_proceed": "red", "not_enough_context": "red",
+        "running": "green",
+        "starting": "yellow",
+        "stopped": "dim",
+        "idle": "green",
+        "agent_working": "yellow",
+        "exec_shell": "yellow",
+        "completed": "green",
+        "in_progress": "yellow",
+        "need_clarification": "red",
+        "unable_to_proceed": "red",
+        "not_enough_context": "red",
     }
 
     for b in boxes:
@@ -170,12 +188,14 @@ def box_info(ctx: click.Context, box_id: str) -> None:
 
     # GitHub fields
     if b.get("github_repo"):
-        rows.extend([
-            ("GitHub Repo", b.get("github_repo", "")),
-            ("Issue #", str(b.get("github_issue_number", "") or "")),
-            ("PR #", str(b.get("github_pr_number", "") or "")),
-            ("Branch", b.get("github_branch", "") or ""),
-        ])
+        rows.extend(
+            [
+                ("GitHub Repo", b.get("github_repo", "")),
+                ("Issue #", str(b.get("github_issue_number", "") or "")),
+                ("PR #", str(b.get("github_pr_number", "") or "")),
+                ("Branch", b.get("github_branch", "") or ""),
+            ]
+        )
 
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column(style="bold")
@@ -189,7 +209,7 @@ def box_info(ctx: click.Context, box_id: str) -> None:
     # Show initial prompt if set
     prompt = b.get("initial_prompt")
     if prompt:
-        console.print(f"\n[bold]Initial Prompt:[/bold]")
+        console.print("\n[bold]Initial Prompt:[/bold]")
         console.print(f"  {prompt[:200]}{'...' if len(prompt) > 200 else ''}")
 
 
@@ -253,7 +273,9 @@ def box_delete(ctx: click.Context, box_id: str) -> None:
 
 @box_group.command(name="events")
 @click.argument("box_id")
-@click.option("--limit", "-l", type=int, default=50, help="Number of events to show (default: 50).")
+@click.option(
+    "--limit", "-l", type=int, default=50, help="Number of events to show (default: 50)."
+)
 @click.pass_context
 def box_events(ctx: click.Context, box_id: str, limit: int) -> None:
     """Show persisted events for a box."""
@@ -311,10 +333,10 @@ def box_messages(ctx: click.Context, box_id: str) -> None:
         content = msg.get("content", "") or ""
 
         if role == "user":
-            console.print(f"\n[bold blue]User:[/bold blue]")
+            console.print("\n[bold blue]User:[/bold blue]")
             console.print(f"  {content}")
         elif role == "assistant":
-            console.print(f"\n[bold green]Assistant:[/bold green]")
+            console.print("\n[bold green]Assistant:[/bold green]")
             if content.strip():
                 console.print(Markdown(content.strip()))
         elif role == "tool":

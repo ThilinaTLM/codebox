@@ -33,7 +33,10 @@ def build_status_tools(reporter: StatusReporter) -> list[BaseTool]:
     """Build the set_status tool that lets the agent self-report its progress."""
 
     async def _set_status_async(
-        status: Annotated[str, "One of: completed, in_progress, need_clarification, unable_to_proceed, not_enough_context"],
+        status: Annotated[
+            str,
+            "One of: completed, in_progress, need_clarification, unable_to_proceed, not_enough_context",
+        ],
         message: Annotated[str | None, "Optional explanation"] = None,
     ) -> str:
         if status not in VALID_STATUSES:
@@ -50,7 +53,10 @@ def build_status_tools(reporter: StatusReporter) -> list[BaseTool]:
         return f"Status set to '{status}'." + (f" Message: {message}" if message else "")
 
     def _set_status_sync(
-        status: Annotated[str, "One of: completed, in_progress, need_clarification, unable_to_proceed, not_enough_context"],
+        status: Annotated[
+            str,
+            "One of: completed, in_progress, need_clarification, unable_to_proceed, not_enough_context",
+        ],
         message: Annotated[str | None, "Optional explanation"] = None,
     ) -> str:
         """Set the agent's feedback status to communicate progress to the user.
@@ -68,7 +74,7 @@ def build_status_tools(reporter: StatusReporter) -> list[BaseTool]:
         """
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            future = asyncio.ensure_future(_set_status_async(status, message))
+            asyncio.ensure_future(_set_status_async(status, message))
             # Return immediately — the event will be sent async
             return f"Status set to '{status}'." + (f" Message: {message}" if message else "")
         return asyncio.run(_set_status_async(status, message))

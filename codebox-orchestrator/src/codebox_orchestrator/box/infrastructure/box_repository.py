@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from typing import TYPE_CHECKING
 
-from codebox_orchestrator.box.domain import entities as domain
+from sqlalchemy import func, select
+
 from codebox_orchestrator.box.infrastructure import mappers
 from codebox_orchestrator.box.infrastructure import orm_models as orm
-from codebox_orchestrator.box.ports.box_repository import BoxFilters
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from codebox_orchestrator.box.domain import entities as domain
+    from codebox_orchestrator.box.ports.box_repository import BoxFilters
 
 
 class SqlAlchemyBoxRepository:
@@ -86,9 +91,7 @@ class SqlAlchemyBoxRepository:
     async def get_events(self, box_id: str) -> list[domain.BoxEvent]:
         async with self._sf() as db:
             stmt = (
-                select(orm.BoxEvent)
-                .where(orm.BoxEvent.box_id == box_id)
-                .order_by(orm.BoxEvent.id)
+                select(orm.BoxEvent).where(orm.BoxEvent.box_id == box_id).order_by(orm.BoxEvent.id)
             )
             result = await db.execute(stmt)
             return [mappers.box_event_to_domain(e) for e in result.scalars().all()]

@@ -1,0 +1,106 @@
+target-version = "py312"
+line-length = 99
+
+src = [
+    "codebox-orchestrator/src",
+    "codebox-cli/src",
+    "codebox-agent/src",
+    "codebox-sandbox/src",
+    "codebox-github-action/src",
+]
+
+extend-exclude = [
+    "**/grpc/generated/**",
+    "codebox-web-ui",
+    "proto",
+]
+
+[format]
+quote-style = "double"
+docstring-code-format = true
+
+[lint]
+select = [
+    "F",     # pyflakes
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "ASYNC", # flake8-async
+    "S",     # flake8-bandit (security)
+    "B",     # flake8-bugbear
+    "A",     # flake8-builtins
+    "COM",   # flake8-commas
+    "C4",    # flake8-comprehensions
+    "DTZ",   # flake8-datetimez
+    "T10",   # flake8-debugger
+    "FA",    # flake8-future-annotations
+    "ISC",   # flake8-implicit-str-concat
+    "ICN",   # flake8-import-conventions
+    "LOG",   # flake8-logging
+    "G",     # flake8-logging-format
+    "PIE",   # flake8-pie
+    "T20",   # flake8-print
+    "PT",    # flake8-pytest-style
+    "RSE",   # flake8-raise
+    "RET",   # flake8-return
+    "SLF",   # flake8-self
+    "SIM",   # flake8-simplify
+    "TID",   # flake8-tidy-imports
+    "TCH",   # flake8-type-checking
+    "ARG",   # flake8-unused-arguments
+    "PTH",   # flake8-use-pathlib
+    "PGH",   # pygrep-hooks
+    "PL",    # pylint
+    "TRY",   # tryceratops
+    "FLY",   # flynt
+    "PERF",  # perflint
+    "FURB",  # refurb
+    "RUF",   # ruff-specific rules
+]
+
+ignore = [
+    # Formatter conflicts
+    "COM812",  # missing-trailing-comma
+    "ISC001",  # single-line-implicit-string-concatenation
+
+    # Too noisy for initial adoption
+    "S101",    # assert used
+    "TRY003",  # long exception messages
+    "PLR0913", # too many arguments
+    "PLR2004", # magic value comparison
+    "RET504",  # unnecessary assignment before return
+
+    # FastAPI specific
+    "B008",    # function call in default argument (Depends() pattern)
+]
+
+[lint.per-file-ignores]
+"**/tests/**/*.py" = [
+    "S101",    # assert is fine in tests
+    "ARG",     # unused arguments common in fixtures
+    "SLF001",  # private member access in tests
+    "T20",     # print in tests
+]
+"scripts/**/*.py" = [
+    "T20",     # print in scripts
+]
+"**/__main__.py" = [
+    "T20",     # print in entrypoints
+]
+
+[lint.isort]
+known-first-party = [
+    "codebox_orchestrator",
+    "codebox_cli",
+    "codebox_agent",
+    "codebox_sandbox",
+    "codebox_github_action",
+]
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
+
+[lint.pylint]
+max-args = 8

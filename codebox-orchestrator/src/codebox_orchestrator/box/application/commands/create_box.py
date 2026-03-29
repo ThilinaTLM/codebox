@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from codebox_orchestrator.box.domain.entities import Box
 from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
-from codebox_orchestrator.box.ports.box_repository import BoxRepository
-from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 from codebox_orchestrator.config import OPENROUTER_MODEL
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.box.ports.box_repository import BoxRepository
+    from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 
 class CreateBoxHandler:
@@ -43,18 +46,20 @@ class CreateBoxHandler:
             github_trigger_url=github_trigger_url,
             github_branch=github_branch,
         )
-        box.started_at = datetime.now(timezone.utc)
+        box.started_at = datetime.now(UTC)
         await self._repo.save(box)
 
         await self._publisher.publish_box_event(
             box.id, {"type": "status_change", "container_status": ContainerStatus.STARTING.value}
         )
-        await self._publisher.publish_global_event({
-            "type": "box_created",
-            "box_id": box.id,
-            "name": box.name,
-            "container_status": ContainerStatus.STARTING.value,
-            "model": box.model,
-            "created_at": box.created_at.isoformat(),
-        })
+        await self._publisher.publish_global_event(
+            {
+                "type": "box_created",
+                "box_id": box.id,
+                "name": box.name,
+                "container_status": ContainerStatus.STARTING.value,
+                "model": box.model,
+                "created_at": box.created_at.isoformat(),
+            }
+        )
         return box

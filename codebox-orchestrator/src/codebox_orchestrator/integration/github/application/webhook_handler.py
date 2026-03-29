@@ -1,15 +1,23 @@
 """GitHub webhook processing handler."""
+
 from __future__ import annotations
 
 import json
 import logging
 import re
 import uuid
+from typing import TYPE_CHECKING
 
 from codebox_orchestrator.config import GITHUB_DEFAULT_BASE_BRANCH
-from codebox_orchestrator.integration.github.infrastructure.github_api_client import GitHubApiClient
-from codebox_orchestrator.integration.github.infrastructure.github_repository import SqlAlchemyGitHubRepository
 from codebox_orchestrator.integration.ports.integration_handler import BoxCreateRequest
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.integration.github.infrastructure.github_api_client import (
+        GitHubApiClient,
+    )
+    from codebox_orchestrator.integration.github.infrastructure.github_repository import (
+        SqlAlchemyGitHubRepository,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +131,9 @@ class GitHubWebhookHandler:
 
         is_pr = "pull_request" in issue
         context = await self._api.extract_issue_context(
-            gh_installation_id, repo_full_name, issue_number,
+            gh_installation_id,
+            repo_full_name,
+            issue_number,
             is_pull_request=is_pr,
         )
 
@@ -148,7 +158,9 @@ class GitHubWebhookHandler:
 
         # Post reaction
         try:
-            await self._api.post_reaction(gh_installation_id, repo_full_name, comment["id"], "rocket")
+            await self._api.post_reaction(
+                gh_installation_id, repo_full_name, comment["id"], "rocket"
+            )
         except Exception:
             logger.warning("Failed to post reaction on comment", exc_info=True)
 
@@ -164,7 +176,9 @@ class GitHubWebhookHandler:
             issue_number=issue_number,
         )
 
-    async def _handle_pr_review_comment(self, payload: dict, event_id: str) -> BoxCreateRequest | None:
+    async def _handle_pr_review_comment(
+        self, payload: dict, event_id: str
+    ) -> BoxCreateRequest | None:
         comment = payload.get("comment", {})
         body = comment.get("body", "")
         user = comment.get("user", {})
@@ -207,7 +221,9 @@ class GitHubWebhookHandler:
             )
 
         context = await self._api.extract_issue_context(
-            gh_installation_id, repo_full_name, pr_number,
+            gh_installation_id,
+            repo_full_name,
+            pr_number,
             is_pull_request=True,
         )
 
@@ -294,17 +310,19 @@ class GitHubWebhookHandler:
             parts.append("## Repository Guidelines")
             parts.append(guidelines)
 
-        parts.extend([
-            "",
-            "## Instructions",
-            f"- The repository is cloned into /workspace (your CWD) and you are on branch {branch}",
-            f"- Full issue context is also available at /app/codebox/context.md",
-            "- Implement the requested changes",
-            "- Write tests if applicable",
-            "- Commit your changes with descriptive messages",
-            "- Push your branch and open a pull request using `gh pr create`",
-            f"- Reference issue #{issue_number} in the PR description",
-        ])
+        parts.extend(
+            [
+                "",
+                "## Instructions",
+                f"- The repository is cloned into /workspace (your CWD) and you are on branch {branch}",
+                "- Full issue context is also available at /app/codebox/context.md",
+                "- Implement the requested changes",
+                "- Write tests if applicable",
+                "- Commit your changes with descriptive messages",
+                "- Push your branch and open a pull request using `gh pr create`",
+                f"- Reference issue #{issue_number} in the PR description",
+            ]
+        )
 
         return "\n".join(parts)
 
@@ -327,7 +345,7 @@ class GitHubWebhookHandler:
         pre_push_hook = (
             "#!/bin/bash\n"
             "while read local_ref local_sha remote_ref remote_sha; do\n"
-            '    branch=$(echo "$remote_ref" | sed \'s|refs/heads/||\')\n'
+            "    branch=$(echo \"$remote_ref\" | sed 's|refs/heads/||')\n"
             '    if [[ ! "$branch" =~ ^codebox/ ]]; then\n'
             '        echo "ERROR: Push rejected. Can only push to codebox/* branches."\n'
             '        echo "Attempted to push to: $branch"\n'
