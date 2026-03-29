@@ -207,11 +207,59 @@ async def run() -> None:
         events.append(msg)
         msg_type = msg.get("type", "")
 
-        if msg_type == "done":
+        if msg_type == "tool_start":
+            name = msg.get("name", "?")
+            tool_input = msg.get("input", "")
+            if len(tool_input) > 500:
+                tool_input = tool_input[:500] + "..."
+            logger.info("Tool: %s | input: %s", name, tool_input or "(none)")
+
+        elif msg_type == "tool_end":
+            name = msg.get("name", "?")
+            output = msg.get("output", "")
+            output_len = len(output)
+            preview = output[:300].replace("\n", " ") if output else "(empty)"
+            if output_len > 300:
+                preview += "..."
+            logger.info("Tool done: %s | output (%d chars): %s", name, output_len, preview)
+
+        elif msg_type == "message_complete":
+            message = msg.get("message", {})
+            role = message.get("role", "?")
+            content = message.get("content", "")
+            tool_calls = message.get("tool_calls", [])
+            if role == "assistant":
+                if content:
+                    preview = content[:300].replace("\n", " ")
+                    if len(content) > 300:
+                        preview += "..."
+                    logger.info("Assistant: %s", preview)
+                if tool_calls:
+                    for tc in tool_calls:
+                        tc_name = tc.get("name", "?")
+                        tc_args = tc.get("args_json", "")
+                        if len(tc_args) > 500:
+                            tc_args = tc_args[:500] + "..."
+                        logger.info("  -> tool_call: %s(%s)", tc_name, tc_args)
+            elif role == "tool":
+                tool_name = message.get("tool_name", "?")
+                preview = content[:200].replace("\n", " ") if content else "(empty)"
+                if len(content) > 200:
+                    preview += "..."
+                logger.info("Tool result [%s]: %s", tool_name, preview)
+
+        elif msg_type == "model_start":
+            logger.info("LLM invocation started")
+
+        elif msg_type == "done":
             final_text = msg.get("content", "")
+            logger.info("Agent done (output: %d chars)", len(final_text))
+
         elif msg_type == "task_outcome":
             agent_status = msg.get("status", "")
             agent_status_message = msg.get("message", "")
+            logger.info("Agent status: %s — %s", agent_status, agent_status_message)
+
         elif msg_type == "error":
             logger.error("Agent error: %s", msg.get("detail", ""))
 
