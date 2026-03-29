@@ -21,6 +21,10 @@ inputs:
   dynamic-system-prompt:
     description: 'Additional system prompt appended after the core and environment prompts (optional)'
     required: false
+  log-mode:
+    description: 'Logging mode: "human" for clean readable output (default), "debug" for verbose technical logs'
+    required: false
+    default: 'human'
 
 runs:
   using: 'composite'
@@ -46,4 +50,5 @@ runs:
         TRIGGER_KEYWORD: ${{ inputs.trigger-keyword }}
         TAVILY_API_KEY: ${{ inputs.tavily-api-key }}
         DYNAMIC_SYSTEM_PROMPT: ${{ inputs.dynamic-system-prompt }}
+        LOG_MODE: ${{ inputs.log-mode }}
       run: python -m codebox_github_action
