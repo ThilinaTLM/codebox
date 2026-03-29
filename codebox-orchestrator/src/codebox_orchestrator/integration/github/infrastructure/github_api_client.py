@@ -162,9 +162,13 @@ class GitHubApiClient:
     # ------------------------------------------------------------------
 
     async def extract_issue_context(
-        self, installation_id: int, repo: str, issue_number: int
+        self,
+        installation_id: int,
+        repo: str,
+        issue_number: int,
+        is_pull_request: bool = False,
     ) -> dict:
-        """Fetch issue details and conversation from the GitHub API."""
+        """Fetch issue/PR details and conversation from the GitHub API."""
         token = await self.get_installation_token(installation_id)
         headers = {
             "Authorization": f"Bearer {token}",
@@ -172,7 +176,12 @@ class GitHubApiClient:
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
-        context: dict = {"comments": [], "guidelines": ""}
+        context: dict = {
+            "comments": [],
+            "guidelines": "",
+            "changed_files": [],
+            "review_comments": [],
+        }
 
         async with httpx.AsyncClient(verify=_ssl_ctx) as client:
             # Fetch comments
@@ -203,6 +212,49 @@ class GitHubApiClient:
                         context["guidelines"] += f"\n\n## {filename}\n{resp.text}"
                 except Exception:
                     pass
+
+            # PR-specific context
+            if is_pull_request:
+                # Fetch changed files
+                status_map = {
+                    "added": "A", "modified": "M", "removed": "D",
+                    "renamed": "R", "copied": "C",
+                }
+                try:
+                    resp = await client.get(
+                        f"{GITHUB_API_BASE}/repos/{repo}/pulls/{issue_number}/files",
+                        params={"per_page": 50},
+                        headers=headers,
+                    )
+                    resp.raise_for_status()
+                    for f in resp.json():
+                        status = status_map.get(f.get("status", ""), "?")
+                        filename = f.get("filename", "")
+                        adds = f.get("additions", 0)
+                        dels = f.get("deletions", 0)
+                        context["changed_files"].append(
+                            f"{status} {filename} (+{adds}, -{dels})"
+                        )
+                except Exception:
+                    logger.warning("Failed to fetch PR files", exc_info=True)
+
+                # Fetch review comments
+                try:
+                    resp = await client.get(
+                        f"{GITHUB_API_BASE}/repos/{repo}/pulls/{issue_number}/comments",
+                        params={"per_page": 50},
+                        headers=headers,
+                    )
+                    resp.raise_for_status()
+                    for c in resp.json():
+                        context["review_comments"].append({
+                            "user": c.get("user", {}).get("login", ""),
+                            "body": c.get("body", ""),
+                            "path": c.get("path", ""),
+                            "created_at": c.get("created_at", ""),
+                        })
+                except Exception:
+                    logger.warning("Failed to fetch PR review comments", exc_info=True)
 
         return context
 

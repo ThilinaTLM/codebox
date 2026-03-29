@@ -121,8 +121,10 @@ class GitHubWebhookHandler:
                 account_type=account.get("type", "User"),
             )
 
+        is_pr = "pull_request" in issue
         context = await self._api.extract_issue_context(
-            gh_installation_id, repo_full_name, issue_number
+            gh_installation_id, repo_full_name, issue_number,
+            is_pull_request=is_pr,
         )
 
         branch = self.generate_branch_name(issue_number, issue_title)
@@ -138,6 +140,8 @@ class GitHubWebhookHandler:
             issue_body=issue_body,
             conversation=context.get("comments", []),
             guidelines=context.get("guidelines", ""),
+            changed_files=context.get("changed_files"),
+            review_comments=context.get("review_comments"),
         )
 
         dynamic_system_prompt = self._default_dynamic_system_prompt()
@@ -202,6 +206,11 @@ class GitHubWebhookHandler:
                 account_type=account.get("type", "User"),
             )
 
+        context = await self._api.extract_issue_context(
+            gh_installation_id, repo_full_name, pr_number,
+            is_pull_request=True,
+        )
+
         prompt = self.build_prompt(
             instruction=instruction,
             repo=repo_full_name,
@@ -210,8 +219,10 @@ class GitHubWebhookHandler:
             issue_number=pr_number,
             issue_title=pr_title,
             issue_body=pr_body,
-            conversation=[],
-            guidelines="",
+            conversation=context.get("comments", []),
+            guidelines=context.get("guidelines", ""),
+            changed_files=context.get("changed_files"),
+            review_comments=context.get("review_comments"),
         )
 
         dynamic_system_prompt = self._default_dynamic_system_prompt()
@@ -239,6 +250,8 @@ class GitHubWebhookHandler:
         issue_body: str,
         conversation: list[dict],
         guidelines: str,
+        changed_files: list[str] | None = None,
+        review_comments: list[dict] | None = None,
     ) -> str:
         """Assemble the agent prompt from extracted context."""
         parts = [
@@ -258,6 +271,21 @@ class GitHubWebhookHandler:
             parts.append("## Conversation")
             for c in conversation:
                 parts.append(f"**{c['user']}** ({c.get('created_at', '')}):")
+                parts.append(c["body"])
+                parts.append("")
+
+        if changed_files:
+            parts.append("")
+            parts.append("## Changed Files")
+            for line in changed_files:
+                parts.append(line)
+
+        if review_comments:
+            parts.append("")
+            parts.append("## Review Comments")
+            for c in review_comments:
+                path = f" on `{c['path']}`" if c.get("path") else ""
+                parts.append(f"**{c['user']}**{path} ({c.get('created_at', '')}):")
                 parts.append(c["body"])
                 parts.append("")
 

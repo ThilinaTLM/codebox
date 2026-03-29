@@ -40,22 +40,107 @@ def _parse_event() -> dict[str, Any]:
     return json.loads(Path(event_path).read_text())
 
 
+def _fetch_comments(repo: str, issue_number: int) -> list[dict[str, str]]:
+    """Fetch comments on an issue or PR via gh CLI."""
+    raw = _gh("api", f"repos/{repo}/issues/{issue_number}/comments", "--paginate")
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return []
+    comments = []
+    for c in data[-30:]:  # Last 30 comments
+        comments.append({
+            "user": c.get("user", {}).get("login", "unknown"),
+            "body": c.get("body", ""),
+            "created_at": c.get("created_at", ""),
+        })
+    return comments
+
+
+def _fetch_pr_files(repo: str, pr_number: int) -> list[str]:
+    """Fetch changed files for a PR via gh CLI."""
+    try:
+        data = json.loads(
+            _gh("api", f"repos/{repo}/pulls/{pr_number}/files", "--paginate")
+        )
+    except (json.JSONDecodeError, ValueError):
+        return []
+    status_map = {"added": "A", "modified": "M", "removed": "D", "renamed": "R", "copied": "C"}
+    lines = []
+    for f in data[:50]:
+        status = status_map.get(f.get("status", ""), "?")
+        filename = f.get("filename", "")
+        adds = f.get("additions", 0)
+        dels = f.get("deletions", 0)
+        lines.append(f"{status} {filename} (+{adds}, -{dels})")
+    if len(data) > 50:
+        lines.append(f"... and {len(data) - 50} more files")
+    return lines
+
+
+def _fetch_guidelines(repo: str) -> str:
+    """Fetch CLAUDE.md and CONTRIBUTING.md from the repo if they exist."""
+    parts = []
+    for filename in ("CLAUDE.md", "CONTRIBUTING.md"):
+        content = _gh("api", f"repos/{repo}/contents/{filename}",
+                       "-H", "Accept: application/vnd.github.raw+json")
+        if content:
+            truncated = content[:2000]
+            parts.append(f"### {filename}\n{truncated}")
+    return "\n\n".join(parts)
+
+
 def _build_agent_prompt(event: dict[str, Any]) -> str:
     """Build the prompt for the agent from the issue and comment."""
     issue = event.get("issue", {})
     comment = event.get("comment", {})
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
 
     issue_title = issue.get("title", "")
+    issue_number = issue.get("number", 0)
     issue_body = issue.get("body", "") or ""
     comment_body = comment.get("body", "") or ""
+    is_pr = "pull_request" in issue
 
     # Strip the trigger keyword from the comment
     trigger = os.environ.get("TRIGGER_KEYWORD", "/codebox")
     task = comment_body.replace(trigger, "").strip()
 
-    parts = [f"# Issue: {issue_title}"]
+    parts = [f"# {'PR' if is_pr else 'Issue'}: {issue_title}"]
+
+    # Labels
+    labels = [l.get("name", "") for l in issue.get("labels", []) if l.get("name")]
+    if labels:
+        parts.append(f"\nLabels: {', '.join(labels)}")
+
+    # Description
     if issue_body:
-        parts.append(f"\n{issue_body}")
+        parts.append(f"\n## Description\n\n{issue_body}")
+
+    # Conversation (all prior comments)
+    if repo and issue_number:
+        comments = _fetch_comments(repo, issue_number)
+        if comments:
+            parts.append("\n## Conversation")
+            for c in comments:
+                parts.append(f"\n**{c['user']}** ({c['created_at']}):\n{c['body']}")
+
+    # PR changed files
+    if is_pr and repo and issue_number:
+        pr_files = _fetch_pr_files(repo, issue_number)
+        if pr_files:
+            parts.append("\n## PR Changed Files\n")
+            parts.append("\n".join(pr_files))
+
+    # Repository guidelines
+    if repo:
+        guidelines = _fetch_guidelines(repo)
+        if guidelines:
+            parts.append(f"\n## Repository Guidelines\n\n{guidelines}")
+
+    # Instructions from the triggering comment
     if task:
         parts.append(f"\n## Instructions from comment\n\n{task}")
 
@@ -93,7 +178,9 @@ async def run() -> None:
 
     # Set up the agent
     workspace = os.environ.get("GITHUB_WORKSPACE", os.getcwd())
-    model = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-sonnet-4")
+    model = os.environ.get("OPENROUTER_MODEL", "")
+    if not model:
+        raise RuntimeError("OPENROUTER_MODEL is required")
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
 
     if not api_key:

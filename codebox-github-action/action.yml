@@ -10,8 +10,7 @@ inputs:
     required: true
   openrouter-model:
     description: 'OpenRouter model identifier'
-    required: false
-    default: 'anthropic/claude-sonnet-4'
+    required: true
   trigger-keyword:
     description: 'Comment keyword that triggers the agent'
     required: false

@@ -24,6 +24,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          openrouter-model: 'anthropic/claude-sonnet-4'
 ```
 
 ## Inputs
@@ -32,7 +33,7 @@ jobs:
 | ----------------------- | -------- | --------------------------- | -------------------------------------------------------------------- |
 | `github-token`          | Yes      | -                           | GitHub token for API access                                          |
 | `openrouter-api-key`    | Yes      | -                           | OpenRouter API key                                                   |
-| `openrouter-model`      | No       | `anthropic/claude-sonnet-4` | Model identifier                                                     |
+| `openrouter-model`      | Yes      | -                           | Model identifier (e.g. `anthropic/claude-sonnet-4`)                  |
 | `trigger-keyword`       | No       | `/codebox`                  | Comment keyword that triggers the agent                              |
 | `tavily-api-key`        | No       | -                           | Tavily API key for web search                                        |
 | `dynamic-system-prompt` | No       | -                           | Additional system prompt appended after core and environment prompts |
