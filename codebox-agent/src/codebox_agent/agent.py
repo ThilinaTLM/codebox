@@ -63,7 +63,8 @@ def create_agent(
     timeout = cfg.get("timeout", 120)
 
     logger.info(
-        "Creating agent: model=%s, temperature=%s, timeout=%s, root_dir=%s, env_prompt=%s, dynamic_prompt=%s",
+        "Creating agent: model=%s, temperature=%s, timeout=%s, root_dir=%s,"
+        " env_prompt=%s, dynamic_prompt=%s",
         model,
         temperature,
         timeout,

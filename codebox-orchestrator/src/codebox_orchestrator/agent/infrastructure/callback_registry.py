@@ -71,16 +71,17 @@ class CallbackRegistry:
         """Full cleanup (box reached terminal state)."""
         self.remove(entity_id)
 
-    async def wait_for_connection(self, entity_id: str, timeout: float = 60.0) -> bool:
+    async def wait_for_connection(self, entity_id: str, timeout: float = 60.0) -> bool:  # noqa: ASYNC109
         """Wait until the sandbox connects back, or timeout."""
         event = self._connected_events.get(entity_id)
         if event is None:
             return False
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
-            return True
         except TimeoutError:
             return False
+        else:
+            return True
 
     def create_pending_request(self, entity_id: str) -> tuple[str, asyncio.Future[dict[str, Any]]]:
         """Create a future for a file-op request/response. Returns (request_id, future)."""

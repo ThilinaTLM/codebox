@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from codebox_orchestrator.agent.domain.exceptions import NoActiveConnection
+from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
 from codebox_orchestrator.box.domain.entities import BoxMessage
 
 if TYPE_CHECKING:
@@ -39,5 +39,5 @@ class SendMessageHandler:
 
         # Forward to sandbox
         if not self._connections.has_connection(box_id):
-            raise NoActiveConnection(box_id)
+            raise NoActiveConnectionError(box_id)
         await self._connections.send_command(box_id, {"type": "message", "content": content})

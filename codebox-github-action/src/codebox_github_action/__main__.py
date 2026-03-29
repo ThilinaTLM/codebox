@@ -21,7 +21,7 @@ def main() -> None:
             level=logging.WARNING,
             format="%(asctime)s %(levelname)s %(message)s",
         )
-        from codebox_agent import suppress_internal_loggers
+        from codebox_agent import suppress_internal_loggers  # noqa: PLC0415
 
         suppress_internal_loggers(logging.WARNING)
 

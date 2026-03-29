@@ -35,11 +35,11 @@ class OrchestratorClient:
         if params:
             url += f"?{urllib.parse.urlencode(params)}"
         data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(url, data=data, method=method)
+        req = urllib.request.Request(url, data=data, method=method)  # noqa: S310
         req.add_header("Content-Type", "application/json")
 
         try:
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req) as resp:  # noqa: S310 - URL from user config
                 if resp.status == 204:
                     return None
                 return json.loads(resp.read().decode())
@@ -180,19 +180,21 @@ class OrchestratorClient:
     async def stream_events(self, box_id: str) -> AsyncIterator[dict[str, Any]]:
         """Connect to a box's SSE stream and yield parsed events."""
         url = f"{self.base_url}/api/boxes/{box_id}/stream"
-        async with httpx.AsyncClient(timeout=None) as http:
-            async with http.stream("GET", url) as resp:
-                resp.raise_for_status()
-                buffer = ""
-                async for chunk in resp.aiter_text():
-                    buffer += chunk
-                    while "\n\n" in buffer:
-                        frame, buffer = buffer.split("\n\n", 1)
-                        for line in frame.split("\n"):
-                            if line.startswith("data: "):
-                                data = line[6:]
-                                try:
-                                    event = json.loads(data)
-                                    yield event
-                                except json.JSONDecodeError:
-                                    pass
+        async with (
+            httpx.AsyncClient(timeout=None) as http,  # noqa: S113 - infinite timeout intentional for SSE streaming
+            http.stream("GET", url) as resp,
+        ):
+            resp.raise_for_status()
+            buffer = ""
+            async for chunk in resp.aiter_text():
+                buffer += chunk
+                while "\n\n" in buffer:
+                    frame, buffer = buffer.split("\n\n", 1)
+                    for line in frame.split("\n"):
+                        if line.startswith("data: "):
+                            data = line[6:]
+                            try:
+                                event = json.loads(data)
+                                yield event
+                            except json.JSONDecodeError:
+                                pass

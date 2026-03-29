@@ -71,7 +71,7 @@ def _langchain_message_to_dict(msg: Any) -> dict[str, Any]:
     return result
 
 
-async def run_agent_stream(
+async def run_agent_stream(  # noqa: PLR0912, PLR0915
     send: SendFn,
     session_id: str,
     manager: SessionManager,
@@ -312,9 +312,10 @@ def _is_binary_file(path: Path) -> bool:
         return False
     try:
         chunk = path.read_bytes()[:8192]
-        return b"\x00" in chunk
     except Exception:
         return True
+    else:
+        return b"\x00" in chunk
 
 
 def _validate_workspace_path(raw_path: str, workspace_root: Path) -> Path:

@@ -40,6 +40,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/github", tags=["github"])
 
+# Prevent background tasks from being garbage collected
+_background_tasks: set[asyncio.Task] = set()  # noqa: RUF029
+
 
 def _require_webhook_handler(
     handler: GitHubWebhookHandler | None = Depends(get_webhook_handler),
@@ -86,7 +89,7 @@ async def github_webhook(
     payload = await request.json()
 
     # Process asynchronously — GitHub expects a fast 200 response
-    asyncio.create_task(
+    task = asyncio.create_task(
         _process_webhook_safe(
             webhook_handler,
             event_type,
@@ -96,6 +99,8 @@ async def github_webhook(
             lifecycle,
         )
     )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     return JSONResponse({"status": "accepted"}, status_code=200)
 
@@ -178,17 +183,17 @@ async def add_installation(
     try:
         inst = await service.fetch_and_store(body.installation_id)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch installation info: {exc}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch installation info: {exc}") from exc
     return GitHubInstallationResponse.model_validate(inst)
 
 
-@router.post("/installations/{id}/sync")
+@router.post("/installations/{installation_id}/sync")
 async def sync_installation(
-    id: str,
+    installation_id: str,
     service: GitHubInstallationService = Depends(_require_installation_service),
 ) -> list[GitHubRepoResponse]:
     """Re-fetch the repo list for an installation from the GitHub API."""
-    inst = await service.get_installation(id)
+    inst = await service.get_installation(installation_id)
     if inst is None:
         raise HTTPException(status_code=404, detail="Installation not found")
 
@@ -196,13 +201,13 @@ async def sync_installation(
     return [GitHubRepoResponse(**r) for r in repos]
 
 
-@router.delete("/installations/{id}", response_model=None)
+@router.delete("/installations/{installation_id}", response_model=None)
 async def remove_installation(
-    id: str,
+    installation_id: str,
     service: GitHubInstallationService = Depends(_require_installation_service),
 ) -> JSONResponse:
     """Remove an installation record (does not uninstall the app from GitHub)."""
-    deleted = await service.delete_installation(id)
+    deleted = await service.delete_installation(installation_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Installation not found")
     return JSONResponse({"status": "deleted"})

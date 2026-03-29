@@ -73,14 +73,14 @@ async def list_boxes(
     if container_status:
         try:
             cs = ContainerStatus(container_status)
-        except ValueError:
-            raise HTTPException(400, f"Invalid container_status: {container_status}")
+        except ValueError as exc:
+            raise HTTPException(400, f"Invalid container_status: {container_status}") from exc
     act = None
     if activity:
         try:
             act = Activity(activity)
-        except ValueError:
-            raise HTTPException(400, f"Invalid activity: {activity}")
+        except ValueError as exc:
+            raise HTTPException(400, f"Invalid activity: {activity}") from exc
     boxes = await bs.list_boxes(container_status=cs, activity=act, trigger=trigger)
     return [BoxResponse.from_orm_box(b) for b in boxes]
 
@@ -133,7 +133,7 @@ async def restart_box(request: Request, box_id: str) -> BoxResponse:
     try:
         box = await bs.restart_box(box_id)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     return BoxResponse.from_orm_box(box)
 
 
@@ -150,7 +150,7 @@ async def send_message(request: Request, box_id: str, body: BoxMessage):
     try:
         await bs.send_message(box_id, body.message)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     return {"status": "sent"}
 
 
@@ -160,7 +160,7 @@ async def exec_box(request: Request, box_id: str, body: BoxExec):
     try:
         await bs.send_exec(box_id, body.command)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     return {"status": "sent"}
 
 
@@ -180,9 +180,9 @@ async def box_list_files(request: Request, box_id: str, path: str = "/workspace"
     try:
         return await bs.list_files(box_id, path)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
-        raise HTTPException(502, f"Box file proxy error: {exc}")
+        raise HTTPException(502, f"Box file proxy error: {exc}") from exc
 
 
 @router.get("/boxes/{box_id}/files/read")
@@ -195,9 +195,9 @@ async def box_read_file(request: Request, box_id: str, path: str):
     try:
         return await bs.read_file(box_id, path)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
-        raise HTTPException(502, f"Box file proxy error: {exc}")
+        raise HTTPException(502, f"Box file proxy error: {exc}") from exc
 
 
 @router.get("/boxes/{box_id}/files/download")
@@ -210,9 +210,9 @@ async def box_download_file(request: Request, box_id: str, path: str):
     try:
         data = await bs.read_file(box_id, path)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
-        raise HTTPException(502, f"Box file proxy error: {exc}")
+        raise HTTPException(502, f"Box file proxy error: {exc}") from exc
 
     if data.get("is_binary") and data.get("content_base64"):
         content_bytes = base64.b64decode(data["content_base64"])
@@ -253,7 +253,7 @@ async def get_container_logs(container_id: str, tail: int = 200) -> ContainerLog
     try:
         logs = docker_service.get_logs(container_id, tail=tail)
     except docker_service.DockerServiceError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     return ContainerLogsResponse(logs=logs)
 
 
@@ -262,7 +262,7 @@ async def stop_container(container_id: str):
     try:
         docker_service.stop(container_id)
     except docker_service.DockerServiceError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     return {"status": "stopped"}
 
 
@@ -271,7 +271,7 @@ async def start_container(container_id: str):
     try:
         docker_service.start(container_id)
     except docker_service.DockerServiceError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     return {"status": "started"}
 
 
@@ -280,4 +280,4 @@ async def delete_container(container_id: str):
     try:
         docker_service.remove(container_id)
     except docker_service.DockerServiceError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc

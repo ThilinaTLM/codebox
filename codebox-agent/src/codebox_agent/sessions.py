@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import aiosqlite
@@ -38,7 +38,7 @@ class Session:
 class SessionManager:
     """Manages creation, retrieval, and deletion of agent sessions."""
 
-    def __init__(self, checkpoint_db_path: str = "/tmp/codebox-checkpoints.db") -> None:
+    def __init__(self, checkpoint_db_path: str = "/tmp/codebox-checkpoints.db") -> None:  # noqa: S108
         self._sessions: dict[str, Session] = {}
         self._checkpoint_db_path = checkpoint_db_path
 
@@ -71,7 +71,7 @@ class SessionManager:
         )
 
         # Ensure checkpoint directory exists
-        os.makedirs(os.path.dirname(self._checkpoint_db_path), exist_ok=True)
+        Path(self._checkpoint_db_path).parent.mkdir(parents=True, exist_ok=True)
 
         logger.debug("Opening checkpoint DB at %s", self._checkpoint_db_path)
         conn = await aiosqlite.connect(self._checkpoint_db_path)
@@ -118,7 +118,7 @@ class SessionManager:
         try:
             return self._sessions[session_id]
         except KeyError:
-            raise KeyError(f"Session not found: {session_id}")
+            raise KeyError(f"Session not found: {session_id}") from None
 
     def delete(self, session_id: str) -> None:
         """Delete a session by ID.

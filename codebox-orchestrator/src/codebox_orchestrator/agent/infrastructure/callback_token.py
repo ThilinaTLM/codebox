@@ -25,10 +25,11 @@ def decode_callback_token(token: str) -> tuple[str, str] | None:
     """Decode and verify a callback JWT. Returns (box_id, entity_type) or None."""
     try:
         payload = jwt.decode(token, get_callback_secret(), algorithms=[_ALGORITHM])
+    except jwt.PyJWTError:
+        return None
+    else:
         box_id = payload.get("box_id")
         entity_type = payload.get("entity_type")
         if box_id and entity_type:
             return (box_id, entity_type)
-        return None
-    except jwt.PyJWTError:
         return None

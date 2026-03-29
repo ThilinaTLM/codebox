@@ -43,7 +43,7 @@ async def get_container_logs(
     try:
         logs = runtime.get_logs(container_id, tail=tail)
     except DockerServiceError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     return ContainerLogsResponse(logs=logs)
 
 
@@ -55,7 +55,7 @@ async def stop_container(
     try:
         runtime.stop(container_id)
     except DockerServiceError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     return {"status": "stopped"}
 
 
@@ -67,7 +67,7 @@ async def start_container(
     try:
         runtime.start(container_id)
     except DockerServiceError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     return {"status": "started"}
 
 
@@ -79,4 +79,4 @@ async def delete_container(
     try:
         runtime.remove(container_id)
     except DockerServiceError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc

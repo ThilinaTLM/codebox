@@ -18,7 +18,10 @@ def _web_search(
     query: Annotated[str, "The search query"],
     max_results: Annotated[int, "Maximum number of results to return"] = 5,
 ) -> str:
-    """Search the web using Tavily AI search. Returns relevant results with titles, URLs, and content snippets."""
+    """Search the web using Tavily AI search.
+
+    Returns relevant results with titles, URLs, and content snippets.
+    """
     logger.info("web_search: query=%r, max_results=%d", query, max_results)
     api_key = os.environ.get("TAVILY_API_KEY", "")
     if not api_key:
@@ -29,7 +32,7 @@ def _web_search(
             "if you have a specific URL."
         )
 
-    from tavily import TavilyClient
+    from tavily import TavilyClient  # noqa: PLC0415
 
     try:
         client = TavilyClient(api_key=api_key)
@@ -57,7 +60,10 @@ def _web_fetch(
     url: Annotated[str, "The URL to fetch"],
     max_length: Annotated[int, "Maximum character length of returned content"] = 50000,
 ) -> str:
-    """Fetch a URL and return its content as clean markdown. Works with HTML pages, JSON APIs, and plain text."""
+    """Fetch a URL and return its content as clean markdown.
+
+    Works with HTML pages, JSON APIs, and plain text.
+    """
     logger.info("web_fetch: url=%s", url)
     try:
         with httpx.Client(timeout=30, follow_redirects=True) as client:

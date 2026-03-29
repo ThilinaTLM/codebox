@@ -49,7 +49,7 @@ class ContainerInfo:
 
 
 def _get_client() -> docker.DockerClient:
-    global _client
+    global _client  # noqa: PLW0603
     if _client is not None:
         return _client
     try:
@@ -67,14 +67,15 @@ def _get_client() -> docker.DockerClient:
                 )
                 kwargs["tls"] = tls_config
             _client = docker.DockerClient(**kwargs)
-        return _client
     except docker.errors.DockerException as exc:
         raise DockerServiceError(f"Cannot connect to container runtime: {exc}") from exc
+    else:
+        return _client
 
 
 def reset_client() -> None:
     """Clear the cached client (useful for testing)."""
-    global _client
+    global _client  # noqa: PLW0603
     _client = None
 
 
@@ -170,7 +171,7 @@ def list_running() -> list[ContainerInfo]:
 _DOCKER_ZERO_TIME = "0001-01-01T00:00:00Z"
 
 
-def list_containers(all: bool = True) -> list[ContainerInfo]:
+def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
     """List sandbox containers. When *all* is True, includes stopped containers."""
     client = _get_client()
 

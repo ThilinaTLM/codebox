@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from codebox_orchestrator.agent.domain.exceptions import NoActiveConnection
+from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
 
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.ports.agent_connection import AgentConnectionManager
@@ -18,7 +18,7 @@ class ListFilesHandler:
 
     async def execute(self, box_id: str, path: str = "/workspace") -> dict[str, Any]:
         if not self._connections.has_connection(box_id):
-            raise NoActiveConnection(box_id)
+            raise NoActiveConnectionError(box_id)
         result = await self._connections.send_and_wait(
             box_id, {"type": "list_files", "path": path}, timeout=_FILE_OP_TIMEOUT
         )
@@ -33,7 +33,7 @@ class ReadFileHandler:
 
     async def execute(self, box_id: str, path: str) -> dict[str, Any]:
         if not self._connections.has_connection(box_id):
-            raise NoActiveConnection(box_id)
+            raise NoActiveConnectionError(box_id)
         result = await self._connections.send_and_wait(
             box_id, {"type": "read_file", "path": path}, timeout=_FILE_OP_TIMEOUT
         )

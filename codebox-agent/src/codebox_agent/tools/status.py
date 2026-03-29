@@ -21,6 +21,8 @@ VALID_STATUSES = {
 
 SendFn = Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
 
+_background_tasks: set[asyncio.Task[Any]] = set()
+
 
 class StatusReporter:
     """Mutable holder for the send function, injected after transport connects."""
@@ -35,12 +37,14 @@ def build_status_tools(reporter: StatusReporter) -> list[BaseTool]:
     async def _set_status_async(
         status: Annotated[
             str,
-            "One of: completed, in_progress, need_clarification, unable_to_proceed, not_enough_context",
+            "One of: completed, in_progress, need_clarification,"
+            " unable_to_proceed, not_enough_context",
         ],
         message: Annotated[str | None, "Optional explanation"] = None,
     ) -> str:
         if status not in VALID_STATUSES:
-            return f"Error: Invalid status '{status}'. Must be one of: {', '.join(sorted(VALID_STATUSES))}"
+            valid = ", ".join(sorted(VALID_STATUSES))
+            return f"Error: Invalid status '{status}'. Must be one of: {valid}"
 
         if reporter.send_fn is None:
             logger.warning("set_status called but send_fn not yet available")
@@ -55,7 +59,8 @@ def build_status_tools(reporter: StatusReporter) -> list[BaseTool]:
     def _set_status_sync(
         status: Annotated[
             str,
-            "One of: completed, in_progress, need_clarification, unable_to_proceed, not_enough_context",
+            "One of: completed, in_progress, need_clarification,"
+            " unable_to_proceed, not_enough_context",
         ],
         message: Annotated[str | None, "Optional explanation"] = None,
     ) -> str:
@@ -69,12 +74,16 @@ def build_status_tools(reporter: StatusReporter) -> list[BaseTool]:
         - "not_enough_context": You need more information
 
         Args:
-            status: One of: completed, in_progress, need_clarification, unable_to_proceed, not_enough_context
-            message: Optional explanation (e.g. "PR opened at ...", "Need access to the database credentials")
+            status: One of: completed, in_progress, need_clarification,
+                unable_to_proceed, not_enough_context
+            message: Optional explanation
+                (e.g. "PR opened at ...", "Need access to ...")
         """
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            asyncio.ensure_future(_set_status_async(status, message))
+            task = asyncio.ensure_future(_set_status_async(status, message))
+            _background_tasks.add(task)
+            task.add_done_callback(_background_tasks.discard)
             # Return immediately — the event will be sent async
             return f"Status set to '{status}'." + (f" Message: {message}" if message else "")
         return asyncio.run(_set_status_async(status, message))

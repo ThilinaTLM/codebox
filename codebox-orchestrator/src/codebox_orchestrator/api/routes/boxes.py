@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
-from codebox_orchestrator.agent.domain.exceptions import NoActiveConnection
+from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
 from codebox_orchestrator.api.dependencies import (
     get_box_events,
     get_box_messages,
@@ -102,14 +102,14 @@ async def list_boxes(
     if container_status:
         try:
             cs = ContainerStatus(container_status)
-        except ValueError:
-            raise HTTPException(400, f"Invalid container_status: {container_status}")
+        except ValueError as exc:
+            raise HTTPException(400, f"Invalid container_status: {container_status}") from exc
     act = None
     if activity:
         try:
             act = Activity(activity)
-        except ValueError:
-            raise HTTPException(400, f"Invalid activity: {activity}")
+        except ValueError as exc:
+            raise HTTPException(400, f"Invalid activity: {activity}") from exc
     boxes = await handler.execute(container_status=cs, activity=act, trigger=trigger)
     return [BoxResponse.from_entity(b) for b in boxes]
 
@@ -175,10 +175,10 @@ async def restart_box(
     """Restart a stopped box."""
     try:
         box = await handler.execute(box_id)
-    except BoxNotFound:
-        raise HTTPException(404, "Box not found")
+    except BoxNotFound as exc:
+        raise HTTPException(404, "Box not found") from exc
     except InvalidStatusTransition as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from exc
     lifecycle.start_box(box.id)
     return BoxResponse.from_entity(box)
 
@@ -200,8 +200,8 @@ async def send_message(
 ):
     try:
         await handler.execute(box_id, body.message)
-    except NoActiveConnection as exc:
-        raise HTTPException(400, str(exc))
+    except NoActiveConnectionError as exc:
+        raise HTTPException(400, str(exc)) from exc
     return {"status": "sent"}
 
 
@@ -213,8 +213,8 @@ async def exec_box(
 ):
     try:
         await handler.execute(box_id, body.command)
-    except NoActiveConnection as exc:
-        raise HTTPException(400, str(exc))
+    except NoActiveConnectionError as exc:
+        raise HTTPException(400, str(exc)) from exc
     return {"status": "sent"}
 
 
@@ -239,10 +239,10 @@ async def box_list_files(
         raise HTTPException(404, "Box not found")
     try:
         return await handler.execute(box_id, path)
-    except NoActiveConnection as exc:
-        raise HTTPException(400, str(exc))
+    except NoActiveConnectionError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
-        raise HTTPException(502, f"Box file proxy error: {exc}")
+        raise HTTPException(502, f"Box file proxy error: {exc}") from exc
 
 
 @router.get("/boxes/{box_id}/files/read")
@@ -258,10 +258,10 @@ async def box_read_file(
         raise HTTPException(404, "Box not found")
     try:
         return await handler.execute(box_id, path)
-    except NoActiveConnection as exc:
-        raise HTTPException(400, str(exc))
+    except NoActiveConnectionError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
-        raise HTTPException(502, f"Box file proxy error: {exc}")
+        raise HTTPException(502, f"Box file proxy error: {exc}") from exc
 
 
 @router.get("/boxes/{box_id}/files/download")
@@ -277,10 +277,10 @@ async def box_download_file(
         raise HTTPException(404, "Box not found")
     try:
         data = await handler.execute(box_id, path)
-    except NoActiveConnection as exc:
-        raise HTTPException(400, str(exc))
+    except NoActiveConnectionError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
-        raise HTTPException(502, f"Box file proxy error: {exc}")
+        raise HTTPException(502, f"Box file proxy error: {exc}") from exc
 
     if data.get("is_binary") and data.get("content_base64"):
         content_bytes = base64.b64decode(data["content_base64"])

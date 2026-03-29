@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/github", tags=["github"])
 
+# Prevent background tasks from being garbage collected
+_background_tasks: set[asyncio.Task] = set()  # noqa: RUF029
+
 
 def _require_github_service(request: Request):
     """Get the GitHubService from app state, raising 503 if not configured."""
@@ -59,9 +62,11 @@ async def github_webhook(request: Request) -> JSONResponse:
 
     # Process asynchronously — GitHub expects a fast 200 response
     box_service = request.app.state.box_service
-    asyncio.create_task(
+    task = asyncio.create_task(
         _process_webhook_safe(github_service, event_type, delivery_id, payload, box_service)
     )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     return JSONResponse({"status": "accepted"}, status_code=200)
 
@@ -125,7 +130,7 @@ async def add_installation(
     try:
         info = await github_service.fetch_installation_info(body.installation_id)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch installation info: {exc}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch installation info: {exc}") from exc
 
     account = info.get("account", {})
     inst = await github_service.store_installation(
@@ -136,12 +141,12 @@ async def add_installation(
     return GitHubInstallationResponse.model_validate(inst)
 
 
-@router.post("/installations/{id}/sync")
-async def sync_installation(request: Request, id: str) -> list[GitHubRepoResponse]:
+@router.post("/installations/{installation_id}/sync")
+async def sync_installation(request: Request, installation_id: str) -> list[GitHubRepoResponse]:
     """Re-fetch the repo list for an installation from the GitHub API."""
     github_service = _require_github_service(request)
 
-    inst = await github_service.get_installation(id)
+    inst = await github_service.get_installation(installation_id)
     if inst is None:
         raise HTTPException(status_code=404, detail="Installation not found")
 
@@ -149,12 +154,12 @@ async def sync_installation(request: Request, id: str) -> list[GitHubRepoRespons
     return [GitHubRepoResponse(**r) for r in repos]
 
 
-@router.delete("/installations/{id}", response_model=None)
-async def remove_installation(request: Request, id: str) -> JSONResponse:
+@router.delete("/installations/{installation_id}", response_model=None)
+async def remove_installation(request: Request, installation_id: str) -> JSONResponse:
     """Remove an installation record (does not uninstall the app from GitHub)."""
     github_service = _require_github_service(request)
 
-    deleted = await github_service.delete_installation(id)
+    deleted = await github_service.delete_installation(installation_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Installation not found")
     return JSONResponse({"status": "deleted"})

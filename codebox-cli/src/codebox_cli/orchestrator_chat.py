@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from codebox_cli.orchestrator_client import OrchestratorClient
 
 
-async def _stream_box_events(
+async def _stream_box_events(  # noqa: PLR0912
     client: OrchestratorClient,
     box_id: str,
     console: Console,
@@ -60,15 +60,16 @@ async def _stream_box_events(
                     console.print(f"  {message}")
 
             elif etype == "status_change":
-                parts = []
-                for key in (
-                    "container_status",
-                    "activity",
-                    "task_outcome",
-                    "container_stop_reason",
-                ):
-                    if key in event:
-                        parts.append(f"{key}={event[key]}")
+                parts = [
+                    f"{key}={event[key]}"
+                    for key in (
+                        "container_status",
+                        "activity",
+                        "task_outcome",
+                        "container_stop_reason",
+                    )
+                    if key in event
+                ]
                 if parts:
                     console.print(f"[dim]status: {', '.join(parts)}[/dim]")
 

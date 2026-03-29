@@ -20,7 +20,7 @@ def _resolve(orch: OrchestratorClient, box_id: str) -> str:
     try:
         return orch.resolve_box_id(box_id)
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
 
 @click.group()
@@ -63,7 +63,7 @@ def box_create(
     prompt: str | None,
     model: str | None,
     dynamic_system_prompt: str | None,
-    watch: bool,
+    watch: bool,  # noqa: ARG001 - CLI flag placeholder, --no-watch is the active flag
     no_watch: bool,
 ) -> None:
     """Create a new box and optionally stream its output."""
@@ -76,7 +76,7 @@ def box_create(
             dynamic_system_prompt=dynamic_system_prompt,
         )
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     click.echo(f"Box created: {box['id']} ({box['name']})")
 
@@ -111,7 +111,7 @@ def box_list(
             trigger=trigger,
         )
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     if not boxes:
         click.echo("No boxes found.")
@@ -125,7 +125,7 @@ def box_list(
     table.add_column("Outcome", style="dim")
     table.add_column("Model", style="dim")
 
-    STATUS_COLORS = {
+    status_colors = {
         "running": "green",
         "starting": "yellow",
         "stopped": "dim",
@@ -146,9 +146,9 @@ def box_list(
         table.add_row(
             b["id"][:8],
             b["name"],
-            f"[{STATUS_COLORS.get(cs, '')}]{cs}[/]",
-            f"[{STATUS_COLORS.get(act, '')}]{act}[/]",
-            f"[{STATUS_COLORS.get(outcome, '')}]{outcome}[/]" if outcome else "",
+            f"[{status_colors.get(cs, '')}]{cs}[/]",
+            f"[{status_colors.get(act, '')}]{act}[/]",
+            f"[{status_colors.get(outcome, '')}]{outcome}[/]" if outcome else "",
             b.get("model", ""),
         )
 
@@ -165,7 +165,7 @@ def box_info(ctx: click.Context, box_id: str) -> None:
     try:
         b = orch.get_box(box_id)
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     console = Console()
     console.print(f"[bold]{b['name']}[/bold]  [dim]{b['id']}[/dim]\n")
@@ -234,7 +234,7 @@ def box_stop(ctx: click.Context, box_id: str) -> None:
         box = orch.stop_box(box_id)
         click.echo(f"Box {box_id[:8]} stopped (status: {box['container_status']})")
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
 
 @box_group.command(name="restart")
@@ -242,14 +242,14 @@ def box_stop(ctx: click.Context, box_id: str) -> None:
 @click.option("--watch", is_flag=True, default=True, help="Stream box output (default: true).")
 @click.option("--no-watch", is_flag=True, help="Don't stream box output.")
 @click.pass_context
-def box_restart(ctx: click.Context, box_id: str, watch: bool, no_watch: bool) -> None:
+def box_restart(ctx: click.Context, box_id: str, watch: bool, no_watch: bool) -> None:  # noqa: ARG001
     """Restart a stopped box."""
     orch: OrchestratorClient = ctx.obj["orch"]
     box_id = _resolve(orch, box_id)
     try:
         box = orch.restart_box(box_id)
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     click.echo(f"Box {box_id[:8]} restarted (status: {box['container_status']})")
 
@@ -268,7 +268,7 @@ def box_delete(ctx: click.Context, box_id: str) -> None:
         orch.delete_box(box_id)
         click.echo(f"Box {box_id[:8]} deleted.")
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
 
 @box_group.command(name="events")
@@ -284,7 +284,7 @@ def box_events(ctx: click.Context, box_id: str, limit: int) -> None:
     try:
         events = orch.get_box_events(box_id)
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     if not events:
         click.echo("No events found.")
@@ -321,7 +321,7 @@ def box_messages(ctx: click.Context, box_id: str) -> None:
     try:
         messages = orch.get_box_messages(box_id)
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     if not messages:
         click.echo("No messages found.")
@@ -357,7 +357,7 @@ def box_files(ctx: click.Context, box_id: str, path: str) -> None:
     try:
         result = orch.list_files(box_id, path)
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     console = Console()
     if isinstance(result, list):
@@ -384,7 +384,7 @@ def box_cat(ctx: click.Context, box_id: str, path: str) -> None:
     try:
         result = orch.read_file(box_id, path)
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     if isinstance(result, dict):
         content = result.get("content", "")
@@ -418,7 +418,7 @@ def container_list(ctx: click.Context) -> None:
     try:
         containers = orch.list_containers()
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     if not containers:
         click.echo("No containers found.")
@@ -451,7 +451,7 @@ def container_logs(ctx: click.Context, container_id: str, tail: int) -> None:
     try:
         logs = orch.get_container_logs(container_id, tail=tail)
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
     click.echo(logs)
 
@@ -466,7 +466,7 @@ def container_start(ctx: click.Context, container_id: str) -> None:
         orch.start_container(container_id)
         click.echo(f"Container {container_id[:12]} started.")
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
 
 @container_group.command(name="stop")
@@ -479,7 +479,7 @@ def container_stop(ctx: click.Context, container_id: str) -> None:
         orch.stop_container(container_id)
         click.echo(f"Container {container_id[:12]} stopped.")
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc
 
 
 @container_group.command(name="delete")
@@ -492,4 +492,4 @@ def container_delete(ctx: click.Context, container_id: str) -> None:
         orch.delete_container(container_id)
         click.echo(f"Container {container_id[:12]} deleted.")
     except RuntimeError as exc:
-        raise click.ClickException(str(exc))
+        raise click.ClickException(str(exc)) from exc

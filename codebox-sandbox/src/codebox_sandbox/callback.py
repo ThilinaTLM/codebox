@@ -98,7 +98,7 @@ async def run_callback() -> None:
             delay = min(delay * 2, _RECONNECT_MAX_DELAY)
 
 
-async def _connect_and_run(
+async def _connect_and_run(  # noqa: PLR0912, PLR0915
     grpc_address: str,
     session_id: str,
     manager: SessionManager,
@@ -244,7 +244,7 @@ async def _connect_and_run(
             await outbound.put(None)
 
 
-def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
+def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:  # noqa: PLR0911, PLR0912
     """Convert a dict event to a protobuf SandboxEvent."""
     msg_type = msg.get("type", "")
 
@@ -269,15 +269,14 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
         )
     if msg_type == "message_complete":
         msg_data = msg.get("message", {})
-        tool_calls = []
-        for tc in msg_data.get("tool_calls", []):
-            tool_calls.append(
-                sandbox_pb2.ToolCall(
-                    id=tc.get("id", ""),
-                    name=tc.get("name", ""),
-                    args_json=tc.get("args_json", ""),
-                )
+        tool_calls = [
+            sandbox_pb2.ToolCall(
+                id=tc.get("id", ""),
+                name=tc.get("name", ""),
+                args_json=tc.get("args_json", ""),
             )
+            for tc in msg_data.get("tool_calls", [])
+        ]
         chat_msg = sandbox_pb2.ChatMessage(
             role=msg_data.get("role", ""),
             content=msg_data.get("content", ""),
@@ -346,7 +345,7 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:
 
 async def _handle_thread_restore(session: Any, messages: list[sandbox_pb2.ChatMessage]) -> None:
     """Seed the agent's checkpointer with restored messages from the orchestrator."""
-    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage  # noqa: PLC0415, I001
 
     config = {"configurable": {"thread_id": session.session_id}}
 
@@ -356,7 +355,7 @@ async def _handle_thread_restore(session: Any, messages: list[sandbox_pb2.ChatMe
         if state and state.values and state.values.get("messages"):
             logger.info("Local checkpoint already has state, skipping thread restore")
             return
-    except Exception:
+    except Exception:  # noqa: S110 - OK to swallow; missing state just means we proceed with restore
         pass
 
     # Convert protobuf messages to LangChain message objects

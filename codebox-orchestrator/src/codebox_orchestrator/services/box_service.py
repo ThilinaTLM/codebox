@@ -6,8 +6,8 @@ import asyncio
 import contextlib
 import json
 import logging
-import os
 import tempfile
+from pathlib import Path
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -153,7 +153,7 @@ class BoxService:
 
     async def _persist_box_message(self, box_id: str, msg_data: dict[str, Any]) -> None:
         """Persist a structured message to box_messages."""
-        import json as _json
+        import json as _json  # noqa: PLC0415
 
         async with self._sf() as db:
             result = await db.execute(
@@ -329,7 +329,7 @@ class BoxService:
             raise ValueError("No active connection for this box")
         await conn.send_json({"type": "exec", "content": command})
 
-    async def send_exec_and_wait(self, box_id: str, command: str, timeout: float = 120.0) -> dict:
+    async def send_exec_and_wait(self, box_id: str, command: str, timeout: float = 120.0) -> dict:  # noqa: ASYNC109
         """Send a shell command and wait for exec_done response.
 
         Raises RuntimeError if the command returns a non-zero exit code.
@@ -413,12 +413,12 @@ class BoxService:
         except asyncio.CancelledError:
             logger.info("Box %s was cancelled", box_id)
         except Exception as exc:
-            logger.exception("Box %s failed: %s", box_id, exc)
+            logger.exception("Box %s failed: %s", box_id, exc)  # noqa: TRY401
             await self._set_container_error(box_id, str(exc))
         finally:
             self._running.pop(box_id, None)
 
-    async def _do_run_box(self, box_id: str) -> None:
+    async def _do_run_box(self, box_id: str) -> None:  # noqa: PLR0912, PLR0915
         # Load box
         async with self._sf() as db:
             box = await db.get(Box, box_id)
@@ -435,14 +435,14 @@ class BoxService:
         is_github = bool(github_repo)
 
         # Create workspace directory (reuse existing for restarts)
-        os.makedirs(WORKSPACE_BASE_DIR, exist_ok=True)
-        if existing_workspace and os.path.isdir(existing_workspace):
+        Path(WORKSPACE_BASE_DIR).mkdir(parents=True, exist_ok=True)
+        if existing_workspace and Path(existing_workspace).is_dir():
             workspace = existing_workspace
         else:
             workspace = tempfile.mkdtemp(prefix=f"box-{box_id[:8]}-", dir=WORKSPACE_BASE_DIR)
 
         # Generate JWT callback token
-        from codebox_orchestrator.services.callback_token import create_callback_token
+        from codebox_orchestrator.services.callback_token import create_callback_token  # noqa: PLC0415
 
         callback_token = create_callback_token(box_id, entity_type="box")
         self._registry.init_connection_state(box_id)
@@ -545,7 +545,7 @@ class BoxService:
             raise RuntimeError("No GitHub installation ID for box")
 
         async with self._sf() as db:
-            from codebox_orchestrator.db.models import GitHubInstallation
+            from codebox_orchestrator.db.models import GitHubInstallation  # noqa: PLC0415
 
             installation = await db.get(GitHubInstallation, github_installation_id)
             if installation is None:

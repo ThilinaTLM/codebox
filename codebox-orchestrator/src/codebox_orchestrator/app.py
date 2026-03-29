@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +37,7 @@ def create_app() -> FastAPI:
         # Ensure the SQLite database directory exists
         if DATABASE_URL.startswith("sqlite"):
             db_path = DATABASE_URL.split("///", 1)[-1]
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
         # Run migrations to drop legacy tables before creating new ones
         await run_migrations(engine)
@@ -60,7 +60,7 @@ def create_app() -> FastAPI:
         # Initialize GitHub service if configured
         github_service = None
         if github_enabled():
-            from codebox_orchestrator.services.github_service import GitHubService
+            from codebox_orchestrator.services.github_service import GitHubService  # noqa: PLC0415
 
             github_service = GitHubService(
                 session_factory=async_session_factory,
@@ -70,7 +70,7 @@ def create_app() -> FastAPI:
                 app_slug=GITHUB_APP_SLUG,
                 bot_name=GITHUB_BOT_NAME,
             )
-            box_service._github_service = github_service
+            box_service._github_service = github_service  # noqa: SLF001
 
         # Verify container runtime connectivity
         import logging as _logging
@@ -100,7 +100,7 @@ def create_app() -> FastAPI:
         app.state.box_service = box_service
         app.state.github_service = github_service
         # Expose session factory for routes that need direct DB access
-        app.state._sf = async_session_factory
+        app.state._sf = async_session_factory  # noqa: SLF001
 
         yield
 

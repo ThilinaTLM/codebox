@@ -55,7 +55,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         self._registry = registry
         self._global_broadcast = global_broadcast
 
-    async def Connect(
+    async def Connect(  # noqa: N802, PLR0912, PLR0915
         self,
         request_iterator: AsyncIterator[sandbox_pb2.SandboxEvent],
         context: grpc_aio.ServicerContext,
@@ -228,7 +228,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         # Broadcast to subscribers
         await self._relay.broadcast(box_id, event_dict)
 
-    def _event_to_dict(self, event: sandbox_pb2.SandboxEvent) -> tuple[str, dict[str, Any]]:
+    def _event_to_dict(self, event: sandbox_pb2.SandboxEvent) -> tuple[str, dict[str, Any]]:  # noqa: PLR0911, PLR0912
         """Convert a protobuf SandboxEvent to (event_type, dict)."""
         field = event.WhichOneof("event")
         if field is None:

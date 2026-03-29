@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -26,7 +27,7 @@ def _human_print(msg: str) -> None:
     """Print a clean message to stdout for GitHub Actions logs."""
 
 
-def _send_human(msg_type: str, msg: dict[str, Any]) -> None:
+def _send_human(msg_type: str, msg: dict[str, Any]) -> None:  # noqa: PLR0912, PLR0915
     """Emit clean, human-readable output using GitHub Actions annotations."""
     if msg_type == "tool_start":
         name = msg.get("name", "?")
@@ -94,7 +95,7 @@ def _send_human(msg_type: str, msg: dict[str, Any]) -> None:
         _human_print("\nAgent finished.")
 
 
-def _send_debug(msg_type: str, msg: dict[str, Any]) -> None:
+def _send_debug(msg_type: str, msg: dict[str, Any]) -> None:  # noqa: PLR0912
     """Emit verbose technical output via Python logging (original behavior)."""
     if msg_type == "tool_start":
         name = msg.get("name", "?")
@@ -150,13 +151,14 @@ def _send_debug(msg_type: str, msg: dict[str, Any]) -> None:
         logger.error("Agent error: %s", msg.get("detail", ""))
 
 
-def _gh(*args: str, input: str | None = None) -> str:
+def _gh(*args: str, stdin_input: str | None = None) -> str:
     """Run a gh CLI command and return stdout."""
-    result = subprocess.run(
-        ["gh", *args],
+    result = subprocess.run(  # noqa: S603
+        ["gh", *args],  # noqa: S607
         capture_output=True,
         text=True,
-        input=input,
+        input=stdin_input,
+        check=False,
     )
     if result.returncode != 0:
         logger.warning("gh %s failed: %s", " ".join(args), result.stderr)
@@ -180,16 +182,14 @@ def _fetch_comments(repo: str, issue_number: int) -> list[dict[str, str]]:
         data = json.loads(raw)
     except (json.JSONDecodeError, ValueError):
         return []
-    comments = []
-    for c in data[-30:]:  # Last 30 comments
-        comments.append(
-            {
-                "user": c.get("user", {}).get("login", "unknown"),
-                "body": c.get("body", ""),
-                "created_at": c.get("created_at", ""),
-            }
-        )
-    return comments
+    return [
+        {
+            "user": c.get("user", {}).get("login", "unknown"),
+            "body": c.get("body", ""),
+            "created_at": c.get("created_at", ""),
+        }
+        for c in data[-30:]  # Last 30 comments
+    ]
 
 
 def _fetch_pr_files(repo: str, pr_number: int) -> list[str]:
@@ -274,7 +274,7 @@ def _build_agent_prompt(event: dict[str, Any]) -> str:
     parts = [f"# {'PR' if is_pr else 'Issue'}: {issue_title}"]
 
     # Labels
-    labels = [l.get("name", "") for l in issue.get("labels", []) if l.get("name")]
+    labels = [label.get("name", "") for label in issue.get("labels", []) if label.get("name")]
     if labels:
         parts.append(f"\nLabels: {', '.join(labels)}")
 
@@ -287,8 +287,7 @@ def _build_agent_prompt(event: dict[str, Any]) -> str:
         comments = _fetch_comments(repo, issue_number)
         if comments:
             parts.append("\n## Conversation")
-            for c in comments:
-                parts.append(f"\n**{c['user']}** ({c['created_at']}):\n{c['body']}")
+            parts.extend(f"\n**{c['user']}** ({c['created_at']}):\n{c['body']}" for c in comments)
 
     # PR changed files
     if is_pr and repo and issue_number:
@@ -310,7 +309,7 @@ def _build_agent_prompt(event: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-async def run() -> None:
+async def run() -> None:  # noqa: PLR0912, PLR0915
     """Main entry point for the GitHub Action."""
     # Parse event
     event = _parse_event()
@@ -354,7 +353,7 @@ async def run() -> None:
         _gh("issue", "comment", str(issue_number), "--body", greeting)
 
     # Set up the agent
-    workspace = os.environ.get("GITHUB_WORKSPACE", os.getcwd())
+    workspace = os.environ.get("GITHUB_WORKSPACE", str(Path.cwd()))
     model = os.environ.get("OPENROUTER_MODEL", "")
     if not model:
         raise RuntimeError("OPENROUTER_MODEL is required")
@@ -363,7 +362,7 @@ async def run() -> None:
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY is required")
 
-    manager = SessionManager(checkpoint_db_path="/tmp/codebox-checkpoints.db")
+    manager = SessionManager(checkpoint_db_path="/tmp/codebox-checkpoints.db")  # noqa: S108
     dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
     session = await manager.create(
         model=model,
@@ -429,27 +428,29 @@ async def run() -> None:
 
     # Check if the agent made changes and create a PR (fallback — the agent
     # may have already committed, pushed, and opened a PR itself).
-    git_status = subprocess.run(
-        ["git", "status", "--porcelain"],
-        capture_output=True,
-        text=True,
+    git_status_proc = await asyncio.create_subprocess_exec(
+        "git",
+        "status",
+        "--porcelain",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
         cwd=workspace,
     )
-    if git_status.stdout.strip():
+    git_stdout, _ = await git_status_proc.communicate()
+    if git_stdout.decode().strip():
         logger.info("Agent left uncommitted changes, creating PR")
 
-        subprocess.run(["git", "checkout", "-b", branch_name], cwd=workspace, check=True)
-        subprocess.run(["git", "add", "-A"], cwd=workspace, check=True)
-        subprocess.run(
+        for git_cmd in [
+            ["git", "checkout", "-b", branch_name],
+            ["git", "add", "-A"],
             ["git", "commit", "-m", f"codebox: address issue #{issue_number}"],
-            cwd=workspace,
-            check=True,
-        )
-        subprocess.run(
             ["git", "push", "-u", "--force", "origin", branch_name],
-            cwd=workspace,
-            check=True,
-        )
+        ]:
+            proc = await asyncio.create_subprocess_exec(*git_cmd, cwd=workspace)
+            await proc.communicate()
+            if proc.returncode != 0:
+                msg = f"Command failed: {' '.join(git_cmd)}"
+                raise RuntimeError(msg)
 
         pr_body = (
             f"Automated changes by codebox agent for #{issue_number}.\n\n"
@@ -484,7 +485,8 @@ async def run() -> None:
             logger.info("No file changes detected, skipping PR creation")
             if issue_number:
                 done_comment = (
-                    "I've finished looking into this but didn't end up making any file changes.\n\n"
+                    "I've finished looking into this but didn't end up making"
+                    " any file changes.\n\n"
                     "Check my earlier comment for details on what I found."
                 )
                 _gh("issue", "comment", str(issue_number), "--body", done_comment)

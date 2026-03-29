@@ -164,9 +164,9 @@ class GitHubService:
             result = await db.execute(stmt)
             return list(result.scalars().all())
 
-    async def get_installation(self, id: str) -> GitHubInstallation | None:
+    async def get_installation(self, installation_id: str) -> GitHubInstallation | None:
         async with self._sf() as db:
-            return await db.get(GitHubInstallation, id)
+            return await db.get(GitHubInstallation, installation_id)
 
     async def get_installation_by_github_id(
         self, installation_id: int
@@ -178,9 +178,9 @@ class GitHubService:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
 
-    async def delete_installation(self, id: str) -> bool:
+    async def delete_installation(self, installation_id: str) -> bool:
         async with self._sf() as db:
-            inst = await db.get(GitHubInstallation, id)
+            inst = await db.get(GitHubInstallation, installation_id)
             if inst is None:
                 return False
             await db.delete(inst)
@@ -205,14 +205,14 @@ class GitHubService:
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                for repo in data.get("repositories", []):
-                    repos.append(
-                        {
-                            "full_name": repo["full_name"],
-                            "private": repo["private"],
-                            "default_branch": repo.get("default_branch", "main"),
-                        }
-                    )
+                repos.extend(
+                    {
+                        "full_name": repo["full_name"],
+                        "private": repo["private"],
+                        "default_branch": repo.get("default_branch", "main"),
+                    }
+                    for repo in data.get("repositories", [])
+                )
                 if len(data.get("repositories", [])) < 100:
                     break
                 page += 1
@@ -470,7 +470,6 @@ class GitHubService:
             "Commit your changes to a new branch and create a pull request using gh pr create."
         )
 
-
         bs: BoxService = box_service  # type: ignore[assignment]
         box = await bs.create_box(
             name=f"[GitHub PR] #{pr_number}: {pr_title[:100]}",
@@ -544,8 +543,8 @@ class GitHubService:
                     )
                     if resp.status_code == 200:
                         context["guidelines"] += f"\n\n## {filename}\n{resp.text}"
-                except Exception:
-                    pass
+                except Exception:  # noqa: S110
+                    pass  # Guidelines are optional, not critical
 
         return context
 
@@ -595,7 +594,8 @@ class GitHubService:
             [
                 "",
                 "## Instructions",
-                f"- The repository is cloned into /workspace (your CWD) and you are on branch {branch}",
+                f"- The repository is cloned into /workspace (your CWD)"
+                f" and you are on branch {branch}",
                 "- Full issue context is also available at /app/codebox/context.md",
                 "- Implement the requested changes",
                 "- Write tests if applicable",
