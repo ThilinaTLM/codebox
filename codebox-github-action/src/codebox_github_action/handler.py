@@ -65,15 +65,23 @@ def _send_human(msg_type: str, msg: dict[str, Any]) -> None:
             _human_print(preview)
         _human_print("::endgroup::")
 
+    elif msg_type == "model_start":
+        _human_print("\n--- LLM thinking ---")
+
     elif msg_type == "message_complete":
         message = msg.get("message", {})
         role = message.get("role", "")
         content = message.get("content", "")
-        if role == "assistant" and content:
-            preview = content[:800]
-            if len(content) > 800:
-                preview += "..."
-            _human_print(f"\n{preview}")
+        tool_calls = message.get("tool_calls", [])
+        if role == "assistant":
+            if content:
+                preview = content[:800]
+                if len(content) > 800:
+                    preview += "..."
+                _human_print(f"\n{preview}")
+            if tool_calls:
+                calls = ", ".join(tc.get("name", "?") for tc in tool_calls)
+                _human_print(f"  -> calling: {calls}")
 
     elif msg_type == "task_outcome":
         status = msg.get("status", "")
@@ -217,6 +225,24 @@ def _fetch_guidelines(repo: str) -> str:
             truncated = content[:2000]
             parts.append(f"### {filename}\n{truncated}")
     return "\n\n".join(parts)
+
+
+def _agent_already_created_pr(repo: str, issue_number: int) -> bool:
+    """Check whether a PR linked to this issue was already created during this run."""
+    if not repo or not issue_number:
+        return False
+    # Look for open PRs that mention this issue number in the body
+    raw = _gh(
+        "pr", "list", "--repo", repo, "--state", "open",
+        "--search", f"#{issue_number}", "--json", "number", "--limit", "5",
+    )
+    if not raw:
+        return False
+    try:
+        prs = json.loads(raw)
+        return len(prs) > 0
+    except (json.JSONDecodeError, ValueError):
+        return False
 
 
 def _build_agent_prompt(event: dict[str, Any]) -> str:
@@ -386,28 +412,20 @@ async def run() -> None:
         if agent_status_message:
             result_parts.append(f" — {agent_status_message}")
 
-    # Summarize tool usage
-    tool_calls = [e for e in events if e.get("type") == "tool_start"]
-    if tool_calls:
-        tool_names = [tc.get("name", "unknown") for tc in tool_calls]
-        result_parts.append(f"\n\n<details><summary>Tools used ({len(tool_calls)})</summary>\n\n")
-        for name in tool_names:
-            result_parts.append(f"- `{name}`\n")
-        result_parts.append("\n</details>")
-
     result_body = "".join(result_parts) or "Agent completed without output."
 
     # Post result as comment
     if issue_number:
         _gh("issue", "comment", str(issue_number), "--body", result_body)
 
-    # Check if the agent made changes and create a PR
+    # Check if the agent made changes and create a PR (fallback — the agent
+    # may have already committed, pushed, and opened a PR itself).
     git_status = subprocess.run(
         ["git", "status", "--porcelain"],
         capture_output=True, text=True, cwd=workspace,
     )
     if git_status.stdout.strip():
-        logger.info("Agent made file changes, creating PR")
+        logger.info("Agent left uncommitted changes, creating PR")
 
         subprocess.run(["git", "checkout", "-b", branch_name], cwd=workspace, check=True)
         subprocess.run(["git", "add", "-A"], cwd=workspace, check=True)
@@ -439,10 +457,17 @@ async def run() -> None:
             )
             _gh("issue", "comment", str(issue_number), "--body", done_comment)
     else:
-        logger.info("No file changes detected, skipping PR creation")
-        if issue_number:
-            done_comment = (
-                "I've finished looking into this but didn't end up making any file changes.\n\n"
-                "Check my earlier comment for details on what I found."
-            )
-            _gh("issue", "comment", str(issue_number), "--body", done_comment)
+        # No uncommitted changes — check whether the agent already created a
+        # PR (it may have committed & pushed on its own).  Only post the
+        # "no changes" comment when there is genuinely nothing to show.
+        agent_created_pr = _agent_already_created_pr(repo, issue_number)
+        if agent_created_pr:
+            logger.info("Agent already created a PR, skipping post-run comment")
+        else:
+            logger.info("No file changes detected, skipping PR creation")
+            if issue_number:
+                done_comment = (
+                    "I've finished looking into this but didn't end up making any file changes.\n\n"
+                    "Check my earlier comment for details on what I found."
+                )
+                _gh("issue", "comment", str(issue_number), "--body", done_comment)
