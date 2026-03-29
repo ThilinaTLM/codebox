@@ -7,8 +7,8 @@ import contextlib
 import json
 import logging
 import tempfile
-from pathlib import Path
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, select
@@ -435,14 +435,16 @@ class BoxService:
         is_github = bool(github_repo)
 
         # Create workspace directory (reuse existing for restarts)
-        Path(WORKSPACE_BASE_DIR).mkdir(parents=True, exist_ok=True)
-        if existing_workspace and Path(existing_workspace).is_dir():
+        Path(WORKSPACE_BASE_DIR).mkdir(parents=True, exist_ok=True)  # noqa: ASYNC240
+        if existing_workspace and Path(existing_workspace).is_dir():  # noqa: ASYNC240
             workspace = existing_workspace
         else:
             workspace = tempfile.mkdtemp(prefix=f"box-{box_id[:8]}-", dir=WORKSPACE_BASE_DIR)
 
         # Generate JWT callback token
-        from codebox_orchestrator.services.callback_token import create_callback_token  # noqa: PLC0415
+        from codebox_orchestrator.services.callback_token import (  # noqa: PLC0415
+            create_callback_token,
+        )
 
         callback_token = create_callback_token(box_id, entity_type="box")
         self._registry.init_connection_state(box_id)

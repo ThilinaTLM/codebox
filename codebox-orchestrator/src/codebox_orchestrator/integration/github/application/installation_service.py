@@ -22,11 +22,11 @@ class GitHubInstallationService:
     async def list_installations(self) -> list[GitHubInstallation]:
         return await self._repo.list_installations()
 
-    async def get_installation(self, id: str) -> GitHubInstallation | None:
-        return await self._repo.get_installation(id)
+    async def get_installation(self, installation_id: str) -> GitHubInstallation | None:
+        return await self._repo.get_installation(installation_id)
 
-    async def delete_installation(self, id: str) -> bool:
-        return await self._repo.delete_installation(id)
+    async def delete_installation(self, installation_id: str) -> bool:
+        return await self._repo.delete_installation(installation_id)
 
     async def store_installation(
         self, installation_id: int, account_login: str, account_type: str

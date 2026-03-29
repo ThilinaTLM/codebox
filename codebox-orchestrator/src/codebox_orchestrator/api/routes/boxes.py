@@ -37,7 +37,10 @@ from codebox_orchestrator.api.schemas import (
     BoxResponse,
 )
 from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
-from codebox_orchestrator.box.domain.exceptions import BoxNotFound, InvalidStatusTransition
+from codebox_orchestrator.box.domain.exceptions import (
+    BoxNotFoundError,
+    InvalidStatusTransitionError,
+)
 
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
@@ -175,9 +178,9 @@ async def restart_box(
     """Restart a stopped box."""
     try:
         box = await handler.execute(box_id)
-    except BoxNotFound as exc:
+    except BoxNotFoundError as exc:
         raise HTTPException(404, "Box not found") from exc
-    except InvalidStatusTransition as exc:
+    except InvalidStatusTransitionError as exc:
         raise HTTPException(400, str(exc)) from exc
     lifecycle.start_box(box.id)
     return BoxResponse.from_entity(box)

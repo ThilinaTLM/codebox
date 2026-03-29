@@ -26,17 +26,24 @@ class AgentConnectionAdapter:
     async def send_command(self, box_id: str, command: dict[str, Any]) -> None:
         conn = self._registry.get_connection(box_id)
         if conn is None:
-            from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError  # noqa: PLC0415
+            from codebox_orchestrator.agent.domain.exceptions import (  # noqa: PLC0415
+                NoActiveConnectionError,
+            )
 
             raise NoActiveConnectionError(box_id)
         await conn.send_json(command)
 
     async def send_and_wait(
-        self, box_id: str, command: dict[str, Any], timeout: float  # noqa: ASYNC109
+        self,
+        box_id: str,
+        command: dict[str, Any],
+        timeout: float,  # noqa: ASYNC109
     ) -> dict[str, Any]:
         conn = self._registry.get_connection(box_id)
         if conn is None:
-            from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError  # noqa: PLC0415
+            from codebox_orchestrator.agent.domain.exceptions import (  # noqa: PLC0415
+                NoActiveConnectionError,
+            )
 
             raise NoActiveConnectionError(box_id)
         request_id, fut = self._registry.create_pending_request(box_id)

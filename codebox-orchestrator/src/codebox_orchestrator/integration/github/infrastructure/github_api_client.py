@@ -150,14 +150,14 @@ class GitHubApiClient:
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                for repo in data.get("repositories", []):
-                    repos.append(
-                        {
-                            "full_name": repo["full_name"],
-                            "private": repo["private"],
-                            "default_branch": repo.get("default_branch", "main"),
-                        }
-                    )
+                repos.extend(
+                    {
+                        "full_name": repo["full_name"],
+                        "private": repo["private"],
+                        "default_branch": repo.get("default_branch", "main"),
+                    }
+                    for repo in data.get("repositories", [])
+                )
                 if len(data.get("repositories", [])) < 100:
                     break
                 page += 1
@@ -218,8 +218,8 @@ class GitHubApiClient:
                     )
                     if resp.status_code == 200:
                         context["guidelines"] += f"\n\n## {filename}\n{resp.text}"
-                except Exception:
-                    pass
+                except Exception:  # noqa: S110
+                    pass  # Optional file, ignore if not found
 
             # PR-specific context
             if is_pull_request:

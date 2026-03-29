@@ -73,9 +73,9 @@ def create_app() -> FastAPI:
             box_service._github_service = github_service  # noqa: SLF001
 
         # Verify container runtime connectivity
-        import logging as _logging
+        import logging as _logging  # noqa: PLC0415
 
-        from codebox_orchestrator.services import docker_service
+        from codebox_orchestrator.services import docker_service  # noqa: PLC0415
 
         try:
             runtime_info = docker_service.check_connection()
@@ -84,7 +84,7 @@ def create_app() -> FastAPI:
             _logging.getLogger(__name__).warning("Container runtime not available: %s", exc)
 
         # Start gRPC server for sandbox connections
-        from codebox_orchestrator.grpc.server import start_grpc_server
+        from codebox_orchestrator.grpc.server import start_grpc_server  # noqa: PLC0415
 
         grpc_server = await start_grpc_server(
             port=GRPC_PORT,

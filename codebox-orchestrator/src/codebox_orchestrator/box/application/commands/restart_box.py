@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from codebox_orchestrator.box.domain.enums import ContainerStatus
-from codebox_orchestrator.box.domain.exceptions import BoxNotFound, InvalidStatusTransition
+from codebox_orchestrator.box.domain.exceptions import (
+    BoxNotFoundError,
+    InvalidStatusTransitionError,
+)
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.domain.entities import Box
@@ -21,9 +24,9 @@ class RestartBoxHandler:
     async def execute(self, box_id: str) -> Box:
         box = await self._repo.get(box_id)
         if box is None:
-            raise BoxNotFound(box_id)
+            raise BoxNotFoundError(box_id)
         if box.container_status != ContainerStatus.STOPPED:
-            raise InvalidStatusTransition(box.container_status.value, "starting")
+            raise InvalidStatusTransitionError(box.container_status.value, "starting")
 
         box.mark_starting()
         await self._repo.save(box)

@@ -88,7 +88,7 @@ class GitHubWebhookHandler:
         """Link a webhook event to the box it created. Call after box creation."""
         await self._repo.update_event_box_id(event_id, box_id)
 
-    async def _handle_issue_comment(self, payload: dict, event_id: str) -> BoxCreateRequest | None:
+    async def _handle_issue_comment(self, payload: dict, event_id: str) -> BoxCreateRequest | None:  # noqa: ARG002
         comment = payload.get("comment", {})
         body = comment.get("body", "")
         user = comment.get("user", {})
@@ -177,7 +177,9 @@ class GitHubWebhookHandler:
         )
 
     async def _handle_pr_review_comment(
-        self, payload: dict, event_id: str
+        self,
+        payload: dict,
+        event_id: str,  # noqa: ARG002
     ) -> BoxCreateRequest | None:
         comment = payload.get("comment", {})
         body = comment.get("body", "")
@@ -293,8 +295,7 @@ class GitHubWebhookHandler:
         if changed_files:
             parts.append("")
             parts.append("## Changed Files")
-            for line in changed_files:
-                parts.append(line)
+            parts.extend(changed_files)
 
         if review_comments:
             parts.append("")
@@ -314,7 +315,8 @@ class GitHubWebhookHandler:
             [
                 "",
                 "## Instructions",
-                f"- The repository is cloned into /workspace (your CWD) and you are on branch {branch}",
+                f"- The repository is cloned into /workspace (your CWD)"
+                f" and you are on branch {branch}",
                 "- Full issue context is also available at /app/codebox/context.md",
                 "- Implement the requested changes",
                 "- Write tests if applicable",

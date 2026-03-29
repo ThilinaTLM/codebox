@@ -6,7 +6,11 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
-  - repo: https://github.com/astral-sh/ty
-    rev: 0.0.26
+  - repo: local
     hooks:
       - id: ty
+        name: ty (type checker)
+        entry: ty check
+        language: system
+        types: [python]
+        pass_filenames: false

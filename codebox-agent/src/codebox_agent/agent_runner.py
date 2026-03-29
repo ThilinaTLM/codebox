@@ -227,7 +227,7 @@ async def run_exec(
             cwd=str(workspace_root),
         )
 
-        async for line in proc.stdout:
+        async for line in proc.stdout:  # ty: ignore[not-iterable]
             decoded = line.decode(errors="replace")
             output_lines.append(decoded)
             await send(

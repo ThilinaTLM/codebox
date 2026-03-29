@@ -1,9 +1,9 @@
 """Compute domain exceptions."""
 
 
-class ContainerSpawnFailed(Exception):
+class ContainerSpawnFailedError(Exception):
     pass
 
 
-class RuntimeNotAvailable(Exception):
+class RuntimeNotAvailableError(Exception):
     pass

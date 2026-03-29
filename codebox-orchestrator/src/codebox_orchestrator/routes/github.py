@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/github", tags=["github"])
 
 # Prevent background tasks from being garbage collected
-_background_tasks: set[asyncio.Task] = set()  # noqa: RUF029
+_background_tasks: set[asyncio.Task] = set()
 
 
 def _require_github_service(request: Request):
@@ -130,7 +130,9 @@ async def add_installation(
     try:
         info = await github_service.fetch_installation_info(body.installation_id)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch installation info: {exc}") from exc
+        raise HTTPException(
+            status_code=400, detail=f"Failed to fetch installation info: {exc}"
+        ) from exc
 
     account = info.get("account", {})
     inst = await github_service.store_installation(

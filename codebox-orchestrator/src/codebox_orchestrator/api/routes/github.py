@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/github", tags=["github"])
 
 # Prevent background tasks from being garbage collected
-_background_tasks: set[asyncio.Task] = set()  # noqa: RUF029
+_background_tasks: set[asyncio.Task] = set()
 
 
 def _require_webhook_handler(
@@ -183,7 +183,9 @@ async def add_installation(
     try:
         inst = await service.fetch_and_store(body.installation_id)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch installation info: {exc}") from exc
+        raise HTTPException(
+            status_code=400, detail=f"Failed to fetch installation info: {exc}"
+        ) from exc
     return GitHubInstallationResponse.model_validate(inst)
 
 

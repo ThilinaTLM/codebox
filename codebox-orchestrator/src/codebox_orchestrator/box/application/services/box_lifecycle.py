@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
@@ -87,7 +87,7 @@ class BoxLifecycleService:
         except asyncio.CancelledError:
             logger.info("Box %s was cancelled", box_id)
         except Exception as exc:
-            logger.exception("Box %s failed: %s", box_id, exc)
+            logger.exception("Box %s failed", box_id)
             await self._set_container_error(box_id, str(exc))
         finally:
             self._running.pop(box_id, None)
@@ -100,8 +100,8 @@ class BoxLifecycleService:
         is_github = bool(box.github_repo)
 
         # Create workspace directory (reuse existing for restarts)
-        os.makedirs(WORKSPACE_BASE_DIR, exist_ok=True)
-        if box.workspace_path and os.path.isdir(box.workspace_path):
+        Path(WORKSPACE_BASE_DIR).mkdir(parents=True, exist_ok=True)  # noqa: ASYNC240
+        if box.workspace_path and Path(box.workspace_path).is_dir():  # noqa: ASYNC240
             workspace = box.workspace_path
         else:
             workspace = tempfile.mkdtemp(prefix=f"box-{box_id[:8]}-", dir=WORKSPACE_BASE_DIR)

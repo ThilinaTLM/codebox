@@ -85,3 +85,25 @@ codebox box connect <box_id>
 - **codebox-cli**: Python 3.12, Click, websockets, Rich, prompt-toolkit
 
 Each Python sub-project has its own `.venv` and `pyproject.toml`. The orchestrator requires `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` env vars (set in `codebox-orchestrator/.env.local`); these are passed to sandbox containers automatically.
+
+## Code Quality
+
+**Tools:** [Ruff](https://docs.astral.sh/ruff/) (linter + formatter) and [ty](https://docs.astral.sh/ty/) (type checker), both from Astral. Pre-commit hooks run automatically on `git commit`.
+
+**Install dev tools:**
+```bash
+uv tool install ruff ty pre-commit
+pre-commit install
+```
+
+**Makefile targets:**
+```bash
+make lint          # Run linter
+make fix           # Auto-fix lint issues
+make format        # Format code
+make typecheck     # Run type checker
+make check         # lint + typecheck
+make ci            # format-check + lint + typecheck (what CI runs)
+```
+
+Config files: `ruff.toml`, `ty.toml`, `.pre-commit-config.yaml` at repo root. Generated protobuf files (`**/grpc/generated/**`) are excluded from all checks.

@@ -19,7 +19,7 @@ CODEBOX_IMAGE: str = os.environ.get("CODEBOX_IMAGE", "codebox-sandbox:latest")
 OPENROUTER_API_KEY: str = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL: str = os.environ.get("OPENROUTER_MODEL", "")
 TAVILY_API_KEY: str = os.environ.get("TAVILY_API_KEY", "")
-_default_workspace = os.path.join(_tempfile.gettempdir(), "codebox-workspaces")
+_default_workspace = str(Path(_tempfile.gettempdir()) / "codebox-workspaces")
 WORKSPACE_BASE_DIR: str = os.environ.get("WORKSPACE_BASE_DIR", _default_workspace)
 DOCKER_NETWORK: str = os.environ.get("DOCKER_NETWORK", "codebox-net")
 
@@ -30,7 +30,7 @@ CONTAINER_TLS_VERIFY: str = os.environ.get("CONTAINER_TLS_VERIFY", "")
 CONTAINER_TLS_CERT: str = os.environ.get("CONTAINER_TLS_CERT", "")
 CONTAINER_TLS_KEY: str = os.environ.get("CONTAINER_TLS_KEY", "")
 
-HOST: str = os.environ.get("ORCHESTRATOR_HOST", "0.0.0.0")
+HOST: str = os.environ.get("ORCHESTRATOR_HOST", "0.0.0.0")  # noqa: S104
 PORT: int = int(os.environ.get("ORCHESTRATOR_PORT", "8080"))
 
 
@@ -39,7 +39,7 @@ GRPC_PORT: int = int(os.environ.get("GRPC_PORT", "50051"))
 
 
 def _default_grpc_address() -> str:
-    import sys as _sys
+    import sys as _sys  # noqa: PLC0415
 
     if _sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
         host = "localhost"
@@ -75,14 +75,14 @@ _fallback_secret: str = ""
 
 def get_callback_secret() -> str:
     """Return the callback JWT signing secret, generating an ephemeral one if not configured."""
-    global _fallback_secret
+    global _fallback_secret  # noqa: PLW0603
     if CALLBACK_SECRET:
         return CALLBACK_SECRET
     if not _fallback_secret:
-        import secrets as _secrets
+        import secrets as _secrets  # noqa: PLC0415
 
         _fallback_secret = _secrets.token_urlsafe(64)
-        import logging as _logging
+        import logging as _logging  # noqa: PLC0415
 
         _logging.getLogger(__name__).warning(
             "CALLBACK_SECRET not set -- using ephemeral secret (tokens won't survive restart)"

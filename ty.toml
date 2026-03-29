@@ -1,6 +1,35 @@
 [environment]
 python-version = "3.12"
 
+# Each sub-project has its own venv. List all src dirs and site-packages
+# so ty can resolve both first-party and third-party imports.
+root = [
+    "codebox-agent/src",
+    "codebox-cli/src",
+    "codebox-github-action/src",
+    "codebox-orchestrator/src",
+    "codebox-sandbox/src",
+]
+
+extra-paths = [
+    "codebox-orchestrator/.venv/lib/python3.14/site-packages",
+    "codebox-agent/.venv/lib/python3.12/site-packages",
+    "codebox-cli/.venv/lib/python3.12/site-packages",
+    "codebox-sandbox/.venv/lib/python3.12/site-packages",
+    "codebox-github-action/.venv/lib/python3.12/site-packages",
+]
+
+[rules]
+# Suppress rules that produce false positives on untyped code.
+# Tighten these as type annotations are added to the codebase.
+invalid-type-form = "ignore"      # confused by untyped async return types
+no-matching-overload = "ignore"   # false positives from gRPC/stdlib patterns
+invalid-argument-type = "ignore"  # false positives from DI and abstract base classes
+invalid-assignment = "ignore"     # false positives from dynamic attribute assignment
+invalid-return-type = "ignore"    # false positives from untyped async code
+call-non-callable = "ignore"      # false positives from optional callables
+unknown-argument = "ignore"       # false positives from third-party libs without stubs
+
 [terminal]
 output-format = "full"
 

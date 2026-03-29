@@ -17,9 +17,9 @@ class SqlAlchemyGitHubRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._sf = session_factory
 
-    async def get_installation(self, id: str) -> domain.GitHubInstallation | None:
+    async def get_installation(self, installation_id: str) -> domain.GitHubInstallation | None:
         async with self._sf() as db:
-            inst = await db.get(orm.GitHubInstallation, id)
+            inst = await db.get(orm.GitHubInstallation, installation_id)
             if inst is None:
                 return None
             return self._to_domain_installation(inst)
@@ -71,9 +71,9 @@ class SqlAlchemyGitHubRepository:
             await db.refresh(inst)
             return self._to_domain_installation(inst)
 
-    async def delete_installation(self, id: str) -> bool:
+    async def delete_installation(self, installation_id: str) -> bool:
         async with self._sf() as db:
-            inst = await db.get(orm.GitHubInstallation, id)
+            inst = await db.get(orm.GitHubInstallation, installation_id)
             if inst is None:
                 return False
             await db.delete(inst)
