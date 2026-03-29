@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -162,8 +163,15 @@ async def run() -> None:
         return
 
     issue_number = issue.get("number")
+    issue_title = issue.get("title", f"Issue #{issue_number}")
+    is_pr = "pull_request" in issue
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     logger.info("Triggered on %s#%s", repo, issue_number)
+
+    # Generate unique branch name for this run
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    branch_suffix = f"run{run_id}" if run_id else secrets.token_hex(4)
+    branch_name = f"codebox/issue-{issue_number}-{branch_suffix}"
 
     # React to the comment to acknowledge
     comment_id = comment.get("id")
@@ -171,10 +179,16 @@ async def run() -> None:
         _gh("api", f"repos/{repo}/issues/comments/{comment_id}/reactions",
              "-f", "content=eyes")
 
-    # Post a "working on it" comment
+    # Post a greeting comment
     if issue_number:
-        _gh("issue", "comment", str(issue_number),
-             "--body", "Agent is working on this...")
+        entity = "PR" if is_pr else "issue"
+        greeting = (
+            f"Hey! 👋 I'm picking up this {entity} now.\n\n"
+            f"**Working on:** {issue_title}\n\n"
+            f"I'll push any changes to branch `{branch_name}`.\n\n"
+            f"Sit tight — I'll report back when I'm done."
+        )
+        _gh("issue", "comment", str(issue_number), "--body", greeting)
 
     # Set up the agent
     workspace = os.environ.get("GITHUB_WORKSPACE", os.getcwd())
@@ -194,6 +208,7 @@ async def run() -> None:
         environment_system_prompt=GITHUB_ACTIONS_ENVIRONMENT_SYSTEM_PROMPT,
         dynamic_system_prompt=dynamic_system_prompt,
         working_dir=workspace,
+        sandbox_config={"recursion_limit": 300},
     )
 
     # Set up event collection
@@ -305,7 +320,6 @@ async def run() -> None:
     )
     if git_status.stdout.strip():
         logger.info("Agent made file changes, creating PR")
-        branch_name = f"codebox/issue-{issue_number}"
 
         subprocess.run(["git", "checkout", "-b", branch_name], cwd=workspace, check=True)
         subprocess.run(["git", "add", "-A"], cwd=workspace, check=True)
@@ -313,15 +327,34 @@ async def run() -> None:
             ["git", "commit", "-m", f"codebox: address issue #{issue_number}"],
             cwd=workspace, check=True,
         )
-        subprocess.run(["git", "push", "-u", "origin", branch_name], cwd=workspace, check=True)
+        subprocess.run(
+            ["git", "push", "-u", "--force", "origin", branch_name],
+            cwd=workspace, check=True,
+        )
 
-        issue_title = issue.get("title", f"Issue #{issue_number}")
-        pr_body = f"Automated changes by codebox agent for #{issue_number}.\n\n{final_text[:2000] if final_text else 'See issue for details.'}"
-        _gh("pr", "create",
-             "--title", f"Fix: {issue_title}",
-             "--body", pr_body,
-             "--head", branch_name)
+        pr_body = (
+            f"Automated changes by codebox agent for #{issue_number}.\n\n"
+            f"{final_text[:2000] if final_text else 'See issue for details.'}"
+        )
+        pr_url = _gh(
+            "pr", "create",
+            "--title", f"Fix: {issue_title}",
+            "--body", pr_body,
+            "--head", branch_name,
+        )
+        logger.info("PR created on branch %s: %s", branch_name, pr_url)
 
-        logger.info("PR created on branch %s", branch_name)
+        if issue_number:
+            done_comment = (
+                f"All done! I've opened a pull request with my changes: {pr_url}\n\n"
+                f"Please review when you get a chance. 🚀"
+            )
+            _gh("issue", "comment", str(issue_number), "--body", done_comment)
     else:
         logger.info("No file changes detected, skipping PR creation")
+        if issue_number:
+            done_comment = (
+                "I've finished looking into this but didn't end up making any file changes.\n\n"
+                "Check my earlier comment for details on what I found."
+            )
+            _gh("issue", "comment", str(issue_number), "--body", done_comment)
