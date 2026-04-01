@@ -8,24 +8,24 @@ from __future__ import annotations
 
 import contextlib
 import json
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-if TYPE_CHECKING:
-    from datetime import datetime
+from codebox_orchestrator.box.domain.enums import (
+    Activity,
+    ContainerStatus,
+    TaskOutcome,
+)
 
+if TYPE_CHECKING:
     from codebox_orchestrator.box.domain.entities import (
         Box,
         BoxEvent,
     )
     from codebox_orchestrator.box.domain.entities import (
         BoxMessage as BoxMessageEntity,
-    )
-    from codebox_orchestrator.box.domain.enums import (
-        Activity,
-        ContainerStatus,
-        TaskOutcome,
     )
 
 # ── Request schemas ──────────────────────────────────────────────

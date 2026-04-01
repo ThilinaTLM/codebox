@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from codebox_orchestrator.compute.docker import docker_service
 from codebox_orchestrator.compute.domain.entities import ContainerConfig, ContainerInfo
-from codebox_orchestrator.services import docker_service
 
 # Re-export the error type
 DockerServiceError = docker_service.DockerServiceError

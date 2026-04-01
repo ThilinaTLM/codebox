@@ -4,21 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-# Agent commands & queries
-
-# Box commands
-
-# Box queries
-# Box lifecycle
-
-# Compute
-
-# Integration
-# Shared messaging (for SSE direct subscription)
+from fastapi import Request  # noqa: TC002
 
 if TYPE_CHECKING:
-    from fastapi import Request
-
     from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
     from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
     from codebox_orchestrator.agent.application.queries.box_files import (

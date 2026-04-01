@@ -12,7 +12,7 @@ root = [
 ]
 
 extra-paths = [
-    "codebox-orchestrator/.venv/lib/python3.14/site-packages",
+    "codebox-orchestrator/.venv/lib/python3.12/site-packages",
     "codebox-agent/.venv/lib/python3.12/site-packages",
     "codebox-cli/.venv/lib/python3.12/site-packages",
     "codebox-sandbox/.venv/lib/python3.12/site-packages",
