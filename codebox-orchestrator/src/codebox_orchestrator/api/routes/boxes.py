@@ -19,6 +19,7 @@ from codebox_orchestrator.api.dependencies import (
     get_create_box,
     get_delete_box,
     get_get_box,
+    get_installation_service,
     get_lifecycle,
     get_list_boxes,
     get_list_files,
@@ -59,10 +60,29 @@ if TYPE_CHECKING:
     from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
     from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
     from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
+    from codebox_orchestrator.integration.github.application.installation_service import (
+        GitHubInstallationService,
+    )
+    from codebox_orchestrator.integration.github.domain.entities import GitHubInstallation
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
+
+
+async def _find_installation_for_repo(
+    service: GitHubInstallationService, repo_full_name: str
+) -> GitHubInstallation | None:
+    """Find the GitHub installation that owns a given repo."""
+    installations = await service.list_installations()
+    for inst in installations:
+        try:
+            repos = await service.sync_repos(inst.installation_id)
+            if any(r.get("full_name") == repo_full_name for r in repos):
+                return inst
+        except Exception:
+            logger.warning("Failed to check repos for installation %d", inst.installation_id)
+    return None
 
 
 # ── Health ───────────────────────────────────────────────────────
@@ -81,13 +101,29 @@ async def create_box(
     body: BoxCreate,
     handler: CreateBoxHandler = Depends(get_create_box),
     lifecycle: BoxLifecycleService = Depends(get_lifecycle),
+    github_service: GitHubInstallationService | None = Depends(get_installation_service),
 ) -> BoxResponse:
     """Create and auto-start a new box."""
+    github_installation_id: str | None = None
+    github_branch: str | None = None
+
+    if body.github_repo:
+        if github_service is None:
+            raise HTTPException(400, "GitHub integration is not configured")
+        installation = await _find_installation_for_repo(github_service, body.github_repo)
+        if installation is None:
+            raise HTTPException(400, f"No GitHub installation found for repo: {body.github_repo}")
+        github_installation_id = installation.id
+        github_branch = f"codebox/manual-{body.github_repo.split('/')[-1]}"
+
     box = await handler.execute(
         name=body.name,
         model=body.model,
         dynamic_system_prompt=body.dynamic_system_prompt,
         initial_prompt=body.initial_prompt,
+        github_repo=body.github_repo,
+        github_branch=github_branch,
+        github_installation_id=github_installation_id,
     )
     lifecycle.start_box(box.id)
     return BoxResponse.from_entity(box)

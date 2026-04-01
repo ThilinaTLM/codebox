@@ -260,10 +260,17 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         allow_headers=["*"],
     )
 
-    from codebox_orchestrator.api.routes import boxes, containers, github, sse  # noqa: PLC0415
+    from codebox_orchestrator.api.routes import (  # noqa: PLC0415
+        boxes,
+        containers,
+        github,
+        models,
+        sse,
+    )
 
     app.include_router(boxes.router)
     app.include_router(containers.router)
+    app.include_router(models.router)
     app.include_router(sse.router)
     app.include_router(github.router)
 

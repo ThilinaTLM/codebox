@@ -47,6 +47,16 @@ export function useBoxFileContent(
   })
 }
 
+// ── Model queries ────────────────────────────────────────────
+
+export function useModels() {
+  return useQuery({
+    queryKey: ["models"],
+    queryFn: () => api.models.list(),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
 // ── Container queries ─────────────────────────────────────────
 
 export function useContainers() {

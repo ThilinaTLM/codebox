@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from codebox_orchestrator.box.application.name_generator import generate_readable_name
 from codebox_orchestrator.box.domain.entities import Box
 from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
 from codebox_orchestrator.config import OPENROUTER_MODEL
@@ -33,7 +34,7 @@ class CreateBoxHandler:
         github_branch: str | None = None,
     ) -> Box:
         box = Box(
-            name=name or "box",
+            name=name or generate_readable_name(),
             model=model or OPENROUTER_MODEL,
             container_status=ContainerStatus.STARTING,
             activity=Activity.IDLE,

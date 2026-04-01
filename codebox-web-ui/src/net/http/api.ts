@@ -10,6 +10,7 @@ import type {
   GitHubInstallation,
   GitHubRepo,
   GitHubStatus,
+  Model,
 } from "./types"
 import { API_URL } from "@/lib/constants"
 
@@ -81,6 +82,12 @@ export const api = {
     getDownloadUrl: (boxId: string, path: string): string => {
       const params = new URLSearchParams({ path })
       return `${API_URL}/api/boxes/${boxId}/files/download?${params.toString()}`
+    },
+  },
+  models: {
+    list: async (): Promise<Array<Model>> => {
+      const { data } = await client.get<Array<Model>>("/api/models")
+      return data
     },
   },
   containers: {

@@ -213,10 +213,11 @@ class BoxLifecycleService:
         github_token: str,
         github_issue_number: int | None,
     ) -> None:
-        if self._github_service is None:
-            raise RuntimeError("GitHub service not available")
+        from codebox_orchestrator.integration.github.application.setup_commands import (  # noqa: PLC0415
+            build_setup_commands,
+        )
 
-        setup_commands = self._github_service.build_setup_commands(
+        setup_commands = build_setup_commands(
             repo=github_repo,
             branch=github_branch,
             token=github_token,

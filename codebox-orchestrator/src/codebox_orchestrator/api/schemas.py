@@ -36,6 +36,7 @@ class BoxCreate(BaseModel):
     model: str | None = None
     dynamic_system_prompt: str | None = None
     initial_prompt: str | None = None
+    github_repo: str | None = None
 
 
 class BoxMessage(BaseModel):
@@ -186,3 +187,8 @@ class GitHubRepoResponse(BaseModel):
     full_name: str
     private: bool
     default_branch: str
+
+
+class ModelResponse(BaseModel):
+    id: str
+    name: str

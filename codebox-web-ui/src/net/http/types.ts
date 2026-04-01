@@ -72,6 +72,12 @@ export interface BoxCreatePayload {
   model?: string | null
   dynamic_system_prompt?: string | null
   initial_prompt?: string | null
+  github_repo?: string | null
+}
+
+export interface Model {
+  id: string
+  name: string
 }
 
 // SSE stream event types from orchestrator
