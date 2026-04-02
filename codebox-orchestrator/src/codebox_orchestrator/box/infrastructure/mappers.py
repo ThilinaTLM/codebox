@@ -11,6 +11,7 @@ def box_to_domain(db_box: orm.Box) -> domain.Box:
     return domain.Box(
         id=db_box.id,
         name=db_box.name,
+        provider=db_box.provider,
         model=db_box.model,
         container_status=db_box.container_status,
         activity=db_box.activity,
@@ -41,6 +42,7 @@ def domain_to_orm(box: domain.Box) -> orm.Box:
     return orm.Box(
         id=box.id,
         name=box.name,
+        provider=box.provider,
         model=box.model,
         container_status=box.container_status,
         activity=box.activity,
@@ -69,6 +71,7 @@ def domain_to_orm(box: domain.Box) -> orm.Box:
 def update_orm_from_domain(db_box: orm.Box, box: domain.Box) -> None:
     """Update an existing ORM Box from a domain Box (for updates)."""
     db_box.name = box.name
+    db_box.provider = box.provider
     db_box.model = box.model
     db_box.container_status = box.container_status
     db_box.activity = box.activity

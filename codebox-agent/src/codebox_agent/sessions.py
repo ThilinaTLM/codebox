@@ -29,6 +29,7 @@ class Session:
     agent: Any  # compiled LangGraph graph
     checkpointer: AsyncSqliteSaver
     created_at: datetime
+    provider: str
     model: str
     status_reporter: StatusReporter = field(default_factory=StatusReporter)
     recursion_limit: int = 150
@@ -44,8 +45,10 @@ class SessionManager:
 
     async def create(
         self,
+        provider: str,
         model: str,
         api_key: str,
+        base_url: str | None = None,
         environment_system_prompt: str | None = None,
         dynamic_system_prompt: str | None = None,
         working_dir: str = "/workspace",
@@ -54,8 +57,10 @@ class SessionManager:
         """Create a new session with a fresh agent and checkpointer.
 
         Args:
-            model: The OpenRouter model identifier.
-            api_key: The OpenRouter API key.
+            provider: The LLM provider identifier.
+            model: The LLM model identifier.
+            api_key: The LLM API key.
+            base_url: Optional provider base URL override.
             environment_system_prompt: Optional runner-specific environment prompt.
             dynamic_system_prompt: Optional caller-provided prompt appended after
                 the environment prompt.
@@ -67,7 +72,11 @@ class SessionManager:
         """
         session_id = str(uuid.uuid4())
         logger.info(
-            "Creating session %s: model=%s, working_dir=%s", session_id, model, working_dir
+            "Creating session %s: provider=%s, model=%s, working_dir=%s",
+            session_id,
+            provider,
+            model,
+            working_dir,
         )
 
         # Ensure checkpoint directory exists
@@ -80,8 +89,10 @@ class SessionManager:
 
         status_reporter = StatusReporter()
         agent = create_agent(
+            provider=provider,
             model=model,
             api_key=api_key,
+            base_url=base_url,
             environment_system_prompt=environment_system_prompt,
             dynamic_system_prompt=dynamic_system_prompt,
             root_dir=working_dir,
@@ -97,6 +108,7 @@ class SessionManager:
             agent=agent,
             checkpointer=checkpointer,
             created_at=now,
+            provider=provider,
             model=model,
             status_reporter=status_reporter,
             recursion_limit=recursion_limit,

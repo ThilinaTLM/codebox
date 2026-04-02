@@ -16,8 +16,29 @@ load_dotenv(_project_dir / ".env.local", override=True)
 _default_db = f"sqlite+aiosqlite:///{_project_dir / 'data' / 'orchestrator.db'}"
 DATABASE_URL: str = os.environ.get("DATABASE_URL", _default_db)
 CODEBOX_IMAGE: str = os.environ.get("CODEBOX_IMAGE", "codebox-sandbox:latest")
+LLM_PROVIDER: str = os.environ.get("LLM_PROVIDER", "") or (
+    "openrouter"
+    if os.environ.get("OPENROUTER_MODEL", "")
+    else "openai"
+    if os.environ.get("OPENAI_API_KEY", "")
+    else "openrouter"
+)
+LLM_MODEL: str = (
+    os.environ.get("OPENROUTER_MODEL", "")
+    if LLM_PROVIDER == "openrouter"
+    else os.environ.get("OPENAI_MODEL", "")
+)
+LLM_API_KEY: str = (
+    os.environ.get("OPENROUTER_API_KEY", "")
+    if LLM_PROVIDER == "openrouter"
+    else os.environ.get("OPENAI_API_KEY", "")
+)
+LLM_BASE_URL: str = os.environ.get("OPENAI_BASE_URL", "") if LLM_PROVIDER == "openai" else ""
 OPENROUTER_API_KEY: str = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL: str = os.environ.get("OPENROUTER_MODEL", "")
+OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "")
+OPENAI_BASE_URL: str = os.environ.get("OPENAI_BASE_URL", "")
 TAVILY_API_KEY: str = os.environ.get("TAVILY_API_KEY", "")
 _default_workspace = str(Path(_tempfile.gettempdir()) / "codebox-workspaces")
 WORKSPACE_BASE_DIR: str = os.environ.get("WORKSPACE_BASE_DIR", _default_workspace)

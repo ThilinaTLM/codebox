@@ -119,6 +119,7 @@ async def _process_webhook_safe(
         if box_req is not None:
             box = await create_box_handler.execute(
                 name=box_req.name,
+                provider=box_req.provider,
                 model=box_req.model,
                 dynamic_system_prompt=box_req.dynamic_system_prompt,
                 initial_prompt=box_req.initial_prompt,

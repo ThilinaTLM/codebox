@@ -26,7 +26,7 @@ const NOUNS = [
   "wave", "wren", "wolf", "canyon", "harbor",
 ]
 
-function pick<T>(arr: readonly T[]): T {
+function pick<T>(arr: ReadonlyArray<T>): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 

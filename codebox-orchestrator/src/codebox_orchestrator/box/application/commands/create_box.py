@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from codebox_orchestrator.box.application.name_generator import generate_readable_name
 from codebox_orchestrator.box.domain.entities import Box
 from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
-from codebox_orchestrator.config import OPENROUTER_MODEL
+from codebox_orchestrator.config import LLM_MODEL, LLM_PROVIDER
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.ports.box_repository import BoxRepository
@@ -23,6 +23,7 @@ class CreateBoxHandler:
     async def execute(
         self,
         name: str | None = None,
+        provider: str | None = None,
         model: str | None = None,
         dynamic_system_prompt: str | None = None,
         initial_prompt: str | None = None,
@@ -35,7 +36,8 @@ class CreateBoxHandler:
     ) -> Box:
         box = Box(
             name=name or generate_readable_name(),
-            model=model or OPENROUTER_MODEL,
+            provider=provider or LLM_PROVIDER,
+            model=model or LLM_MODEL,
             container_status=ContainerStatus.STARTING,
             activity=Activity.IDLE,
             dynamic_system_prompt=dynamic_system_prompt,
@@ -58,6 +60,7 @@ class CreateBoxHandler:
                 "type": "box_created",
                 "box_id": box.id,
                 "name": box.name,
+                "provider": box.provider,
                 "container_status": ContainerStatus.STARTING.value,
                 "model": box.model,
                 "created_at": box.created_at.isoformat(),

@@ -47,3 +47,8 @@ async def run_migrations(engine: AsyncEngine) -> None:
                     text("ALTER TABLE boxes RENAME COLUMN system_prompt TO dynamic_system_prompt")
                 )
                 logger.info("Migration: renamed boxes.system_prompt → dynamic_system_prompt")
+            if "provider" not in columns:
+                await conn.execute(
+                    text("ALTER TABLE boxes ADD COLUMN provider VARCHAR(50) DEFAULT 'openrouter'")
+                )
+                logger.info("Migration: added boxes.provider")

@@ -49,10 +49,10 @@ export function useBoxFileContent(
 
 // ── Model queries ────────────────────────────────────────────
 
-export function useModels() {
+export function useModels(provider?: string) {
   return useQuery({
-    queryKey: ["models"],
-    queryFn: () => api.models.list(),
+    queryKey: ["models", provider ?? "default"],
+    queryFn: () => api.models.list(provider),
     staleTime: 5 * 60 * 1000,
   })
 }

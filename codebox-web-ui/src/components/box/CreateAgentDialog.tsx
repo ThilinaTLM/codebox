@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
+import type { GitHubRepo, Model } from "@/net/http/types"
 import {
   Dialog,
   DialogContent,
@@ -20,8 +21,12 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox"
 import { useCreateBox, useGitHubRepos, useGitHubStatus, useModels } from "@/net/query"
-import type { GitHubRepo, Model } from "@/net/http/types"
 import { generateReadableName } from "@/lib/name-generator"
+
+const PROVIDERS = [
+  { id: "openrouter", name: "OpenRouter" },
+  { id: "openai", name: "OpenAI" },
+] as const
 
 interface CreateAgentDialogProps {
   open: boolean
@@ -36,23 +41,29 @@ export function CreateAgentDialog({
   const createMutation = useCreateBox()
 
   const [name, setName] = useState("")
+  const [selectedProvider, setSelectedProvider] = useState<string>("openrouter")
   const [selectedModel, setSelectedModel] = useState<Model | null>(null)
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null)
   const [initialPrompt, setInitialPrompt] = useState("")
 
-  const { data: models } = useModels()
+  const { data: models } = useModels(selectedProvider)
   const { data: githubStatus } = useGitHubStatus()
   const { data: repos } = useGitHubRepos()
 
   const githubEnabled = githubStatus?.enabled ?? false
 
   // Generate a preview name that stays stable until the dialog is re-opened
-  const previewName = useMemo(() => generateReadableName(), [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  const previewName = useMemo(() => generateReadableName(), [open])
+
+  useEffect(() => {
+    setSelectedModel(null)
+  }, [selectedProvider])
 
   const handleCreate = () => {
     createMutation.mutate(
       {
         name: name.trim() || undefined,
+        provider: selectedProvider,
         model: selectedModel?.id || undefined,
         initial_prompt: initialPrompt.trim() || undefined,
         github_repo: selectedRepo?.full_name || undefined,
@@ -62,6 +73,7 @@ export function CreateAgentDialog({
           toast.success("Agent created")
           onOpenChange(false)
           setName("")
+          setSelectedProvider("openrouter")
           setSelectedModel(null)
           setSelectedRepo(null)
           setInitialPrompt("")
@@ -97,6 +109,36 @@ export function CreateAgentDialog({
             />
           </div>
 
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-ghost font-terminal uppercase tracking-wider">
+              Provider
+            </Label>
+            <Combobox
+              value={selectedProvider}
+              onValueChange={(value) => setSelectedProvider(value ?? "openrouter")}
+              items={PROVIDERS.map((provider) => provider.id)}
+              itemToStringLabel={(provider) =>
+                PROVIDERS.find((item) => item.id === provider)?.name ?? provider
+              }
+            >
+              <ComboboxInput placeholder="Select provider" className="w-full" />
+              <ComboboxContent>
+                <ComboboxList>
+                  <ComboboxCollection>
+                    {(provider: string) => {
+                      const option = PROVIDERS.find((item) => item.id === provider)
+                      return (
+                        <ComboboxItem key={provider} value={provider}>
+                          {option?.name ?? provider}
+                        </ComboboxItem>
+                      )
+                    }}
+                  </ComboboxCollection>
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </div>
+
           {/* Model */}
           <div className="grid gap-1.5">
             <Label className="text-xs text-ghost uppercase tracking-wider font-terminal">
@@ -127,7 +169,7 @@ export function CreateAgentDialog({
                     )}
                   </ComboboxCollection>
                 </ComboboxList>
-                <ComboboxEmpty>No models found</ComboboxEmpty>
+                <ComboboxEmpty>No models found for {selectedProvider}</ComboboxEmpty>
               </ComboboxContent>
             </Combobox>
           </div>

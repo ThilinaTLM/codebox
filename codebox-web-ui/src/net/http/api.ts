@@ -85,8 +85,10 @@ export const api = {
     },
   },
   models: {
-    list: async (): Promise<Array<Model>> => {
-      const { data } = await client.get<Array<Model>>("/api/models")
+    list: async (provider?: string): Promise<Array<Model>> => {
+      const { data } = await client.get<Array<Model>>("/api/models", {
+        params: provider ? { provider } : undefined,
+      })
       return data
     },
   },

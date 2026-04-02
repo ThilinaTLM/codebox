@@ -24,6 +24,7 @@ def _utcnow() -> datetime:
 @dataclass
 class Box:
     name: str
+    provider: str
     model: str
 
     id: str = field(default_factory=_new_uuid)

@@ -118,6 +118,7 @@ async def create_box(
 
     box = await handler.execute(
         name=body.name,
+        provider=body.provider,
         model=body.model,
         dynamic_system_prompt=body.dynamic_system_prompt,
         initial_prompt=body.initial_prompt,

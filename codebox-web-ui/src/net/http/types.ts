@@ -69,6 +69,7 @@ export interface ContainerLogs {
 
 export interface BoxCreatePayload {
   name?: string | null
+  provider?: string | null
   model?: string | null
   dynamic_system_prompt?: string | null
   initial_prompt?: string | null
@@ -76,6 +77,7 @@ export interface BoxCreatePayload {
 }
 
 export interface Model {
+  provider: string
   id: string
   name: string
 }

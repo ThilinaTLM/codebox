@@ -36,12 +36,43 @@ class DockerServiceError(Exception):
     """Raised when a container runtime operation fails."""
 
 
+def _build_environment(
+    provider: str | None,
+    model: str | None,
+    api_key: str | None,
+    base_url: str | None,
+    tavily_api_key: str | None,
+    extra_env: dict[str, str] | None,
+) -> dict[str, str]:
+    environment: dict[str, str] = {}
+    if provider:
+        environment["LLM_PROVIDER"] = provider
+    if provider == "openrouter":
+        if api_key:
+            environment["OPENROUTER_API_KEY"] = api_key
+        if model:
+            environment["OPENROUTER_MODEL"] = model
+    elif provider == "openai":
+        if api_key:
+            environment["OPENAI_API_KEY"] = api_key
+        if model:
+            environment["OPENAI_MODEL"] = model
+        if base_url:
+            environment["OPENAI_BASE_URL"] = base_url
+    if tavily_api_key:
+        environment["TAVILY_API_KEY"] = tavily_api_key
+    if extra_env:
+        environment.update(extra_env)
+    return environment
+
+
 @dataclass
 class ContainerInfo:
     id: str
     name: str
     mount_path: str | None
     status: str = ""
+    provider: str = ""
     model: str = ""
     image: str = ""
     started_at: str | None = None
@@ -94,8 +125,10 @@ def check_connection() -> dict[str, str]:
 def spawn(
     image: str,
     name: str | None = None,
+    provider: str | None = None,
     model: str | None = None,
     api_key: str | None = None,
+    base_url: str | None = None,
     tavily_api_key: str | None = None,
     mount_path: str | None = None,
     network: str | None = None,
@@ -103,16 +136,14 @@ def spawn(
 ) -> ContainerInfo:
     """Start a new sandbox container and return its info."""
     client = _get_client()
-
-    environment: dict[str, str] = {}
-    if api_key:
-        environment["OPENROUTER_API_KEY"] = api_key
-    if model:
-        environment["OPENROUTER_MODEL"] = model
-    if tavily_api_key:
-        environment["TAVILY_API_KEY"] = tavily_api_key
-    if extra_env:
-        environment.update(extra_env)
+    environment = _build_environment(
+        provider=provider,
+        model=model,
+        api_key=api_key,
+        base_url=base_url,
+        tavily_api_key=tavily_api_key,
+        extra_env=extra_env,
+    )
 
     volumes: dict[str, dict[str, str]] = {}
     if mount_path:
@@ -186,9 +217,14 @@ def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
     results: list[ContainerInfo] = []
     for c in containers:
         env_list = c.attrs.get("Config", {}).get("Env", [])
+        provider = ""
         model = ""
         for e in env_list:
+            if e.startswith("LLM_PROVIDER="):
+                provider = e.split("=", 1)[1]
             if e.startswith("OPENROUTER_MODEL="):
+                model = e.split("=", 1)[1]
+            if not model and e.startswith("OPENAI_MODEL="):
                 model = e.split("=", 1)[1]
 
         image = c.image.tags[0] if c.image.tags else c.image.short_id
@@ -205,6 +241,7 @@ def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
                 name=c.name,
                 mount_path=None,
                 status=c.status,
+                provider=provider,
                 model=model,
                 image=image,
                 started_at=started_at,

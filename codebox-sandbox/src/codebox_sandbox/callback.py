@@ -39,17 +39,31 @@ async def run_callback() -> None:
     """Main entry point for callback mode."""
     grpc_address = os.environ.get("ORCHESTRATOR_GRPC_ADDRESS", "")
     callback_token = os.environ.get("CALLBACK_TOKEN", "")
-    model = os.environ.get("OPENROUTER_MODEL", "")
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    provider = os.environ.get("LLM_PROVIDER", "") or (
+        "openrouter" if os.environ.get("OPENROUTER_MODEL", "") else "openai"
+    )
+    model = (
+        os.environ.get("OPENROUTER_MODEL", "")
+        if provider == "openrouter"
+        else os.environ.get("OPENAI_MODEL", "")
+    )
+    api_key = (
+        os.environ.get("OPENROUTER_API_KEY", "")
+        if provider == "openrouter"
+        else os.environ.get("OPENAI_API_KEY", "")
+    )
+    base_url = os.environ.get("OPENAI_BASE_URL", "") if provider == "openai" else ""
 
     if not grpc_address:
         raise RuntimeError("ORCHESTRATOR_GRPC_ADDRESS is required")
     if not callback_token:
         raise RuntimeError("CALLBACK_TOKEN is required")
+    if not provider:
+        raise RuntimeError("LLM_PROVIDER is required")
     if not model:
-        raise RuntimeError("OPENROUTER_MODEL is required")
+        raise RuntimeError("OPENROUTER_MODEL or OPENAI_MODEL is required")
     if not api_key:
-        raise RuntimeError("OPENROUTER_API_KEY is required")
+        raise RuntimeError("OPENROUTER_API_KEY or OPENAI_API_KEY is required")
 
     # Parse optional sandbox config from environment
     sandbox_config: dict[str, Any] | None = None
@@ -61,14 +75,16 @@ async def run_callback() -> None:
     manager = SessionManager(checkpoint_db_path=_CHECKPOINT_DB_PATH)
     dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
     session = await manager.create(
+        provider=provider,
         model=model,
         api_key=api_key,
+        base_url=base_url or None,
         environment_system_prompt=SANDBOX_ENVIRONMENT_SYSTEM_PROMPT,
         dynamic_system_prompt=dynamic_system_prompt,
         sandbox_config=sandbox_config,
     )
     session_id = session.session_id
-    logger.info("Created session %s with model %s", session_id, model)
+    logger.info("Created session %s with provider=%s model=%s", session_id, provider, model)
 
     delay = _RECONNECT_BASE_DELAY
     while True:

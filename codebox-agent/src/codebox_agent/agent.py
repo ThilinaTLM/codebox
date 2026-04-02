@@ -4,8 +4,8 @@ import logging
 
 from deepagents import create_deep_agent
 from deepagents.backends import LocalShellBackend
-from langchain_openrouter import ChatOpenRouter
 
+from codebox_agent.llm import LLMProviderConfig, create_chat_model
 from codebox_agent.prompts import CORE_SYSTEM_PROMPT
 from codebox_agent.tools.status import StatusReporter, build_status_tools
 from codebox_agent.tools.web import build_web_tools
@@ -32,8 +32,10 @@ def _build_system_prompt(
 
 
 def create_agent(
+    provider: str,
     model: str,
     api_key: str,
+    base_url: str | None = None,
     environment_system_prompt: str | None = None,
     dynamic_system_prompt: str | None = None,
     root_dir: str = "/workspace",
@@ -44,8 +46,10 @@ def create_agent(
     """Create a deep agent with the given configuration.
 
     Args:
-        model: The OpenRouter model identifier.
-        api_key: The OpenRouter API key.
+        provider: The LLM provider identifier.
+        model: The LLM model identifier.
+        api_key: The LLM API key.
+        base_url: Optional provider base URL override.
         environment_system_prompt: Optional runner-specific environment prompt
             appended after the core prompt (e.g. sandbox or GitHub Actions context).
         dynamic_system_prompt: Optional caller-provided prompt appended after
@@ -63,8 +67,9 @@ def create_agent(
     timeout = cfg.get("timeout", 120)
 
     logger.info(
-        "Creating agent: model=%s, temperature=%s, timeout=%s, root_dir=%s,"
+        "Creating agent: provider=%s, model=%s, temperature=%s, timeout=%s, root_dir=%s,"
         " env_prompt=%s, dynamic_prompt=%s",
+        provider,
         model,
         temperature,
         timeout,
@@ -73,10 +78,14 @@ def create_agent(
         bool(dynamic_system_prompt),
     )
 
-    llm = ChatOpenRouter(
-        model=model,
+    llm = create_chat_model(
+        LLMProviderConfig(
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+        ),
         temperature=temperature,
-        api_key=api_key,
     )
 
     backend = LocalShellBackend(

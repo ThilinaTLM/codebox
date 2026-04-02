@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
 class BoxCreate(BaseModel):
     name: str | None = None
+    provider: str | None = None
     model: str | None = None
     dynamic_system_prompt: str | None = None
     initial_prompt: str | None = None
@@ -53,6 +54,7 @@ class BoxExec(BaseModel):
 class BoxResponse(BaseModel):
     id: str
     name: str
+    provider: str
     model: str
     container_status: ContainerStatus
     activity: Activity
@@ -152,6 +154,7 @@ class ContainerResponse(BaseModel):
     name: str
     status: str
     image: str
+    provider: str | None = None
     model: str | None = None
     started_at: str | None = None
     created_at: str | None = None
@@ -190,5 +193,6 @@ class GitHubRepoResponse(BaseModel):
 
 
 class ModelResponse(BaseModel):
+    provider: str
     id: str
     name: str

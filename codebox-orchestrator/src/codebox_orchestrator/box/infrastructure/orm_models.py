@@ -32,6 +32,7 @@ class Box(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
     name: Mapped[str] = mapped_column(String(255))
+    provider: Mapped[str] = mapped_column(String(50), default="openrouter")
     model: Mapped[str] = mapped_column(String(255))
     container_status: Mapped[ContainerStatus] = mapped_column(
         Enum(ContainerStatus, native_enum=False, length=30),

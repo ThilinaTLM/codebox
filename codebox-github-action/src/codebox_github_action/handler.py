@@ -354,19 +354,33 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
 
     # Set up the agent
     workspace = os.environ.get("GITHUB_WORKSPACE", str(Path.cwd()))
-    model = os.environ.get("OPENROUTER_MODEL", "")
+    provider = os.environ.get("LLM_PROVIDER", "") or (
+        "openrouter" if os.environ.get("OPENROUTER_MODEL", "") else "openai"
+    )
+    model = (
+        os.environ.get("OPENROUTER_MODEL", "")
+        if provider == "openrouter"
+        else os.environ.get("OPENAI_MODEL", "")
+    )
     if not model:
-        raise RuntimeError("OPENROUTER_MODEL is required")
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+        raise RuntimeError("OPENROUTER_MODEL or OPENAI_MODEL is required")
+    api_key = (
+        os.environ.get("OPENROUTER_API_KEY", "")
+        if provider == "openrouter"
+        else os.environ.get("OPENAI_API_KEY", "")
+    )
+    base_url = os.environ.get("OPENAI_BASE_URL", "") if provider == "openai" else ""
 
     if not api_key:
-        raise RuntimeError("OPENROUTER_API_KEY is required")
+        raise RuntimeError("OPENROUTER_API_KEY or OPENAI_API_KEY is required")
 
     manager = SessionManager(checkpoint_db_path="/tmp/codebox-checkpoints.db")  # noqa: S108
     dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
     session = await manager.create(
+        provider=provider,
         model=model,
         api_key=api_key,
+        base_url=base_url or None,
         environment_system_prompt=GITHUB_ACTIONS_ENVIRONMENT_SYSTEM_PROMPT,
         dynamic_system_prompt=dynamic_system_prompt,
         working_dir=workspace,

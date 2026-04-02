@@ -5,12 +5,25 @@ inputs:
   github-token:
     description: 'GitHub token for API access'
     required: true
+  llm-provider:
+    description: 'LLM provider identifier'
+    required: false
+    default: 'openrouter'
   openrouter-api-key:
     description: 'OpenRouter API key'
-    required: true
+    required: false
   openrouter-model:
     description: 'OpenRouter model identifier'
-    required: true
+    required: false
+  openai-api-key:
+    description: 'OpenAI API key'
+    required: false
+  openai-model:
+    description: 'OpenAI model identifier'
+    required: false
+  openai-base-url:
+    description: 'OpenAI base URL override'
+    required: false
   trigger-keyword:
     description: 'Comment keyword that triggers the agent'
     required: false
@@ -45,8 +58,12 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
         OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
         OPENROUTER_MODEL: ${{ inputs.openrouter-model }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OPENAI_MODEL: ${{ inputs.openai-model }}
+        OPENAI_BASE_URL: ${{ inputs.openai-base-url }}
         TRIGGER_KEYWORD: ${{ inputs.trigger-keyword }}
         TAVILY_API_KEY: ${{ inputs.tavily-api-key }}
         DYNAMIC_SYSTEM_PROMPT: ${{ inputs.dynamic-system-prompt }}

@@ -14,7 +14,8 @@ from codebox_orchestrator.compute.domain.entities import ContainerConfig
 from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
     GITHUB_DEFAULT_BASE_BRANCH,
-    OPENROUTER_API_KEY,
+    LLM_API_KEY,
+    LLM_BASE_URL,
     ORCHESTRATOR_GRPC_ADDRESS,
     TAVILY_API_KEY,
     WORKSPACE_BASE_DIR,
@@ -141,8 +142,10 @@ class BoxLifecycleService:
         config = ContainerConfig(
             image=CODEBOX_IMAGE,
             name=container_name,
+            provider=box.provider,
             model=box.model,
-            api_key=OPENROUTER_API_KEY,
+            api_key=LLM_API_KEY,
+            base_url=LLM_BASE_URL or None,
             tavily_api_key=TAVILY_API_KEY,
             mount_path=workspace,
             extra_env=extra_env,

@@ -16,10 +16,12 @@ wheels/
 # Setup wizard state
 scripts/.github-setup-state
 
-# IDE
+# IDE & Tools
 .idea/
 .vscode/
 *.swp
+.claude
+.factory
 
 # Data
 data/
