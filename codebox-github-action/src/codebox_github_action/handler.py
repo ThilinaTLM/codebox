@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 def _human_print(msg: str) -> None:
     """Print a clean message to stdout for GitHub Actions logs."""
+    print(msg, flush=True)  # noqa: T201
 
 
 def _send_human(msg_type: str, msg: dict[str, Any]) -> None:  # noqa: PLR0912, PLR0915
