@@ -53,26 +53,9 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
       continue
     }
 
-    if (event.type === "user_message") {
-      flushText()
-      flushExec()
-      flushThinking()
-      pendingThinking = false
-      blocks.push({ kind: "user_message", content: event.content })
-      continue
-    }
-
-    if (event.type === "user_exec") {
-      flushText()
-      flushExec()
-      flushThinking()
-      pendingThinking = false
-      currentExec = {
-        kind: "exec_session",
-        command: event.command,
-        output: "",
-        isRunning: true,
-      }
+    // user_message and user_exec are already persisted to box_messages
+    // and rendered from history — skip them in the live stream to avoid duplicates
+    if (event.type === "user_message" || event.type === "user_exec") {
       continue
     }
 
@@ -216,13 +199,15 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
   return blocks
 }
 
+const EMPTY_MESSAGES: Array<BoxMessage> = []
+
 export function ChatStream({
-  messages,
+  messages = EMPTY_MESSAGES,
   liveEvents,
   centered,
   bottomInset,
 }: {
-  messages: Array<BoxMessage>
+  messages?: Array<BoxMessage>
   liveEvents: Array<BoxStreamEvent>
   centered?: boolean
   bottomInset?: boolean

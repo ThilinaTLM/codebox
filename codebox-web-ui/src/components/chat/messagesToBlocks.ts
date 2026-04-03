@@ -9,7 +9,8 @@
 import type { BoxMessage } from "@/net/http/types"
 import type { EventBlock } from "./types"
 
-export function messagesToBlocks(messages: Array<BoxMessage>): Array<EventBlock> {
+export function messagesToBlocks(messages: Array<BoxMessage> | undefined | null): Array<EventBlock> {
+  if (!messages || !Array.isArray(messages)) return []
   const blocks: Array<EventBlock> = []
 
   // Track pending tool calls so we can pair them with tool results

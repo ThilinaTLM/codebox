@@ -141,16 +141,22 @@ function BoxDetailPage() {
 
   const handleSendMessage = useCallback(
     (content: string) => {
-      sendMessageMutation.mutate({ boxId, message: content })
+      sendMessageMutation.mutate(
+        { boxId, message: content },
+        { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["boxes", boxId, "messages"] }) },
+      )
     },
-    [sendMessageMutation, boxId]
+    [sendMessageMutation, boxId, queryClient]
   )
 
   const handleSendExec = useCallback(
     (command: string) => {
-      sendExecMutation.mutate({ boxId, command })
+      sendExecMutation.mutate(
+        { boxId, command },
+        { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["boxes", boxId, "messages"] }) },
+      )
     },
-    [sendExecMutation, boxId]
+    [sendExecMutation, boxId, queryClient]
   )
 
   const handleCancel = useCallback(() => {
