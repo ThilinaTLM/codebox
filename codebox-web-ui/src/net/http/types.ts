@@ -21,59 +21,32 @@ export enum TaskOutcome {
 export interface Box {
   id: string
   name: string
+  provider: string
   model: string
-  container_status: ContainerStatus
-  activity: Activity
-  container_stop_reason: string | null
-  task_outcome: TaskOutcome | null
+  container_status: ContainerStatus | string
+  container_id: string
+  container_name: string
+  grpc_connected: boolean
+  activity: Activity | string | null
+  task_outcome: TaskOutcome | string | null
   task_outcome_message: string | null
-  dynamic_system_prompt: string | null
-  initial_prompt: string | null
-  container_id: string | null
-  container_name: string | null
-  session_id: string | null
-  workspace_path: string | null
-  created_at: string
-  started_at: string | null
-  completed_at: string | null
   trigger: string | null
+  created_at: string | null
+  started_at: string | null
+  image: string
   // GitHub integration fields
   github_repo: string | null
   github_issue_number: number | null
-  github_trigger_url: string | null
   github_branch: string | null
-  github_pr_number: number | null
-}
-
-export interface BoxEvent {
-  id: number
-  box_id: string
-  event_type: string
-  data: Record<string, unknown> | null
-  created_at: string
 }
 
 export interface BoxMessage {
-  id: string
-  box_id: string
-  seq: number
   role: string
   content: string | null
   tool_calls: Array<{ id: string; name: string; args_json: string }> | null
   tool_call_id: string | null
   tool_name: string | null
-  metadata: Record<string, unknown> | null
-  created_at: string
-}
-
-export interface Container {
-  id: string
-  name: string
-  status: string
-  image: string
-  model: string | null
-  started_at: string | null
-  created_at: string | null
+  metadata_json: string | null
 }
 
 export interface ContainerLogs {

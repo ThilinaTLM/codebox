@@ -27,6 +27,7 @@ class DockerRuntime:
             mount_path=config.mount_path,
             network=config.network,
             extra_env=config.extra_env,
+            extra_labels=config.extra_labels or None,
         )
         return ContainerInfo(
             id=info.id,

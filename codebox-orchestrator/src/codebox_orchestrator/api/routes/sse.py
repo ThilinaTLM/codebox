@@ -16,15 +16,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from codebox_orchestrator.api.dependencies import (
-    get_get_box,
     get_global_broadcast,
+    get_query_service,
     get_relay,
 )
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
+    from codebox_orchestrator.box.application.services.box_query import BoxQueryService
     from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
     from codebox_orchestrator.shared.messaging.relay import RelayService
 
@@ -83,11 +83,11 @@ async def _global_event_generator(
 @router.get("/boxes/{box_id}/stream")
 async def box_stream(
     box_id: str,
-    get_box_handler: GetBoxHandler = Depends(get_get_box),
+    query: BoxQueryService = Depends(get_query_service),
     relay: RelayService = Depends(get_relay),
 ) -> StreamingResponse:
     """SSE stream for a box — live events only."""
-    box = await get_box_handler.execute(box_id)
+    box = query.get_box(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
 

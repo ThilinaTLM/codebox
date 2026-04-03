@@ -1,29 +1,13 @@
-"""Pydantic schemas for the orchestrator REST API.
-
-Mirrors the original schemas.py but works with domain entity dataclasses
-instead of ORM models.  Pydantic's ``from_attributes=True`` handles both.
-"""
+"""Pydantic schemas for the orchestrator REST API."""
 
 from __future__ import annotations
 
-import contextlib
-import json
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from codebox_orchestrator.box.domain.enums import (
-    Activity,
-    ContainerStatus,
-    TaskOutcome,
-)
-
 if TYPE_CHECKING:
-    from codebox_orchestrator.box.domain.entities import Box
-    from codebox_orchestrator.box.domain.entities import (
-        BoxMessage as BoxMessageEntity,
-    )
+    from codebox_orchestrator.box.domain.views import BoxView
 
 # ── Request schemas ──────────────────────────────────────────────
 
@@ -53,86 +37,52 @@ class BoxResponse(BaseModel):
     name: str
     provider: str
     model: str
-    container_status: ContainerStatus
-    activity: Activity
-    container_stop_reason: str | None
-    task_outcome: TaskOutcome | None
-    task_outcome_message: str | None
-    dynamic_system_prompt: str | None
-    initial_prompt: str | None
-    container_id: str | None
-    container_name: str | None
-    session_id: str | None
-    workspace_path: str | None
-    created_at: datetime
-    started_at: datetime | None
-    completed_at: datetime | None
+    container_status: str
+    container_id: str
+    container_name: str
+    grpc_connected: bool
+    activity: str | None = None
+    task_outcome: str | None = None
+    task_outcome_message: str | None = None
     trigger: str | None = None
-    # GitHub integration fields
     github_repo: str | None = None
-    github_issue_number: int | None = None
-    github_trigger_url: str | None = None
     github_branch: str | None = None
-    github_pr_number: int | None = None
-
-    model_config = {"from_attributes": True}
-
-    @classmethod
-    def from_entity(cls, box: Box) -> BoxResponse:
-        return cls.model_validate(box)
-
-
-class BoxMessageResponse(BaseModel):
-    id: str
-    box_id: str
-    seq: int
-    role: str
-    content: str | None
-    tool_calls: list[dict] | None = None
-    tool_call_id: str | None = None
-    tool_name: str | None = None
-    metadata: dict | None = None
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
+    github_issue_number: int | None = None
+    created_at: str | None = None
+    started_at: str | None = None
+    image: str = ""
 
     @classmethod
-    def from_entity(cls, msg: BoxMessageEntity) -> BoxMessageResponse:
-        tool_calls = None
-        if msg.tool_calls:
-            with contextlib.suppress(json.JSONDecodeError, TypeError):
-                tool_calls = json.loads(msg.tool_calls)
-        metadata = None
-        if msg.metadata_json:
-            with contextlib.suppress(json.JSONDecodeError, TypeError):
-                metadata = json.loads(msg.metadata_json)
+    def from_view(cls, view: BoxView) -> BoxResponse:
         return cls(
-            id=msg.id,
-            box_id=msg.box_id,
-            seq=msg.seq,
-            role=msg.role,
-            content=msg.content,
-            tool_calls=tool_calls,
-            tool_call_id=msg.tool_call_id,
-            tool_name=msg.tool_name,
-            metadata=metadata,
-            created_at=msg.created_at,
+            id=view.id,
+            name=view.name,
+            provider=view.provider,
+            model=view.model,
+            container_status=view.container_status,
+            container_id=view.container_id,
+            container_name=view.container_name,
+            grpc_connected=view.grpc_connected,
+            activity=view.activity,
+            task_outcome=view.task_outcome,
+            task_outcome_message=view.task_outcome_message,
+            trigger=view.trigger,
+            github_repo=view.github_repo,
+            github_branch=view.github_branch,
+            github_issue_number=view.github_issue_number,
+            created_at=view.created_at,
+            started_at=view.started_at,
+            image=view.image,
         )
 
 
-class ContainerResponse(BaseModel):
-    id: str
-    name: str
-    status: str
-    image: str
-    provider: str | None = None
-    model: str | None = None
-    started_at: str | None = None
-    created_at: str | None = None
-
-
-class ContainerLogsResponse(BaseModel):
-    logs: str
+class BoxMessageResponse(BaseModel):
+    role: str
+    content: str | None = None
+    tool_calls: list[dict] | None = None
+    tool_call_id: str | None = None
+    tool_name: str | None = None
+    metadata_json: str | None = None
 
 
 # ── GitHub schemas ──────────────────────────────────────────────
@@ -152,7 +102,7 @@ class GitHubInstallationResponse(BaseModel):
     installation_id: int
     account_login: str
     account_type: str
-    created_at: datetime
+    created_at: str
 
     model_config = {"from_attributes": True}
 

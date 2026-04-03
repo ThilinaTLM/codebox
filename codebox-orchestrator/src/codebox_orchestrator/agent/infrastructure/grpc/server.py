@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from codebox_orchestrator.agent.application.commands.handle_sandbox_event import (
         HandleSandboxEventHandler,
     )
-    from codebox_orchestrator.box.ports.box_repository import BoxRepository
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +40,11 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         self,
         event_handler: HandleSandboxEventHandler,
         registry: CallbackRegistry,
-        repo: BoxRepository,
     ) -> None:
         self._event_handler = event_handler
         self._registry = registry
-        self._repo = repo
 
-    async def Connect(  # noqa: N802, PLR0912, PLR0915
+    async def Connect(  # noqa: N802
         self,
         request_iterator: AsyncIterator[sandbox_pb2.SandboxEvent],
         context: grpc_aio.ServicerContext,
@@ -64,12 +61,6 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid callback token")
             return
         entity_id, entity_type = result
-
-        # Verify box exists
-        box = await self._repo.get(entity_id)
-        if box is None:
-            await context.abort(grpc.StatusCode.NOT_FOUND, "Box not found")
-            return
 
         logger.info("gRPC connection from %s %s", entity_type, entity_id)
 
@@ -89,35 +80,15 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         if not first_event.HasField("register"):
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Expected RegisterEvent")
             return
-        session_id = first_event.register.session_id
 
         # Register connection
         handle = ConnectionHandle()
         self._registry.set_connection(entity_id, handle)
 
-        # Store session_id on box
-        box_entity = await self._repo.get(entity_id)
-        if box_entity:
-            box_entity.session_id = session_id
-            await self._repo.save(box_entity)
-
-        logger.info("Box %s registered via gRPC (session %s)", entity_id, session_id)
+        logger.info("Box %s registered via gRPC", entity_id)
 
         # Send RegisteredCommand
         yield sandbox_pb2.OrchestratorCommand(registered=sandbox_pb2.RegisteredCommand())
-
-        # Thread restore
-        try:
-            restore_messages = await self._get_restore_messages(entity_id)
-            if restore_messages:
-                yield sandbox_pb2.OrchestratorCommand(
-                    thread_restore=sandbox_pb2.ThreadRestoreCommand(messages=restore_messages)
-                )
-                logger.info(
-                    "Sent thread_restore with %d messages for %s", len(restore_messages), entity_id
-                )
-        except Exception:
-            logger.exception("Failed to send thread_restore for %s", entity_id)
 
         # Concurrent event reader + command writer
         event_reader_task = asyncio.create_task(self._read_events(request_iterator, entity_id))
@@ -141,9 +112,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 with contextlib.suppress(asyncio.CancelledError, Exception):
                     await event_reader_task
             self._registry.remove(entity_id)
-            await self._event_handler.set_container_stopped_if_running(
-                entity_id, "container_error"
-            )
+            await self._event_handler.set_container_stopped(entity_id, "container_error")
             logger.info("gRPC connection closed for box %s", entity_id)
 
     async def _read_events(self, request_iterator, box_id: str) -> None:
@@ -157,39 +126,8 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
         except Exception:
             logger.exception("Error reading events from box %s", box_id)
 
-    async def _get_restore_messages(self, box_id: str) -> list[sandbox_pb2.ChatMessage]:
-        """Load messages from repo and convert to protobuf."""
-        messages = await self._repo.get_messages(box_id)
-        proto_messages = []
-        for m in messages:
-            tool_calls = []
-            if m.tool_calls:
-                try:
-                    tc_list = json.loads(m.tool_calls)
-                    tool_calls = [
-                        sandbox_pb2.ToolCall(
-                            id=tc.get("id", ""),
-                            name=tc.get("name", ""),
-                            args_json=tc.get("args_json", ""),
-                        )
-                        for tc in tc_list
-                    ]
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            proto_messages.append(
-                sandbox_pb2.ChatMessage(
-                    role=m.role or "",
-                    content=m.content or "",
-                    tool_calls=tool_calls,
-                    tool_call_id=m.tool_call_id or "",
-                    tool_name=m.tool_name or "",
-                    metadata_json=m.metadata_json or "",
-                )
-            )
-        return proto_messages
-
     # ------------------------------------------------------------------
-    # Protobuf serialization helpers (copied verbatim from grpc/server.py)
+    # Protobuf serialization helpers
     # ------------------------------------------------------------------
 
     def _event_to_dict(self, event: sandbox_pb2.SandboxEvent) -> tuple[str, dict[str, Any]]:  # noqa: PLR0911, PLR0912
@@ -277,6 +215,23 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 "type": "thinking_token",
                 "text": event.thinking_token.text,
             }
+        if field == "get_messages_result":
+            gmr = event.get_messages_result
+            messages = [self._chat_message_to_dict(m) for m in gmr.messages]
+            return "get_messages_result", {
+                "type": "get_messages_result",
+                "request_id": gmr.request_id,
+                "messages": messages,
+            }
+        if field == "get_box_state_result":
+            gbs = event.get_box_state_result
+            return "get_box_state_result", {
+                "type": "get_box_state_result",
+                "request_id": gbs.request_id,
+                "activity": gbs.activity,
+                "task_outcome": gbs.task_outcome,
+                "task_outcome_message": gbs.task_outcome_message,
+            }
         return "", {}
 
     def _chat_message_to_dict(self, msg: sandbox_pb2.ChatMessage) -> dict[str, Any]:
@@ -297,7 +252,7 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
             result["metadata_json"] = msg.metadata_json
         return result
 
-    def _dict_to_command(self, cmd: dict[str, Any]) -> sandbox_pb2.OrchestratorCommand:
+    def _dict_to_command(self, cmd: dict[str, Any]) -> sandbox_pb2.OrchestratorCommand:  # noqa: PLR0911
         """Convert a command dict to an OrchestratorCommand protobuf."""
         cmd_type = cmd.get("type", "")
         if cmd_type == "message":
@@ -327,6 +282,18 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                     request_id=cmd.get("request_id", ""),
                 )
             )
+        if cmd_type == "get_messages":
+            return sandbox_pb2.OrchestratorCommand(
+                get_messages=sandbox_pb2.GetMessagesCommand(
+                    request_id=cmd.get("request_id", ""),
+                )
+            )
+        if cmd_type == "get_box_state":
+            return sandbox_pb2.OrchestratorCommand(
+                get_box_state=sandbox_pb2.GetBoxStateCommand(
+                    request_id=cmd.get("request_id", ""),
+                )
+            )
         logger.warning("Unknown command type: %s", cmd_type)
         return sandbox_pb2.OrchestratorCommand()
 
@@ -335,14 +302,12 @@ async def start_grpc_server(
     port: int,
     event_handler: HandleSandboxEventHandler,
     registry: CallbackRegistry,
-    repo: BoxRepository,
 ) -> grpc_aio.Server:
     """Create and start the gRPC server."""
     server = grpc_aio.server()
     servicer = SandboxServiceServicer(
         event_handler=event_handler,
         registry=registry,
-        repo=repo,
     )
     sandbox_pb2_grpc.add_SandboxServiceServicer_to_server(servicer, server)
     server.add_insecure_port(f"[::]:{port}")

@@ -22,6 +22,7 @@ from codebox_agent.agent_runner import (
     run_agent_stream,
     run_exec,
 )
+from codebox_agent.message_store import MessageStore
 from codebox_agent.sessions import SessionManager
 from codebox_sandbox.grpc.generated.codebox.sandbox import sandbox_pb2, sandbox_pb2_grpc
 from codebox_sandbox.prompts import SANDBOX_ENVIRONMENT_SYSTEM_PROMPT
@@ -86,10 +87,19 @@ async def run_callback() -> None:
     session_id = session.session_id
     logger.info("Created session %s with provider=%s model=%s", session_id, provider, model)
 
+    # Create message store (same DB as checkpointer)
+    message_store = MessageStore(_CHECKPOINT_DB_PATH)
+    await message_store.setup()
+
+    # Send initial prompt if set via env var
+    initial_prompt = os.environ.get("INITIAL_PROMPT")
+
     delay = _RECONNECT_BASE_DELAY
     while True:
         try:
-            await _connect_and_run(grpc_address, session_id, manager, callback_token)
+            await _connect_and_run(
+                grpc_address, session_id, manager, callback_token, message_store, initial_prompt
+            )
             # Clean exit
             break
         except grpc_aio.AioRpcError as exc:
@@ -119,9 +129,14 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
     session_id: str,
     manager: SessionManager,
     callback_token: str,
+    message_store: MessageStore,
+    initial_prompt: str | None,
 ) -> None:
     """Connect to orchestrator via gRPC and run the bidirectional stream."""
     logger.info("Connecting to orchestrator gRPC at %s", grpc_address)
+
+    # Track current activity in-memory for state queries
+    current_activity = "idle"
 
     async with grpc_aio.insecure_channel(grpc_address) as channel:
         stub = sandbox_pb2_grpc.SandboxServiceStub(channel)
@@ -143,8 +158,36 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
 
         # Send callback
         async def send(msg: dict) -> None:
-            """Convert a dict event to protobuf and enqueue it."""
+            """Convert a dict event to protobuf and enqueue it.
+
+            Also persists messages and state changes to the local message store.
+            """
+            nonlocal current_activity
             try:
+                msg_type = msg.get("type", "")
+
+                # Persist message_complete events
+                if msg_type == "message_complete":
+                    msg_data = msg.get("message", {})
+                    await message_store.append_message(
+                        role=msg_data.get("role", ""),
+                        content=msg_data.get("content"),
+                        tool_calls=msg_data.get("tool_calls"),
+                        tool_call_id=msg_data.get("tool_call_id"),
+                        tool_name=msg_data.get("tool_name"),
+                        metadata_json=msg_data.get("metadata_json"),
+                    )
+
+                # Persist activity changes
+                if msg_type == "activity_changed":
+                    current_activity = msg.get("status", "idle")
+                    await message_store.set_state("activity", current_activity)
+
+                # Persist task outcome
+                if msg_type == "task_outcome":
+                    await message_store.set_state("task_outcome", msg.get("status", ""))
+                    await message_store.set_state("task_outcome_message", msg.get("message", ""))
+
                 event = _dict_to_event(msg)
                 if event:
                     await outbound.put(event)
@@ -176,6 +219,9 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
         session = manager.get(session_id)
         session.status_reporter.send_fn = send
 
+        # Track whether initial prompt has been sent (only on first connect)
+        initial_prompt_sent = False
+
         try:
             async for command in response_stream:
                 field = command.WhichOneof("command")
@@ -183,11 +229,17 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
 
                 if field == "registered":
                     logger.info("Registered with orchestrator via gRPC, session %s", session_id)
-
-                elif field == "thread_restore":
-                    messages = command.thread_restore.messages
-                    if messages:
-                        await _handle_thread_restore(session, messages)
+                    # Send initial prompt on first registration if set
+                    if initial_prompt and not initial_prompt_sent:
+                        initial_prompt_sent = True
+                        # Persist and send the initial prompt as a user message
+                        await message_store.append_message(role="user", content=initial_prompt)
+                        await _cancel_current()
+                        current_task = asyncio.create_task(
+                            run_agent_stream(send, session_id, manager, new_message=initial_prompt)
+                        )
+                        session.current_task = current_task
+                        current_task.add_done_callback(_on_task_done)
 
                 elif field == "message":
                     content = command.message.content
@@ -199,6 +251,9 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                     if not content:
                         await send({"type": "error", "detail": "Empty message content"})
                         continue
+
+                    # Persist user message
+                    await message_store.append_message(role="user", content=content)
 
                     await _cancel_current()
                     current_task = asyncio.create_task(
@@ -250,6 +305,16 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                     logger.debug("Received read_file command: path=%s", path)
                     await handle_read_file(send, path, request_id, workspace_root=_WORKSPACE_ROOT)
 
+                elif field == "get_messages":
+                    request_id = command.get_messages.request_id
+                    await _handle_get_messages(outbound, message_store, request_id)
+
+                elif field == "get_box_state":
+                    request_id = command.get_box_state.request_id
+                    await _handle_get_box_state(
+                        outbound, message_store, request_id, current_activity
+                    )
+
                 else:
                     logger.warning("Unknown command type: %s", field)
                     await send({"type": "error", "detail": f"Unknown command: {field}"})
@@ -258,6 +323,64 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
             await _cancel_current()
             # Signal the event iterator to stop
             await outbound.put(None)
+
+
+async def _handle_get_messages(
+    outbound: asyncio.Queue,
+    store: MessageStore,
+    request_id: str,
+) -> None:
+    """Handle GetMessagesCommand: read messages from store and send back."""
+    messages = await store.get_messages()
+    proto_messages = []
+    for m in messages:
+        tool_calls = []
+        if m.get("tool_calls"):
+            tool_calls = [
+                sandbox_pb2.ToolCall(
+                    id=tc.get("id", ""),
+                    name=tc.get("name", ""),
+                    args_json=tc.get("args_json", ""),
+                )
+                for tc in m["tool_calls"]
+            ]
+        proto_messages.append(
+            sandbox_pb2.ChatMessage(
+                role=m.get("role", ""),
+                content=m.get("content", "") or "",
+                tool_calls=tool_calls,
+                tool_call_id=m.get("tool_call_id", "") or "",
+                tool_name=m.get("tool_name", "") or "",
+                metadata_json=m.get("metadata_json", "") or "",
+            )
+        )
+    event = sandbox_pb2.SandboxEvent(
+        get_messages_result=sandbox_pb2.GetMessagesResultEvent(
+            request_id=request_id,
+            messages=proto_messages,
+        )
+    )
+    await outbound.put(event)
+
+
+async def _handle_get_box_state(
+    outbound: asyncio.Queue,
+    store: MessageStore,
+    request_id: str,
+    current_activity: str,
+) -> None:
+    """Handle GetBoxStateCommand: read state from store and send back."""
+    task_outcome = await store.get_state("task_outcome") or ""
+    task_outcome_message = await store.get_state("task_outcome_message") or ""
+    event = sandbox_pb2.SandboxEvent(
+        get_box_state_result=sandbox_pb2.GetBoxStateResultEvent(
+            request_id=request_id,
+            activity=current_activity,
+            task_outcome=task_outcome,
+            task_outcome_message=task_outcome_message,
+        )
+    )
+    await outbound.put(event)
 
 
 def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:  # noqa: PLR0911, PLR0912
@@ -370,49 +493,3 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:  # n
         )
     logger.debug("Unknown event type for protobuf conversion: %s", msg_type)
     return None
-
-
-async def _handle_thread_restore(session: Any, messages: list[sandbox_pb2.ChatMessage]) -> None:
-    """Seed the agent's checkpointer with restored messages from the orchestrator."""
-    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage  # noqa: PLC0415, I001
-
-    config = {"configurable": {"thread_id": session.session_id}}
-
-    # Check if local checkpoint already has state
-    try:
-        state = await session.agent.aget_state(config)
-        if state and state.values and state.values.get("messages"):
-            logger.info("Local checkpoint already has state, skipping thread restore")
-            return
-    except Exception:  # noqa: S110 - OK to swallow; missing state just means we proceed with restore
-        pass
-
-    # Convert protobuf messages to LangChain message objects
-    lc_messages = []
-    for msg in messages:
-        role = msg.role
-        content = msg.content
-        if role == "user":
-            lc_messages.append(HumanMessage(content=content))
-        elif role == "assistant":
-            lc_messages.append(AIMessage(content=content))
-        elif role == "system":
-            lc_messages.append(SystemMessage(content=content))
-        elif role == "tool":
-            lc_messages.append(
-                ToolMessage(
-                    content=content,
-                    tool_call_id=msg.tool_call_id or "",
-                    name=msg.tool_name or "",
-                )
-            )
-
-    if lc_messages:
-        try:
-            await session.agent.aupdate_state(
-                config=config,
-                values={"messages": lc_messages},
-            )
-            logger.info("Restored %d messages from orchestrator", len(lc_messages))
-        except Exception:
-            logger.exception("Failed to restore thread state")

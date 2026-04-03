@@ -77,6 +77,13 @@ class ContainerInfo:
     image: str = ""
     started_at: str | None = None
     created_at: str | None = None
+    # Label-based metadata
+    box_id: str = ""
+    box_name: str = ""
+    trigger: str = ""
+    github_repo: str = ""
+    github_branch: str = ""
+    github_issue_number: int | None = None
 
 
 def _get_client() -> docker.DockerClient:
@@ -133,6 +140,7 @@ def spawn(
     mount_path: str | None = None,
     network: str | None = None,
     extra_env: dict[str, str] | None = None,
+    extra_labels: dict[str, str] | None = None,
 ) -> ContainerInfo:
     """Start a new sandbox container and return its info."""
     client = _get_client()
@@ -157,6 +165,8 @@ def spawn(
     volumes[app_vol_name] = {"bind": "/app", "mode": "rw"}
 
     labels = {CONTAINER_LABEL: "true"}
+    if extra_labels:
+        labels.update(extra_labels)
     net = network or DOCKER_NETWORK
 
     run_kwargs: dict[str, Any] = {
@@ -216,16 +226,21 @@ def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
 
     results: list[ContainerInfo] = []
     for c in containers:
-        env_list = c.attrs.get("Config", {}).get("Env", [])
-        provider = ""
-        model = ""
-        for e in env_list:
-            if e.startswith("LLM_PROVIDER="):
-                provider = e.split("=", 1)[1]
-            if e.startswith("OPENROUTER_MODEL="):
-                model = e.split("=", 1)[1]
-            if not model and e.startswith("OPENAI_MODEL="):
-                model = e.split("=", 1)[1]
+        config = c.attrs.get("Config", {})
+        labels = config.get("Labels", {})
+
+        # Prefer label-based metadata, fall back to env vars
+        provider = labels.get("codebox.provider", "")
+        model = labels.get("codebox.model", "")
+        if not provider or not model:
+            env_list = config.get("Env", [])
+            for e in env_list:
+                if not provider and e.startswith("LLM_PROVIDER="):
+                    provider = e.split("=", 1)[1]
+                if not model and e.startswith("OPENROUTER_MODEL="):
+                    model = e.split("=", 1)[1]
+                if not model and e.startswith("OPENAI_MODEL="):
+                    model = e.split("=", 1)[1]
 
         image = c.image.tags[0] if c.image.tags else c.image.short_id
 
@@ -234,6 +249,10 @@ def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
         if started_at and started_at.startswith("0001-"):
             started_at = None
         created_at = c.attrs.get("Created")
+
+        # Parse github issue number from label
+        gh_issue_str = labels.get("codebox.github-issue-number", "")
+        gh_issue_number = int(gh_issue_str) if gh_issue_str else None
 
         results.append(
             ContainerInfo(
@@ -245,7 +264,13 @@ def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
                 model=model,
                 image=image,
                 started_at=started_at,
-                created_at=created_at,
+                created_at=created_at or labels.get("codebox.created-at"),
+                box_id=labels.get("codebox.box-id", ""),
+                box_name=labels.get("codebox.name", ""),
+                trigger=labels.get("codebox.trigger", ""),
+                github_repo=labels.get("codebox.github-repo", ""),
+                github_branch=labels.get("codebox.github-branch", ""),
+                github_issue_number=gh_issue_number,
             )
         )
     return results

@@ -2,23 +2,23 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from codebox_orchestrator.box.application.name_generator import generate_readable_name
-from codebox_orchestrator.box.domain.entities import Box
-from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
+from codebox_orchestrator.box.domain.views import BoxView
 from codebox_orchestrator.config import LLM_MODEL, LLM_PROVIDER
 
 if TYPE_CHECKING:
-    from codebox_orchestrator.box.ports.box_repository import BoxRepository
+    from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
     from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 
 class CreateBoxHandler:
-    def __init__(self, repo: BoxRepository, publisher: EventPublisher) -> None:
-        self._repo = repo
+    def __init__(self, publisher: EventPublisher, lifecycle: BoxLifecycleService) -> None:
         self._publisher = publisher
+        self._lifecycle = lifecycle
 
     async def execute(
         self,
@@ -33,13 +33,35 @@ class CreateBoxHandler:
         github_issue_number: int | None = None,
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
-    ) -> Box:
-        box = Box(
-            name=name or generate_readable_name(),
-            provider=provider or LLM_PROVIDER,
-            model=model or LLM_MODEL,
-            container_status=ContainerStatus.STARTING,
-            activity=Activity.IDLE,
+    ) -> BoxView:
+        box_id = str(uuid.uuid4())
+        box_name = name or generate_readable_name()
+        box_provider = provider or LLM_PROVIDER
+        box_model = model or LLM_MODEL
+        now = datetime.now(UTC)
+
+        # Publish creation events
+        await self._publisher.publish_box_event(
+            box_id, {"type": "status_change", "container_status": "starting"}
+        )
+        await self._publisher.publish_global_event(
+            {
+                "type": "box_created",
+                "box_id": box_id,
+                "name": box_name,
+                "provider": box_provider,
+                "container_status": "starting",
+                "model": box_model,
+                "created_at": now.isoformat(),
+            }
+        )
+
+        # Launch container in background
+        self._lifecycle.start_box(
+            box_id=box_id,
+            name=box_name,
+            provider=box_provider,
+            model=box_model,
             dynamic_system_prompt=dynamic_system_prompt,
             initial_prompt=initial_prompt,
             trigger=trigger,
@@ -49,21 +71,19 @@ class CreateBoxHandler:
             github_trigger_url=github_trigger_url,
             github_branch=github_branch,
         )
-        box.started_at = datetime.now(UTC)
-        await self._repo.save(box)
 
-        await self._publisher.publish_box_event(
-            box.id, {"type": "status_change", "container_status": ContainerStatus.STARTING.value}
+        return BoxView(
+            id=box_id,
+            name=box_name,
+            provider=box_provider,
+            model=box_model,
+            container_status="starting",
+            container_id="",
+            container_name=f"codebox-box-{box_id[:8]}",
+            grpc_connected=False,
+            trigger=trigger,
+            github_repo=github_repo,
+            github_branch=github_branch,
+            github_issue_number=github_issue_number,
+            created_at=now.isoformat(),
         )
-        await self._publisher.publish_global_event(
-            {
-                "type": "box_created",
-                "box_id": box.id,
-                "name": box.name,
-                "provider": box.provider,
-                "container_status": ContainerStatus.STARTING.value,
-                "model": box.model,
-                "created_at": box.created_at.isoformat(),
-            }
-        )
-        return box

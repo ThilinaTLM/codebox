@@ -15,7 +15,6 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from codebox_orchestrator.api.dependencies import (
     get_create_box,
     get_installation_service,
-    get_lifecycle,
     get_webhook_handler,
 )
 from codebox_orchestrator.api.schemas import (
@@ -28,7 +27,6 @@ from codebox_orchestrator.config import GITHUB_APP_SLUG, github_enabled
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
-    from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
     from codebox_orchestrator.integration.github.application.installation_service import (
         GitHubInstallationService,
     )
@@ -71,7 +69,6 @@ async def github_webhook(
     request: Request,
     webhook_handler: GitHubWebhookHandler = Depends(_require_webhook_handler),
     create_box_handler: CreateBoxHandler = Depends(get_create_box),
-    lifecycle: BoxLifecycleService = Depends(get_lifecycle),
 ) -> JSONResponse:
     """Receive and process GitHub webhooks."""
     # Read raw body for signature verification
@@ -96,7 +93,6 @@ async def github_webhook(
             delivery_id,
             payload,
             create_box_handler,
-            lifecycle,
         )
     )
     _background_tasks.add(task)
@@ -111,13 +107,13 @@ async def _process_webhook_safe(
     delivery_id: str,
     payload: dict,
     create_box_handler: CreateBoxHandler,
-    lifecycle: BoxLifecycleService,
 ) -> None:
     """Wrapper to catch and log errors from async webhook processing."""
     try:
         box_req, event_id = await webhook_handler.process_webhook(event_type, delivery_id, payload)
         if box_req is not None:
-            box = await create_box_handler.execute(
+            # CreateBoxHandler now starts the box internally
+            view = await create_box_handler.execute(
                 name=box_req.name,
                 provider=box_req.provider,
                 model=box_req.model,
@@ -130,9 +126,8 @@ async def _process_webhook_safe(
                 github_trigger_url=box_req.trigger_url,
                 github_branch=box_req.branch,
             )
-            lifecycle.start_box(box.id)
             if event_id:
-                await webhook_handler.update_event_box_id(event_id, box.id)
+                await webhook_handler.update_event_box_id(event_id, view.id)
     except Exception:
         logger.exception("Error processing webhook %s (delivery %s)", event_type, delivery_id)
 

@@ -11,9 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
-import { Route as ContainersIndexRouteImport } from './routes/containers/index'
 import { Route as BoxesBoxIdRouteImport } from './routes/boxes/$boxId'
-import { Route as ContainersContainerIdLogsRouteImport } from './routes/containers/$containerId.logs'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -25,75 +23,40 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ContainersIndexRoute = ContainersIndexRouteImport.update({
-  id: '/containers/',
-  path: '/containers/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BoxesBoxIdRoute = BoxesBoxIdRouteImport.update({
   id: '/boxes/$boxId',
   path: '/boxes/$boxId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ContainersContainerIdLogsRoute =
-  ContainersContainerIdLogsRouteImport.update({
-    id: '/containers/$containerId/logs',
-    path: '/containers/$containerId/logs',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
-  '/containers/': typeof ContainersIndexRoute
   '/settings/': typeof SettingsIndexRoute
-  '/containers/$containerId/logs': typeof ContainersContainerIdLogsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
-  '/containers': typeof ContainersIndexRoute
   '/settings': typeof SettingsIndexRoute
-  '/containers/$containerId/logs': typeof ContainersContainerIdLogsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
-  '/containers/': typeof ContainersIndexRoute
   '/settings/': typeof SettingsIndexRoute
-  '/containers/$containerId/logs': typeof ContainersContainerIdLogsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/boxes/$boxId'
-    | '/containers/'
-    | '/settings/'
-    | '/containers/$containerId/logs'
+  fullPaths: '/' | '/boxes/$boxId' | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/boxes/$boxId'
-    | '/containers'
-    | '/settings'
-    | '/containers/$containerId/logs'
-  id:
-    | '__root__'
-    | '/'
-    | '/boxes/$boxId'
-    | '/containers/'
-    | '/settings/'
-    | '/containers/$containerId/logs'
+  to: '/' | '/boxes/$boxId' | '/settings'
+  id: '__root__' | '/' | '/boxes/$boxId' | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BoxesBoxIdRoute: typeof BoxesBoxIdRoute
-  ContainersIndexRoute: typeof ContainersIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
-  ContainersContainerIdLogsRoute: typeof ContainersContainerIdLogsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -112,25 +75,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/containers/': {
-      id: '/containers/'
-      path: '/containers'
-      fullPath: '/containers/'
-      preLoaderRoute: typeof ContainersIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/boxes/$boxId': {
       id: '/boxes/$boxId'
       path: '/boxes/$boxId'
       fullPath: '/boxes/$boxId'
       preLoaderRoute: typeof BoxesBoxIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/containers/$containerId/logs': {
-      id: '/containers/$containerId/logs'
-      path: '/containers/$containerId/logs'
-      fullPath: '/containers/$containerId/logs'
-      preLoaderRoute: typeof ContainersContainerIdLogsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -139,9 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BoxesBoxIdRoute: BoxesBoxIdRoute,
-  ContainersIndexRoute: ContainersIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
-  ContainersContainerIdLogsRoute: ContainersContainerIdLogsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

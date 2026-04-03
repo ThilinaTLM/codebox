@@ -19,14 +19,6 @@ export function useBox(boxId: string | undefined) {
   })
 }
 
-export function useBoxEvents(boxId: string | undefined) {
-  return useQuery({
-    queryKey: ["boxes", boxId, "events"],
-    queryFn: () => api.boxes.getEvents(boxId!),
-    enabled: !!boxId,
-  })
-}
-
 export function useBoxMessages(boxId: string | undefined) {
   return useQuery({
     queryKey: ["boxes", boxId, "messages"],
@@ -55,6 +47,19 @@ export function useBoxFileContent(
   })
 }
 
+export function useBoxLogs(
+  boxId: string | null,
+  tail: number = 200,
+  autoRefresh: boolean = false
+) {
+  return useQuery({
+    queryKey: ["boxes", boxId, "logs", tail],
+    queryFn: () => api.boxes.logs(boxId!, tail),
+    enabled: !!boxId,
+    refetchInterval: autoRefresh ? 3000 : false,
+  })
+}
+
 // ── Model queries ────────────────────────────────────────────
 
 export function useModels(provider?: string) {
@@ -62,29 +67,6 @@ export function useModels(provider?: string) {
     queryKey: ["models", provider ?? "default"],
     queryFn: () => api.models.list(provider),
     staleTime: 5 * 60 * 1000,
-  })
-}
-
-// ── Container queries ─────────────────────────────────────────
-
-export function useContainers() {
-  return useQuery({
-    queryKey: ["containers"],
-    queryFn: api.containers.list,
-    refetchInterval: 10000,
-  })
-}
-
-export function useContainerLogs(
-  containerId: string | null,
-  tail: number = 200,
-  autoRefresh: boolean = false
-) {
-  return useQuery({
-    queryKey: ["containers", containerId, "logs", tail],
-    queryFn: () => api.containers.logs(containerId!, tail),
-    enabled: !!containerId,
-    refetchInterval: autoRefresh ? 3000 : false,
   })
 }
 
@@ -154,36 +136,6 @@ export function useSendExec() {
   return useMutation({
     mutationFn: ({ boxId, command }: { boxId: string; command: string }) =>
       api.boxes.sendExec(boxId, command),
-  })
-}
-
-export function useStopContainer() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (containerId: string) => api.containers.stop(containerId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["containers"] })
-    },
-  })
-}
-
-export function useStartContainer() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (containerId: string) => api.containers.start(containerId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["containers"] })
-    },
-  })
-}
-
-export function useDeleteContainer() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (containerId: string) => api.containers.delete(containerId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["containers"] })
-    },
   })
 }
 

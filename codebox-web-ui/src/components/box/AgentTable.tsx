@@ -41,10 +41,7 @@ function getStatusDotClass(box: Box): string {
   if (box.task_outcome === TaskOutcome.COMPLETED) {
     return "bg-state-completed"
   }
-  if (
-    box.container_stop_reason === "container_error" ||
-    box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED
-  ) {
+  if (box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED) {
     return "bg-state-error"
   }
   return "bg-state-idle"
@@ -63,10 +60,7 @@ function getRowBorderClass(box: Box): string {
   if (box.task_outcome === TaskOutcome.COMPLETED) {
     return "border-l-state-completed"
   }
-  if (
-    box.container_stop_reason === "container_error" ||
-    box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED
-  ) {
+  if (box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED) {
     return "border-l-state-error"
   }
   return "border-l-state-idle"
@@ -76,7 +70,8 @@ function getTimestamp(box: Box, variant: "active" | "recent"): string {
   const ts =
     variant === "active"
       ? (box.started_at ?? box.created_at)
-      : (box.completed_at ?? box.created_at)
+      : (box.created_at ?? box.started_at)
+  if (!ts) return ""
   return formatDistanceToNow(new Date(ts), { addSuffix: true })
 }
 
@@ -165,10 +160,10 @@ function AgentRow({
     box.trigger === "github_issue"
       ? `Issue #${box.github_issue_number ?? ""}`
       : box.trigger === "github_pr"
-        ? `PR #${box.github_pr_number ?? ""}`
+        ? `PR #${box.github_issue_number ?? ""}`
         : null
 
-  const preview = box.task_outcome_message ?? box.initial_prompt ?? ""
+  const preview = box.task_outcome_message ?? ""
 
   return (
     <>
@@ -330,7 +325,7 @@ function StatusLabel({ box }: { box: Box }) {
   if (box.task_outcome === TaskOutcome.COMPLETED) {
     return <span className="text-xs text-state-completed">Completed</span>
   }
-  if (box.container_stop_reason === "container_error") {
+  if (box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED) {
     return <span className="text-xs text-state-error">Error</span>
   }
   return <span className="text-xs text-state-idle">Stopped</span>

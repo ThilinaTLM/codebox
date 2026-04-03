@@ -45,8 +45,6 @@ export function useGlobalStream() {
                 updates.container_status = event.container_status
               if (event.activity)
                 updates.activity = event.activity
-              if (event.container_stop_reason !== undefined)
-                updates.container_stop_reason = event.container_stop_reason
               if (event.task_outcome)
                 updates.task_outcome = event.task_outcome
               return { ...old, ...updates }

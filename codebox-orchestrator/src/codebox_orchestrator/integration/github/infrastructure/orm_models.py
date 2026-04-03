@@ -5,10 +5,12 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from codebox_orchestrator.box.infrastructure.orm_models import Base
+
+class Base(DeclarativeBase):
+    pass
 
 
 def _utcnow() -> datetime:
@@ -39,5 +41,5 @@ class GitHubEvent(Base):
     action: Mapped[str] = mapped_column(String(100))
     repository: Mapped[str] = mapped_column(String(255))  # "owner/repo"
     payload: Mapped[str] = mapped_column(Text)  # JSON
-    box_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("boxes.id"), nullable=True)
+    box_id: Mapped[str | None] = mapped_column(String(36), nullable=True)  # box UUID (no FK)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

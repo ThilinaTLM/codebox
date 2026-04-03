@@ -1,4 +1,4 @@
-"""JSON REST API routes for box management (DDD version)."""
+"""JSON REST API routes for box management."""
 
 from __future__ import annotations
 
@@ -13,17 +13,15 @@ from fastapi.responses import Response
 
 from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
 from codebox_orchestrator.api.dependencies import (
-    get_box_messages,
     get_cancel_box,
     get_create_box,
     get_delete_box,
-    get_get_box,
     get_installation_service,
-    get_lifecycle,
-    get_list_boxes,
     get_list_files,
+    get_query_service,
     get_read_file,
     get_restart_box,
+    get_runtime,
     get_send_exec,
     get_send_message,
     get_stop_box,
@@ -34,11 +32,6 @@ from codebox_orchestrator.api.schemas import (
     BoxMessage,
     BoxMessageResponse,
     BoxResponse,
-)
-from codebox_orchestrator.box.domain.enums import Activity, ContainerStatus
-from codebox_orchestrator.box.domain.exceptions import (
-    BoxNotFoundError,
-    InvalidStatusTransitionError,
 )
 
 if TYPE_CHECKING:
@@ -53,10 +46,8 @@ if TYPE_CHECKING:
     from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
     from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
     from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
-    from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
-    from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
-    from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
-    from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
+    from codebox_orchestrator.box.application.services.box_query import BoxQueryService
+    from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
     from codebox_orchestrator.integration.github.application.installation_service import (
         GitHubInstallationService,
     )
@@ -97,7 +88,6 @@ async def health_check():
 async def create_box(
     body: BoxCreate,
     handler: CreateBoxHandler = Depends(get_create_box),
-    lifecycle: BoxLifecycleService = Depends(get_lifecycle),
     github_service: GitHubInstallationService | None = Depends(get_installation_service),
 ) -> BoxResponse:
     """Create and auto-start a new box."""
@@ -113,7 +103,7 @@ async def create_box(
         github_installation_id = installation.id
         github_branch = f"codebox/manual-{body.github_repo.split('/')[-1]}"
 
-    box = await handler.execute(
+    view = await handler.execute(
         name=body.name,
         provider=body.provider,
         model=body.model,
@@ -123,8 +113,7 @@ async def create_box(
         github_branch=github_branch,
         github_installation_id=github_installation_id,
     )
-    lifecycle.start_box(box.id)
-    return BoxResponse.from_entity(box)
+    return BoxResponse.from_view(view)
 
 
 @router.get("/boxes")
@@ -132,78 +121,79 @@ async def list_boxes(
     container_status: str | None = None,
     activity: str | None = None,
     trigger: str | None = None,
-    handler: ListBoxesHandler = Depends(get_list_boxes),
+    query: BoxQueryService = Depends(get_query_service),
 ) -> list[BoxResponse]:
-    """List boxes, optionally filtered by container_status, activity, or trigger."""
-    cs = None
-    if container_status:
-        try:
-            cs = ContainerStatus(container_status)
-        except ValueError as exc:
-            raise HTTPException(400, f"Invalid container_status: {container_status}") from exc
-    act = None
-    if activity:
-        try:
-            act = Activity(activity)
-        except ValueError as exc:
-            raise HTTPException(400, f"Invalid activity: {activity}") from exc
-    boxes = await handler.execute(container_status=cs, activity=act, trigger=trigger)
-    return [BoxResponse.from_entity(b) for b in boxes]
+    """List boxes, optionally filtered."""
+    boxes = query.list_boxes(
+        container_status=container_status,
+        activity=activity,
+        trigger=trigger,
+    )
+    return [BoxResponse.from_view(b) for b in boxes]
 
 
 @router.get("/boxes/{box_id}")
 async def get_box(
     box_id: str,
-    handler: GetBoxHandler = Depends(get_get_box),
+    query: BoxQueryService = Depends(get_query_service),
 ) -> BoxResponse:
-    box = await handler.execute(box_id)
+    box = query.get_box(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
-    return BoxResponse.from_entity(box)
+    return BoxResponse.from_view(box)
 
 
 @router.get("/boxes/{box_id}/messages")
 async def get_box_messages_route(
     box_id: str,
-    get_box_handler: GetBoxHandler = Depends(get_get_box),
-    messages_handler: GetBoxMessagesHandler = Depends(get_box_messages),
+    query: BoxQueryService = Depends(get_query_service),
 ) -> list[BoxMessageResponse]:
-    """Return structured chat thread for a box."""
-    box = await get_box_handler.execute(box_id)
+    """Return chat messages from sandbox (requires running container)."""
+    box = query.get_box(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
-    messages = await messages_handler.execute(box_id)
-    return [BoxMessageResponse.from_entity(m) for m in messages]
+    if not box.grpc_connected:
+        raise HTTPException(503, "Container is not running or not connected")
+    try:
+        messages = await query.get_messages(box_id)
+    except NoActiveConnectionError as exc:
+        raise HTTPException(503, "Container is not connected") from exc
+    except Exception as exc:
+        raise HTTPException(502, f"Failed to get messages: {exc}") from exc
+    return [BoxMessageResponse(**m) for m in messages]
 
 
 @router.post("/boxes/{box_id}/stop")
 async def stop_box(
     box_id: str,
     handler: StopBoxHandler = Depends(get_stop_box),
-    get_box_handler: GetBoxHandler = Depends(get_get_box),
+    query: BoxQueryService = Depends(get_query_service),
 ) -> BoxResponse:
     await handler.execute(box_id)
-    box = await get_box_handler.execute(box_id)
+    box = query.get_box(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
-    return BoxResponse.from_entity(box)
+    return BoxResponse.from_view(box)
 
 
 @router.post("/boxes/{box_id}/restart")
 async def restart_box(
     box_id: str,
     handler: RestartBoxHandler = Depends(get_restart_box),
-    lifecycle: BoxLifecycleService = Depends(get_lifecycle),
 ) -> BoxResponse:
     """Restart a stopped box."""
+    from codebox_orchestrator.box.domain.exceptions import (  # noqa: PLC0415
+        BoxNotFoundError,
+        InvalidStatusTransitionError,
+    )
+
     try:
-        box = await handler.execute(box_id)
+        view = await handler.execute(box_id)
     except BoxNotFoundError as exc:
         raise HTTPException(404, "Box not found") from exc
     except InvalidStatusTransitionError as exc:
         raise HTTPException(400, str(exc)) from exc
-    lifecycle.start_box(box.id)
-    return BoxResponse.from_entity(box)
+    return BoxResponse.from_view(view)
 
 
 @router.post("/boxes/{box_id}/cancel")
@@ -249,15 +239,33 @@ async def delete_box(
     await handler.execute(box_id)
 
 
+@router.get("/boxes/{box_id}/logs")
+async def box_logs(
+    box_id: str,
+    tail: int = 200,
+    query: BoxQueryService = Depends(get_query_service),
+    runtime: DockerRuntime = Depends(get_runtime),
+):
+    """Get container logs for a box."""
+    box = query.get_box(box_id)
+    if box is None:
+        raise HTTPException(404, "Box not found")
+    try:
+        logs = runtime.get_logs(box.container_name, tail=tail)
+    except Exception as exc:
+        raise HTTPException(502, f"Failed to get logs: {exc}") from exc
+    return {"logs": logs}
+
+
 @router.get("/boxes/{box_id}/files")
 async def box_list_files(
     box_id: str,
     path: str = "/workspace",
-    get_box_handler: GetBoxHandler = Depends(get_get_box),
+    query: BoxQueryService = Depends(get_query_service),
     handler: ListFilesHandler = Depends(get_list_files),
 ):
     """List directory contents in a box workspace."""
-    box = await get_box_handler.execute(box_id)
+    box = query.get_box(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
     try:
@@ -272,11 +280,11 @@ async def box_list_files(
 async def box_read_file(
     box_id: str,
     path: str,
-    get_box_handler: GetBoxHandler = Depends(get_get_box),
+    query: BoxQueryService = Depends(get_query_service),
     handler: ReadFileHandler = Depends(get_read_file),
 ):
     """Read a file from a box workspace."""
-    box = await get_box_handler.execute(box_id)
+    box = query.get_box(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
     try:
@@ -291,11 +299,11 @@ async def box_read_file(
 async def box_download_file(
     box_id: str,
     path: str,
-    get_box_handler: GetBoxHandler = Depends(get_get_box),
+    query: BoxQueryService = Depends(get_query_service),
     handler: ReadFileHandler = Depends(get_read_file),
 ):
     """Download a file from a box workspace as raw bytes."""
-    box = await get_box_handler.execute(box_id)
+    box = query.get_box(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
     try:

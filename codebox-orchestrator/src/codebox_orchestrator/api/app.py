@@ -28,27 +28,24 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):  # noqa: PLR0915
-        # --- Database setup ---
-        # Import GitHub ORM models so they register with Base.metadata
-        import codebox_orchestrator.integration.github.infrastructure.orm_models  # noqa: F401, PLC0415
-        from codebox_orchestrator.box.infrastructure.orm_models import (  # noqa: PLC0415
-            Base as BoxBase,
-        )
+        # --- Database setup (GitHub tables only) ---
+        import codebox_orchestrator.integration.github.infrastructure.orm_models as _gh_orm  # noqa: F401, PLC0415
         from codebox_orchestrator.shared.persistence.engine import (  # noqa: PLC0415
             async_session_factory,
             engine,
-        )
-        from codebox_orchestrator.shared.persistence.migrations import (  # noqa: PLC0415
-            run_migrations,
         )
 
         if DATABASE_URL.startswith("sqlite"):
             db_path = DATABASE_URL.split("///", 1)[-1]
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-        await run_migrations(engine)
+        # Only create GitHub tables
+        from codebox_orchestrator.integration.github.infrastructure.orm_models import (  # noqa: PLC0415
+            Base as GitHubBase,
+        )
+
         async with engine.begin() as conn:
-            await conn.run_sync(BoxBase.metadata.create_all)
+            await conn.run_sync(GitHubBase.metadata.create_all)
 
         # --- Shared infrastructure ---
         from codebox_orchestrator.shared.messaging.global_broadcast import (  # noqa: PLC0415
@@ -66,9 +63,6 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         from codebox_orchestrator.agent.infrastructure.connection_adapter import (  # noqa: PLC0415
             AgentConnectionAdapter,
         )
-        from codebox_orchestrator.box.infrastructure.box_repository import (  # noqa: PLC0415
-            SqlAlchemyBoxRepository,
-        )
         from codebox_orchestrator.box.infrastructure.event_publisher import (  # noqa: PLC0415
             EventPublisherAdapter,
         )
@@ -76,11 +70,54 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             DockerRuntime,
         )
 
-        box_repo = SqlAlchemyBoxRepository(async_session_factory)
         event_publisher = EventPublisherAdapter(relay, global_broadcast)
         container_runtime = DockerRuntime()
         registry = CallbackRegistry()
         agent_connections = AgentConnectionAdapter(registry)
+
+        # --- Box query service ---
+        from codebox_orchestrator.box.application.services.box_query import (  # noqa: PLC0415
+            BoxQueryService,
+        )
+
+        query_service = BoxQueryService(container_runtime, registry, agent_connections)
+
+        # --- Application layer: Agent commands & queries ---
+        from codebox_orchestrator.agent.application.commands.handle_sandbox_event import (  # noqa: PLC0415
+            HandleSandboxEventHandler,
+        )
+        from codebox_orchestrator.agent.application.commands.send_exec import (  # noqa: PLC0415
+            SendExecHandler,
+        )
+        from codebox_orchestrator.agent.application.commands.send_message import (  # noqa: PLC0415
+            SendMessageHandler,
+        )
+        from codebox_orchestrator.agent.application.queries.box_files import (  # noqa: PLC0415
+            ListFilesHandler,
+            ReadFileHandler,
+        )
+
+        send_message_handler = SendMessageHandler(event_publisher, agent_connections)
+        send_exec_handler = SendExecHandler(event_publisher, agent_connections)
+        event_handler = HandleSandboxEventHandler(event_publisher, registry)
+        list_files_handler = ListFilesHandler(agent_connections)
+        read_file_handler = ReadFileHandler(agent_connections)
+
+        # --- Box lifecycle service ---
+        from codebox_orchestrator.agent.infrastructure.callback_token import (  # noqa: PLC0415
+            create_callback_token,
+        )
+        from codebox_orchestrator.box.application.services.box_lifecycle import (  # noqa: PLC0415
+            BoxLifecycleService,
+        )
+
+        lifecycle = BoxLifecycleService(
+            runtime=container_runtime,
+            connections=agent_connections,
+            publisher=event_publisher,
+            send_exec_and_wait_fn=send_exec_handler.execute_and_wait,
+            create_callback_token_fn=create_callback_token,
+        )
 
         # --- Application layer: Box commands ---
         from codebox_orchestrator.box.application.commands.cancel_box import (  # noqa: PLC0415
@@ -99,69 +136,15 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             StopBoxHandler,
         )
 
-        create_box_handler = CreateBoxHandler(box_repo, event_publisher)
+        create_box_handler = CreateBoxHandler(event_publisher, lifecycle)
         stop_box_handler = StopBoxHandler(
-            box_repo, container_runtime, agent_connections, event_publisher
+            container_runtime, agent_connections, event_publisher, query_service
         )
-        restart_box_handler = RestartBoxHandler(box_repo, event_publisher)
+        restart_box_handler = RestartBoxHandler(container_runtime, event_publisher, query_service)
         delete_box_handler = DeleteBoxHandler(
-            box_repo, container_runtime, event_publisher, stop_box_handler
+            container_runtime, event_publisher, stop_box_handler, query_service
         )
         cancel_box_handler = CancelBoxHandler(agent_connections)
-
-        # --- Application layer: Box queries ---
-        from codebox_orchestrator.box.application.queries.get_box import (  # noqa: PLC0415
-            GetBoxHandler,
-        )
-        from codebox_orchestrator.box.application.queries.get_box_messages import (  # noqa: PLC0415
-            GetBoxMessagesHandler,
-        )
-        from codebox_orchestrator.box.application.queries.list_boxes import (  # noqa: PLC0415
-            ListBoxesHandler,
-        )
-
-        get_box_handler = GetBoxHandler(box_repo)
-        list_boxes_handler = ListBoxesHandler(box_repo)
-        get_box_messages_handler = GetBoxMessagesHandler(box_repo)
-
-        # --- Application layer: Agent commands & queries ---
-        from codebox_orchestrator.agent.application.commands.handle_sandbox_event import (  # noqa: PLC0415
-            HandleSandboxEventHandler,
-        )
-        from codebox_orchestrator.agent.application.commands.send_exec import (  # noqa: PLC0415
-            SendExecHandler,
-        )
-        from codebox_orchestrator.agent.application.commands.send_message import (  # noqa: PLC0415
-            SendMessageHandler,
-        )
-        from codebox_orchestrator.agent.application.queries.box_files import (  # noqa: PLC0415
-            ListFilesHandler,
-            ReadFileHandler,
-        )
-
-        send_message_handler = SendMessageHandler(box_repo, event_publisher, agent_connections)
-        send_exec_handler = SendExecHandler(box_repo, event_publisher, agent_connections)
-        event_handler = HandleSandboxEventHandler(box_repo, event_publisher, registry)
-        list_files_handler = ListFilesHandler(agent_connections)
-        read_file_handler = ReadFileHandler(agent_connections)
-
-        # --- Box lifecycle service ---
-        from codebox_orchestrator.agent.infrastructure.callback_token import (  # noqa: PLC0415
-            create_callback_token,
-        )
-        from codebox_orchestrator.box.application.services.box_lifecycle import (  # noqa: PLC0415
-            BoxLifecycleService,
-        )
-
-        lifecycle = BoxLifecycleService(
-            repo=box_repo,
-            runtime=container_runtime,
-            connections=agent_connections,
-            publisher=event_publisher,
-            send_message_fn=send_message_handler.execute,
-            send_exec_and_wait_fn=send_exec_handler.execute_and_wait,
-            create_callback_token_fn=create_callback_token,
-        )
 
         # --- GitHub integration (optional) ---
         webhook_handler = None
@@ -209,7 +192,6 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             port=GRPC_PORT,
             event_handler=event_handler,
             registry=registry,
-            repo=box_repo,
         )
 
         # --- Store everything in app.state ---
@@ -218,9 +200,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.restart_box_handler = restart_box_handler
         app.state.delete_box_handler = delete_box_handler
         app.state.cancel_box_handler = cancel_box_handler
-        app.state.get_box_handler = get_box_handler
-        app.state.list_boxes_handler = list_boxes_handler
-        app.state.get_box_messages_handler = get_box_messages_handler
+        app.state.query_service = query_service
         app.state.send_message_handler = send_message_handler
         app.state.send_exec_handler = send_exec_handler
         app.state.list_files_handler = list_files_handler
@@ -231,8 +211,6 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.global_broadcast = global_broadcast
         app.state.webhook_handler = webhook_handler
         app.state.installation_service = installation_service
-        # Keep session factory for any direct DB access needs
-        app.state._sf = async_session_factory  # noqa: SLF001
 
         yield
 
@@ -243,7 +221,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     app = FastAPI(
         title="Codebox Orchestrator",
-        version="0.4.0",
+        version="0.5.0",
         lifespan=lifespan,
     )
 
@@ -257,14 +235,12 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     from codebox_orchestrator.api.routes import (  # noqa: PLC0415
         boxes,
-        containers,
         github,
         models,
         sse,
     )
 
     app.include_router(boxes.router)
-    app.include_router(containers.router)
     app.include_router(models.router)
     app.include_router(sse.router)
     app.include_router(github.router)

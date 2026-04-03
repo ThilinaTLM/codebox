@@ -6,11 +6,9 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING
 
-from codebox_orchestrator.box.domain.enums import ContainerStatus
-
 if TYPE_CHECKING:
+    from codebox_orchestrator.box.application.services.box_query import BoxQueryService
     from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
-    from codebox_orchestrator.box.ports.box_repository import BoxRepository
     from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
     from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
@@ -20,25 +18,22 @@ logger = logging.getLogger(__name__)
 class StopBoxHandler:
     def __init__(
         self,
-        repo: BoxRepository,
         runtime: ContainerRuntime,
         connections: AgentConnectionManager,
         publisher: EventPublisher,
+        query_service: BoxQueryService,
     ) -> None:
-        self._repo = repo
         self._runtime = runtime
         self._connections = connections
         self._publisher = publisher
+        self._query = query_service
 
     async def execute(self, box_id: str) -> None:
         self._connections.remove_connection_fully(box_id)
 
-        box = await self._repo.get(box_id)
-        if box is None or box.container_status == ContainerStatus.STOPPED:
+        box = self._query.get_box(box_id)
+        if box is None or box.container_status == "stopped":
             return
-
-        box.stop("user_stopped")
-        await self._repo.save(box)
 
         if box.container_name:
             with contextlib.suppress(Exception):
@@ -48,7 +43,7 @@ class StopBoxHandler:
             box_id,
             {
                 "type": "status_change",
-                "container_status": ContainerStatus.STOPPED.value,
+                "container_status": "stopped",
                 "container_stop_reason": "user_stopped",
             },
         )
@@ -56,7 +51,7 @@ class StopBoxHandler:
             {
                 "type": "box_status_changed",
                 "box_id": box_id,
-                "container_status": ContainerStatus.STOPPED.value,
+                "container_status": "stopped",
                 "container_stop_reason": "user_stopped",
             }
         )

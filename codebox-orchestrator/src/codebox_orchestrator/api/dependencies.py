@@ -1,4 +1,4 @@
-"""FastAPI dependency injection for DDD handlers."""
+"""FastAPI dependency injection."""
 
 from __future__ import annotations
 
@@ -18,10 +18,7 @@ if TYPE_CHECKING:
     from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
     from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
     from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
-    from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
-    from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
-    from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
-    from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
+    from codebox_orchestrator.box.application.services.box_query import BoxQueryService
     from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
     from codebox_orchestrator.integration.github.application.installation_service import (
         GitHubInstallationService,
@@ -53,20 +50,8 @@ def get_cancel_box(request: Request) -> CancelBoxHandler:
     return request.app.state.cancel_box_handler
 
 
-def get_get_box(request: Request) -> GetBoxHandler:
-    return request.app.state.get_box_handler
-
-
-def get_list_boxes(request: Request) -> ListBoxesHandler:
-    return request.app.state.list_boxes_handler
-
-
-def get_box_messages(request: Request) -> GetBoxMessagesHandler:
-    return request.app.state.get_box_messages_handler
-
-
-def get_lifecycle(request: Request) -> BoxLifecycleService:
-    return request.app.state.lifecycle_service
+def get_query_service(request: Request) -> BoxQueryService:
+    return request.app.state.query_service
 
 
 def get_send_message(request: Request) -> SendMessageHandler:

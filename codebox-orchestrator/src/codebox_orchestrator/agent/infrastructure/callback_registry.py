@@ -39,6 +39,8 @@ class CallbackRegistry:
         self._connected_events: dict[str, asyncio.Event] = {}
         # (entity_id, request_id) → asyncio.Future for file/exec ops
         self._pending_requests: dict[tuple[str, str], asyncio.Future[dict[str, Any]]] = {}
+        # entity_id → {activity, task_outcome, task_outcome_message} — last-known live state
+        self._live_state: dict[str, dict[str, str]] = {}
 
     def init_connection_state(self, entity_id: str) -> None:
         """Prepare connection-tracking state for a new box (idempotent)."""
@@ -70,6 +72,19 @@ class CallbackRegistry:
     def remove_fully(self, entity_id: str) -> None:
         """Full cleanup (box reached terminal state)."""
         self.remove(entity_id)
+        self._live_state.pop(entity_id, None)
+
+    # -- Live state cache --
+
+    def update_live_state(self, entity_id: str, key: str, value: str) -> None:
+        """Update a single key in the cached live state for an entity."""
+        if entity_id not in self._live_state:
+            self._live_state[entity_id] = {}
+        self._live_state[entity_id][key] = value
+
+    def get_live_state(self, entity_id: str) -> dict[str, str]:
+        """Return the cached live state dict for an entity."""
+        return dict(self._live_state.get(entity_id, {}))
 
     async def wait_for_connection(self, entity_id: str, timeout: float = 60.0) -> bool:  # noqa: ASYNC109
         """Wait until the sandbox connects back, or timeout."""

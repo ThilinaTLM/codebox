@@ -2,9 +2,7 @@ import axios from "axios"
 import type {
   Box,
   BoxCreatePayload,
-  BoxEvent,
   BoxMessage,
-  Container,
   ContainerLogs,
   FileContent,
   FileListResponse,
@@ -57,12 +55,6 @@ export const api = {
     sendExec: async (boxId: string, command: string): Promise<void> => {
       await client.post(`/api/boxes/${boxId}/exec`, { command })
     },
-    getEvents: async (boxId: string): Promise<Array<BoxEvent>> => {
-      const { data } = await client.get<Array<BoxEvent>>(
-        `/api/boxes/${boxId}/events`
-      )
-      return data
-    },
     getMessages: async (boxId: string): Promise<Array<BoxMessage>> => {
       const { data } = await client.get<Array<BoxMessage>>(
         `/api/boxes/${boxId}/messages`
@@ -90,37 +82,22 @@ export const api = {
       const params = new URLSearchParams({ path })
       return `${API_URL}/api/boxes/${boxId}/files/download?${params.toString()}`
     },
+    logs: async (
+      boxId: string,
+      tail: number = 200
+    ): Promise<ContainerLogs> => {
+      const { data } = await client.get<ContainerLogs>(
+        `/api/boxes/${boxId}/logs`,
+        { params: { tail } }
+      )
+      return data
+    },
   },
   models: {
     list: async (provider?: string): Promise<Array<Model>> => {
       const { data } = await client.get<Array<Model>>("/api/models", {
         params: provider ? { provider } : undefined,
       })
-      return data
-    },
-  },
-  containers: {
-    list: async (): Promise<Array<Container>> => {
-      const { data } = await client.get<Array<Container>>("/api/containers")
-      return data
-    },
-    stop: async (containerId: string): Promise<void> => {
-      await client.post(`/api/containers/${containerId}/stop`)
-    },
-    start: async (containerId: string): Promise<void> => {
-      await client.post(`/api/containers/${containerId}/start`)
-    },
-    delete: async (containerId: string): Promise<void> => {
-      await client.delete(`/api/containers/${containerId}`)
-    },
-    logs: async (
-      containerId: string,
-      tail: number = 200
-    ): Promise<ContainerLogs> => {
-      const { data } = await client.get<ContainerLogs>(
-        `/api/containers/${containerId}/logs`,
-        { params: { tail } }
-      )
       return data
     },
   },

@@ -8,18 +8,15 @@ from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
 
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.ports.agent_connection import AgentConnectionManager
-    from codebox_orchestrator.box.ports.box_repository import BoxRepository
     from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 
 class SendExecHandler:
     def __init__(
         self,
-        repo: BoxRepository,
         publisher: EventPublisher,
         connections: AgentConnectionManager,
     ) -> None:
-        self._repo = repo
         self._publisher = publisher
         self._connections = connections
 

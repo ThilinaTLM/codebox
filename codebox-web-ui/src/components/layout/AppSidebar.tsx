@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { GridViewIcon, ServerStack01Icon, Settings02Icon } from "@hugeicons/core-free-icons"
+import { GridViewIcon, Settings02Icon } from "@hugeicons/core-free-icons"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -19,12 +19,6 @@ export function AppSidebar() {
       label: "Agents",
       to: "/" as const,
       active: currentPath === "/",
-    },
-    {
-      icon: ServerStack01Icon,
-      label: "Containers",
-      to: "/containers" as const,
-      active: currentPath.startsWith("/containers"),
     },
     {
       icon: Settings02Icon,
