@@ -1,0 +1,4 @@
+# Ensure shell scripts and Dockerfiles always use LF line endings,
+# even on Windows with core.autocrlf=true.
+*.sh text eol=lf
+Dockerfile text eol=lf
