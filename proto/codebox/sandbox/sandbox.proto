@@ -27,6 +27,8 @@ message SandboxEvent {
     ReadFileResultEvent read_file_result = 12;
     ActivityChangedEvent activity_changed = 13;
     TaskOutcomeEvent task_outcome = 14;
+    ToolExecOutputEvent tool_exec_output = 15;
+    ThinkingTokenEvent thinking_token = 16;
   }
 }
 
@@ -92,6 +94,15 @@ message ActivityChangedEvent {
 message TaskOutcomeEvent {
   string status = 1;  // "completed", "in_progress", "need_clarification", etc.
   string message = 2;
+}
+
+message ToolExecOutputEvent {
+  string output = 1;
+  string tool_call_id = 2;
+}
+
+message ThinkingTokenEvent {
+  string text = 1;
 }
 
 // ──────────────────────────────────────────────

@@ -15,9 +15,7 @@ from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
-
-from codebox_agent.agent import extract_token
+from langchain_core.messages import AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
 
 if TYPE_CHECKING:
     from codebox_agent.sessions import SessionManager
@@ -71,16 +69,59 @@ def _langchain_message_to_dict(msg: Any) -> dict[str, Any]:
     return result
 
 
+def _extract_thinking_text(chunk: AIMessageChunk) -> str:
+    """Extract thinking/reasoning text from a message chunk."""
+    parts: list[str] = []
+    if isinstance(chunk.content, list):
+        for block in chunk.content:
+            if isinstance(block, dict) and block.get("type") == "thinking":
+                text = block.get("thinking", "")
+                if text:
+                    parts.append(text)
+    # OpenAI-style reasoning
+    reasoning = (getattr(chunk, "additional_kwargs", None) or {}).get("reasoning_content")
+    if reasoning and isinstance(reasoning, str):
+        parts.append(reasoning)
+    return "".join(parts)
+
+
+def _extract_text_token(chunk: AIMessageChunk) -> str:
+    """Extract plain text content from a message chunk."""
+    if isinstance(chunk.content, str):
+        return chunk.content
+    if isinstance(chunk.content, list):
+        parts: list[str] = []
+        for block in chunk.content:
+            if isinstance(block, dict):
+                btype = block.get("type")
+                if btype not in ("thinking", "tool_use"):
+                    parts.append(block.get("text", ""))
+            elif isinstance(block, str):
+                parts.append(block)
+        return "".join(parts)
+    return ""
+
+
 async def run_agent_stream(  # noqa: PLR0912, PLR0915
     send: SendFn,
     session_id: str,
     manager: SessionManager,
     new_message: str,
 ) -> None:
-    """Stream agent events, calling send(msg_dict) for each event."""
+    """Stream agent events, calling send(msg_dict) for each event.
+
+    Uses ``.astream()`` with multi-mode (messages + custom + updates) to
+    surface LLM tokens, thinking tokens, tool exec streaming, and node
+    updates through a single loop.
+    """
     logger.info("Agent stream starting for session %s", session_id)
     session = manager.get(session_id)
     ai_text_buffer = ""
+    model_started = False
+    # tool_call_id -> tool_name for currently running tool calls
+    active_tool_calls: dict[str, str] = {}
+    # Track tool call IDs that have already been emitted as tool_start
+    emitted_tool_starts: set[str] = set()
 
     config = {
         "configurable": {"thread_id": session_id},
@@ -90,76 +131,137 @@ async def run_agent_stream(  # noqa: PLR0912, PLR0915
     await send({"type": "activity_changed", "status": "agent_working"})
 
     try:
-        async for event in session.agent.astream_events(
+        async for part in session.agent.astream(
             {"messages": [HumanMessage(content=new_message)]},
-            version="v2",
             config=config,
+            stream_mode=["messages", "custom", "updates"],
+            version="v2",
         ):
-            kind = event["event"]
+            chunk_type = part["type"] if isinstance(part, dict) else None
 
-            if kind == "on_chat_model_start":
-                ai_text_buffer = ""
-                logger.debug("Model invocation started for session %s", session_id)
-                await send({"type": "model_start"})
+            # ── messages mode: LLM tokens, thinking, tool_call chunks ──
+            if chunk_type == "messages":
+                msg_chunk, _metadata = part["data"]
 
-            elif kind == "on_tool_start":
-                tool_name = event["name"]
-                logger.info("Tool start: %s (session %s)", tool_name, session_id)
-                run_id = event.get("run_id", "")
-                tool_input = event.get("data", {}).get("input", {})
-                input_str = json.dumps(tool_input) if tool_input else ""
-                if len(input_str) > 4000:
-                    input_str = input_str[:4000] + "..."
-                await send(
-                    {
-                        "type": "tool_start",
-                        "name": tool_name,
-                        "tool_call_id": run_id,
-                        "input": input_str,
-                    }
-                )
+                if not isinstance(msg_chunk, AIMessageChunk):
+                    continue
 
-            elif kind == "on_tool_end":
-                tool_name = event["name"]
-                logger.info("Tool end: %s (session %s)", tool_name, session_id)
-                output = event["data"].get("output", "")
-                output_str = str(output.content if hasattr(output, "content") else output)
-                if len(output_str) > _MAX_TOOL_OUTPUT:
-                    output_str = output_str[:_MAX_TOOL_OUTPUT] + "..."
-                await send(
-                    {
-                        "type": "tool_end",
-                        "name": tool_name,
-                        "output": output_str,
-                    }
-                )
+                # Emit model_start on first chunk of a turn
+                if not model_started:
+                    model_started = True
+                    ai_text_buffer = ""
+                    logger.debug("Model invocation started for session %s", session_id)
+                    await send({"type": "model_start"})
 
-            elif kind == "on_chat_model_stream":
-                chunk = event["data"].get("chunk")
-                if chunk and hasattr(chunk, "content") and chunk.content:
-                    token = extract_token(chunk)
-                    if token:
-                        ai_text_buffer += token
-                        await send({"type": "token", "text": token})
+                # Thinking tokens
+                thinking = _extract_thinking_text(msg_chunk)
+                if thinking:
+                    await send({"type": "thinking_token", "text": thinking})
 
-            elif kind == "on_chain_end":
-                # Emit message_complete for messages produced by completed nodes
-                output = event.get("data", {}).get("output", {})
-                if isinstance(output, dict):
-                    messages = output.get("messages", [])
-                    # LangGraph may wrap messages in an Overwrite object
+                # Text tokens
+                token = _extract_text_token(msg_chunk)
+                if token:
+                    ai_text_buffer += token
+                    await send({"type": "token", "text": token})
+
+                # Tool call chunks — emit tool_start as soon as we see the name
+                for tc in getattr(msg_chunk, "tool_call_chunks", None) or []:
+                    tc_id = tc.get("id")
+                    tc_name = tc.get("name")
+                    if tc_id and tc_name and tc_id not in emitted_tool_starts:
+                        emitted_tool_starts.add(tc_id)
+                        active_tool_calls[tc_id] = tc_name
+                        tc_args = tc.get("args", "")
+                        logger.info("Tool start: %s (session %s)", tc_name, session_id)
+                        await send(
+                            {
+                                "type": "tool_start",
+                                "name": tc_name,
+                                "tool_call_id": tc_id,
+                                "input": tc_args if isinstance(tc_args, str) else "",
+                            }
+                        )
+
+            # ── custom mode: streaming exec output from get_stream_writer() ──
+            elif chunk_type == "custom":
+                data = part["data"]
+                if isinstance(data, dict) and data.get("type") == "tool_exec_output":
+                    line = data.get("line", "")
+                    # Find the currently active execute tool call
+                    tool_call_id = ""
+                    for tc_id, tc_name in active_tool_calls.items():
+                        if tc_name == "execute":
+                            tool_call_id = tc_id
+                            break
+                    await send(
+                        {
+                            "type": "tool_exec_output",
+                            "output": line,
+                            "tool_call_id": tool_call_id,
+                        }
+                    )
+
+            # ── updates mode: node completions (tool results, final messages) ──
+            elif chunk_type == "updates":
+                node_updates = part["data"]
+                if not isinstance(node_updates, dict):
+                    continue
+
+                for node_name, node_output in node_updates.items():
+                    if not isinstance(node_output, dict):
+                        continue
+                    messages = node_output.get("messages", [])
                     if hasattr(messages, "value"):
                         messages = messages.value
                     if not isinstance(messages, list):
-                        messages = []
+                        continue
+
                     for msg in messages:
+                        # AI messages with tool_calls — ensure tool_start
+                        # was emitted with full input for each call.
+                        for tc in getattr(msg, "tool_calls", None) or []:
+                            tc_id = tc.get("id", "")
+                            tc_name = tc.get("name", "")
+                            if tc_id and tc_id not in emitted_tool_starts:
+                                emitted_tool_starts.add(tc_id)
+                                active_tool_calls[tc_id] = tc_name
+                                input_str = json.dumps(tc.get("args", {}))
+                                if len(input_str) > 4000:
+                                    input_str = input_str[:4000] + "..."
+                                logger.info("Tool start: %s (session %s)", tc_name, session_id)
+                                await send(
+                                    {
+                                        "type": "tool_start",
+                                        "name": tc_name,
+                                        "tool_call_id": tc_id,
+                                        "input": input_str,
+                                    }
+                                )
+
+                        # Tool results → emit tool_end
+                        if isinstance(msg, ToolMessage):
+                            tool_name = getattr(msg, "name", "") or ""
+                            tc_id = getattr(msg, "tool_call_id", "") or ""
+                            output_str = str(msg.content)
+                            if len(output_str) > _MAX_TOOL_OUTPUT:
+                                output_str = output_str[:_MAX_TOOL_OUTPUT] + "..."
+                            logger.info("Tool end: %s (session %s)", tool_name, session_id)
+                            active_tool_calls.pop(tc_id, None)
+                            await send(
+                                {
+                                    "type": "tool_end",
+                                    "name": tool_name,
+                                    "output": output_str,
+                                }
+                            )
+
                         msg_dict = _langchain_message_to_dict(msg)
-                        await send(
-                            {
-                                "type": "message_complete",
-                                "message": msg_dict,
-                            }
-                        )
+                        await send({"type": "message_complete", "message": msg_dict})
+
+                    # Reset model_started when tool node completes
+                    # (next model invocation will emit a new model_start)
+                    if node_name == "tools":
+                        model_started = False
 
         # Stream finished normally
         logger.info("Agent stream completed for session %s", session_id)

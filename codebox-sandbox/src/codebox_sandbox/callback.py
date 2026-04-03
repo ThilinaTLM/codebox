@@ -355,6 +355,19 @@ def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:  # n
                 message=msg.get("message", ""),
             )
         )
+    if msg_type == "tool_exec_output":
+        return sandbox_pb2.SandboxEvent(
+            tool_exec_output=sandbox_pb2.ToolExecOutputEvent(
+                output=msg.get("output", ""),
+                tool_call_id=msg.get("tool_call_id", ""),
+            )
+        )
+    if msg_type == "thinking_token":
+        return sandbox_pb2.SandboxEvent(
+            thinking_token=sandbox_pb2.ThinkingTokenEvent(
+                text=msg.get("text", ""),
+            )
+        )
     logger.debug("Unknown event type for protobuf conversion: %s", msg_type)
     return None
 

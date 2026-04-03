@@ -3,10 +3,10 @@
 import logging
 
 from deepagents import create_deep_agent
-from deepagents.backends import LocalShellBackend
 
 from codebox_agent.llm import LLMProviderConfig, create_chat_model
 from codebox_agent.prompts import CORE_SYSTEM_PROMPT
+from codebox_agent.streaming_backend import StreamingShellBackend
 from codebox_agent.tools.status import StatusReporter, build_status_tools
 from codebox_agent.tools.web import build_web_tools
 
@@ -88,7 +88,7 @@ def create_agent(
         temperature=temperature,
     )
 
-    backend = LocalShellBackend(
+    backend = StreamingShellBackend(
         root_dir=root_dir,
         virtual_mode=False,
         timeout=timeout,

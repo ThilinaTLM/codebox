@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SandboxEvent(_message.Message):
-    __slots__ = ("register", "token", "model_start", "tool_start", "tool_end", "message_complete", "done", "error", "exec_output", "exec_done", "list_files_result", "read_file_result", "activity_changed", "task_outcome")
+    __slots__ = ("register", "token", "model_start", "tool_start", "tool_end", "message_complete", "done", "error", "exec_output", "exec_done", "list_files_result", "read_file_result", "activity_changed", "task_outcome", "tool_exec_output", "thinking_token")
     REGISTER_FIELD_NUMBER: _ClassVar[int]
     TOKEN_FIELD_NUMBER: _ClassVar[int]
     MODEL_START_FIELD_NUMBER: _ClassVar[int]
@@ -22,6 +22,8 @@ class SandboxEvent(_message.Message):
     READ_FILE_RESULT_FIELD_NUMBER: _ClassVar[int]
     ACTIVITY_CHANGED_FIELD_NUMBER: _ClassVar[int]
     TASK_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    TOOL_EXEC_OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    THINKING_TOKEN_FIELD_NUMBER: _ClassVar[int]
     register: RegisterEvent
     token: TokenEvent
     model_start: ModelStartEvent
@@ -36,7 +38,9 @@ class SandboxEvent(_message.Message):
     read_file_result: ReadFileResultEvent
     activity_changed: ActivityChangedEvent
     task_outcome: TaskOutcomeEvent
-    def __init__(self, register: _Optional[_Union[RegisterEvent, _Mapping]] = ..., token: _Optional[_Union[TokenEvent, _Mapping]] = ..., model_start: _Optional[_Union[ModelStartEvent, _Mapping]] = ..., tool_start: _Optional[_Union[ToolStartEvent, _Mapping]] = ..., tool_end: _Optional[_Union[ToolEndEvent, _Mapping]] = ..., message_complete: _Optional[_Union[MessageCompleteEvent, _Mapping]] = ..., done: _Optional[_Union[DoneEvent, _Mapping]] = ..., error: _Optional[_Union[ErrorEvent, _Mapping]] = ..., exec_output: _Optional[_Union[ExecOutputEvent, _Mapping]] = ..., exec_done: _Optional[_Union[ExecDoneEvent, _Mapping]] = ..., list_files_result: _Optional[_Union[ListFilesResultEvent, _Mapping]] = ..., read_file_result: _Optional[_Union[ReadFileResultEvent, _Mapping]] = ..., activity_changed: _Optional[_Union[ActivityChangedEvent, _Mapping]] = ..., task_outcome: _Optional[_Union[TaskOutcomeEvent, _Mapping]] = ...) -> None: ...
+    tool_exec_output: ToolExecOutputEvent
+    thinking_token: ThinkingTokenEvent
+    def __init__(self, register: _Optional[_Union[RegisterEvent, _Mapping]] = ..., token: _Optional[_Union[TokenEvent, _Mapping]] = ..., model_start: _Optional[_Union[ModelStartEvent, _Mapping]] = ..., tool_start: _Optional[_Union[ToolStartEvent, _Mapping]] = ..., tool_end: _Optional[_Union[ToolEndEvent, _Mapping]] = ..., message_complete: _Optional[_Union[MessageCompleteEvent, _Mapping]] = ..., done: _Optional[_Union[DoneEvent, _Mapping]] = ..., error: _Optional[_Union[ErrorEvent, _Mapping]] = ..., exec_output: _Optional[_Union[ExecOutputEvent, _Mapping]] = ..., exec_done: _Optional[_Union[ExecDoneEvent, _Mapping]] = ..., list_files_result: _Optional[_Union[ListFilesResultEvent, _Mapping]] = ..., read_file_result: _Optional[_Union[ReadFileResultEvent, _Mapping]] = ..., activity_changed: _Optional[_Union[ActivityChangedEvent, _Mapping]] = ..., task_outcome: _Optional[_Union[TaskOutcomeEvent, _Mapping]] = ..., tool_exec_output: _Optional[_Union[ToolExecOutputEvent, _Mapping]] = ..., thinking_token: _Optional[_Union[ThinkingTokenEvent, _Mapping]] = ...) -> None: ...
 
 class RegisterEvent(_message.Message):
     __slots__ = ("session_id",)
@@ -139,6 +143,20 @@ class TaskOutcomeEvent(_message.Message):
     status: str
     message: str
     def __init__(self, status: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ToolExecOutputEvent(_message.Message):
+    __slots__ = ("output", "tool_call_id")
+    OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CALL_ID_FIELD_NUMBER: _ClassVar[int]
+    output: str
+    tool_call_id: str
+    def __init__(self, output: _Optional[str] = ..., tool_call_id: _Optional[str] = ...) -> None: ...
+
+class ThinkingTokenEvent(_message.Message):
+    __slots__ = ("text",)
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    text: str
+    def __init__(self, text: _Optional[str] = ...) -> None: ...
 
 class OrchestratorCommand(_message.Message):
     __slots__ = ("registered", "message", "exec", "cancel", "thread_restore", "list_files", "read_file")

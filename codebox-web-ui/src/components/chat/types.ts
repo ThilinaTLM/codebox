@@ -1,11 +1,13 @@
 export type EventBlock =
   | { kind: "text"; content: string }
-  | { kind: "thinking" }
+  | { kind: "thinking"; content?: string }
   | {
       kind: "tool_call"
       name: string
+      toolCallId?: string
       input?: string
       output?: string
+      streamOutput?: string
       isRunning: boolean
     }
   | { kind: "done"; content: string }

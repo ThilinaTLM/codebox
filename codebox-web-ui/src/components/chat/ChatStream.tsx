@@ -8,6 +8,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
   const blocks: Array<EventBlock> = []
   let textBuffer = ""
   let pendingThinking = false
+  let thinkingBuffer = ""
   let currentExec: Extract<EventBlock, { kind: "exec_session" }> | null = null
 
   const flushText = () => {
@@ -24,19 +25,37 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
     }
   }
 
+  const flushThinking = () => {
+    if (thinkingBuffer) {
+      blocks.push({ kind: "thinking", content: thinkingBuffer })
+      thinkingBuffer = ""
+      pendingThinking = false
+    }
+  }
+
   for (const event of events) {
     if (event.type === "message_complete") continue
 
     if (event.type === "token") {
       flushExec()
+      flushThinking()
       pendingThinking = false
       textBuffer += event.text
+      continue
+    }
+
+    if (event.type === "thinking_token") {
+      flushText()
+      flushExec()
+      pendingThinking = false
+      thinkingBuffer += event.text
       continue
     }
 
     if (event.type === "user_message") {
       flushText()
       flushExec()
+      flushThinking()
       pendingThinking = false
       blocks.push({ kind: "user_message", content: event.content })
       continue
@@ -45,6 +64,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
     if (event.type === "user_exec") {
       flushText()
       flushExec()
+      flushThinking()
       pendingThinking = false
       currentExec = {
         kind: "exec_session",
@@ -57,6 +77,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
 
     if (event.type === "exec_output") {
       flushText()
+      flushThinking()
       pendingThinking = false
       if (!currentExec) {
         currentExec = { kind: "exec_session", output: "", isRunning: true }
@@ -67,6 +88,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
 
     if (event.type === "exec_done") {
       flushText()
+      flushThinking()
       pendingThinking = false
       if (!currentExec) {
         currentExec = { kind: "exec_session", output: "", isRunning: false }
@@ -74,6 +96,23 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
       currentExec.exitCode = event.output
       currentExec.isRunning = false
       flushExec()
+      continue
+    }
+
+    // Streaming exec output from agent tool calls
+    if (event.type === "tool_exec_output") {
+      // Find the matching running tool_call block and append to streamOutput
+      for (let j = blocks.length - 1; j >= 0; j--) {
+        const b = blocks[j]
+        if (
+          b.kind === "tool_call" &&
+          b.isRunning &&
+          (b.toolCallId === event.tool_call_id || b.name === "execute")
+        ) {
+          b.streamOutput = (b.streamOutput || "") + event.output
+          break
+        }
+      }
       continue
     }
 
@@ -95,6 +134,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
 
     flushText()
     flushExec()
+    flushThinking()
 
     switch (event.type) {
       case "model_start":
@@ -106,6 +146,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
         blocks.push({
           kind: "tool_call",
           name: event.name,
+          toolCallId: event.tool_call_id,
           input: event.input,
           isRunning: true,
         })
@@ -147,6 +188,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
 
   flushText()
   flushExec()
+  flushThinking()
 
   if (pendingThinking) {
     blocks.push({ kind: "thinking" })

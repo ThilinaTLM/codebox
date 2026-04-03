@@ -265,6 +265,18 @@ class SandboxServiceServicer(sandbox_pb2_grpc.SandboxServiceServicer):
                 "status": to.status,
                 "message": to.message,
             }
+        if field == "tool_exec_output":
+            teo = event.tool_exec_output
+            return "tool_exec_output", {
+                "type": "tool_exec_output",
+                "output": teo.output,
+                "tool_call_id": teo.tool_call_id,
+            }
+        if field == "thinking_token":
+            return "thinking_token", {
+                "type": "thinking_token",
+                "text": event.thinking_token.text,
+            }
         return "", {}
 
     def _chat_message_to_dict(self, msg: sandbox_pb2.ChatMessage) -> dict[str, Any]:

@@ -85,8 +85,10 @@ export interface Model {
 // SSE stream event types from orchestrator
 export type BoxStreamEvent =
   | { type: "token"; text: string }
-  | { type: "tool_start"; name: string; input?: string }
+  | { type: "tool_start"; name: string; tool_call_id?: string; input?: string }
   | { type: "tool_end"; name: string; output: string }
+  | { type: "tool_exec_output"; output: string; tool_call_id: string }
+  | { type: "thinking_token"; text: string }
   | { type: "model_start" }
   | { type: "done"; content: string }
   | { type: "error"; detail: string }

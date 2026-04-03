@@ -4,6 +4,7 @@ import { ToolCallBlock } from "./ToolCallBlock"
 import { ExecBlock } from "./ExecBlock"
 import { UserMessageBlock } from "./UserMessageBlock"
 import { DoneBlock, ErrorBlock, StatusChangeBlock } from "./StatusDivider"
+import { TOOL_RENDERERS } from "./tools"
 import type { EventBlock } from "./types"
 
 export function ChatBlock({ block }: { block: EventBlock }) {
@@ -12,9 +13,22 @@ export function ChatBlock({ block }: { block: EventBlock }) {
       return <AssistantTextBlock content={block.content} />
 
     case "thinking":
-      return <ThinkingBlock />
+      return <ThinkingBlock content={block.content} />
 
-    case "tool_call":
+    case "tool_call": {
+      const Renderer = TOOL_RENDERERS[block.name]
+      if (Renderer) {
+        return (
+          <Renderer
+            name={block.name}
+            toolCallId={block.toolCallId}
+            input={block.input}
+            output={block.output}
+            streamOutput={block.streamOutput}
+            isRunning={block.isRunning}
+          />
+        )
+      }
       return (
         <ToolCallBlock
           name={block.name}
@@ -23,6 +37,7 @@ export function ChatBlock({ block }: { block: EventBlock }) {
           isRunning={block.isRunning}
         />
       )
+    }
 
     case "done":
       return <DoneBlock />
