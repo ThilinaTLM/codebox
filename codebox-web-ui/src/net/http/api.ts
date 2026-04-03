@@ -3,6 +3,7 @@ import type {
   Box,
   BoxCreatePayload,
   BoxEvent,
+  BoxMessage,
   Container,
   ContainerLogs,
   FileContent,
@@ -59,6 +60,12 @@ export const api = {
     getEvents: async (boxId: string): Promise<Array<BoxEvent>> => {
       const { data } = await client.get<Array<BoxEvent>>(
         `/api/boxes/${boxId}/events`
+      )
+      return data
+    },
+    getMessages: async (boxId: string): Promise<Array<BoxMessage>> => {
+      const { data } = await client.get<Array<BoxMessage>>(
+        `/api/boxes/${boxId}/messages`
       )
       return data
     },

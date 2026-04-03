@@ -23,8 +23,10 @@ export function ExecuteToolBlock({
   streamOutput,
   isRunning,
 }: ToolCallBlockProps) {
-  const args = parseInput<{ command?: string }>(input)
-  const command = args?.command ?? input ?? ""
+  const args = parseInput<{ command?: string; timeout?: number }>(input)
+  // args.command has the parsed command from full JSON input.
+  // If parsing failed (partial JSON from early chunks), input is unusable.
+  const command = args?.command ?? ""
   const displayOutput = streamOutput || output || ""
   const hasOutput = displayOutput.length > 0
   const exitCode = parseExitCode(output)

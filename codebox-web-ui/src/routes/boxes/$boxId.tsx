@@ -28,7 +28,8 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { useBox, useCancelBox, useDeleteBox, useRestartBox, useSendExec, useSendMessage, useStopBox } from "@/net/query"
+import { useQueryClient } from "@tanstack/react-query"
+import { useBox, useBoxMessages, useCancelBox, useDeleteBox, useRestartBox, useSendExec, useSendMessage, useStopBox } from "@/net/query"
 import { useBoxStream } from "@/net/sse/useBoxStream"
 import { ContainerStatus } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
@@ -41,7 +42,9 @@ export const Route = createFileRoute("/boxes/$boxId")({
 function BoxDetailPage() {
   const { boxId } = Route.useParams()
   const { data: box, isLoading, refetch } = useBox(boxId)
+  const { data: messages } = useBoxMessages(boxId)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const stopMutation = useStopBox()
   const deleteMutation = useDeleteBox()
   const restartMutation = useRestartBox()
@@ -56,7 +59,7 @@ function BoxDetailPage() {
 
   const isStopped = box?.container_status === ContainerStatus.STOPPED
 
-  const { events, isConnected } = useBoxStream({
+  const { events, isConnected, clearEvents } = useBoxStream({
     boxId,
     enabled: true,
   })
@@ -65,6 +68,17 @@ function BoxDetailPage() {
   const cancelMutation = useCancelBox()
 
   const activity = useAgentActivity(events, box?.container_status, box?.activity)
+
+  // When agent finishes a turn (done/error), refetch messages and clear live events
+  useEffect(() => {
+    const lastEvent = events[events.length - 1]
+    if (lastEvent && (lastEvent.type === "done" || lastEvent.type === "error")) {
+      queryClient.invalidateQueries({ queryKey: ["boxes", boxId, "messages"] })
+      // Small delay so the done/error block renders momentarily before clearing
+      const timer = setTimeout(clearEvents, 150)
+      return () => clearTimeout(timer)
+    }
+  }, [events, boxId, queryClient, clearEvents])
 
   const handleStop = useCallback(() => {
     stopMutation.mutate(boxId, {
@@ -296,7 +310,7 @@ function BoxDetailPage() {
 
               {/* Event stream */}
               <div className="min-h-0 flex-1">
-                <ChatStream events={events} centered bottomInset />
+                <ChatStream messages={messages ?? []} liveEvents={events} centered bottomInset />
               </div>
 
               {/* Floating input */}

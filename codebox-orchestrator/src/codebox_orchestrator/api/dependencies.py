@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
     from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
     from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
-    from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
     from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
     from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
     from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
@@ -60,10 +59,6 @@ def get_get_box(request: Request) -> GetBoxHandler:
 
 def get_list_boxes(request: Request) -> ListBoxesHandler:
     return request.app.state.list_boxes_handler
-
-
-def get_box_events(request: Request) -> GetBoxEventsHandler:
-    return request.app.state.get_box_events_handler
 
 
 def get_box_messages(request: Request) -> GetBoxMessagesHandler:

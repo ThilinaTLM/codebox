@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { ChatBlock } from "./ChatBlock"
+import { messagesToBlocks } from "./messagesToBlocks"
 import type { EventBlock } from "./types"
-import type { BoxStreamEvent } from "@/net/http/types"
+import type { BoxMessage, BoxStreamEvent } from "@/net/http/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock> {
@@ -101,7 +102,6 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
 
     // Streaming exec output from agent tool calls
     if (event.type === "tool_exec_output") {
-      // Find the matching running tool_call block and append to streamOutput
       for (let j = blocks.length - 1; j >= 0; j--) {
         const b = blocks[j]
         if (
@@ -143,13 +143,32 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
 
       case "tool_start": {
         pendingThinking = false
-        blocks.push({
-          kind: "tool_call",
-          name: event.name,
-          toolCallId: event.tool_call_id,
-          input: event.input,
-          isRunning: true,
-        })
+        // If a block with the same toolCallId already exists, update its input
+        // (second tool_start carries the full args from the updates stream)
+        let existingIdx = -1
+        if (event.tool_call_id) {
+          for (let j = blocks.length - 1; j >= 0; j--) {
+            const b = blocks[j]
+            if (b.kind === "tool_call" && b.toolCallId === event.tool_call_id) {
+              existingIdx = j
+              break
+            }
+          }
+        }
+        if (existingIdx >= 0) {
+          const existing = blocks[existingIdx]
+          if (existing.kind === "tool_call") {
+            existing.input = event.input
+          }
+        } else {
+          blocks.push({
+            kind: "tool_call",
+            name: event.name,
+            toolCallId: event.tool_call_id,
+            input: event.input,
+            isRunning: true,
+          })
+        }
         break
       }
 
@@ -198,11 +217,13 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
 }
 
 export function ChatStream({
-  events,
+  messages,
+  liveEvents,
   centered,
   bottomInset,
 }: {
-  events: Array<BoxStreamEvent>
+  messages: Array<BoxMessage>
+  liveEvents: Array<BoxStreamEvent>
   centered?: boolean
   bottomInset?: boolean
 }) {
@@ -210,9 +231,14 @@ export function ChatStream({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [events.length])
+  }, [messages.length, liveEvents.length])
 
-  const blocks = collapseTokens(events)
+  // Completed turns from REST history
+  const historyBlocks = useMemo(() => messagesToBlocks(messages), [messages])
+  // Current in-progress turn from SSE
+  const liveBlocks = collapseTokens(liveEvents)
+  const blocks = [...historyBlocks, ...liveBlocks]
+  const isEmpty = messages.length === 0 && liveEvents.length === 0
 
   return (
     <ScrollArea className="h-full">
@@ -229,7 +255,7 @@ export function ChatStream({
               <ChatBlock block={block} />
             </div>
           ))}
-          {events.length === 0 && (
+          {isEmpty && (
             <div className="relative flex flex-col items-center justify-center py-16 text-center">
               <div className="font-terminal text-lg text-ghost">
                 &gt; awaiting instructions

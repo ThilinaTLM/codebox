@@ -53,6 +53,19 @@ export interface BoxEvent {
   created_at: string
 }
 
+export interface BoxMessage {
+  id: string
+  box_id: string
+  seq: number
+  role: string
+  content: string | null
+  tool_calls: Array<{ id: string; name: string; args_json: string }> | null
+  tool_call_id: string | null
+  tool_name: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
 export interface Container {
   id: string
   name: string

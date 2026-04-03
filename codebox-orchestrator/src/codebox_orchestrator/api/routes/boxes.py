@@ -13,7 +13,6 @@ from fastapi.responses import Response
 
 from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
 from codebox_orchestrator.api.dependencies import (
-    get_box_events,
     get_box_messages,
     get_cancel_box,
     get_create_box,
@@ -31,7 +30,6 @@ from codebox_orchestrator.api.dependencies import (
 )
 from codebox_orchestrator.api.schemas import (
     BoxCreate,
-    BoxEventResponse,
     BoxExec,
     BoxMessage,
     BoxMessageResponse,
@@ -56,7 +54,6 @@ if TYPE_CHECKING:
     from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
     from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
     from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
-    from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
     from codebox_orchestrator.box.application.queries.get_box_messages import GetBoxMessagesHandler
     from codebox_orchestrator.box.application.queries.list_boxes import ListBoxesHandler
     from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
@@ -163,20 +160,6 @@ async def get_box(
     if box is None:
         raise HTTPException(404, "Box not found")
     return BoxResponse.from_entity(box)
-
-
-@router.get("/boxes/{box_id}/events")
-async def get_box_events_route(
-    box_id: str,
-    get_box_handler: GetBoxHandler = Depends(get_get_box),
-    events_handler: GetBoxEventsHandler = Depends(get_box_events),
-) -> list[BoxEventResponse]:
-    """Return persisted events for a box."""
-    box = await get_box_handler.execute(box_id)
-    if box is None:
-        raise HTTPException(404, "Box not found")
-    events = await events_handler.execute(box_id)
-    return [BoxEventResponse.from_entity(e) for e in events]
 
 
 @router.get("/boxes/{box_id}/messages")

@@ -1,7 +1,8 @@
-"""Server-Sent Events endpoints for real-time streaming (DDD version).
+"""Server-Sent Events endpoints for real-time streaming.
 
-Per-box stream replays persisted events then streams live updates.
+Per-box stream pushes live events for the current in-progress turn.
 Global stream pushes box lifecycle events to all connected clients.
+History is served via GET /api/boxes/{box_id}/messages (REST).
 """
 
 from __future__ import annotations
@@ -15,7 +16,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from codebox_orchestrator.api.dependencies import (
-    get_box_events,
     get_get_box,
     get_global_broadcast,
     get_relay,
@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from codebox_orchestrator.box.application.queries.get_box import GetBoxHandler
-    from codebox_orchestrator.box.application.queries.get_box_events import GetBoxEventsHandler
     from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
     from codebox_orchestrator.shared.messaging.relay import RelayService
 
@@ -43,26 +42,9 @@ def _sse_line(data: dict[str, Any]) -> str:
 
 async def _box_event_generator(
     box_id: str,
-    events_handler: GetBoxEventsHandler,
     relay: RelayService,
 ) -> AsyncGenerator[str, None]:
-    """Replay persisted events, then stream live events for a box."""
-    # Replay persisted events from DB
-    try:
-        events = await events_handler.execute(box_id)
-        for event in events:
-            data = event.data
-            if isinstance(data, str):
-                try:
-                    data = json.loads(data)
-                except (json.JSONDecodeError, TypeError):
-                    data = {"type": event.event_type, "raw": data}
-            if isinstance(data, dict):
-                yield _sse_line(data)
-    except Exception as exc:
-        logger.warning("Failed to replay events for box %s: %s", box_id, exc)
-
-    # Subscribe to live events
+    """Stream live events for a box (no replay — history comes from REST)."""
     queue = relay.subscribe(box_id)
     try:
         while True:
@@ -102,17 +84,15 @@ async def _global_event_generator(
 async def box_stream(
     box_id: str,
     get_box_handler: GetBoxHandler = Depends(get_get_box),
-    events_handler: GetBoxEventsHandler = Depends(get_box_events),
     relay: RelayService = Depends(get_relay),
 ) -> StreamingResponse:
-    """SSE stream for a box — replays persisted events then streams live updates."""
-    # Verify box exists
+    """SSE stream for a box — live events only."""
     box = await get_box_handler.execute(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
 
     return StreamingResponse(
-        _box_event_generator(box_id, events_handler, relay),
+        _box_event_generator(box_id, relay),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

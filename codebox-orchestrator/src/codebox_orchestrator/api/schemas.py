@@ -20,10 +20,7 @@ from codebox_orchestrator.box.domain.enums import (
 )
 
 if TYPE_CHECKING:
-    from codebox_orchestrator.box.domain.entities import (
-        Box,
-        BoxEvent,
-    )
+    from codebox_orchestrator.box.domain.entities import Box
     from codebox_orchestrator.box.domain.entities import (
         BoxMessage as BoxMessageEntity,
     )
@@ -83,32 +80,6 @@ class BoxResponse(BaseModel):
     @classmethod
     def from_entity(cls, box: Box) -> BoxResponse:
         return cls.model_validate(box)
-
-
-class BoxEventResponse(BaseModel):
-    id: int
-    box_id: str
-    event_type: str
-    data: dict | None
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-    @classmethod
-    def from_entity(cls, event: BoxEvent) -> BoxEventResponse:
-        data = None
-        if event.data:
-            try:
-                data = json.loads(event.data)
-            except (json.JSONDecodeError, TypeError):
-                data = {"raw": event.data}
-        return cls(
-            id=event.id,
-            box_id=event.box_id,
-            event_type=event.event_type,
-            data=data,
-            created_at=event.created_at,
-        )
 
 
 class BoxMessageResponse(BaseModel):

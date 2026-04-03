@@ -71,10 +71,6 @@ class HandleSandboxEventHandler:
             message = event_dict.get("message", "")
             await self._set_task_outcome(box_id, status, message)
 
-        # Persist event (skip activity_changed — too noisy)
-        if event_type != "activity_changed":
-            await self._repo.add_event(box_id, event_type, json.dumps(event_dict))
-
         # Broadcast to subscribers
         await self._publisher.publish_box_event(box_id, event_dict)
 

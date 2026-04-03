@@ -113,9 +113,6 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         from codebox_orchestrator.box.application.queries.get_box import (  # noqa: PLC0415
             GetBoxHandler,
         )
-        from codebox_orchestrator.box.application.queries.get_box_events import (  # noqa: PLC0415
-            GetBoxEventsHandler,
-        )
         from codebox_orchestrator.box.application.queries.get_box_messages import (  # noqa: PLC0415
             GetBoxMessagesHandler,
         )
@@ -125,7 +122,6 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
         get_box_handler = GetBoxHandler(box_repo)
         list_boxes_handler = ListBoxesHandler(box_repo)
-        get_box_events_handler = GetBoxEventsHandler(box_repo)
         get_box_messages_handler = GetBoxMessagesHandler(box_repo)
 
         # --- Application layer: Agent commands & queries ---
@@ -224,7 +220,6 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.cancel_box_handler = cancel_box_handler
         app.state.get_box_handler = get_box_handler
         app.state.list_boxes_handler = list_boxes_handler
-        app.state.get_box_events_handler = get_box_events_handler
         app.state.get_box_messages_handler = get_box_messages_handler
         app.state.send_message_handler = send_message_handler
         app.state.send_exec_handler = send_exec_handler

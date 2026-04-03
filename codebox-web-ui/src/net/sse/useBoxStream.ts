@@ -10,6 +10,7 @@ interface UseBoxStreamOptions {
 interface UseBoxStreamReturn {
   events: Array<BoxStreamEvent>
   isConnected: boolean
+  clearEvents: () => void
 }
 
 export function useBoxStream({
@@ -23,10 +24,10 @@ export function useBoxStream({
   const enabledRef = useRef(enabled)
   enabledRef.current = enabled
 
+  const clearEvents = useCallback(() => setEvents([]), [])
+
   const connect = useCallback(() => {
     if (!boxId || !enabledRef.current || !activeRef.current) return
-
-    setEvents([]) // Clear stale events — server will replay from DB
 
     const url = `${API_URL}/api/boxes/${boxId}/stream`
     const es = new EventSource(url)
@@ -47,13 +48,11 @@ export function useBoxStream({
 
     es.onerror = () => {
       setIsConnected(false)
-      // EventSource auto-reconnects; connect() clears events before replay
     }
   }, [boxId])
 
   useEffect(() => {
     activeRef.current = true
-    setEvents([])
 
     if (esRef.current) {
       esRef.current.close()
@@ -74,5 +73,5 @@ export function useBoxStream({
     }
   }, [boxId, enabled, connect])
 
-  return { events, isConnected }
+  return { events, isConnected, clearEvents }
 }

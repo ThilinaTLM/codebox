@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
@@ -27,7 +26,6 @@ class SendExecHandler:
     async def execute(self, box_id: str, command: str) -> None:
         """Send a shell command for execution (fire and forget)."""
         event_data = {"type": "user_exec", "command": command}
-        await self._repo.add_event(box_id, "user_exec", json.dumps(event_data))
         await self._publisher.publish_box_event(box_id, event_data)
 
         if not self._connections.has_connection(box_id):

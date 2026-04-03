@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
@@ -30,11 +29,8 @@ class SendMessageHandler:
         msg = BoxMessage(box_id=box_id, seq=0, role="user", content=content)
         await self._repo.add_message(box_id, msg)
 
-        # Persist as event for replay
+        # Broadcast to SSE (live only, not persisted)
         event_data = {"type": "user_message", "content": content}
-        await self._repo.add_event(box_id, "user_message", json.dumps(event_data))
-
-        # Broadcast to SSE
         await self._publisher.publish_box_event(box_id, event_data)
 
         # Forward to sandbox

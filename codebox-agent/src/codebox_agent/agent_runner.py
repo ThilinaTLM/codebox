@@ -217,18 +217,31 @@ async def run_agent_stream(  # noqa: PLR0912, PLR0915
                         continue
 
                     for msg in messages:
-                        # AI messages with tool_calls — ensure tool_start
-                        # was emitted with full input for each call.
+                        # AI messages with tool_calls — emit tool_start
+                        # with full input (or update if already emitted
+                        # early from tool_call_chunks).
                         for tc in getattr(msg, "tool_calls", None) or []:
                             tc_id = tc.get("id", "")
                             tc_name = tc.get("name", "")
-                            if tc_id and tc_id not in emitted_tool_starts:
+                            if not tc_id:
+                                continue
+                            input_str = json.dumps(tc.get("args", {}))
+                            if len(input_str) > 4000:
+                                input_str = input_str[:4000] + "..."
+                            if tc_id not in emitted_tool_starts:
                                 emitted_tool_starts.add(tc_id)
                                 active_tool_calls[tc_id] = tc_name
-                                input_str = json.dumps(tc.get("args", {}))
-                                if len(input_str) > 4000:
-                                    input_str = input_str[:4000] + "..."
                                 logger.info("Tool start: %s (session %s)", tc_name, session_id)
+                                await send(
+                                    {
+                                        "type": "tool_start",
+                                        "name": tc_name,
+                                        "tool_call_id": tc_id,
+                                        "input": input_str,
+                                    }
+                                )
+                            else:
+                                # Re-send tool_start with full input
                                 await send(
                                     {
                                         "type": "tool_start",

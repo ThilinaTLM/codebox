@@ -27,6 +27,14 @@ export function useBoxEvents(boxId: string | undefined) {
   })
 }
 
+export function useBoxMessages(boxId: string | undefined) {
+  return useQuery({
+    queryKey: ["boxes", boxId, "messages"],
+    queryFn: () => api.boxes.getMessages(boxId!),
+    enabled: !!boxId,
+  })
+}
+
 export function useBoxFiles(boxId: string | undefined, path: string) {
   return useQuery({
     queryKey: ["boxes", boxId, "files", path],

@@ -59,12 +59,6 @@ class SqlAlchemyBoxRepository:
             result = await db.execute(stmt)
             return [mappers.box_to_domain(b) for b in result.scalars().all()]
 
-    async def add_event(self, box_id: str, event_type: str, data: str) -> None:
-        async with self._sf() as db:
-            ev = orm.BoxEvent(box_id=box_id, event_type=event_type, data=data)
-            db.add(ev)
-            await db.commit()
-
     async def add_message(self, box_id: str, message: domain.BoxMessage) -> None:
         """Persist a message, auto-assigning the next sequence number."""
         async with self._sf() as db:
@@ -87,14 +81,6 @@ class SqlAlchemyBoxRepository:
             )
             db.add(bm)
             await db.commit()
-
-    async def get_events(self, box_id: str) -> list[domain.BoxEvent]:
-        async with self._sf() as db:
-            stmt = (
-                select(orm.BoxEvent).where(orm.BoxEvent.box_id == box_id).order_by(orm.BoxEvent.id)
-            )
-            result = await db.execute(stmt)
-            return [mappers.box_event_to_domain(e) for e in result.scalars().all()]
 
     async def get_messages(self, box_id: str) -> list[domain.BoxMessage]:
         async with self._sf() as db:
