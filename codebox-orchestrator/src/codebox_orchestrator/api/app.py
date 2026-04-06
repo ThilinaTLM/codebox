@@ -75,12 +75,21 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         registry = CallbackRegistry()
         agent_connections = AgentConnectionAdapter(registry)
 
+        # --- Box state store (in-memory lifecycle tracking) ---
+        from codebox_orchestrator.box.infrastructure.box_state_store import (  # noqa: PLC0415
+            BoxStateStore,
+        )
+
+        box_state_store = BoxStateStore()
+
         # --- Box query service ---
         from codebox_orchestrator.box.application.services.box_query import (  # noqa: PLC0415
             BoxQueryService,
         )
 
-        query_service = BoxQueryService(container_runtime, registry, agent_connections)
+        query_service = BoxQueryService(
+            container_runtime, registry, agent_connections, box_state_store
+        )
 
         # --- Application layer: Agent commands & queries ---
         from codebox_orchestrator.agent.application.commands.handle_sandbox_event import (  # noqa: PLC0415
@@ -115,6 +124,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             runtime=container_runtime,
             connections=agent_connections,
             publisher=event_publisher,
+            state_store=box_state_store,
             send_exec_and_wait_fn=send_exec_handler.execute_and_wait,
             create_callback_token_fn=create_callback_token,
         )
@@ -136,13 +146,13 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             StopBoxHandler,
         )
 
-        create_box_handler = CreateBoxHandler(event_publisher, lifecycle)
+        create_box_handler = CreateBoxHandler(event_publisher, lifecycle, box_state_store)
         stop_box_handler = StopBoxHandler(
             container_runtime, agent_connections, event_publisher, query_service
         )
         restart_box_handler = RestartBoxHandler(container_runtime, event_publisher, query_service)
         delete_box_handler = DeleteBoxHandler(
-            container_runtime, event_publisher, stop_box_handler, query_service
+            container_runtime, event_publisher, stop_box_handler, query_service, box_state_store
         )
         cancel_box_handler = CancelBoxHandler(agent_connections)
 

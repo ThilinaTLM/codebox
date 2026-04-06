@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-import { RotateCw, Square, Trash2 } from "lucide-react"
+import { AlertTriangle, RotateCw, Square, Trash2 } from "lucide-react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 
 import { Button } from "@/components/ui/button"
@@ -313,6 +313,19 @@ function BoxDetailPage() {
 
               {/* Activity bar */}
               <ActivityBar activity={activity} />
+
+              {/* Error banner for failed boxes */}
+              {box.error_detail && (
+                <div className="mx-4 mt-2 rounded-lg border border-state-error/20 border-l-2 border-l-state-error bg-state-error/5 px-4 py-3">
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <AlertTriangle size={12} className="text-state-error/80" />
+                    <span className="font-terminal text-xs text-state-error/60">
+                      Failed to start
+                    </span>
+                  </div>
+                  <p className="text-sm text-state-error">{box.error_detail}</p>
+                </div>
+              )}
 
               {/* Event stream */}
               <div className="min-h-0 flex-1">

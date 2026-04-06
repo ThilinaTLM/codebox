@@ -8,11 +8,13 @@ gRPC state from the CallbackRegistry.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
     from codebox_orchestrator.agent.infrastructure.connection_adapter import AgentConnectionAdapter
+    from codebox_orchestrator.box.infrastructure.box_state_store import BoxStateStore
     from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
 
 from codebox_orchestrator.box.domain.views import BoxView
@@ -39,10 +41,12 @@ class BoxQueryService:
         runtime: DockerRuntime,
         registry: CallbackRegistry,
         connections: AgentConnectionAdapter,
+        state_store: BoxStateStore,
     ) -> None:
         self._runtime = runtime
         self._registry = registry
         self._connections = connections
+        self._state_store = state_store
 
     def list_boxes(
         self,
@@ -53,19 +57,27 @@ class BoxQueryService:
     ) -> list[BoxView]:
         """List all boxes from Docker, enriched with gRPC state."""
         containers = self._runtime.list_containers()
+        docker_ids: set[str] = set()
         views = []
         for c in containers:
             if not c.box_id:
                 continue  # Not a codebox box (legacy container without labels)
-            view = self._container_to_view(c)
-            # Apply filters
-            if container_status and view.container_status != container_status:
-                continue
-            if activity and view.activity != activity:
-                continue
-            if trigger and view.trigger != trigger:
-                continue
+            docker_ids.add(c.box_id)
+            view = self._enrich_with_error(self._container_to_view(c))
             views.append(view)
+
+        # Include pending/failed boxes not yet visible in Docker
+        views.extend(p for p in self._state_store.all_pending() if p.id not in docker_ids)
+
+        # Apply filters
+        if container_status or activity or trigger:
+            views = [
+                v
+                for v in views
+                if (not container_status or v.container_status == container_status)
+                and (not activity or v.activity == activity)
+                and (not trigger or v.trigger == trigger)
+            ]
         return views
 
     def get_box(self, box_id: str) -> BoxView | None:
@@ -73,8 +85,16 @@ class BoxQueryService:
         containers = self._runtime.list_containers()
         for c in containers:
             if c.box_id == box_id:
-                return self._container_to_view(c)
-        return None
+                return self._enrich_with_error(self._container_to_view(c))
+        # Fall back to state store (phantom box — spawn failed or still pending)
+        return self._state_store.get_pending(box_id)
+
+    def _enrich_with_error(self, view: BoxView) -> BoxView:
+        """Add error detail from the state store if available."""
+        error = self._state_store.get_error(view.id)
+        if error:
+            return replace(view, error_detail=error)
+        return view
 
     async def get_messages(self, box_id: str) -> list[dict[str, Any]]:
         """Get messages from sandbox via gRPC."""

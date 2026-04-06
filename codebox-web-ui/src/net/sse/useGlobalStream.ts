@@ -47,6 +47,8 @@ export function useGlobalStream() {
                 updates.activity = event.activity
               if (event.task_outcome)
                 updates.task_outcome = event.task_outcome
+              if (event.error_detail)
+                updates.error_detail = event.error_detail
               return { ...old, ...updates }
             }
           )

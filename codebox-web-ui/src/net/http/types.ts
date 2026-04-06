@@ -34,6 +34,7 @@ export interface Box {
   created_at: string | null
   started_at: string | null
   image: string
+  error_detail: string | null
   // GitHub integration fields
   github_repo: string | null
   github_issue_number: number | null

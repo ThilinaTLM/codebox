@@ -26,6 +26,7 @@ from codebox_orchestrator.config import (
 )
 
 if TYPE_CHECKING:
+    from codebox_orchestrator.box.infrastructure.box_state_store import BoxStateStore
     from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
     from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
     from codebox_orchestrator.box.ports.event_publisher import EventPublisher
@@ -43,12 +44,14 @@ class BoxLifecycleService:
         runtime: ContainerRuntime,
         connections: AgentConnectionManager,
         publisher: EventPublisher,
+        state_store: BoxStateStore,
         send_exec_and_wait_fn,  # async callable(box_id, command, timeout) — injected
         create_callback_token_fn=None,  # callable(box_id, entity_type) -> str — injected
     ) -> None:
         self._runtime = runtime
         self._connections = connections
         self._publisher = publisher
+        self._state_store = state_store
         self._send_exec_and_wait = send_exec_and_wait_fn
         self._create_callback_token = create_callback_token_fn
         self._running: dict[str, asyncio.Task[None]] = {}
@@ -209,6 +212,8 @@ class BoxLifecycleService:
             await self._broadcast_error(box_id, f"Failed to spawn container: {exc}")
             return
 
+        self._state_store.mark_spawned(box_id)
+
         # Wait for container to connect back via gRPC
         connected = await self._connections.wait_for_connection(box_id, timeout=_CALLBACK_TIMEOUT)
         if not connected:
@@ -278,6 +283,7 @@ class BoxLifecycleService:
             await self._send_exec_and_wait(box_id, cmd, 120.0)
 
     async def _broadcast_error(self, box_id: str, error: str) -> None:
+        self._state_store.set_error(box_id, error)
         await self._publisher.publish_box_event(
             box_id,
             {
@@ -293,5 +299,6 @@ class BoxLifecycleService:
                 "box_id": box_id,
                 "container_status": "stopped",
                 "container_stop_reason": "container_error",
+                "error_detail": error,
             }
         )

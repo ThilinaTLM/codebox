@@ -32,3 +32,4 @@ class BoxView:
     created_at: str | None = None
     started_at: str | None = None
     image: str = ""
+    error_detail: str | None = None

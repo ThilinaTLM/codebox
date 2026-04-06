@@ -12,13 +12,20 @@ from codebox_orchestrator.config import LLM_MODEL, LLM_PROVIDER
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
+    from codebox_orchestrator.box.infrastructure.box_state_store import BoxStateStore
     from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
 
 class CreateBoxHandler:
-    def __init__(self, publisher: EventPublisher, lifecycle: BoxLifecycleService) -> None:
+    def __init__(
+        self,
+        publisher: EventPublisher,
+        lifecycle: BoxLifecycleService,
+        state_store: BoxStateStore,
+    ) -> None:
         self._publisher = publisher
         self._lifecycle = lifecycle
+        self._state_store = state_store
 
     async def execute(
         self,
@@ -72,7 +79,7 @@ class CreateBoxHandler:
             github_branch=github_branch,
         )
 
-        return BoxView(
+        view = BoxView(
             id=box_id,
             name=box_name,
             provider=box_provider,
@@ -87,3 +94,5 @@ class CreateBoxHandler:
             github_issue_number=github_issue_number,
             created_at=now.isoformat(),
         )
+        self._state_store.register(view)
+        return view

@@ -51,6 +51,7 @@ class BoxResponse(BaseModel):
     created_at: str | None = None
     started_at: str | None = None
     image: str = ""
+    error_detail: str | None = None
 
     @classmethod
     def from_view(cls, view: BoxView) -> BoxResponse:
@@ -73,6 +74,7 @@ class BoxResponse(BaseModel):
             created_at=view.created_at,
             started_at=view.started_at,
             image=view.image,
+            error_detail=view.error_detail,
         )
 
 
