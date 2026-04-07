@@ -234,25 +234,18 @@ export function ChatStream({
 
   return (
     <ScrollArea className="h-full">
-      <div className={centered ? "mx-auto max-w-3xl px-4" : "px-5"}>
+      <div className={centered ? "mx-auto max-w-4xl px-4" : "px-5"}>
         <div
           className={`flex flex-col gap-1.5 py-3 text-sm ${bottomInset ? "pb-28" : ""}`}
         >
           {blocks.map((block, i) => (
-            <div
-              key={blockKey(block, i)}
-              className="animate-fade-up"
-            >
+            <div key={blockKey(block, i)}>
               <ChatBlock block={block} />
             </div>
           ))}
           {blocks.length === 0 && (
-            <div className="relative flex flex-col items-center justify-center py-12 text-center">
-              <div className="font-terminal text-lg text-ghost">
-                &gt; awaiting instructions
-                <span className="animate-cursor">_</span>
-              </div>
-              <p className="mt-2 font-terminal text-xs text-ghost/50">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-sm text-muted-foreground">
                 Send a message to start the agent
               </p>
             </div>

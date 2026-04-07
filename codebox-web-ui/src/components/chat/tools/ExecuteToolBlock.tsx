@@ -24,8 +24,6 @@ export function ExecuteToolBlock({
   isRunning,
 }: ToolCallBlockProps) {
   const args = parseInput<{ command?: string; timeout?: number }>(input)
-  // args.command has the parsed command from full JSON input.
-  // If parsing failed (partial JSON from early chunks), input is unusable.
   const command = args?.command ?? ""
   const displayOutput = streamOutput || output || ""
   const hasOutput = displayOutput.length > 0
@@ -39,29 +37,20 @@ export function ExecuteToolBlock({
   )
 
   return (
-    <div className="overflow-hidden rounded-lg bg-inset">
-      {/* Terminal header bar */}
-      <div className="flex items-center gap-2 rounded-t-lg bg-card/60 px-3 py-1">
-        <span className="rounded bg-state-tool-use/10 px-1.5 py-0.5 font-terminal text-[10px] uppercase tracking-wider text-state-tool-use/70">
-          execute
-        </span>
-        <div className="ml-auto flex items-center gap-1.5">
-          {isRunning && <Spinner className="size-3 text-muted-foreground" />}
+    <div className="overflow-hidden rounded-md bg-inset">
+      {/* Command line */}
+      {command && (
+        <div className="flex items-start gap-2 px-3 py-1.5 font-terminal text-sm">
+          <span className="select-none text-muted-foreground">$</span>
+          <span className="flex-1 whitespace-pre-wrap text-foreground">{command}</span>
+          {isRunning && <Spinner className="mt-0.5 size-3 shrink-0 text-muted-foreground" />}
           {isDone && (
             <span
-              className={`font-terminal text-xs font-medium ${isSuccess ? "text-state-completed" : "text-destructive"}`}
+              className={`shrink-0 font-terminal text-xs ${isSuccess ? "text-muted-foreground" : "text-destructive"}`}
             >
               exit {exitCode}
             </span>
           )}
-        </div>
-      </div>
-
-      {/* Command line */}
-      {command && (
-        <div className="flex items-start gap-2 border-t border-border/15 px-3 py-1.5 font-terminal text-sm">
-          <span className="select-none text-state-thinking">$</span>
-          <span className="whitespace-pre-wrap text-foreground">{command}</span>
         </div>
       )}
 
@@ -86,25 +75,18 @@ export function ExecuteToolBlock({
               </tbody>
             </table>
           ) : (
-            <div className="px-3 py-2 whitespace-pre-wrap">{displayOutput}</div>
+            <div className="px-3 py-1.5 whitespace-pre-wrap">{displayOutput}</div>
           )}
         </pre>
       )}
 
-      {/* Running indicator when no output yet */}
-      {!hasOutput && isRunning && (
-        <div className="flex items-center gap-2 border-t border-border/15 px-3 py-1.5">
+      {/* Running indicator when no command and no output yet */}
+      {!command && !hasOutput && isRunning && (
+        <div className="flex items-center gap-2 px-3 py-1.5">
           <Spinner className="size-3 text-muted-foreground" />
           <span className="font-terminal text-sm text-muted-foreground">
-            Running...
+            Running…
           </span>
-        </div>
-      )}
-
-      {/* Shimmer bar when running */}
-      {isRunning && (
-        <div className="h-0.5 overflow-hidden bg-state-tool-use/10">
-          <div className="h-full w-1/3 rounded-full bg-state-tool-use/50 animate-shimmer" />
         </div>
       )}
     </div>

@@ -321,7 +321,7 @@ function BoxDetailPage() {
 
               {/* Floating input */}
               <div className="absolute inset-x-0 bottom-0 px-4 pb-3">
-                <div className="mx-auto max-w-3xl">
+                <div className="mx-auto max-w-4xl">
                   <BoxInput
                     onSendMessage={handleSendMessage}
                     onSendExec={handleSendExec}

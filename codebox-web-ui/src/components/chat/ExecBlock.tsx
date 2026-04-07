@@ -4,7 +4,6 @@ import { Spinner } from "@/components/ui/spinner"
 
 function addLineNumbers(text: string): { numbered: boolean; lines: Array<string> } {
   const lines = text.split("\n")
-  // Only number if > 3 lines
   return { numbered: lines.length > 3, lines }
 }
 
@@ -24,33 +23,20 @@ export function ExecBlock({
   )
 
   return (
-    <div className="overflow-hidden rounded-lg bg-inset">
-      {/* Terminal header bar */}
-      <div className="flex items-center gap-2 rounded-t-lg bg-card/60 px-3 py-1">
-        <span className="font-terminal text-[10px] uppercase tracking-wider text-muted-foreground">
-          Terminal
-        </span>
-        <div className="ml-auto flex items-center gap-1.5">
-          {block.isRunning && (
-            <Spinner className="size-3 text-muted-foreground" />
-          )}
+    <div className="overflow-hidden rounded-md bg-inset">
+      {/* Command line */}
+      {hasCommand && (
+        <div className="flex items-start gap-2 px-3 py-1.5 font-terminal text-sm">
+          <span className="select-none text-muted-foreground">$</span>
+          <span className="flex-1 whitespace-pre-wrap text-foreground">{block.command}</span>
+          {block.isRunning && <Spinner className="mt-0.5 size-3 shrink-0 text-muted-foreground" />}
           {isDone && (
             <span
-              className={`font-terminal text-xs font-medium ${isSuccess ? "text-state-completed" : "text-destructive"}`}
+              className={`shrink-0 font-terminal text-xs ${isSuccess ? "text-muted-foreground" : "text-destructive"}`}
             >
               exit {block.exitCode}
             </span>
           )}
-        </div>
-      </div>
-
-      {/* Command line */}
-      {hasCommand && (
-        <div className="flex items-center gap-2 border-t border-border/15 px-3 py-1.5 font-terminal text-sm">
-          <span className="select-none font-terminal text-state-thinking">
-            $
-          </span>
-          <span className="text-foreground">{block.command}</span>
         </div>
       )}
 
@@ -75,7 +61,7 @@ export function ExecBlock({
               </tbody>
             </table>
           ) : (
-            <div className="px-3 py-2 whitespace-pre-wrap">{block.output}</div>
+            <div className="px-3 py-1.5 whitespace-pre-wrap">{block.output}</div>
           )}
         </pre>
       )}
@@ -85,15 +71,8 @@ export function ExecBlock({
         <div className="flex items-center gap-2 px-3 py-1.5">
           <Spinner className="size-3 text-muted-foreground" />
           <span className="font-terminal text-sm text-muted-foreground">
-            Running...
+            Running…
           </span>
-        </div>
-      )}
-
-      {/* Shimmer bar when running */}
-      {block.isRunning && (
-        <div className="h-0.5 overflow-hidden bg-state-thinking/10">
-          <div className="h-full w-1/3 rounded-full bg-state-thinking/50 animate-shimmer" />
         </div>
       )}
     </div>
