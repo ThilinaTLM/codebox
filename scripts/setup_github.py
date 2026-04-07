@@ -236,7 +236,7 @@ def start_smee(state: StateManager) -> None:
         )
         sys.exit(1)
 
-    target = "http://localhost:8080/api/github/webhook"
+    target = "http://localhost:9090/api/github/webhook"
     console.print(
         f"Starting smee proxy: [cyan]{url}[/] -> {target}\n[dim]Press Ctrl+C to stop[/]\n"
     )
@@ -330,9 +330,9 @@ def _step_github_app_guide(smee_url: str, defaults: dict[str, str], *, use_defau
     settings.add_column("Setting", style="bold")
     settings.add_column("Value")
     settings.add_row("App name", "codebox-dev (or your preferred name)")
-    settings.add_row("Homepage URL", "http://localhost:3000")
+    settings.add_row("Homepage URL", "http://localhost:3737")
     settings.add_row("Webhook URL", f"[cyan]{smee_url}[/]")
-    settings.add_row("Setup URL", "[cyan]http://localhost:8080/api/github/callback[/]")
+    settings.add_row("Setup URL", "[cyan]http://localhost:9090/api/github/callback[/]")
     settings.add_row("", "[dim](check 'Redirect on update')[/]")
     console.print(settings)
 
@@ -480,7 +480,7 @@ def _step_next_steps(state: StateManager, smee_url: str, app_slug: str, bot_name
     console.print()
     next_steps = (
         "1. Start the webhook tunnel (keep running in a separate terminal):\n\n"
-        f"   [bold]pnpm dlx smee-client -u {smee_url} --target http://localhost:8080/api/github/webhook[/]\n"
+        f"   [bold]pnpm dlx smee-client -u {smee_url} --target http://localhost:9090/api/github/webhook[/]\n"
         f"   [dim]or: uv run scripts/setup_github.py --smee[/]\n\n"
         "2. Build the sandbox image (if not already done):\n\n"
         "   [bold]uv run scripts/build_sandbox.py[/]\n\n"
@@ -488,7 +488,7 @@ def _step_next_steps(state: StateManager, smee_url: str, app_slug: str, bot_name
         "   [bold]cd codebox-orchestrator && python -m codebox_orchestrator[/]\n\n"
         f"4. Install the GitHub App on a test repo:\n\n"
         f"   [bold]https://github.com/apps/{app_slug}/installations/new[/]\n\n"
-        "5. Add the installation via the web UI (http://localhost:3000/settings/github)\n"
+        "5. Add the installation via the web UI (http://localhost:3737/settings/github)\n"
         "   or manually via the API.\n\n"
         f"6. Comment on an issue to trigger the agent:\n\n"
         f"   [bold]@{bot_name} implement this feature[/]"

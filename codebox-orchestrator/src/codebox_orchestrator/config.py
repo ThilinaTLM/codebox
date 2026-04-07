@@ -52,7 +52,7 @@ CONTAINER_TLS_CERT: str = os.environ.get("CONTAINER_TLS_CERT", "")
 CONTAINER_TLS_KEY: str = os.environ.get("CONTAINER_TLS_KEY", "")
 
 HOST: str = os.environ.get("ORCHESTRATOR_HOST", "0.0.0.0")  # noqa: S104
-PORT: int = int(os.environ.get("ORCHESTRATOR_PORT", "8080"))
+PORT: int = int(os.environ.get("ORCHESTRATOR_PORT", "9090"))
 
 
 # gRPC port for sandbox connections
@@ -76,7 +76,7 @@ ORCHESTRATOR_GRPC_ADDRESS: str = (
 )
 CORS_ORIGINS: list[str] = [
     o.strip()
-    for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
+    for o in os.environ.get("CORS_ORIGINS", "http://localhost:3737").split(",")
     if o.strip()
 ]
 

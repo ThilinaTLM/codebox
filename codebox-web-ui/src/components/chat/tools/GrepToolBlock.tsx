@@ -26,7 +26,7 @@ export function GrepToolBlock({
 
   if (isRunning) {
     return (
-      <div className="rounded-lg border-l-2 border-l-state-tool-use bg-inset px-3 py-2.5">
+      <div className="rounded-lg border-l-2 border-l-state-tool-use bg-inset px-3 py-1.5">
         <div className="flex items-center gap-2">
           <Spinner className="size-3 text-state-tool-use" />
           <Search size={14} className="text-state-tool-use/70" />
@@ -34,7 +34,7 @@ export function GrepToolBlock({
             Searching for <code className="rounded bg-state-tool-use/10 px-1">{pattern}</code>
           </span>
         </div>
-        <div className="mx-0 mt-2 h-0.5 overflow-hidden rounded-full bg-border/20">
+        <div className="mx-0 mt-1 h-0.5 overflow-hidden rounded-full bg-border/20">
           <div className="h-full w-1/3 rounded-full bg-state-tool-use animate-shimmer" />
         </div>
       </div>
@@ -43,7 +43,7 @@ export function GrepToolBlock({
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-lg border-l-2 border-l-state-completed bg-card px-3 py-2.5 text-sm transition-colors hover:bg-card/80">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-lg border-l-2 border-l-state-completed bg-card px-3 py-1.5 text-sm transition-colors hover:bg-card/80">
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
         <Search size={14} className="shrink-0 text-state-completed/70" />
         <code className="rounded bg-state-completed/10 px-1.5 py-0.5 font-terminal text-xs text-state-completed/70">
@@ -60,8 +60,8 @@ export function GrepToolBlock({
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="ml-1 border-l border-border/20 pl-3">
-          <div className="flex gap-2 pt-2">
+        <div className="ml-0.5 border-l border-border/20 pl-2">
+          <div className="flex gap-2 pt-1">
             {searchPath && (
               <span className="font-terminal text-xs text-muted-foreground">
                 in {searchPath}
@@ -74,7 +74,7 @@ export function GrepToolBlock({
             )}
           </div>
           {hasOutput && (
-            <pre className="mt-2 mb-1 max-h-[400px] overflow-auto rounded-md bg-inset p-3 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
+            <pre className="mt-1 mb-0.5 max-h-[300px] overflow-auto rounded-md bg-inset p-2 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
               {output}
             </pre>
           )}

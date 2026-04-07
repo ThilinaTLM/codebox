@@ -36,7 +36,7 @@ def cli() -> None:
     "--url",
     default=None,
     envvar="CODEBOX_ORCHESTRATOR_URL",
-    help="Orchestrator URL (default: $CODEBOX_ORCHESTRATOR_URL or http://localhost:8080).",
+    help="Orchestrator URL (default: $CODEBOX_ORCHESTRATOR_URL or http://localhost:9090).",
 )
 @click.pass_context
 def box_group(ctx: click.Context, url: str | None) -> None:
@@ -401,7 +401,7 @@ def box_cat(ctx: click.Context, box_id: str, path: str) -> None:
     "--url",
     default=None,
     envvar="CODEBOX_ORCHESTRATOR_URL",
-    help="Orchestrator URL (default: $CODEBOX_ORCHESTRATOR_URL or http://localhost:8080).",
+    help="Orchestrator URL (default: $CODEBOX_ORCHESTRATOR_URL or http://localhost:9090).",
 )
 @click.pass_context
 def container_group(ctx: click.Context, url: str | None) -> None:

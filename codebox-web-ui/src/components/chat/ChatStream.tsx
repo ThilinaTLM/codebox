@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { ChatBlock } from "./ChatBlock"
-import { messagesToBlocks } from "./messagesToBlocks"
 import type { EventBlock } from "./types"
-import type { BoxMessage, BoxStreamEvent } from "@/net/http/types"
+import type { BoxStreamEvent } from "@/net/http/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock> {
@@ -199,49 +198,56 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
   return blocks
 }
 
-const EMPTY_MESSAGES: Array<BoxMessage> = []
+/**
+ * Derive a stable React key for a block.
+ *
+ * Uses toolCallId when available (tool_call blocks), falls back to
+ * kind + index which is stable as long as the block list doesn't
+ * get reordered (it never does — both sources are append-only).
+ */
+function blockKey(block: EventBlock, index: number): string {
+  if (block.kind === "tool_call" && block.toolCallId) {
+    return `tc-${block.toolCallId}`
+  }
+  return `${block.kind}-${index}`
+}
 
 export function ChatStream({
-  messages = EMPTY_MESSAGES,
-  liveEvents,
+  blocks,
   centered,
   bottomInset,
 }: {
-  messages?: Array<BoxMessage>
-  liveEvents: Array<BoxStreamEvent>
+  blocks: Array<EventBlock>
   centered?: boolean
   bottomInset?: boolean
 }) {
   const bottomRef = useRef<HTMLDivElement>(null)
+  const prevLenRef = useRef(0)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages.length, liveEvents.length])
-
-  // Completed turns from REST history
-  const historyBlocks = useMemo(() => messagesToBlocks(messages), [messages])
-  // Current in-progress turn from SSE
-  const liveBlocks = collapseTokens(liveEvents)
-  const blocks = [...historyBlocks, ...liveBlocks]
-  const isEmpty = messages.length === 0 && liveEvents.length === 0
+    // Only auto-scroll when new blocks are appended
+    if (blocks.length > prevLenRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+    prevLenRef.current = blocks.length
+  }, [blocks.length])
 
   return (
     <ScrollArea className="h-full">
       <div className={centered ? "mx-auto max-w-3xl px-4" : "px-5"}>
         <div
-          className={`flex flex-col gap-4 py-6 text-sm ${bottomInset ? "pb-32" : ""}`}
+          className={`flex flex-col gap-1.5 py-3 text-sm ${bottomInset ? "pb-28" : ""}`}
         >
           {blocks.map((block, i) => (
             <div
-              key={i}
+              key={blockKey(block, i)}
               className="animate-fade-up"
-              style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
             >
               <ChatBlock block={block} />
             </div>
           ))}
-          {isEmpty && (
-            <div className="relative flex flex-col items-center justify-center py-16 text-center">
+          {blocks.length === 0 && (
+            <div className="relative flex flex-col items-center justify-center py-12 text-center">
               <div className="font-terminal text-lg text-ghost">
                 &gt; awaiting instructions
                 <span className="animate-cursor">_</span>

@@ -9,4 +9,4 @@ load_dotenv(_project_dir / ".env")
 load_dotenv(_project_dir / ".env.local", override=True)
 
 # Orchestrator mode
-ORCHESTRATOR_URL: str = os.environ.get("CODEBOX_ORCHESTRATOR_URL", "http://localhost:8080")
+ORCHESTRATOR_URL: str = os.environ.get("CODEBOX_ORCHESTRATOR_URL", "http://localhost:9090")

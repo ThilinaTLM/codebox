@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class OrchestratorClient:
     """Client that communicates with the orchestrator's REST + SSE API."""
 
-    def __init__(self, base_url: str = "http://localhost:8080") -> None:
+    def __init__(self, base_url: str = "http://localhost:9090") -> None:
         self.base_url = base_url.rstrip("/")
 
     # ------------------------------------------------------------------

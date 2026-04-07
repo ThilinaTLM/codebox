@@ -4,7 +4,7 @@ services:
       context: ./codebox-orchestrator
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "9090:9090"
       - "50051:50051"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -15,7 +15,7 @@ services:
       - path: ./codebox-orchestrator/.env.compose
         required: false
     environment:
-      CORS_ORIGINS: "http://localhost:3000"
+      CORS_ORIGINS: "http://localhost:3737"
     networks:
       - codebox-net
 
@@ -24,9 +24,9 @@ services:
       context: ./codebox-web-ui
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3737:3737"
     environment:
-      API_URL: "http://localhost:8080"
+      API_URL: "http://localhost:9090"
     depends_on:
       - orchestrator
     networks:

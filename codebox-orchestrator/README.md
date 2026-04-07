@@ -59,8 +59,8 @@ Environment variables (loaded from `.env` and `.env.local`):
 | `WORKSPACE_BASE_DIR` | `/tmp/codebox-workspaces` | Base directory for task workspaces |
 | `DOCKER_NETWORK` | `codebox-net` | Docker network name |
 | `ORCHESTRATOR_HOST` | `0.0.0.0` | Bind address |
-| `ORCHESTRATOR_PORT` | `8080` | Bind port |
-| `CORS_ORIGINS` | `http://localhost:3000` | Allowed CORS origins (comma-separated) |
+| `ORCHESTRATOR_PORT` | `9090` | Bind port |
+| `CORS_ORIGINS` | `http://localhost:3737` | Allowed CORS origins (comma-separated) |
 
 ### Container runtime
 

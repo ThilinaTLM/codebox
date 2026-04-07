@@ -31,10 +31,10 @@ codebox task cancel <task_id>
 codebox task delete <task_id>
 
 # Use a custom orchestrator URL
-codebox task --url http://myhost:8080 list
+codebox task --url http://myhost:9090 list
 ```
 
-Set `CODEBOX_ORCHESTRATOR_URL` to change the default orchestrator URL (default: `http://localhost:8080`).
+Set `CODEBOX_ORCHESTRATOR_URL` to change the default orchestrator URL (default: `http://localhost:9090`).
 
 ## Direct Mode (Legacy)
 
@@ -66,7 +66,7 @@ Environment variables (loaded from `.env` and `.env.local`):
 
 | Variable | Description |
 |----------|-------------|
-| `CODEBOX_ORCHESTRATOR_URL` | Orchestrator URL (default: `http://localhost:8080`) |
+| `CODEBOX_ORCHESTRATOR_URL` | Orchestrator URL (default: `http://localhost:9090`) |
 | `CODEBOX_IMAGE` | Docker image for sandboxes (default: `codebox-sandbox:latest`) |
 | `OPENROUTER_API_KEY` | API key for LLM |
 | `OPENROUTER_MODEL` | Default model |

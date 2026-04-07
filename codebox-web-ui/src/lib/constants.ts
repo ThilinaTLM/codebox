@@ -6,7 +6,7 @@ declare global {
   }
 }
 
-const DEFAULT_API_URL = "http://localhost:8080"
+const DEFAULT_API_URL = "http://localhost:9090"
 
 export const API_URL: string = import.meta.env.SSR
   ? (process.env.API_URL ?? DEFAULT_API_URL)

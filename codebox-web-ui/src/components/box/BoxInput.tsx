@@ -76,7 +76,7 @@ export function BoxInput({
         {/* Prompt glyph */}
         <span
           className={cn(
-            "pointer-events-none absolute top-3.5 left-4 font-terminal text-sm font-medium",
+            "pointer-events-none absolute top-2.5 left-4 font-terminal text-sm font-medium",
             isExecMode ? "text-state-thinking" : "text-primary"
           )}
         >
@@ -97,13 +97,13 @@ export function BoxInput({
             }
           }}
           disabled={disabled}
-          className="w-full resize-none rounded-lg bg-transparent pl-10 pr-14 pt-3.5 pb-3.5 font-terminal text-sm outline-none placeholder:text-ghost disabled:opacity-50"
+          className="w-full resize-none rounded-lg bg-transparent pl-10 pr-14 pt-2.5 pb-2.5 font-terminal text-sm outline-none placeholder:text-ghost disabled:opacity-50"
           style={{
             maxHeight: `${MAX_HEIGHT}px`,
             overflowY: "hidden",
           }}
         />
-        <div className="absolute right-3 bottom-3">
+        <div className="absolute right-3 bottom-2">
           {isWorking ? (
             <Button
               size="icon-sm"
@@ -128,7 +128,7 @@ export function BoxInput({
       </div>
       {/* Keyboard hints */}
       {focused && input.trim() && (
-        <div className="mt-1 text-center text-[10px] text-ghost">
+        <div className="mt-0.5 text-center text-[10px] text-ghost">
           Enter to send · Shift+Enter for newline
         </div>
       )}

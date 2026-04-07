@@ -26,12 +26,7 @@ export function ExecBlock({
   return (
     <div className="overflow-hidden rounded-lg bg-inset">
       {/* Terminal header bar */}
-      <div className="flex items-center gap-2 rounded-t-lg bg-card/60 px-3 py-1.5">
-        <div className="flex items-center gap-1">
-          <span className="size-2 rounded-full bg-ghost/40" />
-          <span className="size-2 rounded-full bg-ghost/40" />
-          <span className="size-2 rounded-full bg-ghost/40" />
-        </div>
+      <div className="flex items-center gap-2 rounded-t-lg bg-card/60 px-3 py-1">
         <span className="font-terminal text-[10px] uppercase tracking-wider text-muted-foreground">
           Terminal
         </span>
@@ -51,7 +46,7 @@ export function ExecBlock({
 
       {/* Command line */}
       {hasCommand && (
-        <div className="flex items-center gap-2 border-t border-border/15 px-4 py-2.5 font-terminal text-sm">
+        <div className="flex items-center gap-2 border-t border-border/15 px-3 py-1.5 font-terminal text-sm">
           <span className="select-none font-terminal text-state-thinking">
             $
           </span>
@@ -62,7 +57,7 @@ export function ExecBlock({
       {/* Output body */}
       {hasOutput && outputData && (
         <pre
-          className={`max-h-[400px] overflow-auto font-terminal text-xs leading-relaxed text-foreground/80 ${hasCommand ? "border-t border-border/15" : ""}`}
+          className={`max-h-[300px] overflow-auto font-terminal text-xs leading-relaxed text-foreground/80 ${hasCommand ? "border-t border-border/15" : ""}`}
         >
           {outputData.numbered ? (
             <table className="w-full border-collapse">
@@ -80,14 +75,14 @@ export function ExecBlock({
               </tbody>
             </table>
           ) : (
-            <div className="px-4 py-3 whitespace-pre-wrap">{block.output}</div>
+            <div className="px-3 py-2 whitespace-pre-wrap">{block.output}</div>
           )}
         </pre>
       )}
 
       {/* Running indicator when no command and no output yet */}
       {!hasCommand && !hasOutput && block.isRunning && (
-        <div className="flex items-center gap-2 px-4 py-2.5">
+        <div className="flex items-center gap-2 px-3 py-1.5">
           <Spinner className="size-3 text-muted-foreground" />
           <span className="font-terminal text-sm text-muted-foreground">
             Running...

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { AlertTriangle, RotateCw, Square, Trash2 } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 
 import { Button } from "@/components/ui/button"
@@ -28,11 +29,10 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { useQueryClient } from "@tanstack/react-query"
-import { useBox, useBoxMessages, useCancelBox, useDeleteBox, useRestartBox, useSendExec, useSendMessage, useStopBox } from "@/net/query"
-import { useBoxStream } from "@/net/sse/useBoxStream"
+import { useBox, useCancelBox, useDeleteBox, useRestartBox, useSendExec, useSendMessage, useStopBox } from "@/net/query"
 import { ContainerStatus } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
+import { useChatState } from "@/hooks/useChatState"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
 
 export const Route = createFileRoute("/boxes/$boxId")({
@@ -42,7 +42,6 @@ export const Route = createFileRoute("/boxes/$boxId")({
 function BoxDetailPage() {
   const { boxId } = Route.useParams()
   const { data: box, isLoading, refetch } = useBox(boxId)
-  const { data: messages } = useBoxMessages(boxId)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const stopMutation = useStopBox()
@@ -59,26 +58,14 @@ function BoxDetailPage() {
 
   const isStopped = box?.container_status === ContainerStatus.STOPPED
 
-  const { events, isConnected, clearEvents } = useBoxStream({
-    boxId,
-    enabled: true,
-  })
+  // Consolidated chat state — merges history + live SSE, handles deduplication
+  const { blocks, liveEvents, isConnected } = useChatState({ boxId })
+
   const sendMessageMutation = useSendMessage()
   const sendExecMutation = useSendExec()
   const cancelMutation = useCancelBox()
 
-  const activity = useAgentActivity(events, box?.container_status, box?.activity)
-
-  // When agent finishes a turn (done/error), refetch messages and clear live events
-  useEffect(() => {
-    const lastEvent = events[events.length - 1]
-    if (lastEvent && (lastEvent.type === "done" || lastEvent.type === "error")) {
-      queryClient.invalidateQueries({ queryKey: ["boxes", boxId, "messages"] })
-      // Small delay so the done/error block renders momentarily before clearing
-      const timer = setTimeout(clearEvents, 150)
-      return () => clearTimeout(timer)
-    }
-  }, [events, boxId, queryClient, clearEvents])
+  const activity = useAgentActivity(liveEvents, box?.container_status, box?.activity)
 
   const handleStop = useCallback(() => {
     stopMutation.mutate(boxId, {
@@ -316,8 +303,8 @@ function BoxDetailPage() {
 
               {/* Error banner for failed boxes */}
               {box.error_detail && (
-                <div className="mx-4 mt-2 rounded-lg border border-state-error/20 border-l-2 border-l-state-error bg-state-error/5 px-4 py-3">
-                  <div className="mb-1 flex items-center gap-1.5">
+                <div className="mx-4 mt-1 rounded-lg border border-state-error/20 border-l-2 border-l-state-error bg-state-error/5 px-3 py-2">
+                  <div className="mb-0.5 flex items-center gap-1.5">
                     <AlertTriangle size={12} className="text-state-error/80" />
                     <span className="font-terminal text-xs text-state-error/60">
                       Failed to start
@@ -329,11 +316,11 @@ function BoxDetailPage() {
 
               {/* Event stream */}
               <div className="min-h-0 flex-1">
-                <ChatStream messages={messages ?? []} liveEvents={events} centered bottomInset />
+                <ChatStream blocks={blocks} centered bottomInset />
               </div>
 
               {/* Floating input */}
-              <div className="absolute inset-x-0 bottom-0 px-4 pb-4">
+              <div className="absolute inset-x-0 bottom-0 px-4 pb-3">
                 <div className="mx-auto max-w-3xl">
                   <BoxInput
                     onSendMessage={handleSendMessage}

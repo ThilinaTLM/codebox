@@ -13,6 +13,6 @@ RUN pip install uv && uv pip install --system .
 
 RUN mkdir -p /data
 
-EXPOSE 8080
+EXPOSE 9090
 
 CMD ["python", "-m", "codebox_orchestrator"]

@@ -41,12 +41,7 @@ export function ExecuteToolBlock({
   return (
     <div className="overflow-hidden rounded-lg bg-inset">
       {/* Terminal header bar */}
-      <div className="flex items-center gap-2 rounded-t-lg bg-card/60 px-3 py-1.5">
-        <div className="flex items-center gap-1">
-          <span className="size-2 rounded-full bg-ghost/40" />
-          <span className="size-2 rounded-full bg-ghost/40" />
-          <span className="size-2 rounded-full bg-ghost/40" />
-        </div>
+      <div className="flex items-center gap-2 rounded-t-lg bg-card/60 px-3 py-1">
         <span className="rounded bg-state-tool-use/10 px-1.5 py-0.5 font-terminal text-[10px] uppercase tracking-wider text-state-tool-use/70">
           execute
         </span>
@@ -64,7 +59,7 @@ export function ExecuteToolBlock({
 
       {/* Command line */}
       {command && (
-        <div className="flex items-start gap-2 border-t border-border/15 px-4 py-2.5 font-terminal text-sm">
+        <div className="flex items-start gap-2 border-t border-border/15 px-3 py-1.5 font-terminal text-sm">
           <span className="select-none text-state-thinking">$</span>
           <span className="whitespace-pre-wrap text-foreground">{command}</span>
         </div>
@@ -73,7 +68,7 @@ export function ExecuteToolBlock({
       {/* Output body */}
       {hasOutput && outputData && (
         <pre
-          className={`max-h-[400px] overflow-auto font-terminal text-xs leading-relaxed text-foreground/80 ${command ? "border-t border-border/15" : ""}`}
+          className={`max-h-[300px] overflow-auto font-terminal text-xs leading-relaxed text-foreground/80 ${command ? "border-t border-border/15" : ""}`}
         >
           {outputData.numbered ? (
             <table className="w-full border-collapse">
@@ -91,14 +86,14 @@ export function ExecuteToolBlock({
               </tbody>
             </table>
           ) : (
-            <div className="px-4 py-3 whitespace-pre-wrap">{displayOutput}</div>
+            <div className="px-3 py-2 whitespace-pre-wrap">{displayOutput}</div>
           )}
         </pre>
       )}
 
       {/* Running indicator when no output yet */}
       {!hasOutput && isRunning && (
-        <div className="flex items-center gap-2 border-t border-border/15 px-4 py-2.5">
+        <div className="flex items-center gap-2 border-t border-border/15 px-3 py-1.5">
           <Spinner className="size-3 text-muted-foreground" />
           <span className="font-terminal text-sm text-muted-foreground">
             Running...

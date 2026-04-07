@@ -52,10 +52,6 @@ export function ChatBlock({ block }: { block: EventBlock }) {
       return <ExecBlock block={block} />
 
     case "user_message":
-      return (
-        <div className="mt-4">
-          <UserMessageBlock content={block.content} />
-        </div>
-      )
+      return <UserMessageBlock content={block.content} />
   }
 }

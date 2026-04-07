@@ -35,8 +35,8 @@ A sandboxed AI coding agent platform. Run AI-powered coding sessions inside isol
 docker compose up
 ```
 
-- Orchestrator API: http://localhost:8080
-- Web UI: http://localhost:3000
+- Orchestrator API: http://localhost:9090
+- Web UI: http://localhost:3737
 
 ### Development (separate terminals)
 

@@ -55,7 +55,7 @@ export function ToolCallBlock({
   if (isRunning) {
     return (
       <div className="rounded-lg border-l-2 border-l-state-tool-use bg-inset">
-        <div className="flex items-center gap-2 px-3 py-2.5">
+        <div className="flex items-center gap-2 px-3 py-1.5">
           <Spinner className="size-3 text-state-tool-use" />
           <span className="rounded bg-state-tool-use/10 px-1.5 py-0.5 font-terminal text-[10px] uppercase tracking-wider text-state-tool-use/70">
             tool
@@ -66,10 +66,10 @@ export function ToolCallBlock({
         </div>
         {/* Always show input preview when running */}
         {hasInput && (
-          <div className="border-t border-border/20 px-3 py-2">
+          <div className="border-t border-border/20 px-3 py-1">
             <button
               onClick={() => setArgsExpanded(!argsExpanded)}
-              className="mb-1 flex items-center gap-1 font-terminal text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="mb-0.5 flex items-center gap-1 font-terminal text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               <ChevronRight
                 size={10}
@@ -89,7 +89,7 @@ export function ToolCallBlock({
           </div>
         )}
         {/* Shimmer bar */}
-        <div className="mx-3 mb-2 h-0.5 overflow-hidden rounded-full bg-border/20">
+        <div className="mx-3 mb-1 h-0.5 overflow-hidden rounded-full bg-border/20">
           <div className="h-full w-1/3 rounded-full bg-state-tool-use animate-shimmer" />
         </div>
       </div>
@@ -100,7 +100,7 @@ export function ToolCallBlock({
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-lg border-l-2 border-l-state-completed bg-card px-3 py-2.5 text-sm transition-colors hover:bg-card/80">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-lg border-l-2 border-l-state-completed bg-card px-3 py-1.5 text-sm transition-colors hover:bg-card/80">
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
         <span className="rounded bg-state-completed/10 px-1.5 py-0.5 font-terminal text-[10px] uppercase tracking-wider text-state-completed/70">
           tool
@@ -119,9 +119,9 @@ export function ToolCallBlock({
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="ml-1 border-l border-border/20 pl-3">
+        <div className="ml-0.5 border-l border-border/20 pl-2">
           {hasInput && (
-            <div className="pt-2">
+            <div className="pt-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -136,18 +136,18 @@ export function ToolCallBlock({
                 Input
               </button>
               {argsExpanded && (
-                <pre className="mt-1 overflow-x-auto rounded-md bg-inset p-2 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/70">
+                <pre className="mt-1 overflow-x-auto rounded-md bg-inset p-1.5 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/70">
                   {formatJson(input)}
                 </pre>
               )}
             </div>
           )}
           {hasOutput && (
-            <div className="pt-2">
+            <div className="pt-1">
               <span className="font-terminal text-xs text-muted-foreground">
                 Output
               </span>
-              <pre className="mt-1 mb-1 overflow-x-auto rounded-md bg-inset p-3 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
+              <pre className="mt-1 mb-0.5 overflow-x-auto rounded-md bg-inset p-2 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
                 {formatJson(output)}
               </pre>
             </div>

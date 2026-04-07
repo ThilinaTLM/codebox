@@ -21,7 +21,14 @@ export function messagesToBlocks(messages: Array<BoxMessage> | undefined | null)
   let lastExecBlockIdx = -1
 
   for (const msg of messages) {
-    const meta = msg.metadata as Record<string, unknown> | null
+    let meta: Record<string, unknown> | null = null
+    if (msg.metadata_json) {
+      try {
+        meta = JSON.parse(msg.metadata_json)
+      } catch {
+        // ignore malformed metadata
+      }
+    }
 
     // ── User messages ──
     if (msg.role === "user") {
