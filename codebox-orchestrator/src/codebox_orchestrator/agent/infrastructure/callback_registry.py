@@ -1,10 +1,9 @@
-"""In-memory registry for sandbox callback connections.
+"""In-memory registry for box callback connections.
 
-Tracks active connections from sandbox containers and manages
-pending request/response pairs (file ops, exec).
+Tracks active connections from box containers and manages
+pending request/response pairs (queries via the gRPC stream).
 
-Transport-agnostic: uses an asyncio.Queue-based ConnectionHandle
-instead of WebSocket directly.
+Transport-agnostic: uses an asyncio.Queue-based ConnectionHandle.
 """
 
 from __future__ import annotations
@@ -15,18 +14,13 @@ from typing import Any
 
 
 class ConnectionHandle:
-    """Abstraction over a command channel to a sandbox container."""
+    """Abstraction over a command channel to a box container.
+
+    The command queue holds BoxCommand protobuf objects directly.
+    """
 
     def __init__(self) -> None:
         self.command_queue: asyncio.Queue[Any] = asyncio.Queue()
-
-    async def send_command(self, command: Any) -> None:
-        """Put a command (protobuf or dict) on the queue."""
-        await self.command_queue.put(command)
-
-    async def send_json(self, msg: dict[str, Any]) -> None:
-        """Convenience for dict-based commands (backward compat during migration)."""
-        await self.command_queue.put(msg)
 
 
 class CallbackRegistry:
@@ -35,10 +29,10 @@ class CallbackRegistry:
     def __init__(self) -> None:
         # entity_id → ConnectionHandle
         self._connections: dict[str, ConnectionHandle] = {}
-        # entity_id → asyncio.Event (signals when sandbox connects)
+        # entity_id → asyncio.Event (signals when box connects)
         self._connected_events: dict[str, asyncio.Event] = {}
-        # (entity_id, request_id) → asyncio.Future for file/exec ops
-        self._pending_requests: dict[tuple[str, str], asyncio.Future[dict[str, Any]]] = {}
+        # (entity_id, request_id) → asyncio.Future for query responses
+        self._pending_requests: dict[tuple[str, str], asyncio.Future[Any]] = {}
         # entity_id → {activity, task_outcome, task_outcome_message} — last-known live state
         self._live_state: dict[str, dict[str, str]] = {}
 
@@ -48,7 +42,7 @@ class CallbackRegistry:
             self._connected_events[entity_id] = asyncio.Event()
 
     def set_connection(self, entity_id: str, handle: ConnectionHandle) -> None:
-        """Store the connection handle from a sandbox container."""
+        """Store the connection handle from a box container."""
         self._connections[entity_id] = handle
         event = self._connected_events.get(entity_id)
         if event:
@@ -62,7 +56,7 @@ class CallbackRegistry:
         """Clean up connection state (keeps token alive for reconnection)."""
         self._connections.pop(entity_id, None)
         self._connected_events.pop(entity_id, None)
-        # Cancel any pending file-op futures
+        # Cancel any pending query futures
         to_remove = [k for k in self._pending_requests if k[0] == entity_id]
         for key in to_remove:
             fut = self._pending_requests.pop(key)
@@ -87,7 +81,7 @@ class CallbackRegistry:
         return dict(self._live_state.get(entity_id, {}))
 
     async def wait_for_connection(self, entity_id: str, timeout: float = 60.0) -> bool:  # noqa: ASYNC109
-        """Wait until the sandbox connects back, or timeout."""
+        """Wait until the box connects back, or timeout."""
         event = self._connected_events.get(entity_id)
         if event is None:
             return False
@@ -98,18 +92,16 @@ class CallbackRegistry:
         else:
             return True
 
-    def create_pending_request(self, entity_id: str) -> tuple[str, asyncio.Future[dict[str, Any]]]:
-        """Create a future for a file-op request/response. Returns (request_id, future)."""
+    def create_pending_request(self, entity_id: str) -> tuple[str, asyncio.Future[Any]]:
+        """Create a future for a query request/response. Returns (request_id, future)."""
         request_id = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
-        fut: asyncio.Future[dict[str, Any]] = loop.create_future()
+        fut: asyncio.Future[Any] = loop.create_future()
         self._pending_requests[(entity_id, request_id)] = fut
         return request_id, fut
 
-    def resolve_pending_request(
-        self, entity_id: str, request_id: str, data: dict[str, Any]
-    ) -> None:
-        """Resolve a pending file-op future with the response data."""
+    def resolve_pending_request(self, entity_id: str, request_id: str, data: Any) -> None:
+        """Resolve a pending query future with the response data."""
         key = (entity_id, request_id)
         fut = self._pending_requests.pop(key, None)
         if fut and not fut.done():

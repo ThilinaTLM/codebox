@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from . import sandbox_pb2 as codebox_dot_sandbox_dot_sandbox__pb2
+from . import box_pb2 as codebox_dot_box_dot_box__pb2
 
 GRPC_GENERATED_VERSION = '1.78.0'
 GRPC_VERSION = grpc.__version__
@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in codebox/sandbox/sandbox_pb2_grpc.py depends on'
+        + ' but the generated code in codebox/box/box_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class SandboxServiceStub(object):
+class BoxServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -35,40 +35,41 @@ class SandboxServiceStub(object):
             channel: A grpc.Channel.
         """
         self.Connect = channel.stream_stream(
-                '/codebox.sandbox.SandboxService/Connect',
-                request_serializer=codebox_dot_sandbox_dot_sandbox__pb2.SandboxEvent.SerializeToString,
-                response_deserializer=codebox_dot_sandbox_dot_sandbox__pb2.OrchestratorCommand.FromString,
+                '/codebox.box.BoxService/Connect',
+                request_serializer=codebox_dot_box_dot_box__pb2.BoxEvent.SerializeToString,
+                response_deserializer=codebox_dot_box_dot_box__pb2.BoxCommand.FromString,
                 _registered_method=True)
 
 
-class SandboxServiceServicer(object):
+class BoxServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Connect(self, request_iterator, context):
-        """Sandbox opens this on startup. Stays open for the container's lifetime.
-        Sandbox sends events, orchestrator sends commands.
+        """Opened once on container startup. Stays open for the container's lifetime.
+        Box sends events (agent output, state changes, query results).
+        Orchestrator sends commands (messages, cancellation, queries).
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_SandboxServiceServicer_to_server(servicer, server):
+def add_BoxServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Connect': grpc.stream_stream_rpc_method_handler(
                     servicer.Connect,
-                    request_deserializer=codebox_dot_sandbox_dot_sandbox__pb2.SandboxEvent.FromString,
-                    response_serializer=codebox_dot_sandbox_dot_sandbox__pb2.OrchestratorCommand.SerializeToString,
+                    request_deserializer=codebox_dot_box_dot_box__pb2.BoxEvent.FromString,
+                    response_serializer=codebox_dot_box_dot_box__pb2.BoxCommand.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'codebox.sandbox.SandboxService', rpc_method_handlers)
+            'codebox.box.BoxService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('codebox.sandbox.SandboxService', rpc_method_handlers)
+    server.add_registered_method_handlers('codebox.box.BoxService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class SandboxService(object):
+class BoxService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -85,9 +86,9 @@ class SandboxService(object):
         return grpc.experimental.stream_stream(
             request_iterator,
             target,
-            '/codebox.sandbox.SandboxService/Connect',
-            codebox_dot_sandbox_dot_sandbox__pb2.SandboxEvent.SerializeToString,
-            codebox_dot_sandbox_dot_sandbox__pb2.OrchestratorCommand.FromString,
+            '/codebox.box.BoxService/Connect',
+            codebox_dot_box_dot_box__pb2.BoxEvent.SerializeToString,
+            codebox_dot_box_dot_box__pb2.BoxCommand.FromString,
             options,
             channel_credentials,
             insecure,

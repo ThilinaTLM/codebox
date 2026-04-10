@@ -1,7 +1,7 @@
 """Callback client: connects outbound to the orchestrator via gRPC.
 
 On startup, creates a session locally, then connects to the orchestrator's
-gRPC SandboxService and enters a bidirectional streaming loop.
+gRPC BoxService and enters a bidirectional streaming loop.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from codebox_agent.agent_runner import (
 )
 from codebox_agent.message_store import MessageStore
 from codebox_agent.sessions import SessionManager
-from codebox_sandbox.grpc.generated.codebox.sandbox import sandbox_pb2, sandbox_pb2_grpc
+from codebox_sandbox.grpc.generated.codebox.box import box_pb2, box_pb2_grpc
 from codebox_sandbox.prompts import SANDBOX_ENVIRONMENT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -139,24 +139,22 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
     current_activity = "idle"
 
     async with grpc_aio.insecure_channel(grpc_address) as channel:
-        stub = sandbox_pb2_grpc.SandboxServiceStub(channel)
+        stub = box_pb2_grpc.BoxServiceStub(channel)
 
         # Outbound event queue
-        outbound: asyncio.Queue[sandbox_pb2.SandboxEvent | None] = asyncio.Queue()
+        outbound: asyncio.Queue[box_pb2.BoxEvent | None] = asyncio.Queue()
 
         async def event_iterator():
             """Async generator that yields events to send to the orchestrator."""
             # First event is always Register
-            yield sandbox_pb2.SandboxEvent(
-                register=sandbox_pb2.RegisterEvent(session_id=session_id)
-            )
+            yield box_pb2.BoxEvent(register=box_pb2.RegisterEvent(session_id=session_id))
             while True:
                 event = await outbound.get()
                 if event is None:
                     break
                 yield event
 
-        # Send callback
+        # Send callback — converts agent dicts to protobuf and enqueues
         async def send(msg: dict) -> None:
             """Convert a dict event to protobuf and enqueue it.
 
@@ -262,58 +260,65 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                     session.current_task = current_task
                     current_task.add_done_callback(_on_task_done)
 
-                elif field == "exec":
-                    command_str = command.exec.content
-                    logger.info(
-                        "Received exec command: %s (session %s)",
-                        command_str[:100] if command_str else "",
-                        session_id,
-                    )
-                    if not command_str:
-                        await send({"type": "error", "detail": "Empty exec command"})
-                        continue
-
-                    request_id = command.exec.request_id
-                    await _cancel_current()
-                    current_task = asyncio.create_task(
-                        run_exec(
-                            send,
-                            command_str,
-                            session_id,
-                            manager,
-                            request_id=request_id,
-                            workspace_root=_WORKSPACE_ROOT,
-                        )
-                    )
-                    session.current_task = current_task
-                    current_task.add_done_callback(_on_task_done)
-
                 elif field == "cancel":
                     await _cancel_current()
                     session.current_task = None
                     logger.info("Cancelled running task for session %s", session_id)
 
-                elif field == "list_files":
-                    path = command.list_files.path or str(_WORKSPACE_ROOT)
-                    request_id = command.list_files.request_id
-                    logger.debug("Received list_files command: path=%s", path)
-                    await handle_list_files(send, path, request_id, workspace_root=_WORKSPACE_ROOT)
+                elif field == "query":
+                    query = command.query
+                    request_id = query.request_id
+                    query_field = query.WhichOneof("request")
 
-                elif field == "read_file":
-                    path = command.read_file.path
-                    request_id = command.read_file.request_id
-                    logger.debug("Received read_file command: path=%s", path)
-                    await handle_read_file(send, path, request_id, workspace_root=_WORKSPACE_ROOT)
+                    if query_field == "list_files":
+                        path = query.list_files.path or str(_WORKSPACE_ROOT)
+                        logger.debug("Received list_files query: path=%s", path)
+                        await handle_list_files(
+                            send, path, request_id, workspace_root=_WORKSPACE_ROOT
+                        )
 
-                elif field == "get_messages":
-                    request_id = command.get_messages.request_id
-                    await _handle_get_messages(outbound, message_store, request_id)
+                    elif query_field == "read_file":
+                        path = query.read_file.path
+                        logger.debug("Received read_file query: path=%s", path)
+                        await handle_read_file(
+                            send, path, request_id, workspace_root=_WORKSPACE_ROOT
+                        )
 
-                elif field == "get_box_state":
-                    request_id = command.get_box_state.request_id
-                    await _handle_get_box_state(
-                        outbound, message_store, request_id, current_activity
-                    )
+                    elif query_field == "exec":
+                        command_str = query.exec.command
+                        logger.info(
+                            "Received exec query: %s (session %s)",
+                            command_str[:100] if command_str else "",
+                            session_id,
+                        )
+                        if not command_str:
+                            await send({"type": "error", "detail": "Empty exec command"})
+                            continue
+
+                        await _cancel_current()
+                        current_task = asyncio.create_task(
+                            run_exec(
+                                send,
+                                command_str,
+                                session_id,
+                                manager,
+                                request_id=request_id,
+                                workspace_root=_WORKSPACE_ROOT,
+                            )
+                        )
+                        session.current_task = current_task
+                        current_task.add_done_callback(_on_task_done)
+
+                    elif query_field == "get_messages":
+                        await _handle_get_messages(outbound, message_store, request_id)
+
+                    elif query_field == "get_box_state":
+                        await _handle_get_box_state(
+                            outbound, message_store, request_id, current_activity
+                        )
+
+                    else:
+                        logger.warning("Unknown query type: %s", query_field)
 
                 else:
                     logger.warning("Unknown command type: %s", field)
@@ -330,14 +335,14 @@ async def _handle_get_messages(
     store: MessageStore,
     request_id: str,
 ) -> None:
-    """Handle GetMessagesCommand: read messages from store and send back."""
+    """Handle GetMessagesQuery: read messages from store and send back."""
     messages = await store.get_messages()
     proto_messages = []
     for m in messages:
         tool_calls = []
         if m.get("tool_calls"):
             tool_calls = [
-                sandbox_pb2.ToolCall(
+                box_pb2.ToolCall(
                     id=tc.get("id", ""),
                     name=tc.get("name", ""),
                     args_json=tc.get("args_json", ""),
@@ -345,7 +350,7 @@ async def _handle_get_messages(
                 for tc in m["tool_calls"]
             ]
         proto_messages.append(
-            sandbox_pb2.ChatMessage(
+            box_pb2.ChatMessage(
                 role=m.get("role", ""),
                 content=m.get("content", "") or "",
                 tool_calls=tool_calls,
@@ -354,10 +359,10 @@ async def _handle_get_messages(
                 metadata_json=m.get("metadata_json", "") or "",
             )
         )
-    event = sandbox_pb2.SandboxEvent(
-        get_messages_result=sandbox_pb2.GetMessagesResultEvent(
+    event = box_pb2.BoxEvent(
+        query_result=box_pb2.QueryResult(
             request_id=request_id,
-            messages=proto_messages,
+            get_messages=box_pb2.GetMessagesResult(messages=proto_messages),
         )
     )
     await outbound.put(event)
@@ -369,127 +374,195 @@ async def _handle_get_box_state(
     request_id: str,
     current_activity: str,
 ) -> None:
-    """Handle GetBoxStateCommand: read state from store and send back."""
+    """Handle GetBoxStateQuery: read state from store and send back."""
     task_outcome = await store.get_state("task_outcome") or ""
     task_outcome_message = await store.get_state("task_outcome_message") or ""
-    event = sandbox_pb2.SandboxEvent(
-        get_box_state_result=sandbox_pb2.GetBoxStateResultEvent(
+    event = box_pb2.BoxEvent(
+        query_result=box_pb2.QueryResult(
             request_id=request_id,
-            activity=current_activity,
-            task_outcome=task_outcome,
-            task_outcome_message=task_outcome_message,
+            get_box_state=box_pb2.GetBoxStateResult(
+                activity=current_activity,
+                task_outcome=task_outcome,
+                task_outcome_message=task_outcome_message,
+            ),
         )
     )
     await outbound.put(event)
 
 
-def _dict_to_event(msg: dict[str, Any]) -> sandbox_pb2.SandboxEvent | None:  # noqa: PLR0911, PLR0912
-    """Convert a dict event to a protobuf SandboxEvent."""
+# ──────────────────────────────────────────────────────────────
+# Dict → Protobuf conversion (thin layer at sandbox boundary)
+# ──────────────────────────────────────────────────────────────
+
+
+def _build_message_completed(msg: dict[str, Any]) -> box_pb2.AgentOutput:
+    """Build a MessageCompleted agent output from a dict."""
+    msg_data = msg.get("message", {})
+    tool_calls = [
+        box_pb2.ToolCall(
+            id=tc.get("id", ""),
+            name=tc.get("name", ""),
+            args_json=tc.get("args_json", ""),
+        )
+        for tc in msg_data.get("tool_calls", [])
+    ]
+    chat_msg = box_pb2.ChatMessage(
+        role=msg_data.get("role", ""),
+        content=msg_data.get("content", ""),
+        tool_calls=tool_calls,
+        tool_call_id=msg_data.get("tool_call_id", ""),
+        tool_name=msg_data.get("tool_name", ""),
+        metadata_json=msg_data.get("metadata_json", ""),
+    )
+    return box_pb2.AgentOutput(message_completed=box_pb2.MessageCompleted(message=chat_msg))
+
+
+# Builder registries — declarative mapping from dict type to protobuf
+_AGENT_OUTPUT_BUILDERS: dict[str, Any] = {
+    "token": lambda m: box_pb2.AgentOutput(token=box_pb2.TokenChunk(text=m.get("text", ""))),
+    "thinking_token": lambda m: box_pb2.AgentOutput(
+        thinking=box_pb2.ThinkingChunk(text=m.get("text", ""))
+    ),
+    "model_start": lambda _: box_pb2.AgentOutput(model_started=box_pb2.ModelStarted()),
+    "tool_start": lambda m: box_pb2.AgentOutput(
+        tool_started=box_pb2.ToolStarted(
+            name=m.get("name", ""),
+            tool_call_id=m.get("tool_call_id", ""),
+            input_json=m.get("input", ""),
+        )
+    ),
+    "tool_exec_output": lambda m: box_pb2.AgentOutput(
+        tool_output=box_pb2.ToolOutput(
+            output=m.get("output", ""),
+            tool_call_id=m.get("tool_call_id", ""),
+        )
+    ),
+    "tool_end": lambda m: box_pb2.AgentOutput(
+        tool_finished=box_pb2.ToolFinished(name=m.get("name", ""), output=m.get("output", ""))
+    ),
+    "message_complete": _build_message_completed,
+    "exec_output": lambda m: box_pb2.AgentOutput(
+        exec_chunk=box_pb2.ExecChunk(
+            output=m.get("output", ""),
+            request_id=m.get("request_id", ""),
+        )
+    ),
+}
+
+_STATE_CHANGE_BUILDERS: dict[str, Any] = {
+    "activity_changed": lambda m: box_pb2.StateChange(
+        activity=box_pb2.ActivityChanged(status=m.get("status", ""))
+    ),
+    "task_outcome": lambda m: box_pb2.StateChange(
+        outcome=box_pb2.TaskOutcome(status=m.get("status", ""), message=m.get("message", ""))
+    ),
+}
+
+_LIFECYCLE_BUILDERS: dict[str, Any] = {
+    "done": lambda m: box_pb2.BoxEvent(done=box_pb2.DoneEvent(content=m.get("content", ""))),
+    "error": lambda m: box_pb2.BoxEvent(error=box_pb2.ErrorEvent(detail=m.get("detail", ""))),
+}
+
+
+def _build_list_files_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
+    """Build a ListFilesResult query result from a dict."""
+    request_id = msg.get("request_id", "")
+    error = msg.get("error", "")
+    if error:
+        result = box_pb2.ListFilesResult(error=error)
+    else:
+        data = msg.get("data", {})
+        entries = [
+            box_pb2.FileEntry(
+                name=e.get("name", ""),
+                path=e.get("path", ""),
+                is_dir=e.get("is_dir", False),
+                size=e.get("size") or 0,
+            )
+            for e in data.get("entries", [])
+        ]
+        result = box_pb2.ListFilesResult(entries=entries)
+    return box_pb2.BoxEvent(
+        query_result=box_pb2.QueryResult(request_id=request_id, list_files=result)
+    )
+
+
+def _build_read_file_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
+    """Build a ReadFileResult query result from a dict."""
+    request_id = msg.get("request_id", "")
+    error = msg.get("error", "")
+    if error:
+        result = box_pb2.ReadFileResult(error=error)
+    else:
+        data = msg.get("data", {})
+        content = data.get("content", "")
+        content_b64 = data.get("content_base64", "")
+        if content_b64:
+            # Binary file — send as base64
+            result = box_pb2.ReadFileResult(
+                content=content_b64,
+                encoding="base64",
+                truncated=data.get("truncated", False),
+            )
+        else:
+            result = box_pb2.ReadFileResult(
+                content=content,
+                encoding="utf-8",
+                truncated=data.get("truncated", False),
+            )
+    return box_pb2.BoxEvent(
+        query_result=box_pb2.QueryResult(request_id=request_id, read_file=result)
+    )
+
+
+def _build_exec_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
+    """Build an ExecResult query result from a dict."""
+    request_id = msg.get("request_id", "")
+    output = msg.get("output", "")
+    # The agent_runner sends exit code as string in the "output" field
+    try:
+        exit_code = int(output)
+    except (ValueError, TypeError):
+        exit_code = -1
+    return box_pb2.BoxEvent(
+        query_result=box_pb2.QueryResult(
+            request_id=request_id,
+            exec=box_pb2.ExecResult(exit_code=exit_code),
+        )
+    )
+
+
+# Query result builders — for events that come back from agent_runner file/exec handlers
+_QUERY_RESULT_BUILDERS: dict[str, Any] = {
+    "list_files_result": _build_list_files_result,
+    "read_file_result": _build_read_file_result,
+    "exec_done": _build_exec_result,
+}
+
+
+def _dict_to_event(msg: dict[str, Any]) -> box_pb2.BoxEvent | None:
+    """Convert an agent dict event to a BoxEvent protobuf.
+
+    Uses builder registries for declarative mapping. Each event type
+    is handled by a single entry in one of the registries.
+    """
     msg_type = msg.get("type", "")
 
-    if msg_type == "token":
-        return sandbox_pb2.SandboxEvent(token=sandbox_pb2.TokenEvent(text=msg.get("text", "")))
-    if msg_type == "model_start":
-        return sandbox_pb2.SandboxEvent(model_start=sandbox_pb2.ModelStartEvent())
-    if msg_type == "tool_start":
-        return sandbox_pb2.SandboxEvent(
-            tool_start=sandbox_pb2.ToolStartEvent(
-                name=msg.get("name", ""),
-                tool_call_id=msg.get("tool_call_id", ""),
-                input=msg.get("input", ""),
-            )
-        )
-    if msg_type == "tool_end":
-        return sandbox_pb2.SandboxEvent(
-            tool_end=sandbox_pb2.ToolEndEvent(
-                name=msg.get("name", ""),
-                output=msg.get("output", ""),
-            )
-        )
-    if msg_type == "message_complete":
-        msg_data = msg.get("message", {})
-        tool_calls = [
-            sandbox_pb2.ToolCall(
-                id=tc.get("id", ""),
-                name=tc.get("name", ""),
-                args_json=tc.get("args_json", ""),
-            )
-            for tc in msg_data.get("tool_calls", [])
-        ]
-        chat_msg = sandbox_pb2.ChatMessage(
-            role=msg_data.get("role", ""),
-            content=msg_data.get("content", ""),
-            tool_calls=tool_calls,
-            tool_call_id=msg_data.get("tool_call_id", ""),
-            tool_name=msg_data.get("tool_name", ""),
-            metadata_json=msg_data.get("metadata_json", ""),
-        )
-        return sandbox_pb2.SandboxEvent(
-            message_complete=sandbox_pb2.MessageCompleteEvent(message=chat_msg)
-        )
-    if msg_type == "done":
-        return sandbox_pb2.SandboxEvent(done=sandbox_pb2.DoneEvent(content=msg.get("content", "")))
-    if msg_type == "error":
-        return sandbox_pb2.SandboxEvent(error=sandbox_pb2.ErrorEvent(detail=msg.get("detail", "")))
-    if msg_type == "exec_output":
-        return sandbox_pb2.SandboxEvent(
-            exec_output=sandbox_pb2.ExecOutputEvent(
-                output=msg.get("output", ""),
-                request_id=msg.get("request_id", ""),
-            )
-        )
-    if msg_type == "exec_done":
-        return sandbox_pb2.SandboxEvent(
-            exec_done=sandbox_pb2.ExecDoneEvent(
-                output=msg.get("output", ""),
-                request_id=msg.get("request_id", ""),
-            )
-        )
-    if msg_type == "list_files_result":
-        data = msg.get("data")
-        error = msg.get("error", "")
-        return sandbox_pb2.SandboxEvent(
-            list_files_result=sandbox_pb2.ListFilesResultEvent(
-                request_id=msg.get("request_id", ""),
-                data_json=json.dumps(data) if data else "",
-                error=error or "",
-            )
-        )
-    if msg_type == "read_file_result":
-        data = msg.get("data")
-        error = msg.get("error", "")
-        return sandbox_pb2.SandboxEvent(
-            read_file_result=sandbox_pb2.ReadFileResultEvent(
-                request_id=msg.get("request_id", ""),
-                data_json=json.dumps(data) if data else "",
-                error=error or "",
-            )
-        )
-    if msg_type == "activity_changed":
-        return sandbox_pb2.SandboxEvent(
-            activity_changed=sandbox_pb2.ActivityChangedEvent(
-                status=msg.get("status", ""),
-            )
-        )
-    if msg_type == "task_outcome":
-        return sandbox_pb2.SandboxEvent(
-            task_outcome=sandbox_pb2.TaskOutcomeEvent(
-                status=msg.get("status", ""),
-                message=msg.get("message", ""),
-            )
-        )
-    if msg_type == "tool_exec_output":
-        return sandbox_pb2.SandboxEvent(
-            tool_exec_output=sandbox_pb2.ToolExecOutputEvent(
-                output=msg.get("output", ""),
-                tool_call_id=msg.get("tool_call_id", ""),
-            )
-        )
-    if msg_type == "thinking_token":
-        return sandbox_pb2.SandboxEvent(
-            thinking_token=sandbox_pb2.ThinkingTokenEvent(
-                text=msg.get("text", ""),
-            )
-        )
+    # Agent output events (tokens, tools, messages, exec chunks)
+    if msg_type in _AGENT_OUTPUT_BUILDERS:
+        return box_pb2.BoxEvent(agent_output=_AGENT_OUTPUT_BUILDERS[msg_type](msg))
+
+    # State change events (activity, task outcome)
+    if msg_type in _STATE_CHANGE_BUILDERS:
+        return box_pb2.BoxEvent(state_change=_STATE_CHANGE_BUILDERS[msg_type](msg))
+
+    # Lifecycle events (done, error)
+    if msg_type in _LIFECYCLE_BUILDERS:
+        return _LIFECYCLE_BUILDERS[msg_type](msg)
+
+    # Query results (file ops, exec done) — from agent_runner handlers
+    if msg_type in _QUERY_RESULT_BUILDERS:
+        return _QUERY_RESULT_BUILDERS[msg_type](msg)
+
     logger.debug("Unknown event type for protobuf conversion: %s", msg_type)
     return None

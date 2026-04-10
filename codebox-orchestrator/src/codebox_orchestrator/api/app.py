@@ -93,7 +93,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
         # --- Application layer: Agent commands & queries ---
         from codebox_orchestrator.agent.application.commands.handle_sandbox_event import (  # noqa: PLC0415
-            HandleSandboxEventHandler,
+            HandleBoxEventHandler,
         )
         from codebox_orchestrator.agent.application.commands.send_exec import (  # noqa: PLC0415
             SendExecHandler,
@@ -108,7 +108,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
         send_message_handler = SendMessageHandler(event_publisher, agent_connections)
         send_exec_handler = SendExecHandler(event_publisher, agent_connections)
-        event_handler = HandleSandboxEventHandler(event_publisher, registry)
+        event_handler = HandleBoxEventHandler(event_publisher, registry)
         list_files_handler = ListFilesHandler(agent_connections)
         read_file_handler = ReadFileHandler(agent_connections)
 

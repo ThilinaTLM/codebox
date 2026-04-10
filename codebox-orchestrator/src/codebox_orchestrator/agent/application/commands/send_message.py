@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
+from codebox_orchestrator.agent.infrastructure.grpc.generated.codebox.box import box_pb2
 
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.ports.agent_connection import AgentConnectionManager
@@ -25,7 +26,8 @@ class SendMessageHandler:
         event_data = {"type": "user_message", "content": content}
         await self._publisher.publish_box_event(box_id, event_data)
 
-        # Forward to sandbox (sandbox persists messages in its own SQLite)
+        # Forward to box (box persists messages in its own SQLite)
         if not self._connections.has_connection(box_id):
             raise NoActiveConnectionError(box_id)
-        await self._connections.send_command(box_id, {"type": "message", "content": content})
+        cmd = box_pb2.BoxCommand(message=box_pb2.SendMessage(content=content))
+        await self._connections.send_command(box_id, cmd)

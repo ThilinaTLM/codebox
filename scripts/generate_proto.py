@@ -30,26 +30,26 @@ for out_dir in OUT_DIRS:
             f"--python_out={out_dir}",
             f"--grpc_python_out={out_dir}",
             f"--pyi_out={out_dir}",
-            str(PROTO_DIR / "codebox/sandbox/sandbox.proto"),
+            str(PROTO_DIR / "codebox/box/box.proto"),
         ]
     )
     if result != 0:
         raise SystemExit(f"protoc failed with code {result} for {out_dir}")
 
     # Fix imports: grpc_tools generates absolute imports
-    # (e.g. "from codebox.sandbox import sandbox_pb2") but we need relative
+    # (e.g. "from codebox.box import box_pb2") but we need relative
     # ones since the generated files live inside the package.
-    grpc_file = out_dir / "codebox/sandbox/sandbox_pb2_grpc.py"
+    grpc_file = out_dir / "codebox/box/box_pb2_grpc.py"
     grpc_file.write_text(
         re.sub(
-            r"from codebox\.sandbox import",
+            r"from codebox\.box import",
             "from . import",
             grpc_file.read_text(),
         )
     )
 
     # Create __init__.py files for the generated package
-    for init_dir in [out_dir, out_dir / "codebox", out_dir / "codebox/sandbox"]:
+    for init_dir in [out_dir, out_dir / "codebox", out_dir / "codebox/box"]:
         (init_dir / "__init__.py").touch()
 
     print(f"Generated stubs in {out_dir}")

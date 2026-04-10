@@ -11,6 +11,9 @@ import logging
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
+from codebox_orchestrator.agent.infrastructure.grpc.generated.codebox.box import box_pb2
+from codebox_orchestrator.agent.infrastructure.grpc.sse_convert import _chat_message_to_sse
+
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
     from codebox_orchestrator.agent.infrastructure.connection_adapter import AgentConnectionAdapter
@@ -97,18 +100,21 @@ class BoxQueryService:
         return view
 
     async def get_messages(self, box_id: str) -> list[dict[str, Any]]:
-        """Get messages from sandbox via gRPC."""
-        result = await self._connections.send_and_wait(
-            box_id, {"type": "get_messages"}, timeout=10.0
-        )
-        return result.get("messages", [])
+        """Get messages from box via gRPC query."""
+        query = box_pb2.Query(get_messages=box_pb2.GetMessagesQuery())
+        result = await self._connections.send_query(box_id, query, timeout=10.0)
+        return [_chat_message_to_sse(m) for m in result.get_messages.messages]
 
     async def get_box_state(self, box_id: str) -> dict[str, str]:
-        """Get live box state from sandbox via gRPC."""
-        result = await self._connections.send_and_wait(
-            box_id, {"type": "get_box_state"}, timeout=10.0
-        )
-        return result
+        """Get live box state from box via gRPC query."""
+        query = box_pb2.Query(get_box_state=box_pb2.GetBoxStateQuery())
+        result = await self._connections.send_query(box_id, query, timeout=10.0)
+        bs = result.get_box_state
+        return {
+            "activity": bs.activity,
+            "task_outcome": bs.task_outcome,
+            "task_outcome_message": bs.task_outcome_message,
+        }
 
     def _container_to_view(self, c) -> BoxView:
         """Convert a ContainerInfo to a BoxView, enriched with gRPC state."""
