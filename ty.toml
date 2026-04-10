@@ -5,7 +5,6 @@ python-version = "3.12"
 # so ty can resolve both first-party and third-party imports.
 root = [
     "codebox-agent/src",
-    "codebox-cli/src",
     "codebox-github-action/src",
     "codebox-orchestrator/src",
     "codebox-sandbox/src",
@@ -13,13 +12,11 @@ root = [
 
 extra-paths = [
     "codebox-agent/src",
-    "codebox-cli/src",
     "codebox-github-action/src",
     "codebox-orchestrator/src",
     "codebox-sandbox/src",
     "codebox-orchestrator/.venv/lib/python3.12/site-packages",
     "codebox-agent/.venv/lib/python3.12/site-packages",
-    "codebox-cli/.venv/lib/python3.12/site-packages",
     "codebox-sandbox/.venv/lib/python3.12/site-packages",
     "codebox-github-action/.venv/lib/python3.12/site-packages",
 ]

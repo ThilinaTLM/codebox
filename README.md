@@ -5,7 +5,6 @@ Codebox is a monorepo for running AI coding agents inside isolated **Boxes**.
 It includes:
 - a FastAPI orchestrator that manages Box lifecycle
 - a React web UI for creating and monitoring Boxes
-- a CLI for interacting with the orchestrator
 - a container runtime that calls back to the orchestrator over gRPC
 - a shared agent library used by the sandbox runtime and GitHub Action
 
@@ -15,7 +14,7 @@ It includes:
 
 ```text
 codebox-web-ui  ─┐
-codebox-cli     ─┼─ REST + SSE ──> codebox-orchestrator ──> Docker/Podman
+                 ├─ REST + SSE ──> codebox-orchestrator ──> Docker/Podman
 external tools  ─┘                         │
                                            │ manages Box containers
                                            ▼
@@ -32,7 +31,7 @@ codebox-github-action ──> codebox-agent
 
 1. The orchestrator creates a Box container from the `codebox-sandbox` image.
 2. The Box connects back to the orchestrator over gRPC.
-3. The web UI and CLI send commands through the orchestrator REST API.
+3. The web UI sends commands through the orchestrator REST API.
 4. Live output is streamed to clients with SSE.
 5. Box files, messages, logs, and lifecycle state are exposed through orchestrator endpoints.
 
@@ -42,7 +41,6 @@ codebox-github-action ──> codebox-agent
 | --- | --- |
 | `codebox-orchestrator/` | FastAPI service that manages Boxes, persists state, exposes REST endpoints, serves SSE streams, and accepts sandbox gRPC callbacks |
 | `codebox-web-ui/` | TanStack Start + React frontend for creating, viewing, and chatting with Boxes |
-| `codebox-cli/` | CLI client for orchestrator-backed Box workflows |
 | `codebox-sandbox/` | Runtime packaged into Box containers; connects to the orchestrator over gRPC and runs the agent |
 | `codebox-agent/` | Shared agent foundation built on deepagents/LangGraph |
 | `codebox-github-action/` | GitHub Action runner that uses `codebox-agent` |
@@ -122,28 +120,6 @@ pnpm dev
 ```
 
 The web UI runs on `http://localhost:3737` and talks to `http://localhost:9090` by default.
-
-### 5) Use the CLI
-
-```bash
-cd codebox-cli
-uv sync
-
-# Create a Box and stream its output
-uv run codebox box create --name demo --prompt "Summarize this repository"
-
-# List Boxes
-uv run codebox box list
-
-# Reconnect to an existing Box
-uv run codebox box connect <box_id>
-
-# Inspect files from a Box workspace
-uv run codebox box files <box_id>
-uv run codebox box cat <box_id> /workspace/README.md
-```
-
-Set `CODEBOX_ORCHESTRATOR_URL` if the CLI should talk to a different orchestrator.
 
 ## Key ports
 

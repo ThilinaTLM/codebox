@@ -3,7 +3,6 @@ line-length = 99
 
 src = [
     "codebox-orchestrator/src",
-    "codebox-cli/src",
     "codebox-agent/src",
     "codebox-sandbox/src",
     "codebox-github-action/src",
@@ -93,7 +92,6 @@ ignore = [
 [lint.isort]
 known-first-party = [
     "codebox_orchestrator",
-    "codebox_cli",
     "codebox_agent",
     "codebox_sandbox",
     "codebox_github_action",
