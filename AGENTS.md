@@ -1,21 +1,19 @@
 # AGENTS.md
 
-This file contains high-signal guidance for coding agents working in this repository. Prefer `README.md` and the codebase itself for discoverable architecture and setup details.
+Prefer `README.md` and the codebase for setup and architecture details.
 
-## Working Rules
+## Rules
 
-- This is a monorepo. Check the local `pyproject.toml`, package manifest, and surrounding code before making changes in any subproject.
-- Match existing patterns and libraries; do not introduce new dependencies or conventions unless the codebase already uses them.
-- Treat `Box` as the primary domain term. It replaced the older task/sandbox naming and should stay consistent in new code.
-- Be careful with generated gRPC/protobuf files. Do not hand-edit generated outputs unless the task explicitly requires regeneration.
+- This is a monorepo. Use the local subproject manifest, lockfile, and tooling before editing. Python packages use per-project `uv` environments; `codebox-web-ui` uses `pnpm`.
+- Use `Box` as the canonical domain term. Legacy task/sandbox wording still exists in older surfaces; do not introduce new uses.
+- Do not hand-edit generated files. This includes `**/grpc/generated/**` and `codebox-web-ui/src/routeTree.gen.ts`.
+- Regenerate protobuf/gRPC stubs with `scripts/generate_proto.py` when proto changes are required.
+- Match existing patterns and dependencies. Do not introduce new libraries or conventions unless the repo already uses them.
+- LLM provider/env plumbing is shared across orchestrator, sandbox, and the GitHub Action. Avoid changing it unless the task requires it.
 
 ## Validation
 
-- Use the repo Makefile and existing project scripts for validation instead of inventing ad hoc commands.
-- Default validation targets are `make check` for local verification and `make ci` for the full formatting/lint/typecheck path.
-- Ruff and ty configuration live at the repo root.
-
-## Practical Notes
-
-- Python subprojects manage their own environments and dependencies.
-- The orchestrator depends on `OPENROUTER_API_KEY` and `OPENROUTER_MODEL`; avoid changing config or env handling unless the task requires it.
+- Use existing repo commands instead of ad hoc validation.
+- Use `make check` for repo-wide Python lint + typecheck.
+- Use `make ci` for the full Python formatting/lint/typecheck path.
+- `make check` and `make ci` do not validate `codebox-web-ui`; use its `pnpm` scripts (`lint`, `typecheck`, `test`) when editing the frontend.
