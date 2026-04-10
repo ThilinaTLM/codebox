@@ -6,7 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from codebox_orchestrator.config import (
@@ -28,8 +28,9 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):  # noqa: PLR0915
-        # --- Database setup (GitHub tables only) ---
+        # --- Database setup ---
         import codebox_orchestrator.integration.github.infrastructure.orm_models as _gh_orm  # noqa: F401, PLC0415
+        from codebox_orchestrator.auth.models import AuthBase  # noqa: PLC0415
         from codebox_orchestrator.shared.persistence.engine import (  # noqa: PLC0415
             async_session_factory,
             engine,
@@ -39,13 +40,19 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             db_path = DATABASE_URL.split("///", 1)[-1]
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-        # Only create GitHub tables
         from codebox_orchestrator.integration.github.infrastructure.orm_models import (  # noqa: PLC0415
             Base as GitHubBase,
         )
 
         async with engine.begin() as conn:
             await conn.run_sync(GitHubBase.metadata.create_all)
+            await conn.run_sync(AuthBase.metadata.create_all)
+
+        # --- Auth service ---
+        from codebox_orchestrator.auth.service import AuthService  # noqa: PLC0415
+
+        auth_service = AuthService(async_session_factory)
+        await auth_service.ensure_default_admin()
 
         # --- Shared infrastructure ---
         from codebox_orchestrator.shared.messaging.global_broadcast import (  # noqa: PLC0415
@@ -221,6 +228,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.global_broadcast = global_broadcast
         app.state.webhook_handler = webhook_handler
         app.state.installation_service = installation_service
+        app.state.auth_service = auth_service
 
         yield
 
@@ -244,15 +252,18 @@ def create_app() -> FastAPI:  # noqa: PLR0915
     )
 
     from codebox_orchestrator.api.routes import (  # noqa: PLC0415
+        auth,
         boxes,
         github,
         models,
         sse,
     )
+    from codebox_orchestrator.auth.dependencies import get_current_user  # noqa: PLC0415
 
-    app.include_router(boxes.router)
-    app.include_router(models.router)
-    app.include_router(sse.router)
+    app.include_router(auth.router)
+    app.include_router(boxes.router, dependencies=[Depends(get_current_user)])
+    app.include_router(models.router, dependencies=[Depends(get_current_user)])
+    app.include_router(sse.router, dependencies=[Depends(get_current_user)])
     app.include_router(github.router)
 
     return app

@@ -188,3 +188,43 @@ export function useRemoveGitHubInstallation() {
     },
   })
 }
+
+// ── Auth queries & mutations ────────────────────────────────
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: () => api.auth.listUsers(),
+  })
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      username: string
+      password: string
+      userType: string
+    }) => api.auth.createUser(data.username, data.password, data.userType),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] })
+    },
+  })
+}
+
+export function useDeleteUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (userId: string) => api.auth.deleteUser(userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] })
+    },
+  })
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (data: { oldPassword: string; newPassword: string }) =>
+      api.auth.changePassword(data.oldPassword, data.newPassword),
+  })
+}

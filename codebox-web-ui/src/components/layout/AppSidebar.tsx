@@ -36,18 +36,20 @@ export function AppSidebar() {
       )}
     >
       {/* Top: Logo */}
-      <div className={cn("flex h-12 shrink-0 items-center border-b border-sidebar-border px-3", collapsed && "justify-center")}>
-        <Link
-          to="/"
-          className="flex items-center gap-2 overflow-hidden"
-        >
+      <div
+        className={cn(
+          "flex h-12 shrink-0 items-center border-b border-sidebar-border px-3",
+          collapsed && "justify-center"
+        )}
+      >
+        <Link to="/" className="flex items-center gap-2 overflow-hidden">
           <img
             src="/codebox-logo.svg"
             alt="Codebox"
             className="size-5 shrink-0"
           />
           {!collapsed && (
-            <span className="font-display truncate text-sm font-semibold text-sidebar-foreground">
+            <span className="truncate font-display text-sm font-semibold text-sidebar-foreground">
               Codebox
             </span>
           )}

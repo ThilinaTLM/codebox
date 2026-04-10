@@ -19,7 +19,7 @@ export function StatusBar() {
   ).length
 
   return (
-    <footer className="flex h-6 shrink-0 items-center justify-between border-t border-border bg-inset px-3 text-xs font-terminal">
+    <footer className="font-terminal flex h-6 shrink-0 items-center justify-between border-t border-border bg-inset px-3 text-xs">
       {/* Left: connection status */}
       <div className="flex items-center gap-1.5">
         <span className="size-1.5 rounded-full bg-state-completed" />

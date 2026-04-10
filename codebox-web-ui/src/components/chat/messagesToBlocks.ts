@@ -9,7 +9,9 @@
 import type { BoxMessage } from "@/net/http/types"
 import type { EventBlock } from "./types"
 
-export function messagesToBlocks(messages: Array<BoxMessage> | undefined | null): Array<EventBlock> {
+export function messagesToBlocks(
+  messages: Array<BoxMessage> | undefined | null
+): Array<EventBlock> {
   if (!messages || !Array.isArray(messages)) return []
   const blocks: Array<EventBlock> = []
 
@@ -54,7 +56,7 @@ export function messagesToBlocks(messages: Array<BoxMessage> | undefined | null)
         const execBlock = blocks[lastExecBlockIdx]
         if (execBlock.kind === "exec_session") {
           execBlock.output = msg.content ?? ""
-          const exitCode = meta?.exit_code
+          const exitCode = meta.exit_code
           if (exitCode != null) {
             execBlock.exitCode = String(exitCode)
           }

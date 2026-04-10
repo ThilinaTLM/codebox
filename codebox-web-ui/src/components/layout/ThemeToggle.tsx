@@ -35,7 +35,9 @@ export function ThemeToggle() {
             icon={Sun03Icon}
             size={14}
             strokeWidth={2}
-            className={theme === "light" ? "text-primary" : "text-muted-foreground"}
+            className={
+              theme === "light" ? "text-primary" : "text-muted-foreground"
+            }
           />
           <span
             className={cn(
@@ -75,7 +77,9 @@ export function ThemeToggle() {
             icon={Moon02Icon}
             size={14}
             strokeWidth={2}
-            className={theme === "dark" ? "text-primary" : "text-muted-foreground"}
+            className={
+              theme === "dark" ? "text-primary" : "text-muted-foreground"
+            }
           />
           <span
             className={cn(

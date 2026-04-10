@@ -69,14 +69,14 @@ export function BoxInput({
         className={cn(
           "relative rounded-lg border bg-inset shadow-sm transition-colors duration-300",
           isWorking
-            ? "border-state-thinking/30 animate-glow-pulse"
+            ? "animate-glow-pulse border-state-thinking/30"
             : "border-border"
         )}
       >
         {/* Prompt glyph */}
         <span
           className={cn(
-            "pointer-events-none absolute top-2.5 left-4 font-terminal text-sm font-medium",
+            "font-terminal pointer-events-none absolute top-2.5 left-4 text-sm font-medium",
             isExecMode ? "text-state-thinking" : "text-primary"
           )}
         >
@@ -97,7 +97,7 @@ export function BoxInput({
             }
           }}
           disabled={disabled}
-          className="w-full resize-none rounded-lg bg-transparent pl-10 pr-14 pt-2.5 pb-2.5 font-terminal text-sm outline-none placeholder:text-ghost disabled:opacity-50"
+          className="font-terminal w-full resize-none rounded-lg bg-transparent pt-2.5 pr-14 pb-2.5 pl-10 text-sm outline-none placeholder:text-ghost disabled:opacity-50"
           style={{
             maxHeight: `${MAX_HEIGHT}px`,
             overflowY: "hidden",

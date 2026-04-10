@@ -1,5 +1,6 @@
 import axios from "axios"
 import type {
+  AuthUser,
   Box,
   BoxCreatePayload,
   BoxMessage,
@@ -9,14 +10,40 @@ import type {
   GitHubInstallation,
   GitHubRepo,
   GitHubStatus,
+  LoginResponse,
   Model,
 } from "./types"
 import { API_URL } from "@/lib/constants"
+import { useAuthStore } from "@/lib/auth"
 
 const client = axios.create({
   baseURL: API_URL,
   headers: { "Content-Type": "application/json" },
 })
+
+// Attach auth token to every request
+client.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().token
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Clear auth state on 401 responses
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      // Don't logout on failed login attempts
+      const url = error.config?.url ?? ""
+      if (!url.endsWith("/auth/login")) {
+        useAuthStore.getState().logout()
+      }
+    }
+    return Promise.reject(error)
+  }
+)
 
 export const api = {
   boxes: {
@@ -82,10 +109,7 @@ export const api = {
       const params = new URLSearchParams({ path })
       return `${API_URL}/api/boxes/${boxId}/files/download?${params.toString()}`
     },
-    logs: async (
-      boxId: string,
-      tail: number = 200
-    ): Promise<ContainerLogs> => {
+    logs: async (boxId: string, tail: number = 200): Promise<ContainerLogs> => {
       const { data } = await client.get<ContainerLogs>(
         `/api/boxes/${boxId}/logs`,
         { params: { tail } }
@@ -99,6 +123,50 @@ export const api = {
         params: provider ? { provider } : undefined,
       })
       return data
+    },
+  },
+  auth: {
+    login: async (
+      username: string,
+      password: string
+    ): Promise<LoginResponse> => {
+      const { data } = await client.post<LoginResponse>("/api/auth/login", {
+        username,
+        password,
+      })
+      return data
+    },
+    me: async (): Promise<AuthUser> => {
+      const { data } = await client.get<AuthUser>("/api/auth/me")
+      return data
+    },
+    changePassword: async (
+      oldPassword: string,
+      newPassword: string
+    ): Promise<void> => {
+      await client.post("/api/auth/change-password", {
+        old_password: oldPassword,
+        new_password: newPassword,
+      })
+    },
+    listUsers: async (): Promise<Array<AuthUser>> => {
+      const { data } = await client.get<Array<AuthUser>>("/api/auth/users")
+      return data
+    },
+    createUser: async (
+      username: string,
+      password: string,
+      userType: string
+    ): Promise<AuthUser> => {
+      const { data } = await client.post<AuthUser>("/api/auth/users", {
+        username,
+        password,
+        user_type: userType,
+      })
+      return data
+    },
+    deleteUser: async (userId: string): Promise<void> => {
+      await client.delete(`/api/auth/users/${userId}`)
     },
   },
   github: {

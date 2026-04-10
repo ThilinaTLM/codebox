@@ -39,3 +39,10 @@ output-format = "full"
 include = ["**/grpc/generated/**"]
 [overrides.rules]
 all = "ignore"
+
+# Scripts use `uv run --script` with inline dependencies (e.g. rich)
+# that aren't installed in any project venv.
+[[overrides]]
+include = ["scripts/**"]
+[overrides.rules]
+unresolved-import = "ignore"

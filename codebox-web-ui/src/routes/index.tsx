@@ -53,7 +53,7 @@ function HomePage() {
               {/* Active agents */}
               {activeBoxes.length > 0 && (
                 <section className="pt-4">
-                  <h2 className="mb-3 text-xs text-ghost uppercase tracking-widest font-terminal">
+                  <h2 className="font-terminal mb-3 text-xs tracking-widest text-ghost uppercase">
                     Active
                   </h2>
                   <AgentTable boxes={activeBoxes} variant="active" />
@@ -63,7 +63,7 @@ function HomePage() {
               {/* Recent agents */}
               {recentBoxes.length > 0 && (
                 <section className="pt-8">
-                  <h2 className="mb-3 text-xs text-ghost uppercase tracking-widest font-terminal">
+                  <h2 className="font-terminal mb-3 text-xs tracking-widest text-ghost uppercase">
                     Recent
                   </h2>
                   <AgentTable boxes={recentBoxes} variant="recent" />
@@ -73,7 +73,7 @@ function HomePage() {
           ) : (
             /* Empty state */
             <div className="flex flex-col items-center justify-center py-32 text-center">
-              <div className="font-terminal text-ghost text-lg">
+              <div className="font-terminal text-lg text-ghost">
                 &gt; no agents running
                 <span className="animate-cursor">_</span>
               </div>

@@ -29,7 +29,10 @@ interface AgentTableProps {
 
 function getStatusDotClass(box: Box): string {
   if (box.container_status === ContainerStatus.RUNNING) {
-    if (box.activity === Activity.AGENT_WORKING || box.activity === Activity.EXEC_SHELL) {
+    if (
+      box.activity === Activity.AGENT_WORKING ||
+      box.activity === Activity.EXEC_SHELL
+    ) {
       return "bg-state-writing"
     }
     return "bg-state-idle"
@@ -49,7 +52,10 @@ function getStatusDotClass(box: Box): string {
 
 function getRowBorderClass(box: Box): string {
   if (box.container_status === ContainerStatus.RUNNING) {
-    if (box.activity === Activity.AGENT_WORKING || box.activity === Activity.EXEC_SHELL) {
+    if (
+      box.activity === Activity.AGENT_WORKING ||
+      box.activity === Activity.EXEC_SHELL
+    ) {
       return "border-l-state-writing"
     }
     return "border-l-state-idle"
@@ -89,23 +95,23 @@ export function AgentTable({ boxes, variant }: AgentTableProps) {
     <table className="w-full">
       <thead>
         <tr className="border-b border-border/30">
-          <th className="w-8 px-3 py-2 text-left text-xs text-ghost uppercase tracking-wider font-terminal font-normal" />
-          <th className="px-3 py-2 text-left text-xs text-ghost uppercase tracking-wider font-terminal font-normal">
+          <th className="font-terminal w-8 px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase" />
+          <th className="font-terminal px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase">
             Name
           </th>
-          <th className="hidden px-3 py-2 text-left text-xs text-ghost uppercase tracking-wider font-terminal font-normal md:table-cell">
+          <th className="font-terminal hidden px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase md:table-cell">
             Status
           </th>
-          <th className="hidden px-3 py-2 text-left text-xs text-ghost uppercase tracking-wider font-terminal font-normal lg:table-cell">
+          <th className="font-terminal hidden px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase lg:table-cell">
             Model
           </th>
-          <th className="hidden px-3 py-2 text-left text-xs text-ghost uppercase tracking-wider font-terminal font-normal sm:table-cell">
+          <th className="font-terminal hidden px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase sm:table-cell">
             Trigger
           </th>
-          <th className="px-3 py-2 text-right text-xs text-ghost uppercase tracking-wider font-terminal font-normal">
+          <th className="font-terminal px-3 py-2 text-right text-xs font-normal tracking-wider text-ghost uppercase">
             Time
           </th>
-          <th className="w-20 px-3 py-2 text-right text-xs text-ghost uppercase tracking-wider font-terminal font-normal" />
+          <th className="font-terminal w-20 px-3 py-2 text-right text-xs font-normal tracking-wider text-ghost uppercase" />
         </tr>
       </thead>
       <tbody>
@@ -170,7 +176,7 @@ function AgentRow({
       <tr
         onClick={onNavigate}
         className={cn(
-          "group border-b border-border/30 hover:bg-accent/30 cursor-pointer transition-colors",
+          "group cursor-pointer border-b border-border/30 transition-colors hover:bg-accent/30",
           variant === "active" && "border-l-2",
           variant === "active" && getRowBorderClass(box)
         )}
@@ -182,7 +188,7 @@ function AgentRow({
             {active && (
               <div
                 className={cn(
-                  "absolute size-2 rounded-full animate-status-ping",
+                  "animate-status-ping absolute size-2 rounded-full",
                   dotClass
                 )}
               />
@@ -193,9 +199,9 @@ function AgentRow({
         {/* Name + preview */}
         <td className="max-w-xs px-3 py-2.5">
           <div className="min-w-0">
-            <div className="font-display font-medium truncate">{box.name}</div>
+            <div className="truncate font-display font-medium">{box.name}</div>
             {preview && (
-              <div className="text-muted-foreground text-sm truncate">
+              <div className="truncate text-sm text-muted-foreground">
                 {preview}
               </div>
             )}
@@ -209,7 +215,10 @@ function AgentRow({
 
         {/* Model */}
         <td className="hidden px-3 py-2.5 lg:table-cell">
-          <Badge variant="outline" className="font-terminal text-xs text-muted-foreground">
+          <Badge
+            variant="outline"
+            className="font-terminal text-xs text-muted-foreground"
+          >
             {box.model}
           </Badge>
         </td>
@@ -228,7 +237,7 @@ function AgentRow({
 
         {/* Time */}
         <td className="px-3 py-2.5 text-right">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
+          <span className="text-xs whitespace-nowrap text-muted-foreground">
             {getTimestamp(box, variant)}
           </span>
         </td>
@@ -236,14 +245,14 @@ function AgentRow({
         {/* Actions */}
         <td className="px-3 py-2.5 text-right">
           <div
-            className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
             onClick={(e) => e.stopPropagation()}
           >
             {active && (
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="text-muted-foreground hover:text-warning"
+                className="hover:text-warning text-muted-foreground"
                 onClick={() => setShowStopDialog(true)}
               >
                 <Square size={15} />
@@ -267,8 +276,8 @@ function AgentRow({
           <AlertDialogHeader>
             <AlertDialogTitle>Stop Agent</AlertDialogTitle>
             <AlertDialogDescription>
-              This will interrupt the running process and stop the agent. You can
-              restart it later.
+              This will interrupt the running process and stop the agent. You
+              can restart it later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

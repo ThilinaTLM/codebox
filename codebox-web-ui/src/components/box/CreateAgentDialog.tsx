@@ -20,7 +20,12 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox"
-import { useCreateBox, useGitHubRepos, useGitHubStatus, useModels } from "@/net/query"
+import {
+  useCreateBox,
+  useGitHubRepos,
+  useGitHubStatus,
+  useModels,
+} from "@/net/query"
 import { generateReadableName } from "@/lib/name-generator"
 
 const PROVIDERS = [
@@ -96,7 +101,10 @@ export function CreateAgentDialog({
         <div className="grid gap-4">
           {/* Name */}
           <div className="grid gap-1.5">
-            <Label htmlFor="agent-name" className="text-xs text-ghost uppercase tracking-wider font-terminal">
+            <Label
+              htmlFor="agent-name"
+              className="font-terminal text-xs tracking-wider text-ghost uppercase"
+            >
               Name
             </Label>
             <input
@@ -105,17 +113,19 @@ export function CreateAgentDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={previewName}
-              className="h-9 w-full rounded-lg border border-border bg-inset px-3 py-1 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="h-9 w-full rounded-lg border border-border bg-inset px-3 py-1 text-sm text-foreground transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
           </div>
 
           <div className="grid gap-1.5">
-            <Label className="text-xs text-ghost font-terminal uppercase tracking-wider">
+            <Label className="font-terminal text-xs tracking-wider text-ghost uppercase">
               Provider
             </Label>
             <Combobox
               value={selectedProvider}
-              onValueChange={(value) => setSelectedProvider(value ?? "openrouter")}
+              onValueChange={(value) =>
+                setSelectedProvider(value ?? "openrouter")
+              }
               items={PROVIDERS.map((provider) => provider.id)}
               itemToStringLabel={(provider) =>
                 PROVIDERS.find((item) => item.id === provider)?.name ?? provider
@@ -126,7 +136,9 @@ export function CreateAgentDialog({
                 <ComboboxList>
                   <ComboboxCollection>
                     {(provider: string) => {
-                      const option = PROVIDERS.find((item) => item.id === provider)
+                      const option = PROVIDERS.find(
+                        (item) => item.id === provider
+                      )
                       return (
                         <ComboboxItem key={provider} value={provider}>
                           {option?.name ?? provider}
@@ -141,7 +153,7 @@ export function CreateAgentDialog({
 
           {/* Model */}
           <div className="grid gap-1.5">
-            <Label className="text-xs text-ghost uppercase tracking-wider font-terminal">
+            <Label className="font-terminal text-xs tracking-wider text-ghost uppercase">
               Model
             </Label>
             <Combobox
@@ -162,14 +174,18 @@ export function CreateAgentDialog({
                     {(m: Model) => (
                       <ComboboxItem key={m.id} value={m}>
                         <div className="grid">
-                          <span className="text-sm truncate">{m.name}</span>
-                          <span className="text-xs text-muted-foreground truncate">{m.id}</span>
+                          <span className="truncate text-sm">{m.name}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {m.id}
+                          </span>
                         </div>
                       </ComboboxItem>
                     )}
                   </ComboboxCollection>
                 </ComboboxList>
-                <ComboboxEmpty>No models found for {selectedProvider}</ComboboxEmpty>
+                <ComboboxEmpty>
+                  No models found for {selectedProvider}
+                </ComboboxEmpty>
               </ComboboxContent>
             </Combobox>
           </div>
@@ -177,7 +193,7 @@ export function CreateAgentDialog({
           {/* GitHub Repo */}
           {githubEnabled && (
             <div className="grid gap-1.5">
-              <Label className="text-xs text-ghost uppercase tracking-wider font-terminal">
+              <Label className="font-terminal text-xs tracking-wider text-ghost uppercase">
                 GitHub Repo
               </Label>
               <Combobox
@@ -185,7 +201,9 @@ export function CreateAgentDialog({
                 onValueChange={setSelectedRepo}
                 items={repos ?? []}
                 itemToStringLabel={(r: GitHubRepo) => r.full_name}
-                isItemEqualToValue={(a: GitHubRepo, b: GitHubRepo) => a.full_name === b.full_name}
+                isItemEqualToValue={(a: GitHubRepo, b: GitHubRepo) =>
+                  a.full_name === b.full_name
+                }
               >
                 <ComboboxInput
                   placeholder="None (no repo cloned)"
@@ -197,9 +215,13 @@ export function CreateAgentDialog({
                     <ComboboxCollection>
                       {(r: GitHubRepo) => (
                         <ComboboxItem key={r.full_name} value={r}>
-                          <span className="text-sm truncate">{r.full_name}</span>
+                          <span className="truncate text-sm">
+                            {r.full_name}
+                          </span>
                           {r.private && (
-                            <span className="ml-auto text-xs text-muted-foreground">private</span>
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              private
+                            </span>
                           )}
                         </ComboboxItem>
                       )}
@@ -213,7 +235,10 @@ export function CreateAgentDialog({
 
           {/* Initial prompt */}
           <div className="grid gap-1.5">
-            <Label htmlFor="agent-prompt" className="text-xs text-ghost uppercase tracking-wider font-terminal">
+            <Label
+              htmlFor="agent-prompt"
+              className="font-terminal text-xs tracking-wider text-ghost uppercase"
+            >
               Initial Prompt
             </Label>
             <textarea
@@ -222,17 +247,13 @@ export function CreateAgentDialog({
               onChange={(e) => setInitialPrompt(e.target.value)}
               placeholder="What should the agent work on?"
               rows={4}
-              className="w-full rounded-lg border border-border bg-inset px-3 py-2 text-sm text-foreground font-terminal placeholder:text-muted-foreground outline-none transition-colors resize-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="font-terminal w-full resize-none rounded-lg border border-border bg-inset px-3 py-2 text-sm text-foreground transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
           </div>
-
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button

@@ -8,7 +8,7 @@ Prefer `README.md` and the codebase for setup and architecture details.
 - Use `Box` as the canonical domain term. Legacy task/sandbox wording still exists in older surfaces; do not introduce new uses.
 - Do not hand-edit generated files. This includes `**/grpc/generated/**` and `codebox-web-ui/src/routeTree.gen.ts`.
 - Regenerate protobuf/gRPC stubs with `scripts/generate_proto.py` when proto changes are required.
-- Match existing patterns and dependencies. Do not introduce new libraries or conventions unless the repo already uses them.
+- Match existing patterns and conventions. Prefer existing dependencies, but new libraries are fine when they solve a real problem — justify the addition in the PR.
 - LLM provider/env plumbing is shared across orchestrator, sandbox, and the GitHub Action. Avoid changing it unless the task requires it.
 
 ## Validation

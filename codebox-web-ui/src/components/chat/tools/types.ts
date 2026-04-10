@@ -8,7 +8,9 @@ export interface ToolCallBlockProps {
 }
 
 /** Safely parse a JSON string, returning null on failure. */
-export function parseInput<T = Record<string, unknown>>(input?: string): T | null {
+export function parseInput<T = Record<string, unknown>>(
+  input?: string
+): T | null {
   if (!input) return null
   try {
     return JSON.parse(input) as T

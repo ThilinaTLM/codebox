@@ -1,13 +1,14 @@
 import { useState } from "react"
-import { FilePlus, ChevronRight } from "lucide-react"
+import { ChevronRight, FilePlus } from "lucide-react"
+
+import { parseInput } from "./types"
+import type { ToolCallBlockProps } from "./types"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import type { ToolCallBlockProps } from "./types"
-import { parseInput } from "./types"
 
 export function WriteFileToolBlock({
   input,
@@ -42,25 +43,29 @@ export function WriteFileToolBlock({
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
         <FilePlus size={14} className="shrink-0 text-muted-foreground" />
-        <span className="font-terminal text-sm text-foreground/70">{fileName}</span>
+        <span className="font-terminal text-sm text-foreground/70">
+          {fileName}
+        </span>
         {!expanded && (
-          <span className="min-w-0 flex-1 truncate font-terminal text-xs text-muted-foreground">
+          <span className="font-terminal min-w-0 flex-1 truncate text-xs text-muted-foreground">
             wrote {lineCount} lines
           </span>
         )}
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="pl-7">
-          <p className="pt-1 font-terminal text-xs text-muted-foreground">
+          <p className="font-terminal pt-1 text-xs text-muted-foreground">
             {filePath}
           </p>
           {content && (
-            <pre className="mt-1 mb-0.5 max-h-[300px] overflow-auto rounded-md bg-inset p-2 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
-              {content.length > 3000 ? content.slice(0, 3000) + "\n\n… (truncated)" : content}
+            <pre className="font-terminal mt-1 mb-0.5 max-h-[300px] overflow-auto rounded-md bg-inset p-2 text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
+              {content.length > 3000
+                ? content.slice(0, 3000) + "\n\n… (truncated)"
+                : content}
             </pre>
           )}
           {output && output.includes("Error") && (
-            <p className="mb-0.5 font-terminal text-xs text-destructive/70">
+            <p className="font-terminal mb-0.5 text-xs text-destructive/70">
               {output.slice(0, 200)}
             </p>
           )}

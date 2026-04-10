@@ -29,7 +29,15 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { useBox, useCancelBox, useDeleteBox, useRestartBox, useSendExec, useSendMessage, useStopBox } from "@/net/query"
+import {
+  useBox,
+  useCancelBox,
+  useDeleteBox,
+  useRestartBox,
+  useSendExec,
+  useSendMessage,
+  useStopBox,
+} from "@/net/query"
 import { ContainerStatus } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
 import { useChatState } from "@/hooks/useChatState"
@@ -65,7 +73,11 @@ function BoxDetailPage() {
   const sendExecMutation = useSendExec()
   const cancelMutation = useCancelBox()
 
-  const activity = useAgentActivity(liveEvents, box?.container_status, box?.activity)
+  const activity = useAgentActivity(
+    liveEvents,
+    box?.container_status,
+    box?.activity ?? undefined
+  )
 
   const handleStop = useCallback(() => {
     stopMutation.mutate(boxId, {
@@ -124,13 +136,32 @@ function BoxDetailPage() {
       isDeletePending: deleteMutation.isPending,
     })
     return () => setBoxPageActions(null)
-  }, [box, isActive, isConnected, activity, showFiles, isStopped, toggleFiles, handleStop, handleRestart, handleDelete, stopMutation.isPending, deleteMutation.isPending, setBoxPageActions])
+  }, [
+    box,
+    isActive,
+    isConnected,
+    activity,
+    showFiles,
+    isStopped,
+    toggleFiles,
+    handleStop,
+    handleRestart,
+    handleDelete,
+    stopMutation.isPending,
+    deleteMutation.isPending,
+    setBoxPageActions,
+  ])
 
   const handleSendMessage = useCallback(
     (content: string) => {
       sendMessageMutation.mutate(
         { boxId, message: content },
-        { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["boxes", boxId, "messages"] }) },
+        {
+          onSuccess: () =>
+            queryClient.invalidateQueries({
+              queryKey: ["boxes", boxId, "messages"],
+            }),
+        }
       )
     },
     [sendMessageMutation, boxId, queryClient]
@@ -140,7 +171,12 @@ function BoxDetailPage() {
     (command: string) => {
       sendExecMutation.mutate(
         { boxId, command },
-        { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["boxes", boxId, "messages"] }) },
+        {
+          onSuccess: () =>
+            queryClient.invalidateQueries({
+              queryKey: ["boxes", boxId, "messages"],
+            }),
+        }
       )
     },
     [sendExecMutation, boxId, queryClient]
@@ -171,8 +207,7 @@ function BoxDetailPage() {
     )
   }
 
-  const canShowFiles =
-    box.container_status === ContainerStatus.RUNNING
+  const canShowFiles = box.container_status === ContainerStatus.RUNNING
 
   return (
     <div className="flex h-[calc(100svh-24px)] flex-col">
@@ -215,7 +250,7 @@ function BoxDetailPage() {
                   </span>
                   <BoxStatusBadge
                     containerStatus={box.container_status}
-                    boxActivity={box.activity}
+                    boxActivity={box.activity ?? undefined}
                     taskOutcome={box.task_outcome}
                     activity={activity}
                   />
@@ -230,9 +265,14 @@ function BoxDetailPage() {
                       variant="outline"
                       onClick={handleRestart}
                       disabled={restartMutation.isPending}
-                      className="gap-1.5 font-terminal text-xs"
+                      className="font-terminal gap-1.5 text-xs"
                     >
-                      <RotateCw size={12} className={restartMutation.isPending ? "animate-spin" : ""} />
+                      <RotateCw
+                        size={12}
+                        className={
+                          restartMutation.isPending ? "animate-spin" : ""
+                        }
+                      />
                       {restartMutation.isPending ? "Restarting" : "Restart"}
                     </Button>
                   )}
@@ -244,7 +284,7 @@ function BoxDetailPage() {
                             size="sm"
                             variant="outline"
                             disabled={stopMutation.isPending}
-                            className="gap-1.5 font-terminal text-xs"
+                            className="font-terminal gap-1.5 text-xs"
                           />
                         }
                       >
@@ -255,7 +295,8 @@ function BoxDetailPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Stop agent?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will stop the running agent container. You can restart it later.
+                            This will stop the running agent container. You can
+                            restart it later.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -284,7 +325,8 @@ function BoxDetailPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete agent?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This action cannot be undone. The agent and all its data will be permanently deleted.
+                          This action cannot be undone. The agent and all its
+                          data will be permanently deleted.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -303,7 +345,7 @@ function BoxDetailPage() {
 
               {/* Error banner for failed boxes */}
               {box.error_detail && (
-                <div className="mx-4 mt-1 rounded-lg border border-state-error/20 border-l-2 border-l-state-error bg-state-error/5 px-3 py-2">
+                <div className="mx-4 mt-1 rounded-lg border border-l-2 border-state-error/20 border-l-state-error bg-state-error/5 px-3 py-2">
                   <div className="mb-0.5 flex items-center gap-1.5">
                     <AlertTriangle size={12} className="text-state-error/80" />
                     <span className="font-terminal text-xs text-state-error/60">
@@ -333,7 +375,6 @@ function BoxDetailPage() {
               </div>
             </div>
           </ResizablePanel>
-
         </ResizablePanelGroup>
 
         <FilePreview

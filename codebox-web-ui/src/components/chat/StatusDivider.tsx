@@ -29,7 +29,10 @@ export function StatusChangeBlock({ status }: { status: string }) {
     <div className="flex items-center gap-2 py-1">
       <div className="h-px flex-1 bg-border/20" />
       <div className="flex items-center gap-1.5">
-        <Circle size={6} className="fill-muted-foreground/40 text-muted-foreground/40" />
+        <Circle
+          size={6}
+          className="fill-muted-foreground/40 text-muted-foreground/40"
+        />
         <span className="text-xs text-muted-foreground">{status}</span>
       </div>
       <div className="h-px flex-1 bg-border/20" />

@@ -1,13 +1,14 @@
 import { useState } from "react"
-import { FolderSearch, ChevronRight } from "lucide-react"
+import { ChevronRight, FolderSearch } from "lucide-react"
+
+import { parseInput } from "./types"
+import type { ToolCallBlockProps } from "./types"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import type { ToolCallBlockProps } from "./types"
-import { parseInput } from "./types"
 
 export function GlobToolBlock({
   input,
@@ -19,7 +20,9 @@ export function GlobToolBlock({
   const pattern = args?.pattern ?? ""
   const searchPath = args?.path ?? ""
   const hasOutput = !!output && output.length > 0
-  const fileCount = hasOutput ? output.split("\n").filter((l) => l.trim()).length : 0
+  const fileCount = hasOutput
+    ? output.split("\n").filter((l) => l.trim()).length
+    : 0
 
   if (isRunning) {
     return (
@@ -42,11 +45,11 @@ export function GlobToolBlock({
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
         <FolderSearch size={14} className="shrink-0 text-muted-foreground" />
-        <code className="rounded bg-inset px-1.5 py-0.5 font-terminal text-xs text-foreground/70">
+        <code className="font-terminal rounded bg-inset px-1.5 py-0.5 text-xs text-foreground/70">
           {pattern}
         </code>
         {!expanded && (
-          <span className="min-w-0 flex-1 truncate font-terminal text-xs text-muted-foreground">
+          <span className="font-terminal min-w-0 flex-1 truncate text-xs text-muted-foreground">
             {fileCount} file{fileCount !== 1 ? "s" : ""}
           </span>
         )}
@@ -54,7 +57,7 @@ export function GlobToolBlock({
       <CollapsibleContent>
         <div className="pl-7">
           {searchPath && (
-            <p className="pt-1 font-terminal text-xs text-muted-foreground">
+            <p className="font-terminal pt-1 text-xs text-muted-foreground">
               in {searchPath}
             </p>
           )}
@@ -66,7 +69,7 @@ export function GlobToolBlock({
                 .map((file, i) => (
                   <div
                     key={i}
-                    className="py-0.5 font-terminal text-xs text-foreground/80 hover:text-foreground"
+                    className="font-terminal py-0.5 text-xs text-foreground/80 hover:text-foreground"
                   >
                     {file}
                   </div>

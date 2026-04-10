@@ -91,6 +91,10 @@ GITHUB_DEFAULT_BASE_BRANCH: str = os.environ.get("GITHUB_DEFAULT_BASE_BRANCH", "
 # Callback JWT signing secret
 CALLBACK_SECRET: str = os.environ.get("CALLBACK_SECRET", "")
 
+# Auth JWT signing secret (separate from callback to avoid token confusion)
+AUTH_SECRET: str = os.environ.get("AUTH_SECRET", "")
+AUTH_TOKEN_EXPIRY_HOURS: int = int(os.environ.get("AUTH_TOKEN_EXPIRY_HOURS", "24"))
+
 _fallback_secret: str = ""
 
 
@@ -109,6 +113,26 @@ def get_callback_secret() -> str:
             "CALLBACK_SECRET not set -- using ephemeral secret (tokens won't survive restart)"
         )
     return _fallback_secret
+
+
+_fallback_auth_secret: str = ""
+
+
+def get_auth_secret() -> str:
+    """Return the auth JWT signing secret, generating an ephemeral one if not configured."""
+    global _fallback_auth_secret  # noqa: PLW0603
+    if AUTH_SECRET:
+        return AUTH_SECRET
+    if not _fallback_auth_secret:
+        import secrets as _secrets  # noqa: PLC0415
+
+        _fallback_auth_secret = _secrets.token_urlsafe(64)
+        import logging as _logging  # noqa: PLC0415
+
+        _logging.getLogger(__name__).warning(
+            "AUTH_SECRET not set -- using ephemeral secret (sessions won't survive restart)"
+        )
+    return _fallback_auth_secret
 
 
 def github_enabled() -> bool:

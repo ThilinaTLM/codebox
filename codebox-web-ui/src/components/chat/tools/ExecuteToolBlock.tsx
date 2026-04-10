@@ -1,7 +1,8 @@
 import { useMemo } from "react"
-import { Spinner } from "@/components/ui/spinner"
-import type { ToolCallBlockProps } from "./types"
+
 import { parseInput } from "./types"
+import type { ToolCallBlockProps } from "./types"
+import { Spinner } from "@/components/ui/spinner"
 
 function addLineNumbers(text: string) {
   const lines = text.split("\n")
@@ -10,7 +11,9 @@ function addLineNumbers(text: string) {
 
 function parseExitCode(output?: string): string | null {
   if (!output) return null
-  const match = output.match(/\[Command (?:succeeded|failed) with exit code (\d+)\]/)
+  const match = output.match(
+    /\[Command (?:succeeded|failed) with exit code (\d+)\]/
+  )
   if (match) return match[1]
   const exitMatch = output.match(/Exit code: (\d+)/)
   if (exitMatch) return exitMatch[1]
@@ -33,20 +36,24 @@ export function ExecuteToolBlock({
 
   const outputData = useMemo(
     () => (hasOutput ? addLineNumbers(displayOutput) : null),
-    [hasOutput, displayOutput],
+    [hasOutput, displayOutput]
   )
 
   return (
     <div className="overflow-hidden rounded-md bg-inset">
       {/* Command line */}
       {command && (
-        <div className="flex items-start gap-2 px-3 py-1.5 font-terminal text-sm">
-          <span className="select-none text-muted-foreground">$</span>
-          <span className="flex-1 whitespace-pre-wrap text-foreground">{command}</span>
-          {isRunning && <Spinner className="mt-0.5 size-3 shrink-0 text-muted-foreground" />}
+        <div className="font-terminal flex items-start gap-2 px-3 py-1.5 text-sm">
+          <span className="text-muted-foreground select-none">$</span>
+          <span className="flex-1 whitespace-pre-wrap text-foreground">
+            {command}
+          </span>
+          {isRunning && (
+            <Spinner className="mt-0.5 size-3 shrink-0 text-muted-foreground" />
+          )}
           {isDone && (
             <span
-              className={`shrink-0 font-terminal text-xs ${isSuccess ? "text-muted-foreground" : "text-destructive"}`}
+              className={`font-terminal shrink-0 text-xs ${isSuccess ? "text-muted-foreground" : "text-destructive"}`}
             >
               exit {exitCode}
             </span>
@@ -57,17 +64,17 @@ export function ExecuteToolBlock({
       {/* Output body */}
       {hasOutput && outputData && (
         <pre
-          className={`max-h-[300px] overflow-auto font-terminal text-xs leading-relaxed text-foreground/80 ${command ? "border-t border-border/15" : ""}`}
+          className={`font-terminal max-h-[300px] overflow-auto text-xs leading-relaxed text-foreground/80 ${command ? "border-t border-border/15" : ""}`}
         >
           {outputData.numbered ? (
             <table className="w-full border-collapse">
               <tbody>
                 {outputData.lines.map((line, i) => (
                   <tr key={i} className="hover:bg-border/5">
-                    <td className="w-8 select-none pr-3 text-right align-top text-ghost/60">
+                    <td className="w-8 pr-3 text-right align-top text-ghost/60 select-none">
                       {i + 1}
                     </td>
-                    <td className="whitespace-pre-wrap py-px pl-3 align-top">
+                    <td className="py-px pl-3 align-top whitespace-pre-wrap">
                       {line}
                     </td>
                   </tr>
@@ -75,7 +82,9 @@ export function ExecuteToolBlock({
               </tbody>
             </table>
           ) : (
-            <div className="px-3 py-1.5 whitespace-pre-wrap">{displayOutput}</div>
+            <div className="px-3 py-1.5 whitespace-pre-wrap">
+              {displayOutput}
+            </div>
           )}
         </pre>
       )}

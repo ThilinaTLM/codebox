@@ -1,9 +1,5 @@
 import type { AgentActivity } from "@/hooks/useAgentActivity"
-import {
-  Activity,
-  ContainerStatus,
-  TaskOutcome,
-} from "@/net/http/types"
+import { Activity, ContainerStatus, TaskOutcome } from "@/net/http/types"
 
 const containerConfig: Record<
   ContainerStatus,
@@ -86,7 +82,7 @@ export function BoxStatusBadge({
   if (activity) {
     const dotColor = getLiveActivityDotColor(activity.label)
     return (
-      <span className="inline-flex items-center gap-1.5 font-terminal text-xs text-muted-foreground">
+      <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
         <StatusDot color={dotColor} animate={activity.animate} />
         {activity.label}
       </span>
@@ -102,7 +98,7 @@ export function BoxStatusBadge({
     boxActivity !== Activity.IDLE
   ) {
     return (
-      <span className="inline-flex items-center gap-1.5 font-terminal text-xs text-muted-foreground">
+      <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
         <StatusDot color={activityDotColors[boxActivity]} animate />
         {activityLabels[boxActivity]}
       </span>
@@ -115,7 +111,7 @@ export function BoxStatusBadge({
     taskOutcome === TaskOutcome.COMPLETED
   ) {
     return (
-      <span className="inline-flex items-center gap-1.5 font-terminal text-xs text-muted-foreground">
+      <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
         <StatusDot color="bg-state-completed" />
         Completed
       </span>
@@ -123,20 +119,16 @@ export function BoxStatusBadge({
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 font-terminal text-xs text-muted-foreground">
+    <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <StatusDot color={config.dotColor} animate={config.animate} />
       {config.label}
     </span>
   )
 }
 
-export function TaskOutcomeBadge({
-  status,
-}: {
-  status: TaskOutcome
-}) {
+export function TaskOutcomeBadge({ status }: { status: TaskOutcome }) {
   return (
-    <span className="inline-flex items-center gap-1.5 font-terminal text-xs text-muted-foreground">
+    <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <StatusDot color={outcomeDotColors[status]} />
       {outcomeLabels[status]}
     </span>

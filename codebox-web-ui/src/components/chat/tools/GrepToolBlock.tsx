@@ -1,13 +1,14 @@
 import { useState } from "react"
-import { Search, ChevronRight } from "lucide-react"
+import { ChevronRight, Search } from "lucide-react"
+
+import { parseInput } from "./types"
+import type { ToolCallBlockProps } from "./types"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import type { ToolCallBlockProps } from "./types"
-import { parseInput } from "./types"
 
 export function GrepToolBlock({
   input,
@@ -15,12 +16,16 @@ export function GrepToolBlock({
   isRunning,
 }: ToolCallBlockProps) {
   const [expanded, setExpanded] = useState(false)
-  const args = parseInput<{ pattern?: string; path?: string; glob?: string }>(input)
+  const args = parseInput<{ pattern?: string; path?: string; glob?: string }>(
+    input
+  )
   const pattern = args?.pattern ?? ""
   const searchPath = args?.path ?? ""
   const hasOutput = !!output && output.length > 0
 
-  const matchCount = hasOutput ? output.split("\n").filter((l) => l.trim()).length : 0
+  const matchCount = hasOutput
+    ? output.split("\n").filter((l) => l.trim()).length
+    : 0
 
   if (isRunning) {
     return (
@@ -43,11 +48,11 @@ export function GrepToolBlock({
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
         <Search size={14} className="shrink-0 text-muted-foreground" />
-        <code className="rounded bg-inset px-1.5 py-0.5 font-terminal text-xs text-foreground/70">
+        <code className="font-terminal rounded bg-inset px-1.5 py-0.5 text-xs text-foreground/70">
           {pattern}
         </code>
         {!expanded && (
-          <span className="min-w-0 flex-1 truncate font-terminal text-xs text-muted-foreground">
+          <span className="font-terminal min-w-0 flex-1 truncate text-xs text-muted-foreground">
             {matchCount} result{matchCount !== 1 ? "s" : ""}
           </span>
         )}
@@ -55,12 +60,12 @@ export function GrepToolBlock({
       <CollapsibleContent>
         <div className="pl-7">
           {searchPath && (
-            <p className="pt-1 font-terminal text-xs text-muted-foreground">
+            <p className="font-terminal pt-1 text-xs text-muted-foreground">
               in {searchPath}
             </p>
           )}
           {hasOutput && (
-            <pre className="mt-1 mb-0.5 max-h-[300px] overflow-auto rounded-md bg-inset p-2 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
+            <pre className="font-terminal mt-1 mb-0.5 max-h-[300px] overflow-auto rounded-md bg-inset p-2 text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
               {output}
             </pre>
           )}

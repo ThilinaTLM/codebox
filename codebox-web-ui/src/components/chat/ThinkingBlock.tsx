@@ -30,7 +30,7 @@ export function ThinkingBlock({ content }: { content?: string }) {
         <span>Thinking</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <p className="pb-1 pl-4 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+        <p className="font-terminal pb-1 pl-4 text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
           {content}
         </p>
       </CollapsibleContent>

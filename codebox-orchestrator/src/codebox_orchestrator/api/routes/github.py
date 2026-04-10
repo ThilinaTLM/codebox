@@ -23,6 +23,7 @@ from codebox_orchestrator.api.schemas import (
     GitHubRepoResponse,
     GitHubStatusResponse,
 )
+from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user
 from codebox_orchestrator.config import GITHUB_APP_SLUG, github_enabled
 
 if TYPE_CHECKING:
@@ -59,7 +60,9 @@ def _require_installation_service(
 
 
 @router.get("/status")
-async def github_status() -> GitHubStatusResponse:
+async def github_status(
+    _: UserInfo = Depends(get_current_user),
+) -> GitHubStatusResponse:
     """Return whether GitHub integration is configured."""
     return GitHubStatusResponse(enabled=github_enabled(), app_slug=GITHUB_APP_SLUG)
 
@@ -162,6 +165,7 @@ async def github_callback(
 @router.get("/installations")
 async def list_installations(
     service: GitHubInstallationService | None = Depends(get_installation_service),
+    _: UserInfo = Depends(get_current_user),
 ) -> list[GitHubInstallationResponse]:
     """List all stored GitHub App installations."""
     if service is None:
@@ -174,6 +178,7 @@ async def list_installations(
 async def add_installation(
     body: GitHubInstallationCreate,
     service: GitHubInstallationService = Depends(_require_installation_service),
+    _: UserInfo = Depends(get_current_user),
 ) -> GitHubInstallationResponse:
     """Manually add a GitHub App installation by installation ID."""
     try:
@@ -189,6 +194,7 @@ async def add_installation(
 async def sync_installation(
     installation_id: str,
     service: GitHubInstallationService = Depends(_require_installation_service),
+    _: UserInfo = Depends(get_current_user),
 ) -> list[GitHubRepoResponse]:
     """Re-fetch the repo list for an installation from the GitHub API."""
     inst = await service.get_installation(installation_id)
@@ -203,6 +209,7 @@ async def sync_installation(
 async def remove_installation(
     installation_id: str,
     service: GitHubInstallationService = Depends(_require_installation_service),
+    _: UserInfo = Depends(get_current_user),
 ) -> JSONResponse:
     """Remove an installation record (does not uninstall the app from GitHub)."""
     deleted = await service.delete_installation(installation_id)
@@ -214,6 +221,7 @@ async def remove_installation(
 @router.get("/repos")
 async def list_repos(
     service: GitHubInstallationService = Depends(_require_installation_service),
+    _: UserInfo = Depends(get_current_user),
 ) -> list[GitHubRepoResponse]:
     """List repos across all installations."""
     installations = await service.list_installations()

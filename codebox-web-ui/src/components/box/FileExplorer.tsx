@@ -83,7 +83,10 @@ export function FileExplorer({
           },
           staleTime: 10000,
         })
-        const children = entriesToTreeElements(result.entries, binaryFilesRef.current)
+        const children = entriesToTreeElements(
+          result.entries,
+          binaryFilesRef.current
+        )
         setTreeElements((prev) => updateTreeChildren(prev, dirPath, children))
       } catch {
         loadedDirsRef.current.delete(dirPath)
@@ -118,7 +121,9 @@ export function FileExplorer({
   return (
     <div className="relative flex h-full flex-col bg-card">
       <div className="flex items-center justify-between border-b border-border/30 px-3 py-2">
-        <span className="font-terminal text-xs text-muted-foreground">Files</span>
+        <span className="font-terminal text-xs text-muted-foreground">
+          Files
+        </span>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -127,10 +132,7 @@ export function FileExplorer({
           title="Refresh files"
           className="text-muted-foreground/50"
         >
-          <RotateCw
-            size={13}
-            className={isRefreshing ? "animate-spin" : ""}
-          />
+          <RotateCw size={13} className={isRefreshing ? "animate-spin" : ""} />
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
@@ -142,7 +144,11 @@ export function FileExplorer({
           </div>
         ) : treeElements.length > 0 ? (
           <Tree elements={treeElements} className="p-3 text-sm">
-            {renderElements(treeElements, handleItemClick, binaryFilesRef.current)}
+            {renderElements(
+              treeElements,
+              handleItemClick,
+              binaryFilesRef.current
+            )}
           </Tree>
         ) : (
           <div className="flex h-32 items-center justify-center">

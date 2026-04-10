@@ -1,13 +1,14 @@
 import { useState } from "react"
-import { Pencil, ChevronRight } from "lucide-react"
+import { ChevronRight, Pencil } from "lucide-react"
+
+import { parseInput } from "./types"
+import type { ToolCallBlockProps } from "./types"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import type { ToolCallBlockProps } from "./types"
-import { parseInput } from "./types"
 
 export function EditFileToolBlock({
   input,
@@ -47,20 +48,22 @@ export function EditFileToolBlock({
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
         <Pencil size={14} className="shrink-0 text-muted-foreground" />
-        <span className="font-terminal text-sm text-foreground/70">{fileName}</span>
+        <span className="font-terminal text-sm text-foreground/70">
+          {fileName}
+        </span>
         {!expanded && (
-          <span className="min-w-0 flex-1 truncate font-terminal text-xs text-muted-foreground">
+          <span className="font-terminal min-w-0 flex-1 truncate text-xs text-muted-foreground">
             edited
           </span>
         )}
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="pl-7">
-          <p className="pt-1 font-terminal text-xs text-muted-foreground">
+          <p className="font-terminal pt-1 text-xs text-muted-foreground">
             {filePath}
           </p>
           {/* Diff view */}
-          <div className="mt-1 mb-0.5 overflow-auto rounded-md bg-inset font-terminal text-xs leading-relaxed">
+          <div className="font-terminal mt-1 mb-0.5 overflow-auto rounded-md bg-inset text-xs leading-relaxed">
             {oldStr && (
               <div className="border-b border-border/10">
                 {oldStr.split("\n").map((line, i) => (
@@ -68,7 +71,9 @@ export function EditFileToolBlock({
                     key={`old-${i}`}
                     className="flex bg-destructive/5 px-3 py-px"
                   >
-                    <span className="mr-2 select-none text-destructive/40">-</span>
+                    <span className="mr-2 text-destructive/40 select-none">
+                      -
+                    </span>
                     <span className="whitespace-pre-wrap text-destructive/70">
                       {line}
                     </span>
@@ -83,7 +88,9 @@ export function EditFileToolBlock({
                     key={`new-${i}`}
                     className="flex bg-state-completed/5 px-3 py-px"
                   >
-                    <span className="mr-2 select-none text-state-completed/40">+</span>
+                    <span className="mr-2 text-state-completed/40 select-none">
+                      +
+                    </span>
                     <span className="whitespace-pre-wrap text-state-completed/70">
                       {line}
                     </span>
@@ -93,7 +100,7 @@ export function EditFileToolBlock({
             )}
           </div>
           {output && output.includes("Error") && (
-            <p className="mb-0.5 font-terminal text-xs text-destructive/70">
+            <p className="font-terminal mb-0.5 text-xs text-destructive/70">
               {output.slice(0, 200)}
             </p>
           )}

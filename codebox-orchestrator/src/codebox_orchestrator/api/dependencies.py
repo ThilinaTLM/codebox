@@ -13,6 +13,7 @@ if TYPE_CHECKING:
         ListFilesHandler,
         ReadFileHandler,
     )
+    from codebox_orchestrator.auth.service import AuthService
     from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
     from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
     from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
@@ -88,3 +89,7 @@ def get_relay(request: Request) -> RelayService:
 
 def get_global_broadcast(request: Request) -> GlobalBroadcastService:
     return request.app.state.global_broadcast
+
+
+def get_auth_service(request: Request) -> AuthService:
+    return request.app.state.auth_service

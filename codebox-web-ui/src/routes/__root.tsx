@@ -1,8 +1,10 @@
 import {
   HeadContent,
+  Navigate,
   Outlet,
   Scripts,
   createRootRoute,
+  useLocation,
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
@@ -11,6 +13,7 @@ import { useState } from "react"
 import { TooltipProvider } from "../components/ui/tooltip"
 import appCss from "../styles.css?url"
 import type { BoxPageActions } from "@/components/box/BoxPageContext"
+import { useAuthStore } from "@/lib/auth"
 import { API_URL } from "@/lib/constants"
 import { useGlobalStream } from "@/net/sse/useGlobalStream"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
@@ -50,6 +53,50 @@ function GlobalStreamProvider({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const location = useLocation()
+  const isLoginPage = location.pathname === "/login"
+
+  // Not authenticated and not on login page → redirect to login
+  if (!isAuthenticated && !isLoginPage) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <Navigate to="/login" />
+          <Toaster />
+        </ThemeProvider>
+      </QueryClientProvider>
+    )
+  }
+
+  // Authenticated and on login page → redirect to home
+  if (isAuthenticated && isLoginPage) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <Navigate to="/" />
+          <Toaster />
+        </ThemeProvider>
+      </QueryClientProvider>
+    )
+  }
+
+  // On login page (unauthenticated) → render just the outlet (no app shell)
+  if (!isAuthenticated) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <Outlet />
+          <Toaster />
+        </ThemeProvider>
+      </QueryClientProvider>
+    )
+  }
+
+  return <AuthenticatedApp />
+}
+
+function AuthenticatedApp() {
   const [boxPageActions, setBoxPageActions] = useState<BoxPageActions | null>(
     null
   )

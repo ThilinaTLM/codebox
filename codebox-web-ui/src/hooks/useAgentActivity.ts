@@ -16,11 +16,21 @@ export function useAgentActivity(
 ): AgentActivity {
   return useMemo(() => {
     if (!containerStatus || containerStatus === ContainerStatus.STARTING) {
-      return { label: "Starting", animate: true, dotColor: "bg-warning", isWorking: false }
+      return {
+        label: "Starting",
+        animate: true,
+        dotColor: "bg-warning",
+        isWorking: false,
+      }
     }
 
     if (containerStatus === ContainerStatus.STOPPED) {
-      return { label: "Stopped", animate: false, dotColor: "bg-muted-foreground/40", isWorking: false }
+      return {
+        label: "Stopped",
+        animate: false,
+        dotColor: "bg-muted-foreground/40",
+        isWorking: false,
+      }
     }
 
     // For RUNNING containers, scan events backwards for latest activity signal
@@ -28,9 +38,19 @@ export function useAgentActivity(
       const ev = events[i]
       switch (ev.type) {
         case "model_start":
-          return { label: "Thinking", animate: true, dotColor: "bg-primary/70", isWorking: true }
+          return {
+            label: "Thinking",
+            animate: true,
+            dotColor: "bg-primary/70",
+            isWorking: true,
+          }
         case "token":
-          return { label: "Writing", animate: true, dotColor: "bg-success", isWorking: true }
+          return {
+            label: "Writing",
+            animate: true,
+            dotColor: "bg-success",
+            isWorking: true,
+          }
         case "tool_start":
           return {
             label: `Using ${ev.name}`,
@@ -39,7 +59,12 @@ export function useAgentActivity(
             isWorking: true,
           }
         case "tool_end":
-          return { label: "Thinking", animate: true, dotColor: "bg-primary/70", isWorking: true }
+          return {
+            label: "Thinking",
+            animate: true,
+            dotColor: "bg-primary/70",
+            isWorking: true,
+          }
         case "done":
           return {
             label: "Idle",
@@ -48,18 +73,43 @@ export function useAgentActivity(
             isWorking: false,
           }
         case "error":
-          return { label: "Error", animate: false, dotColor: "bg-destructive", isWorking: false }
+          return {
+            label: "Error",
+            animate: false,
+            dotColor: "bg-destructive",
+            isWorking: false,
+          }
         case "activity_changed":
           if (ev.status === Activity.AGENT_WORKING) {
-            return { label: "Working", animate: true, dotColor: "bg-success", isWorking: true }
+            return {
+              label: "Working",
+              animate: true,
+              dotColor: "bg-success",
+              isWorking: true,
+            }
           }
           if (ev.status === Activity.EXEC_SHELL) {
-            return { label: "Running command", animate: true, dotColor: "bg-warning", isWorking: true }
+            return {
+              label: "Running command",
+              animate: true,
+              dotColor: "bg-warning",
+              isWorking: true,
+            }
           }
-          return { label: "Idle", animate: false, dotColor: "bg-muted-foreground/60", isWorking: false }
+          return {
+            label: "Idle",
+            animate: false,
+            dotColor: "bg-muted-foreground/60",
+            isWorking: false,
+          }
         case "status_change":
           if (ev.container_status === ContainerStatus.STOPPED) {
-            return { label: "Stopped", animate: false, dotColor: "bg-muted-foreground/40", isWorking: false }
+            return {
+              label: "Stopped",
+              animate: false,
+              dotColor: "bg-muted-foreground/40",
+              isWorking: false,
+            }
           }
           break
       }
@@ -67,10 +117,20 @@ export function useAgentActivity(
 
     // Fallback based on activity
     if (activity === Activity.AGENT_WORKING) {
-      return { label: "Working", animate: true, dotColor: "bg-success", isWorking: true }
+      return {
+        label: "Working",
+        animate: true,
+        dotColor: "bg-success",
+        isWorking: true,
+      }
     }
     if (activity === Activity.EXEC_SHELL) {
-      return { label: "Running command", animate: true, dotColor: "bg-warning", isWorking: true }
+      return {
+        label: "Running command",
+        animate: true,
+        dotColor: "bg-warning",
+        isWorking: true,
+      }
     }
     return {
       label: "Idle",

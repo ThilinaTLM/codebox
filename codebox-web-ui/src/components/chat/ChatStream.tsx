@@ -4,7 +4,9 @@ import type { EventBlock } from "./types"
 import type { BoxStreamEvent } from "@/net/http/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock> {
+export function collapseTokens(
+  events: Array<BoxStreamEvent>
+): Array<EventBlock> {
   const blocks: Array<EventBlock> = []
   let textBuffer = ""
   let pendingThinking = false

@@ -23,12 +23,12 @@ export interface Box {
   name: string
   provider: string
   model: string
-  container_status: ContainerStatus | string
+  container_status: ContainerStatus
   container_id: string
   container_name: string
   grpc_connected: boolean
-  activity: Activity | string | null
-  task_outcome: TaskOutcome | string | null
+  activity: Activity | null
+  task_outcome: TaskOutcome | null
   task_outcome_message: string | null
   trigger: string | null
   created_at: string | null
@@ -121,8 +121,6 @@ export interface FileContent {
   is_binary: boolean
 }
 
-
-
 // ── GitHub types ────────────────────────────────────────────
 
 export interface GitHubStatus {
@@ -142,4 +140,18 @@ export interface GitHubRepo {
   full_name: string
   private: boolean
   default_branch: string
+}
+
+// ── Auth types ──────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string
+  username: string
+  user_type: "admin" | "user"
+  created_at: string
+}
+
+export interface LoginResponse {
+  token: string
+  user: AuthUser
 }

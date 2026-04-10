@@ -43,7 +43,7 @@ export function FilePreview({ boxId, filePath, onClose }: FilePreviewProps) {
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span className="min-w-0 truncate font-terminal text-sm">
+            <span className="font-terminal min-w-0 truncate text-sm">
               {filePath?.replace("/workspace/", "") ?? ""}
             </span>
             {filePath && (
@@ -89,7 +89,7 @@ export function FilePreview({ boxId, filePath, onClose }: FilePreviewProps) {
               </a>
             </div>
           ) : (
-            <pre className="overflow-auto rounded-md bg-inset p-4 font-terminal text-sm text-foreground/90">
+            <pre className="font-terminal overflow-auto rounded-md bg-inset p-4 text-sm text-foreground/90">
               {fileContent?.content ?? "Unable to read file"}
             </pre>
           )}

@@ -66,7 +66,7 @@ export function ToolCallBlock({
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
         <span className="font-terminal text-sm text-foreground/70">{name}</span>
         {!expanded && outputSummary && (
-          <span className="min-w-0 flex-1 truncate font-terminal text-xs text-muted-foreground">
+          <span className="font-terminal min-w-0 flex-1 truncate text-xs text-muted-foreground">
             {outputSummary}
           </span>
         )}
@@ -89,7 +89,7 @@ export function ToolCallBlock({
                 Input
               </button>
               {argsExpanded && (
-                <pre className="mt-1 overflow-x-auto rounded-md bg-inset p-1.5 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/70">
+                <pre className="font-terminal mt-1 overflow-x-auto rounded-md bg-inset p-1.5 text-xs leading-relaxed whitespace-pre-wrap text-foreground/70">
                   {formatJson(input)}
                 </pre>
               )}
@@ -98,7 +98,7 @@ export function ToolCallBlock({
           {hasOutput && (
             <div className="pt-1">
               <span className="text-xs text-muted-foreground">Output</span>
-              <pre className="mt-1 mb-0.5 overflow-x-auto rounded-md bg-inset p-2 font-terminal text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
+              <pre className="font-terminal mt-1 mb-0.5 overflow-x-auto rounded-md bg-inset p-2 text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
                 {formatJson(output)}
               </pre>
             </div>
