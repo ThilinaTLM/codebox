@@ -61,7 +61,7 @@ export function useGlobalStream() {
 
           if (event.type === "box_status_changed") {
             qcRef.current.setQueriesData<Box>(
-              { queryKey: ["boxes", event.box_id] },
+              { queryKey: ["boxes", event.box_id], exact: true },
               (old) => {
                 if (!old) return old
                 const updates: Partial<Box> = {}
