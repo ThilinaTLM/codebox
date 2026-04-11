@@ -24,6 +24,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
   const blocks: Array<EventBlock> = []
   let textBuffer = ""
   let thinkingBuffer = ""
+  let reasoningActive = false
   let currentExec: Extract<EventBlock, { kind: "exec_session" }> | null = null
 
   const flushText = () => {
@@ -34,8 +35,12 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
   }
 
   const flushThinking = () => {
-    if (thinkingBuffer) {
-      blocks.push({ kind: "thinking", content: thinkingBuffer })
+    if (thinkingBuffer || reasoningActive) {
+      blocks.push({
+        kind: "thinking",
+        content: thinkingBuffer || undefined,
+        isStreaming: reasoningActive,
+      })
       thinkingBuffer = ""
     }
   }
@@ -54,6 +59,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
       case "reasoning.started":
         flushText()
         flushExec()
+        reasoningActive = true
         break
 
       case "reasoning.delta":
@@ -63,6 +69,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
         break
 
       case "reasoning.completed":
+        reasoningActive = false
         flushThinking()
         break
 
@@ -228,6 +235,19 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
   return blocks
 }
 
+/**
+ * Returns true when the last block already shows in-progress activity,
+ * so we don't need an extra "Thinking…" spinner.
+ */
+function _hasActiveBlock(blocks: Array<EventBlock>): boolean {
+  if (blocks.length === 0) return false
+  const last = blocks[blocks.length - 1]
+  if (last.kind === "thinking" && last.isStreaming) return true
+  if (last.kind === "tool_call" && last.isRunning) return true
+  if (last.kind === "exec_session" && last.isRunning) return true
+  return false
+}
+
 function blockKey(block: EventBlock, index: number): string {
   if (block.kind === "tool_call" && block.toolCallId) {
     return `tc-${block.toolCallId}`
@@ -239,10 +259,12 @@ export function ChatStream({
   blocks,
   centered,
   bottomInset,
+  isWorking,
 }: {
   blocks: Array<EventBlock>
   centered?: boolean
   bottomInset?: boolean
+  isWorking?: boolean
 }) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const prevLenRef = useRef(0)
@@ -265,7 +287,12 @@ export function ChatStream({
               <ChatBlock block={block} />
             </div>
           ))}
-          {blocks.length === 0 && (
+          {isWorking && !_hasActiveBlock(blocks) && (
+            <div key="__working">
+              <ChatBlock block={{ kind: "thinking", isStreaming: true }} />
+            </div>
+          )}
+          {blocks.length === 0 && !isWorking && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <p className="text-sm text-muted-foreground">
                 Send a message to start the agent

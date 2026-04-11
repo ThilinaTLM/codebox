@@ -340,7 +340,7 @@ function BoxDetailPage() {
 
               {/* Event stream */}
               <div className="min-h-0 flex-1">
-                <ChatStream blocks={blocks} centered bottomInset />
+                <ChatStream blocks={blocks} centered bottomInset isWorking={activity.isWorking} />
               </div>
 
               {/* Floating input */}

@@ -1,6 +1,6 @@
 export type EventBlock =
   | { kind: "text"; content: string }
-  | { kind: "thinking"; content?: string }
+  | { kind: "thinking"; content?: string; isStreaming?: boolean }
   | {
       kind: "tool_call"
       name: string

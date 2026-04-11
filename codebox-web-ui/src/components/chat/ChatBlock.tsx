@@ -13,7 +13,7 @@ export function ChatBlock({ block }: { block: EventBlock }) {
       return <AssistantTextBlock content={block.content} />
 
     case "thinking":
-      return <ThinkingBlock content={block.content} />
+      return <ThinkingBlock content={block.content} isStreaming={block.isStreaming} />
 
     case "tool_call": {
       const Renderer = TOOL_RENDERERS[block.name]

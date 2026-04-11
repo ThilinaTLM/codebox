@@ -7,18 +7,32 @@ import {
 } from "@/components/ui/collapsible"
 import { Spinner } from "@/components/ui/spinner"
 
-export function ThinkingBlock({ content }: { content?: string }) {
+export function ThinkingBlock({
+  content,
+  isStreaming,
+}: {
+  content?: string
+  isStreaming?: boolean
+}) {
   const [expanded, setExpanded] = useState(false)
-  const isActive = !content
 
-  if (isActive) {
+  if (isStreaming) {
     return (
-      <div className="flex items-center gap-1.5 py-1">
-        <Spinner className="size-3 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">Thinking…</span>
+      <div>
+        <div className="flex items-center gap-1.5 py-1">
+          <Spinner className="size-3 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Thinking…</span>
+        </div>
+        {content && (
+          <p className="font-terminal pb-1 pl-4 text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+            {content}
+          </p>
+        )}
       </div>
     )
   }
+
+  if (!content) return null
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
