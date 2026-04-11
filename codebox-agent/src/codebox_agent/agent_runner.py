@@ -185,6 +185,21 @@ async def run_agent_stream(  # noqa: PLR0912, PLR0915
         "recursion_limit": session.recursion_limit,
     }
 
+    # Snapshot existing message IDs so the "updates" handler skips
+    # messages that already existed before this run.  Without this,
+    # every prior assistant/tool message in the checkpoint gets
+    # re-emitted as a brand-new turn on each subsequent run.
+    try:
+        _prior_state = await session.agent.aget_state(config)
+        _prior_msg_ids: set[str] = set()
+        if _prior_state and _prior_state.values:
+            for _m in _prior_state.values.get("messages", []):
+                _mid = getattr(_m, "id", None)
+                if _mid:
+                    _prior_msg_ids.add(_mid)
+    except Exception:
+        _prior_msg_ids = set()
+
     if emit_input_event:
         await send(
             make_event(
@@ -364,6 +379,12 @@ async def run_agent_stream(  # noqa: PLR0912, PLR0915
                         continue
 
                     for msg in messages:
+                        # Skip messages that existed before this run
+                        # to avoid re-emitting old assistant/tool turns.
+                        _msg_id = getattr(msg, "id", None)
+                        if _msg_id and _msg_id in _prior_msg_ids:
+                            continue
+
                         if getattr(msg, "type", "") == "ai":
                             _ensure_turn()
                             await _ensure_turn_started()
