@@ -46,3 +46,9 @@ all = "ignore"
 include = ["scripts/**"]
 [overrides.rules]
 unresolved-import = "ignore"
+
+# Test files use pytest which is a dev dependency not in the main venv.
+[[overrides]]
+include = ["**/tests/**"]
+[overrides.rules]
+unresolved-import = "ignore"

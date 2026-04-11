@@ -12,10 +12,12 @@ from typing import TYPE_CHECKING, Any
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-from codebox_agent.agent import create_agent
+from codebox_agent.agent import create_agent, create_agent_from_config
 
 if TYPE_CHECKING:
     import asyncio
+
+    from codebox_agent.config import AgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,86 @@ class SessionManager:
         self._sessions: dict[str, Session] = {}
         self._checkpoint_db_path = checkpoint_db_path
 
+    # -- helpers -------------------------------------------------------------
+
+    async def _open_checkpointer(self) -> AsyncSqliteSaver:
+        Path(self._checkpoint_db_path).parent.mkdir(parents=True, exist_ok=True)
+        logger.debug("Opening checkpoint DB at %s", self._checkpoint_db_path)
+        conn = await aiosqlite.connect(self._checkpoint_db_path)
+        checkpointer = AsyncSqliteSaver(conn)
+        await checkpointer.setup()
+        return checkpointer
+
+    def _register(
+        self,
+        session_id: str,
+        agent: Any,
+        checkpointer: AsyncSqliteSaver,
+        provider: str,
+        model: str,
+        recursion_limit: int,
+    ) -> Session:
+        session = Session(
+            session_id=session_id,
+            agent=agent,
+            checkpointer=checkpointer,
+            created_at=datetime.now(UTC),
+            provider=provider,
+            model=model,
+            recursion_limit=recursion_limit,
+        )
+        self._sessions[session_id] = session
+        logger.info("Session %s created: recursion_limit=%d", session_id, recursion_limit)
+        return session
+
+    # -- config-driven creation (preferred) ----------------------------------
+
+    async def create_from_config(
+        self,
+        config: AgentConfig,
+        environment_system_prompt: str | None = None,
+        working_dir: str = "/workspace",
+    ) -> Session:
+        """Create a new session from a validated :class:`AgentConfig`.
+
+        Args:
+            config: Complete agent configuration.
+            environment_system_prompt: Runner-specific environment prompt
+                (e.g. sandbox or GitHub Actions context).
+            working_dir: Root directory for the shell backend.
+
+        Returns:
+            The newly created Session.
+        """
+        session_id = str(uuid.uuid4())
+        logger.info(
+            "Creating session %s from config: provider=%s, model=%s, working_dir=%s",
+            session_id,
+            config.llm.provider,
+            config.llm.model,
+            working_dir,
+        )
+
+        checkpointer = await self._open_checkpointer()
+
+        agent = create_agent_from_config(
+            config=config,
+            environment_system_prompt=environment_system_prompt,
+            root_dir=working_dir,
+            checkpointer=checkpointer,
+        )
+
+        return self._register(
+            session_id=session_id,
+            agent=agent,
+            checkpointer=checkpointer,
+            provider=config.llm.provider,
+            model=config.llm.model,
+            recursion_limit=config.recursion_limit,
+        )
+
+    # -- legacy creation (backward-compatible) -------------------------------
+
     async def create(
         self,
         provider: str,
@@ -53,6 +135,9 @@ class SessionManager:
         sandbox_config: dict | None = None,
     ) -> Session:
         """Create a new session with a fresh agent and checkpointer.
+
+        .. deprecated::
+            Prefer :meth:`create_from_config` with an :class:`AgentConfig`.
 
         Args:
             provider: The LLM provider identifier.
@@ -77,13 +162,7 @@ class SessionManager:
             working_dir,
         )
 
-        # Ensure checkpoint directory exists
-        Path(self._checkpoint_db_path).parent.mkdir(parents=True, exist_ok=True)
-
-        logger.debug("Opening checkpoint DB at %s", self._checkpoint_db_path)
-        conn = await aiosqlite.connect(self._checkpoint_db_path)
-        checkpointer = AsyncSqliteSaver(conn)
-        await checkpointer.setup()
+        checkpointer = await self._open_checkpointer()
 
         agent = create_agent(
             provider=provider,
@@ -96,25 +175,20 @@ class SessionManager:
             sandbox_config=sandbox_config,
             checkpointer=checkpointer,
         )
+
         cfg = sandbox_config or {}
-        recursion_limit = cfg.get("recursion_limit", 150)
-        now = datetime.now(UTC)
-        session = Session(
+        recursion_limit = int(cfg.get("recursion_limit", 150))
+
+        return self._register(
             session_id=session_id,
             agent=agent,
             checkpointer=checkpointer,
-            created_at=now,
             provider=provider,
             model=model,
             recursion_limit=recursion_limit,
         )
-        self._sessions[session_id] = session
-        logger.info(
-            "Session %s created: recursion_limit=%d",
-            session_id,
-            recursion_limit,
-        )
-        return session
+
+    # -- retrieval / lifecycle -----------------------------------------------
 
     def get(self, session_id: str) -> Session:
         """Retrieve a session by ID.

@@ -26,6 +26,8 @@ class BoxView:
     task_outcome: str | None = None
     task_outcome_message: str | None = None
     trigger: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None
     github_repo: str | None = None
     github_branch: str | None = None
     github_issue_number: int | None = None

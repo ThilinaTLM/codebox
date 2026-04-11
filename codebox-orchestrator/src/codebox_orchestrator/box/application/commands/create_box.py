@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from codebox_orchestrator.box.application.name_generator import generate_readable_name
 from codebox_orchestrator.box.domain.views import BoxView
@@ -30,16 +30,22 @@ class CreateBoxHandler:
     async def execute(
         self,
         name: str | None = None,
+        description: str | None = None,
+        tags: list[str] | None = None,
         provider: str | None = None,
         model: str | None = None,
-        dynamic_system_prompt: str | None = None,
-        initial_prompt: str | None = None,
+        llm_settings: dict[str, Any] | None = None,
+        system_prompt: str | None = None,
+        auto_start_prompt: str | None = None,
+        recursion_limit: int | None = None,
+        tool_settings: dict[str, Any] | None = None,
         trigger: str | None = None,
         github_installation_id: str | None = None,
         github_repo: str | None = None,
         github_issue_number: int | None = None,
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
+        init_bash_script: str | None = None,
     ) -> BoxView:
         box_id = str(uuid.uuid4())
         box_name = name or generate_readable_name()
@@ -67,16 +73,22 @@ class CreateBoxHandler:
         self._lifecycle.start_box(
             box_id=box_id,
             name=box_name,
+            description=description,
+            tags=tags,
             provider=box_provider,
             model=box_model,
-            dynamic_system_prompt=dynamic_system_prompt,
-            initial_prompt=initial_prompt,
+            llm_settings=llm_settings,
+            system_prompt=system_prompt,
+            auto_start_prompt=auto_start_prompt,
+            recursion_limit=recursion_limit,
+            tool_settings=tool_settings,
             trigger=trigger,
             github_installation_id=github_installation_id,
             github_repo=github_repo,
             github_issue_number=github_issue_number,
             github_trigger_url=github_trigger_url,
             github_branch=github_branch,
+            init_bash_script=init_bash_script,
         )
 
         view = BoxView(
@@ -88,6 +100,8 @@ class CreateBoxHandler:
             container_id="",
             container_name=f"codebox-box-{box_id[:8]}",
             grpc_connected=False,
+            description=description,
+            tags=tags,
             trigger=trigger,
             github_repo=github_repo,
             github_branch=github_branch,

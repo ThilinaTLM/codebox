@@ -62,32 +62,44 @@ class BoxLifecycleService:
         *,
         box_id: str,
         name: str,
+        description: str | None = None,
+        tags: list[str] | None = None,
         provider: str,
         model: str,
-        dynamic_system_prompt: str | None = None,
-        initial_prompt: str | None = None,
+        llm_settings: dict[str, Any] | None = None,
+        system_prompt: str | None = None,
+        auto_start_prompt: str | None = None,
+        recursion_limit: int | None = None,
+        tool_settings: dict[str, Any] | None = None,
         trigger: str | None = None,
         github_installation_id: str | None = None,
         github_repo: str | None = None,
         github_issue_number: int | None = None,
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
+        init_bash_script: str | None = None,
     ) -> None:
         """Launch background lifecycle task for a box."""
         bg = asyncio.create_task(
             self._run_box(
                 box_id=box_id,
                 name=name,
+                description=description,
+                tags=tags,
                 provider=provider,
                 model=model,
-                dynamic_system_prompt=dynamic_system_prompt,
-                initial_prompt=initial_prompt,
+                llm_settings=llm_settings,
+                system_prompt=system_prompt,
+                auto_start_prompt=auto_start_prompt,
+                recursion_limit=recursion_limit,
+                tool_settings=tool_settings,
                 trigger=trigger,
                 github_installation_id=github_installation_id,
                 github_repo=github_repo,
                 github_issue_number=github_issue_number,
                 github_trigger_url=github_trigger_url,
                 github_branch=github_branch,
+                init_bash_script=init_bash_script,
             )
         )
         self._running[box_id] = bg
@@ -118,21 +130,27 @@ class BoxLifecycleService:
         finally:
             self._running.pop(box_id, None)
 
-    async def _do_run_box(  # noqa: PLR0912
+    async def _do_run_box(  # noqa: PLR0912, PLR0915
         self,
         *,
         box_id: str,
         name: str,
+        description: str | None = None,
+        tags: list[str] | None = None,
         provider: str,
         model: str,
-        dynamic_system_prompt: str | None = None,
-        initial_prompt: str | None = None,
+        llm_settings: dict[str, Any] | None = None,
+        system_prompt: str | None = None,
+        auto_start_prompt: str | None = None,
+        recursion_limit: int | None = None,
+        tool_settings: dict[str, Any] | None = None,
         trigger: str | None = None,
         github_installation_id: str | None = None,
         github_repo: str | None = None,
         github_issue_number: int | None = None,
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
+        init_bash_script: str | None = None,
     ) -> None:
         is_github = bool(github_repo)
 
@@ -150,10 +168,39 @@ class BoxLifecycleService:
             "ORCHESTRATOR_GRPC_ADDRESS": ORCHESTRATOR_GRPC_ADDRESS,
             "CALLBACK_TOKEN": callback_token,
         }
-        if dynamic_system_prompt:
-            extra_env["DYNAMIC_SYSTEM_PROMPT"] = dynamic_system_prompt
-        if initial_prompt:
-            extra_env["INITIAL_PROMPT"] = initial_prompt
+        if auto_start_prompt:
+            extra_env["INITIAL_PROMPT"] = auto_start_prompt
+
+        # ── Build CODEBOX_AGENT_CONFIG ──────────────────────────────
+        temperature = float((llm_settings or {}).get("temperature", 0.0))
+        agent_config: dict[str, Any] = {
+            "llm": {
+                "provider": provider,
+                "model": model,
+                "api_key": LLM_API_KEY,
+                "base_url": LLM_BASE_URL or None,
+                "temperature": temperature,
+            },
+            "recursion_limit": recursion_limit or (200 if is_github else 150),
+        }
+        if system_prompt:
+            agent_config["system_prompt"] = system_prompt
+
+        # Merge tool settings from caller + inject server-side Tavily key
+        tools_dict: dict[str, Any] = dict(tool_settings) if tool_settings else {}
+        if TAVILY_API_KEY:
+            ws = dict(tools_dict.get("web_search") or {})
+            ws.setdefault("api_key", TAVILY_API_KEY)
+            tools_dict["web_search"] = ws
+        if is_github:
+            # GitHub boxes get a longer default execute timeout
+            ex = dict(tools_dict.get("execute") or {})
+            ex.setdefault("timeout", 300)
+            tools_dict["execute"] = ex
+        if tools_dict:
+            agent_config["tools"] = tools_dict
+
+        extra_env["CODEBOX_AGENT_CONFIG"] = json.dumps(agent_config)
 
         # Build metadata labels
         extra_labels: dict[str, str] = {
@@ -164,6 +211,10 @@ class BoxLifecycleService:
             "codebox.trigger": trigger or "manual",
             "codebox.created-at": datetime.now(UTC).isoformat(),
         }
+        if description:
+            extra_labels["codebox.description"] = description
+        if tags:
+            extra_labels["codebox.tags"] = ",".join(tags)
         if github_repo:
             extra_labels["codebox.github-repo"] = github_repo
         if github_branch:
@@ -176,12 +227,6 @@ class BoxLifecycleService:
         # For GitHub boxes, get installation token and inject env vars
         gh_token: str | None = None
         if is_github:
-            sandbox_config = {
-                "timeout": 300,
-                "recursion_limit": 200,
-                "temperature": 0,
-            }
-            extra_env["CODEBOX_SANDBOX_CONFIG"] = json.dumps(sandbox_config)
             extra_env["CODEBOX_GITHUB_REPO"] = github_repo or ""
             if github_branch:
                 extra_env["CODEBOX_BRANCH"] = github_branch
@@ -232,6 +277,15 @@ class BoxLifecycleService:
             except Exception as exc:
                 logger.exception("GitHub setup failed for box %s", box_id)
                 await self._broadcast_error(box_id, f"GitHub setup failed: {exc}")
+                return
+
+        # Run init bash script if provided (after GitHub setup, before marking running)
+        if init_bash_script:
+            try:
+                await self._send_exec_and_wait(box_id, init_bash_script, 120.0)
+            except Exception as exc:
+                logger.exception("Init script failed for box %s", box_id)
+                await self._broadcast_error(box_id, f"Init script failed: {exc}")
                 return
 
         # Mark as running via SSE broadcast

@@ -31,6 +31,8 @@ export interface Box {
   task_outcome: TaskOutcome | null
   task_outcome_message: string | null
   trigger: string | null
+  description: string | null
+  tags: Array<string> | null
   created_at: string | null
   started_at: string | null
   image: string
@@ -58,13 +60,50 @@ export interface ContainerLogs {
   logs: string
 }
 
-export interface BoxCreatePayload {
-  name?: string | null
+// ── Box creation types ──────────────────────────────────────
+
+export interface LLMSettings {
   provider?: string | null
   model?: string | null
-  dynamic_system_prompt?: string | null
-  initial_prompt?: string | null
+  temperature?: number
+  base_url?: string | null
+}
+
+export interface ToolConfig {
+  enabled?: boolean
+  [key: string]: unknown
+}
+
+export interface ToolSettings {
+  execute?: ToolConfig | null
+  web_search?: ToolConfig | null
+  web_fetch?: ToolConfig | null
+  filesystem?: ToolConfig | null
+  write_todos?: ToolConfig | null
+  task?: ToolConfig | null
+  compact_conversation?: ToolConfig | null
+}
+
+export interface BoxCreatePayload {
+  // Identity
+  name?: string | null
+  description?: string | null
+  tags?: Array<string> | null
+
+  // LLM
+  llm?: LLMSettings | null
+
+  // Agent behaviour
+  system_prompt?: string | null
+  auto_start_prompt?: string | null
+  recursion_limit?: number | null
+
+  // Tools
+  tools?: ToolSettings | null
+
+  // Init / integration
   github_repo?: string | null
+  init_bash_script?: string | null
 }
 
 export interface Model {

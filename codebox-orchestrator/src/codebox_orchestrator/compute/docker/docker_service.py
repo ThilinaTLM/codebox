@@ -81,6 +81,8 @@ class ContainerInfo:
     box_id: str = ""
     box_name: str = ""
     trigger: str = ""
+    description: str = ""
+    tags: list[str] | None = None
     github_repo: str = ""
     github_branch: str = ""
     github_issue_number: int | None = None
@@ -268,6 +270,12 @@ def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
                 box_id=labels.get("codebox.box-id", ""),
                 box_name=labels.get("codebox.name", ""),
                 trigger=labels.get("codebox.trigger", ""),
+                description=labels.get("codebox.description", ""),
+                tags=(
+                    labels.get("codebox.tags", "").split(",")
+                    if labels.get("codebox.tags")
+                    else None
+                ),
                 github_repo=labels.get("codebox.github-repo", ""),
                 github_branch=labels.get("codebox.github-branch", ""),
                 github_issue_number=gh_issue_number,

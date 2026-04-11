@@ -22,6 +22,7 @@ from codebox_agent.agent_runner import (
     run_agent_stream,
     run_exec,
 )
+from codebox_agent.config import AgentConfig
 from codebox_agent.events import new_id
 from codebox_agent.message_store import EventStore
 from codebox_agent.sessions import SessionManager
@@ -41,52 +42,42 @@ async def run_callback() -> None:
     """Main entry point for callback mode."""
     grpc_address = os.environ.get("ORCHESTRATOR_GRPC_ADDRESS", "")
     callback_token = os.environ.get("CALLBACK_TOKEN", "")
-    provider = os.environ.get("LLM_PROVIDER", "") or (
-        "openrouter" if os.environ.get("OPENROUTER_MODEL", "") else "openai"
-    )
-    model = (
-        os.environ.get("OPENROUTER_MODEL", "")
-        if provider == "openrouter"
-        else os.environ.get("OPENAI_MODEL", "")
-    )
-    api_key = (
-        os.environ.get("OPENROUTER_API_KEY", "")
-        if provider == "openrouter"
-        else os.environ.get("OPENAI_API_KEY", "")
-    )
-    base_url = os.environ.get("OPENAI_BASE_URL", "") if provider == "openai" else ""
 
     if not grpc_address:
         raise RuntimeError("ORCHESTRATOR_GRPC_ADDRESS is required")
     if not callback_token:
         raise RuntimeError("CALLBACK_TOKEN is required")
-    if not provider:
-        raise RuntimeError("LLM_PROVIDER is required")
-    if not model:
-        raise RuntimeError("OPENROUTER_MODEL or OPENAI_MODEL is required")
-    if not api_key:
-        raise RuntimeError("OPENROUTER_API_KEY or OPENAI_API_KEY is required")
 
-    # Parse optional sandbox config from environment
-    sandbox_config: dict[str, Any] | None = None
-    sandbox_config_raw = os.environ.get("CODEBOX_SANDBOX_CONFIG")
-    if sandbox_config_raw:
-        sandbox_config = json.loads(sandbox_config_raw)
+    # --- Build agent config -------------------------------------------------
+    # Prefer the structured CODEBOX_AGENT_CONFIG env var (JSON) when the
+    # orchestrator provides one.  Fall back to the legacy per-variable path
+    # via AgentConfig.from_env().
+    agent_config_raw = os.environ.get("CODEBOX_AGENT_CONFIG")
+    if agent_config_raw:
+        agent_config = AgentConfig.from_dict(json.loads(agent_config_raw))
+        logger.info("Loaded AgentConfig from CODEBOX_AGENT_CONFIG env var")
+    else:
+        agent_config = AgentConfig.from_env()
+        logger.info("Built AgentConfig from legacy environment variables")
+
+    # Apply dynamic system prompt override if present.
+    dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
+    if dynamic_system_prompt and not agent_config.system_prompt:
+        agent_config = agent_config.model_copy(update={"system_prompt": dynamic_system_prompt})
 
     # Create session manager and session
     manager = SessionManager(checkpoint_db_path=_CHECKPOINT_DB_PATH)
-    dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
-    session = await manager.create(
-        provider=provider,
-        model=model,
-        api_key=api_key,
-        base_url=base_url or None,
+    session = await manager.create_from_config(
+        config=agent_config,
         environment_system_prompt=SANDBOX_ENVIRONMENT_SYSTEM_PROMPT,
-        dynamic_system_prompt=dynamic_system_prompt,
-        sandbox_config=sandbox_config,
     )
     session_id = session.session_id
-    logger.info("Created session %s with provider=%s model=%s", session_id, provider, model)
+    logger.info(
+        "Created session %s with provider=%s model=%s",
+        session_id,
+        agent_config.llm.provider,
+        agent_config.llm.model,
+    )
 
     # Create local event store (same DB as checkpointer)
     event_store = EventStore(_CHECKPOINT_DB_PATH)

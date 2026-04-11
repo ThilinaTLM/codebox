@@ -103,15 +103,25 @@ async def create_box(
         github_installation_id = installation.id
         github_branch = f"codebox/manual-{body.github_repo.split('/')[-1]}"
 
+    # Resolve provider/model from nested LLM settings or defaults
+    provider = body.llm.provider if body.llm and body.llm.provider else None
+    model = body.llm.model if body.llm and body.llm.model else None
+
     view = await handler.execute(
         name=body.name,
-        provider=body.provider,
-        model=body.model,
-        dynamic_system_prompt=body.dynamic_system_prompt,
-        initial_prompt=body.initial_prompt,
+        description=body.description,
+        tags=body.tags,
+        provider=provider,
+        model=model,
+        llm_settings=body.llm.model_dump(exclude_none=True) if body.llm else None,
+        system_prompt=body.system_prompt,
+        auto_start_prompt=body.auto_start_prompt,
+        recursion_limit=body.recursion_limit,
+        tool_settings=body.tools.model_dump(exclude_none=True) if body.tools else None,
         github_repo=body.github_repo,
         github_branch=github_branch,
         github_installation_id=github_installation_id,
+        init_bash_script=body.init_bash_script,
     )
     return BoxResponse.from_view(view)
 

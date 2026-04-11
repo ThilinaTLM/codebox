@@ -1,6 +1,9 @@
 """Agent creation and token extraction utilities."""
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from deepagents import create_deep_agent
 
@@ -9,25 +12,151 @@ from codebox_agent.prompts import CORE_SYSTEM_PROMPT
 from codebox_agent.streaming_backend import StreamingShellBackend
 from codebox_agent.tools.web import build_web_tools
 
+if TYPE_CHECKING:
+    from codebox_agent.config import AgentConfig
+
 logger = logging.getLogger(__name__)
 
 
-def _build_system_prompt(
-    environment_system_prompt: str | None = None,
-    dynamic_system_prompt: str | None = None,
-) -> str:
-    """Combine core, environment, and dynamic system prompts.
+# ---------------------------------------------------------------------------
+# System prompt assembly (Option C)
+# ---------------------------------------------------------------------------
 
-    The core prompt (capabilities/tools) is always included.
-    The environment prompt (runner-specific context) is appended if provided.
-    The dynamic prompt (caller-provided context) is appended if provided.
+
+def _build_system_prompt(
+    core_or_custom: str | None = None,
+    environment_system_prompt: str | None = None,
+) -> str:
+    """Combine the core (or custom) prompt with the runner-provided environment prompt.
+
+    * When *core_or_custom* is ``None`` the built-in ``CORE_SYSTEM_PROMPT`` is
+      used.
+    * The *environment_system_prompt* (sandbox / GitHub-Actions context) is
+      always appended when provided — it is factual runtime information, not
+      agent identity.
+    * The deepagents ``BASE_AGENT_PROMPT`` is appended automatically by
+      ``create_deep_agent()`` — we do **not** add it here.
     """
-    parts = [CORE_SYSTEM_PROMPT]
+    parts = [core_or_custom or CORE_SYSTEM_PROMPT]
     if environment_system_prompt:
         parts.append(environment_system_prompt)
-    if dynamic_system_prompt:
-        parts.append(dynamic_system_prompt)
     return "\n\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Config-driven agent creation (new primary path)
+# ---------------------------------------------------------------------------
+
+
+def create_agent_from_config(
+    *,
+    config: AgentConfig,
+    environment_system_prompt: str | None = None,
+    root_dir: str = "/workspace",
+    checkpointer=None,
+):
+    """Create a deep agent from a validated :class:`AgentConfig`.
+
+    This is the preferred entry point.  The legacy :func:`create_agent`
+    function delegates here after building a config from its positional args.
+
+    Returns:
+        A compiled LangGraph agent.
+    """
+    tc = config.tools
+
+    logger.info(
+        "Creating agent from config: provider=%s, model=%s, temperature=%s, "
+        "root_dir=%s, system_prompt=%s, recursion_limit=%d",
+        config.llm.provider,
+        config.llm.model,
+        config.llm.temperature,
+        root_dir,
+        "custom" if config.system_prompt else "default",
+        config.recursion_limit,
+    )
+
+    # -- LLM -----------------------------------------------------------------
+    llm = create_chat_model(
+        LLMProviderConfig(
+            provider=config.llm.provider,
+            model=config.llm.model,
+            api_key=config.llm.api_key,
+            base_url=config.llm.base_url,
+        ),
+        temperature=config.llm.temperature,
+    )
+
+    # -- Backend (filesystem + shell) ----------------------------------------
+    # When filesystem tools are disabled we pass backend=None so that
+    # deepagents' FilesystemMiddleware degrades gracefully (no file/shell
+    # tools).  When only execute is disabled we still pass the backend (needed
+    # for filesystem) — the execute tool will remain available since deepagents
+    # has no per-tool toggle; we log a warning below.
+    backend = None
+    if tc.filesystem.enabled:
+        backend = StreamingShellBackend(
+            root_dir=root_dir,
+            virtual_mode=False,
+            timeout=tc.execute.timeout,
+            inherit_env=True,
+        )
+        if not tc.execute.enabled:
+            logger.warning(
+                "tools.execute.enabled=False is not fully supported in v1: "
+                "the execute tool will still be present because deepagents' "
+                "FilesystemMiddleware always includes it when a backend is "
+                "provided.  To remove execute, disable the entire filesystem "
+                "tool group (tools.filesystem.enabled=False)."
+            )
+    else:
+        logger.info("Filesystem tools disabled — backend=None")
+
+    # -- Custom (web) tools --------------------------------------------------
+    tools = build_web_tools(tc)
+
+    # -- System prompt -------------------------------------------------------
+    system_prompt = _build_system_prompt(config.system_prompt, environment_system_prompt)
+
+    # -- Middleware -----------------------------------------------------------
+    # deepagents always adds TodoListMiddleware, FilesystemMiddleware, and
+    # SubAgentMiddleware.  We can only *add* extra middleware, not remove
+    # defaults.
+    extra_middleware: list = []
+
+    if not tc.task.enabled:
+        logger.warning(
+            "tools.task.enabled=False is not fully supported in v1: "
+            "the task tool will still be present because deepagents always "
+            "includes SubAgentMiddleware in the default stack."
+        )
+
+    # compact_conversation is opt-in — not in deepagents' default stack.
+    # It requires a reference to the auto-summarization middleware that
+    # deepagents creates internally, so we cannot easily add it from the
+    # outside.  Log a warning for now.
+    if tc.compact_conversation.enabled:
+        logger.warning(
+            "tools.compact_conversation.enabled=True is not yet supported: "
+            "SummarizationToolMiddleware requires a reference to the internal "
+            "SummarizationMiddleware instance created by deepagents.  This "
+            "will be addressed in a future deepagents release."
+        )
+
+    # -- Assemble graph ------------------------------------------------------
+    return create_deep_agent(
+        model=llm,
+        tools=tools or None,
+        backend=backend,
+        system_prompt=system_prompt,
+        middleware=extra_middleware or (),
+        checkpointer=checkpointer,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Legacy interface (backward-compatible wrapper)
+# ---------------------------------------------------------------------------
 
 
 def create_agent(
@@ -42,6 +171,11 @@ def create_agent(
     checkpointer=None,
 ):
     """Create a deep agent with the given configuration.
+
+    .. deprecated::
+        Prefer :func:`create_agent_from_config` with an :class:`AgentConfig`.
+        This wrapper exists for backward compatibility with callers that have
+        not yet migrated to the config-driven API.
 
     Args:
         provider: The LLM provider identifier.
@@ -59,48 +193,33 @@ def create_agent(
     Returns:
         A compiled LangGraph agent.
     """
+    from codebox_agent.config import AgentConfig, LLMConfig  # noqa: PLC0415
+
     cfg = sandbox_config or {}
-    temperature = cfg.get("temperature", 0)
-    timeout = cfg.get("timeout", 120)
 
-    logger.info(
-        "Creating agent: provider=%s, model=%s, temperature=%s, timeout=%s, root_dir=%s,"
-        " env_prompt=%s, dynamic_prompt=%s",
-        provider,
-        model,
-        temperature,
-        timeout,
-        root_dir,
-        bool(environment_system_prompt),
-        bool(dynamic_system_prompt),
-    )
-
-    llm = create_chat_model(
-        LLMProviderConfig(
+    config = AgentConfig(
+        llm=LLMConfig(
             provider=provider,
             model=model,
             api_key=api_key,
             base_url=base_url,
+            temperature=float(cfg.get("temperature", 0.0)),
         ),
-        temperature=temperature,
+        system_prompt=dynamic_system_prompt,
+        recursion_limit=int(cfg.get("recursion_limit", 150)),
     )
 
-    backend = StreamingShellBackend(
+    return create_agent_from_config(
+        config=config,
+        environment_system_prompt=environment_system_prompt,
         root_dir=root_dir,
-        virtual_mode=False,
-        timeout=timeout,
-        inherit_env=True,
-    )
-
-    tools = build_web_tools()
-
-    return create_deep_agent(
-        model=llm,
-        tools=tools,
-        backend=backend,
-        system_prompt=_build_system_prompt(environment_system_prompt, dynamic_system_prompt),
         checkpointer=checkpointer,
     )
+
+
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
 
 
 def extract_token(chunk) -> str:

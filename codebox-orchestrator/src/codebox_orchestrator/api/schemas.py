@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
@@ -12,13 +12,53 @@ if TYPE_CHECKING:
 # ── Request schemas ──────────────────────────────────────────────
 
 
-class BoxCreate(BaseModel):
-    name: str | None = None
+class LLMSettings(BaseModel):
+    """LLM provider/model overrides.  All fields are optional — server defaults apply."""
+
     provider: str | None = None
     model: str | None = None
-    dynamic_system_prompt: str | None = None
-    initial_prompt: str | None = None
+    temperature: float = 0.0
+    base_url: str | None = None
+
+
+class ToolSettings(BaseModel):
+    """Per-tool configuration overrides.
+
+    Each tool accepts a dict with ``enabled`` (bool) and tool-specific keys.
+    Only include tools you want to override — omitted tools keep defaults.
+    """
+
+    execute: dict[str, Any] | None = None
+    web_search: dict[str, Any] | None = None
+    web_fetch: dict[str, Any] | None = None
+    filesystem: dict[str, Any] | None = None
+    write_todos: dict[str, Any] | None = None
+    task: dict[str, Any] | None = None
+    compact_conversation: dict[str, Any] | None = None
+
+
+class BoxCreate(BaseModel):
+    """Payload for ``POST /api/boxes``."""
+
+    # Identity
+    name: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+
+    # LLM
+    llm: LLMSettings | None = None
+
+    # Agent behaviour
+    system_prompt: str | None = None
+    auto_start_prompt: str | None = None
+    recursion_limit: int | None = None
+
+    # Tools
+    tools: ToolSettings | None = None
+
+    # Init / integration
     github_repo: str | None = None
+    init_bash_script: str | None = None
 
 
 class BoxMessage(BaseModel):
@@ -45,6 +85,8 @@ class BoxResponse(BaseModel):
     task_outcome: str | None = None
     task_outcome_message: str | None = None
     trigger: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None
     github_repo: str | None = None
     github_branch: str | None = None
     github_issue_number: int | None = None
@@ -68,6 +110,8 @@ class BoxResponse(BaseModel):
             task_outcome=view.task_outcome,
             task_outcome_message=view.task_outcome_message,
             trigger=view.trigger,
+            description=view.description,
+            tags=view.tags,
             github_repo=view.github_repo,
             github_branch=view.github_branch,
             github_issue_number=view.github_issue_number,

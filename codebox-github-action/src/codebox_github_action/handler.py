@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from codebox_agent.agent_runner import run_agent_stream
+from codebox_agent.config import AgentConfig
 from codebox_agent.sessions import SessionManager
 from codebox_github_action.prompts import GITHUB_ACTIONS_ENVIRONMENT_SYSTEM_PROMPT
 
@@ -299,37 +300,21 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
 
     # Set up the agent
     workspace = os.environ.get("GITHUB_WORKSPACE", str(Path.cwd()))
-    provider = os.environ.get("LLM_PROVIDER", "") or (
-        "openrouter" if os.environ.get("OPENROUTER_MODEL", "") else "openai"
-    )
-    model = (
-        os.environ.get("OPENROUTER_MODEL", "")
-        if provider == "openrouter"
-        else os.environ.get("OPENAI_MODEL", "")
-    )
-    if not model:
-        raise RuntimeError("OPENROUTER_MODEL or OPENAI_MODEL is required")
-    api_key = (
-        os.environ.get("OPENROUTER_API_KEY", "")
-        if provider == "openrouter"
-        else os.environ.get("OPENAI_API_KEY", "")
-    )
-    base_url = os.environ.get("OPENAI_BASE_URL", "") if provider == "openai" else ""
 
-    if not api_key:
-        raise RuntimeError("OPENROUTER_API_KEY or OPENAI_API_KEY is required")
+    # Build config from the same env vars that already exist.
+    agent_config = AgentConfig.from_env()
+    # Override recursion_limit for GitHub Action context (deeper tasks).
+    agent_config = agent_config.model_copy(update={"recursion_limit": 300})
+
+    dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
+    if dynamic_system_prompt:
+        agent_config = agent_config.model_copy(update={"system_prompt": dynamic_system_prompt})
 
     manager = SessionManager(checkpoint_db_path="/tmp/codebox-checkpoints.db")  # noqa: S108
-    dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
-    session = await manager.create(
-        provider=provider,
-        model=model,
-        api_key=api_key,
-        base_url=base_url or None,
+    session = await manager.create_from_config(
+        config=agent_config,
         environment_system_prompt=GITHUB_ACTIONS_ENVIRONMENT_SYSTEM_PROMPT,
-        dynamic_system_prompt=dynamic_system_prompt,
         working_dir=workspace,
-        sandbox_config={"recursion_limit": 300},
     )
 
     # Set up event collection

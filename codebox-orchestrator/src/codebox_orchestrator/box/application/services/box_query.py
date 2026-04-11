@@ -131,6 +131,8 @@ class BoxQueryService:
             task_outcome=live.get("task_outcome"),
             task_outcome_message=live.get("task_outcome_message"),
             trigger=c.trigger or None,
+            description=c.description or None,
+            tags=c.tags,
             github_repo=c.github_repo or None,
             github_branch=c.github_branch or None,
             github_issue_number=c.github_issue_number,
