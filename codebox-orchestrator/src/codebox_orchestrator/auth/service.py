@@ -105,15 +105,16 @@ class AuthService:
             session.add(user)
             await session.commit()
 
-            logger.info(
+            banner = (
                 "\n"
                 "══════════════════════════════════════════════════\n"
                 "  Default admin credentials (first-time setup):\n"
-                "  Username: admin\n"
-                "  Password: %s\n"
-                "══════════════════════════════════════════════════",
-                password,
+                f"  Username: admin\n"
+                f"  Password: {password}\n"
+                "══════════════════════════════════════════════════"
             )
+            # Use print() to guarantee visibility regardless of logging config
+            print(banner)  # noqa: T201
 
     async def authenticate(self, username: str, password: str) -> User | None:
         """Verify credentials. Returns the User or None."""

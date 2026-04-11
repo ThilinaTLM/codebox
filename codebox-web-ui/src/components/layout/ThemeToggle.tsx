@@ -18,16 +18,17 @@ export function ThemeToggle() {
             : "border-border bg-card hover:border-muted-foreground/30"
         )}
       >
-        <div className="rounded-md bg-inset p-2">
+        {/* Light preview – always renders light colors */}
+        <div className="rounded-md bg-white p-2">
           <div className="flex gap-1">
-            <div className="size-1.5 rounded-full bg-border" />
-            <div className="size-1.5 rounded-full bg-border" />
-            <div className="size-1.5 rounded-full bg-border" />
+            <div className="size-1.5 rounded-full bg-gray-300" />
+            <div className="size-1.5 rounded-full bg-gray-300" />
+            <div className="size-1.5 rounded-full bg-gray-300" />
           </div>
           <div className="mt-2 space-y-1.5">
-            <div className="h-1.5 w-3/4 rounded-full bg-border" />
-            <div className="h-1.5 w-1/2 rounded-full bg-muted" />
-            <div className="h-1.5 w-2/3 rounded-full bg-muted" />
+            <div className="h-1.5 w-3/4 rounded-full bg-gray-300" />
+            <div className="h-1.5 w-1/2 rounded-full bg-gray-200" />
+            <div className="h-1.5 w-2/3 rounded-full bg-gray-200" />
           </div>
         </div>
         <div className="ml-3 flex items-center gap-2">
@@ -60,16 +61,17 @@ export function ThemeToggle() {
             : "border-border bg-card hover:border-muted-foreground/30"
         )}
       >
-        <div className="rounded-md bg-inset p-2">
+        {/* Dark preview – always renders dark colors */}
+        <div className="rounded-md bg-zinc-900 p-2">
           <div className="flex gap-1">
-            <div className="size-1.5 rounded-full bg-border" />
-            <div className="size-1.5 rounded-full bg-border" />
-            <div className="size-1.5 rounded-full bg-border" />
+            <div className="size-1.5 rounded-full bg-zinc-600" />
+            <div className="size-1.5 rounded-full bg-zinc-600" />
+            <div className="size-1.5 rounded-full bg-zinc-600" />
           </div>
           <div className="mt-2 space-y-1.5">
-            <div className="h-1.5 w-3/4 rounded-full bg-border" />
-            <div className="h-1.5 w-1/2 rounded-full bg-muted" />
-            <div className="h-1.5 w-2/3 rounded-full bg-muted" />
+            <div className="h-1.5 w-3/4 rounded-full bg-zinc-600" />
+            <div className="h-1.5 w-1/2 rounded-full bg-zinc-700" />
+            <div className="h-1.5 w-2/3 rounded-full bg-zinc-700" />
           </div>
         </div>
         <div className="ml-3 flex items-center gap-2">

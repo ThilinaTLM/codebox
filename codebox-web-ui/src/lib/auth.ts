@@ -14,7 +14,10 @@ interface AuthState {
   logout: () => void
 }
 
+const isBrowser = typeof window !== "undefined"
+
 function loadUser(): AuthUser | null {
+  if (!isBrowser) return null
   try {
     const raw = localStorage.getItem("auth_user")
     return raw ? (JSON.parse(raw) as AuthUser) : null
@@ -24,9 +27,9 @@ function loadUser(): AuthUser | null {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  token: localStorage.getItem("auth_token"),
+  token: isBrowser ? localStorage.getItem("auth_token") : null,
   user: loadUser(),
-  isAuthenticated: !!localStorage.getItem("auth_token"),
+  isAuthenticated: isBrowser ? !!localStorage.getItem("auth_token") : false,
 
   login: (token, user) => {
     localStorage.setItem("auth_token", token)
