@@ -4,12 +4,25 @@ import type { EventBlock } from "./types"
 import type { BoxStreamEvent } from "@/net/http/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-export function collapseTokens(
-  events: Array<BoxStreamEvent>
-): Array<EventBlock> {
+function findToolBlock(
+  blocks: Array<EventBlock>,
+  toolCallId: string,
+  fallbackName?: string
+): Extract<EventBlock, { kind: "tool_call" }> | null {
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const block = blocks[i]
+    if (block.kind !== "tool_call") continue
+    if (toolCallId && block.toolCallId === toolCallId) return block
+    if (!toolCallId && fallbackName && block.name === fallbackName && block.isRunning) {
+      return block
+    }
+  }
+  return null
+}
+
+export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock> {
   const blocks: Array<EventBlock> = []
   let textBuffer = ""
-  let pendingThinking = false
   let thinkingBuffer = ""
   let currentExec: Extract<EventBlock, { kind: "exec_session" }> | null = null
 
@@ -20,6 +33,13 @@ export function collapseTokens(
     }
   }
 
+  const flushThinking = () => {
+    if (thinkingBuffer) {
+      blocks.push({ kind: "thinking", content: thinkingBuffer })
+      thinkingBuffer = ""
+    }
+  }
+
   const flushExec = () => {
     if (currentExec) {
       blocks.push(currentExec)
@@ -27,186 +47,187 @@ export function collapseTokens(
     }
   }
 
-  const flushThinking = () => {
-    if (thinkingBuffer) {
-      blocks.push({ kind: "thinking", content: thinkingBuffer })
-      thinkingBuffer = ""
-      pendingThinking = false
-    }
-  }
-
   for (const event of events) {
-    if (event.type === "message_complete") continue
+    const payload = event.payload
 
-    if (event.type === "token") {
-      flushExec()
-      flushThinking()
-      pendingThinking = false
-      textBuffer += event.text
-      continue
-    }
-
-    if (event.type === "thinking_token") {
-      flushText()
-      flushExec()
-      pendingThinking = false
-      thinkingBuffer += event.text
-      continue
-    }
-
-    // user_message and user_exec are already persisted to box_messages
-    // and rendered from history — skip them in the live stream to avoid duplicates
-    if (event.type === "user_message" || event.type === "user_exec") {
-      continue
-    }
-
-    if (event.type === "exec_output") {
-      flushText()
-      flushThinking()
-      pendingThinking = false
-      if (!currentExec) {
-        currentExec = { kind: "exec_session", output: "", isRunning: true }
-      }
-      currentExec.output += event.output
-      continue
-    }
-
-    if (event.type === "exec_done") {
-      flushText()
-      flushThinking()
-      pendingThinking = false
-      if (!currentExec) {
-        currentExec = { kind: "exec_session", output: "", isRunning: false }
-      }
-      currentExec.exitCode = event.output
-      currentExec.isRunning = false
-      flushExec()
-      continue
-    }
-
-    // Streaming exec output from agent tool calls
-    if (event.type === "tool_exec_output") {
-      for (let j = blocks.length - 1; j >= 0; j--) {
-        const b = blocks[j]
-        if (
-          b.kind === "tool_call" &&
-          b.isRunning &&
-          (b.toolCallId === event.tool_call_id || b.name === "execute")
-        ) {
-          b.streamOutput = (b.streamOutput || "") + event.output
-          break
-        }
-      }
-      continue
-    }
-
-    // These events should not flush currentExec — they can arrive mid-exec
-    if (
-      event.type === "status_change" ||
-      event.type === "activity_changed" ||
-      event.type === "task_outcome"
-    ) {
-      flushText()
-      if (event.type === "status_change") {
-        blocks.push({
-          kind: "status_change",
-          status: event.container_status ?? event.activity ?? "",
-        })
-      }
-      continue
-    }
-
-    flushText()
-    flushExec()
-    flushThinking()
-
-    switch (event.type) {
-      case "model_start":
-        pendingThinking = true
+    switch (event.kind) {
+      case "reasoning.started":
+        flushText()
+        flushExec()
         break
 
-      case "tool_start": {
-        pendingThinking = false
-        // If a block with the same toolCallId already exists, update its input
-        // (second tool_start carries the full args from the updates stream)
-        let existingIdx = -1
-        if (event.tool_call_id) {
-          for (let j = blocks.length - 1; j >= 0; j--) {
-            const b = blocks[j]
-            if (b.kind === "tool_call" && b.toolCallId === event.tool_call_id) {
-              existingIdx = j
-              break
-            }
+      case "reasoning.delta":
+        flushText()
+        flushExec()
+        thinkingBuffer += String(payload.text ?? "")
+        break
+
+      case "reasoning.completed":
+        flushThinking()
+        break
+
+      case "message.delta":
+        flushThinking()
+        flushExec()
+        textBuffer += String(payload.text ?? "")
+        break
+
+      case "message.completed": {
+        const role = String(payload.role ?? "assistant")
+        const content = String(payload.content ?? "")
+        if (role === "user") {
+          flushText()
+          flushThinking()
+          flushExec()
+          blocks.push({ kind: "user_message", content })
+          break
+        }
+        if (role === "assistant") {
+          flushThinking()
+          flushExec()
+          if (!textBuffer && content) {
+            blocks.push({ kind: "text", content })
+          } else {
+            flushText()
           }
         }
-        if (existingIdx >= 0) {
-          const existing = blocks[existingIdx]
-          if (existing.kind === "tool_call") {
-            existing.input = event.input
-          }
-        } else {
+        break
+      }
+
+      case "tool_call.started": {
+        flushText()
+        flushThinking()
+        flushExec()
+        const name = String(payload.name ?? "tool")
+        const existing = findToolBlock(blocks, event.tool_call_id, name)
+        if (!existing) {
           blocks.push({
             kind: "tool_call",
-            name: event.name,
-            toolCallId: event.tool_call_id,
-            input: event.input,
+            name,
+            toolCallId: event.tool_call_id || undefined,
             isRunning: true,
           })
         }
         break
       }
 
-      case "tool_end": {
-        let matched = false
-        for (let j = blocks.length - 1; j >= 0; j--) {
-          const b = blocks[j]
-          if (b.kind === "tool_call" && b.name === event.name && b.isRunning) {
-            b.output = event.output
-            b.isRunning = false
-            matched = true
-            break
+      case "tool_call.arguments.delta": {
+        const block = findToolBlock(blocks, event.tool_call_id)
+        if (block) {
+          block.input = (block.input ?? "") + String(payload.text ?? "")
+        }
+        break
+      }
+
+      case "tool_call.arguments.completed": {
+        const block = findToolBlock(blocks, event.tool_call_id)
+        if (block) {
+          block.input = String(payload.arguments_json ?? "")
+        }
+        break
+      }
+
+      case "command.started": {
+        const origin = String(payload.origin ?? "")
+        const command = String(payload.command ?? "")
+        if (origin === "user_exec") {
+          flushText()
+          flushThinking()
+          flushExec()
+          currentExec = { kind: "exec_session", command, output: "", isRunning: true }
+        } else {
+          const block = findToolBlock(blocks, event.tool_call_id, "execute")
+          if (block && command && !block.input) {
+            block.input = JSON.stringify({ command })
           }
         }
-        if (!matched) {
+        break
+      }
+
+      case "command.output.delta": {
+        const text = String(payload.text ?? "")
+        if (event.tool_call_id) {
+          const block = findToolBlock(blocks, event.tool_call_id, "execute")
+          if (block) {
+            block.streamOutput = (block.streamOutput ?? "") + text
+          }
+        } else {
+          if (!currentExec) {
+            currentExec = { kind: "exec_session", output: "", isRunning: true }
+          }
+          currentExec.output += text
+        }
+        break
+      }
+
+      case "command.completed":
+      case "command.failed": {
+        const origin = String(payload.origin ?? "")
+        const output = String(payload.output ?? "")
+        const exitCode = String(payload.exit_code ?? "")
+        if (origin === "user_exec") {
+          if (!currentExec) {
+            currentExec = { kind: "exec_session", output: "", isRunning: false }
+          }
+          currentExec.output = output || currentExec.output
+          currentExec.exitCode = exitCode
+          currentExec.isRunning = false
+          flushExec()
+        } else {
+          const block = findToolBlock(blocks, event.tool_call_id, "execute")
+          if (block) {
+            block.output = output
+            block.isRunning = false
+          }
+        }
+        break
+      }
+
+      case "tool_call.completed":
+      case "tool_call.failed": {
+        flushText()
+        flushThinking()
+        const block = findToolBlock(blocks, event.tool_call_id, String(payload.name ?? "tool"))
+        if (block) {
+          block.output = String(payload.output ?? "")
+          block.isRunning = false
+        } else {
           blocks.push({
             kind: "tool_call",
-            name: event.name,
-            output: event.output,
+            name: String(payload.name ?? "tool"),
+            toolCallId: event.tool_call_id || undefined,
+            output: String(payload.output ?? ""),
             isRunning: false,
           })
         }
         break
       }
 
-      case "done":
-        pendingThinking = false
-        blocks.push({ kind: "done", content: event.content })
+      case "run.completed":
+        flushText()
+        flushThinking()
+        flushExec()
+        blocks.push({ kind: "done", content: String(payload.summary ?? "") })
         break
-      case "error":
-        pendingThinking = false
-        blocks.push({ kind: "error", detail: event.detail })
+
+      case "run.failed":
+        flushText()
+        flushThinking()
+        flushExec()
+        blocks.push({ kind: "error", detail: String(payload.error ?? "Run failed") })
+        break
+
+      default:
         break
     }
   }
 
   flushText()
-  flushExec()
   flushThinking()
-
-  if (pendingThinking) {
-    blocks.push({ kind: "thinking" })
-  }
-
+  flushExec()
   return blocks
 }
 
-/**
- * Derive a stable React key for a block.
- *
- * Uses toolCallId when available (tool_call blocks), falls back to
- * kind + index which is stable as long as the block list doesn't
- * get reordered (it never does — both sources are append-only).
- */
 function blockKey(block: EventBlock, index: number): string {
   if (block.kind === "tool_call" && block.toolCallId) {
     return `tc-${block.toolCallId}`
@@ -227,7 +248,6 @@ export function ChatStream({
   const prevLenRef = useRef(0)
 
   useEffect(() => {
-    // Only auto-scroll when new blocks are appended
     if (blocks.length > prevLenRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }

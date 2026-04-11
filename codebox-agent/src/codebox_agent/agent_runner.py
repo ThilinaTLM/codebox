@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Any
 
 from langchain_core.messages import AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
 
+from codebox_agent.events import make_event, new_id
+
 if TYPE_CHECKING:
     from codebox_agent.sessions import SessionManager
 
@@ -28,47 +30,6 @@ _MAX_TOOL_OUTPUT = 2000
 _MAX_FILE_SIZE = 1_048_576  # 1 MB
 
 
-def _langchain_message_to_dict(msg: Any) -> dict[str, Any]:
-    """Convert a LangChain message to a serializable dict for message_complete events."""
-    role = getattr(msg, "type", "unknown")
-    if role == "ai":
-        role = "assistant"
-    elif role == "human":
-        role = "user"
-
-    result: dict[str, Any] = {
-        "role": role,
-        "content": msg.content if isinstance(msg.content, str) else str(msg.content),
-    }
-
-    # Tool calls on assistant messages
-    tool_calls = getattr(msg, "tool_calls", None)
-    if tool_calls:
-        result["tool_calls"] = [
-            {
-                "id": tc.get("id", ""),
-                "name": tc.get("name", ""),
-                "args_json": json.dumps(tc.get("args", {})),
-            }
-            for tc in tool_calls
-        ]
-
-    # Tool result messages
-    tool_call_id = getattr(msg, "tool_call_id", None)
-    if tool_call_id:
-        result["tool_call_id"] = tool_call_id
-    tool_name = getattr(msg, "name", None)
-    if tool_name and role == "tool":
-        result["tool_name"] = tool_name
-
-    # Metadata
-    metadata = getattr(msg, "metadata", None) or {}
-    if metadata:
-        result["metadata_json"] = json.dumps(metadata)
-
-    return result
-
-
 def _extract_thinking_text(chunk: AIMessageChunk) -> str:
     """Extract thinking/reasoning text from a message chunk."""
     parts: list[str] = []
@@ -78,7 +39,6 @@ def _extract_thinking_text(chunk: AIMessageChunk) -> str:
                 text = block.get("thinking", "")
                 if text:
                     parts.append(text)
-    # OpenAI-style reasoning
     reasoning = (getattr(chunk, "additional_kwargs", None) or {}).get("reasoning_content")
     if reasoning and isinstance(reasoning, str):
         parts.append(reasoning)
@@ -102,33 +62,147 @@ def _extract_text_token(chunk: AIMessageChunk) -> str:
     return ""
 
 
+def _parse_command_from_args(raw_args: str) -> str:
+    if not raw_args:
+        return ""
+    try:
+        parsed = json.loads(raw_args)
+    except Exception:
+        return ""
+    if isinstance(parsed, dict):
+        command = parsed.get("command", "")
+        return command if isinstance(command, str) else ""
+    return ""
+
+
+def _extract_exit_code(output: str) -> int:
+    marker = "Exit code:"
+    if marker not in output:
+        return 0
+    tail = output.rsplit(marker, 1)[-1].strip().splitlines()[0]
+    try:
+        return int(tail)
+    except Exception:
+        return 0
+
+
+def _infer_outcome(final_text: str) -> tuple[str, str]:
+    text = final_text.strip()
+    if text.endswith("?"):
+        return ("need_clarification", text)
+    return ("completed", text[:500])
+
+
 async def run_agent_stream(  # noqa: PLR0912, PLR0915
     send: SendFn,
     session_id: str,
     manager: SessionManager,
     new_message: str,
+    *,
+    run_id: str | None = None,
+    input_message_id: str | None = None,
+    emit_input_event: bool = False,
 ) -> None:
-    """Stream agent events, calling send(msg_dict) for each event.
-
-    Uses ``.astream()`` with multi-mode (messages + custom + updates) to
-    surface LLM tokens, thinking tokens, tool exec streaming, and node
-    updates through a single loop.
-    """
+    """Stream canonical agent events for a single user message."""
     logger.info("Agent stream starting for session %s", session_id)
     session = manager.get(session_id)
+    run_id = run_id or new_id("run")
+    input_message_id = input_message_id or new_id("msg")
+
     ai_text_buffer = ""
-    model_started = False
-    # tool_call_id -> tool_name for currently running tool calls
     active_tool_calls: dict[str, str] = {}
-    # Track tool call IDs that have already been emitted as tool_start
-    emitted_tool_starts: set[str] = set()
+    tool_args_buffers: dict[str, str] = {}
+    tool_args_completed: set[str] = set()
+    tool_command_ids: dict[str, str] = {}
+
+    turn_id = ""
+    message_id = ""
+    message_buffer = ""
+    reasoning_open = False
+    message_open = False
+    turn_open = False
+    turn_started_sent = False
+
+    def _new_turn() -> tuple[str, str]:
+        return new_id("turn"), new_id("msg")
+
+    async def _close_reasoning() -> None:
+        nonlocal reasoning_open
+        if reasoning_open:
+            await send(
+                make_event(
+                    "reasoning.completed",
+                    run_id=run_id,
+                    turn_id=turn_id,
+                    message_id=message_id,
+                )
+            )
+            reasoning_open = False
+
+    async def _close_message() -> None:
+        nonlocal message_open, message_buffer
+        if message_open:
+            await send(
+                make_event(
+                    "message.completed",
+                    run_id=run_id,
+                    turn_id=turn_id,
+                    message_id=message_id,
+                    payload={"role": "assistant", "content": message_buffer},
+                )
+            )
+            message_open = False
+            message_buffer = ""
+
+    async def _close_turn() -> None:
+        nonlocal turn_open, turn_id, message_id, turn_started_sent
+        if turn_open:
+            await _close_reasoning()
+            await _close_message()
+            if turn_started_sent:
+                await send(make_event("turn.completed", run_id=run_id, turn_id=turn_id))
+            turn_open = False
+            turn_started_sent = False
+            turn_id = ""
+            message_id = ""
+
+    def _ensure_turn() -> None:
+        nonlocal turn_open, turn_id, message_id, turn_started_sent
+        if not turn_open:
+            turn_id, message_id = _new_turn()
+            turn_open = True
+            turn_started_sent = False
+
+    async def _ensure_turn_started() -> None:
+        nonlocal turn_started_sent
+        _ensure_turn()
+        if not turn_started_sent:
+            await send(make_event("turn.started", run_id=run_id, turn_id=turn_id))
+            turn_started_sent = True
 
     config = {
         "configurable": {"thread_id": session_id},
         "recursion_limit": session.recursion_limit,
     }
 
-    await send({"type": "activity_changed", "status": "agent_working"})
+    if emit_input_event:
+        await send(
+            make_event(
+                "message.completed",
+                run_id=run_id,
+                message_id=input_message_id,
+                payload={"role": "user", "content": new_message},
+            )
+        )
+
+    await send(
+        make_event(
+            "run.started",
+            run_id=run_id,
+            payload={"trigger": "user_message", "input": new_message},
+        )
+    )
+    await send(make_event("state.changed", run_id=run_id, payload={"activity": "agent_working"}))
 
     try:
         async for part in session.agent.astream(
@@ -139,75 +213,148 @@ async def run_agent_stream(  # noqa: PLR0912, PLR0915
         ):
             chunk_type = part["type"] if isinstance(part, dict) else None
 
-            # ── messages mode: LLM tokens, thinking, tool_call chunks ──
             if chunk_type == "messages":
                 msg_chunk, _metadata = part["data"]
-
                 if not isinstance(msg_chunk, AIMessageChunk):
                     continue
 
-                # Emit model_start on first chunk of a turn
-                if not model_started:
-                    model_started = True
-                    ai_text_buffer = ""
-                    logger.debug("Model invocation started for session %s", session_id)
-                    await send({"type": "model_start"})
+                _ensure_turn()
+                if not message_id:
+                    message_id = new_id("msg")
+                if not turn_id:
+                    turn_id = new_id("turn")
+                await _ensure_turn_started()
 
-                # Thinking tokens
                 thinking = _extract_thinking_text(msg_chunk)
                 if thinking:
-                    await send({"type": "thinking_token", "text": thinking})
+                    if not reasoning_open:
+                        await send(
+                            make_event(
+                                "reasoning.started",
+                                run_id=run_id,
+                                turn_id=turn_id,
+                                message_id=message_id,
+                            )
+                        )
+                        reasoning_open = True
+                    await send(
+                        make_event(
+                            "reasoning.delta",
+                            run_id=run_id,
+                            turn_id=turn_id,
+                            message_id=message_id,
+                            payload={"text": thinking},
+                        )
+                    )
 
-                # Text tokens
                 token = _extract_text_token(msg_chunk)
                 if token:
-                    ai_text_buffer += token
-                    await send({"type": "token", "text": token})
-
-                # Tool call chunks — emit tool_start as soon as we see the name
-                for tc in getattr(msg_chunk, "tool_call_chunks", None) or []:
-                    tc_id = tc.get("id")
-                    tc_name = tc.get("name")
-                    if tc_id and tc_name and tc_id not in emitted_tool_starts:
-                        emitted_tool_starts.add(tc_id)
-                        active_tool_calls[tc_id] = tc_name
-                        tc_args = tc.get("args", "")
-                        logger.info("Tool start: %s (session %s)", tc_name, session_id)
+                    await _close_reasoning()
+                    if not message_open:
                         await send(
-                            {
-                                "type": "tool_start",
-                                "name": tc_name,
-                                "tool_call_id": tc_id,
-                                "input": tc_args if isinstance(tc_args, str) else "",
-                            }
+                            make_event(
+                                "message.started",
+                                run_id=run_id,
+                                turn_id=turn_id,
+                                message_id=message_id,
+                                payload={"role": "assistant"},
+                            )
+                        )
+                        message_open = True
+                    ai_text_buffer += token
+                    message_buffer += token
+                    await send(
+                        make_event(
+                            "message.delta",
+                            run_id=run_id,
+                            turn_id=turn_id,
+                            message_id=message_id,
+                            payload={"text": token},
+                        )
+                    )
+
+                for tc in getattr(msg_chunk, "tool_call_chunks", None) or []:
+                    tc_id = tc.get("id") or ""
+                    tc_name = tc.get("name") or active_tool_calls.get(tc_id, "")
+                    tc_args = tc.get("args", "") if isinstance(tc.get("args", ""), str) else ""
+                    if not tc_id or not tc_name:
+                        continue
+                    _ensure_turn()
+                    if not turn_id:
+                        turn_id = new_id("turn")
+                    await _ensure_turn_started()
+                    await _close_reasoning()
+                    if tc_id not in active_tool_calls:
+                        active_tool_calls[tc_id] = tc_name
+                        await send(
+                            make_event(
+                                "tool_call.started",
+                                run_id=run_id,
+                                turn_id=turn_id,
+                                tool_call_id=tc_id,
+                                payload={"name": tc_name},
+                            )
+                        )
+                    if tc_args:
+                        tool_args_buffers[tc_id] = tool_args_buffers.get(tc_id, "") + tc_args
+                        await send(
+                            make_event(
+                                "tool_call.arguments.delta",
+                                run_id=run_id,
+                                turn_id=turn_id,
+                                tool_call_id=tc_id,
+                                payload={"text": tc_args},
+                            )
                         )
 
-            # ── custom mode: streaming exec output from get_stream_writer() ──
             elif chunk_type == "custom":
                 data = part["data"]
                 if isinstance(data, dict) and data.get("type") == "tool_exec_output":
                     line = data.get("line", "")
-                    # Find the currently active execute tool call
-                    tool_call_id = ""
-                    for tc_id, tc_name in active_tool_calls.items():
-                        if tc_name == "execute":
-                            tool_call_id = tc_id
-                            break
-                    await send(
-                        {
-                            "type": "tool_exec_output",
-                            "output": line,
-                            "tool_call_id": tool_call_id,
-                        }
+                    tool_call_id = next(
+                        (
+                            tc_id
+                            for tc_id, tc_name in active_tool_calls.items()
+                            if tc_name == "execute"
+                        ),
+                        "",
                     )
+                    if tool_call_id and tool_call_id not in tool_command_ids:
+                        command_id = new_id("cmd")
+                        tool_command_ids[tool_call_id] = command_id
+                        command = _parse_command_from_args(tool_args_buffers.get(tool_call_id, ""))
+                        await send(
+                            make_event(
+                                "command.started",
+                                run_id=run_id,
+                                turn_id=turn_id,
+                                tool_call_id=tool_call_id,
+                                command_id=command_id,
+                                payload={
+                                    "origin": "agent_tool",
+                                    "command": command,
+                                    "timeout_seconds": 0,
+                                },
+                            )
+                        )
+                    if tool_call_id:
+                        await send(
+                            make_event(
+                                "command.output.delta",
+                                run_id=run_id,
+                                turn_id=turn_id,
+                                tool_call_id=tool_call_id,
+                                command_id=tool_command_ids.get(tool_call_id, ""),
+                                payload={"text": line},
+                            )
+                        )
 
-            # ── updates mode: node completions (tool results, final messages) ──
             elif chunk_type == "updates":
                 node_updates = part["data"]
                 if not isinstance(node_updates, dict):
                     continue
 
-                for node_name, node_output in node_updates.items():
+                for node_output in node_updates.values():
                     if not isinstance(node_output, dict):
                         continue
                     messages = node_output.get("messages", [])
@@ -217,101 +364,225 @@ async def run_agent_stream(  # noqa: PLR0912, PLR0915
                         continue
 
                     for msg in messages:
-                        # AI messages with tool_calls — emit tool_start
-                        # with full input (or update if already emitted
-                        # early from tool_call_chunks).
-                        for tc in getattr(msg, "tool_calls", None) or []:
-                            tc_id = tc.get("id", "")
-                            tc_name = tc.get("name", "")
-                            if not tc_id:
-                                continue
-                            input_str = json.dumps(tc.get("args", {}))
-                            if len(input_str) > 4000:
-                                input_str = input_str[:4000] + "..."
-                            if tc_id not in emitted_tool_starts:
-                                emitted_tool_starts.add(tc_id)
-                                active_tool_calls[tc_id] = tc_name
-                                logger.info("Tool start: %s (session %s)", tc_name, session_id)
-                                await send(
-                                    {
-                                        "type": "tool_start",
-                                        "name": tc_name,
-                                        "tool_call_id": tc_id,
-                                        "input": input_str,
-                                    }
-                                )
-                            else:
-                                # Re-send tool_start with full input
-                                await send(
-                                    {
-                                        "type": "tool_start",
-                                        "name": tc_name,
-                                        "tool_call_id": tc_id,
-                                        "input": input_str,
-                                    }
-                                )
+                        if getattr(msg, "type", "") == "ai":
+                            _ensure_turn()
+                            await _ensure_turn_started()
 
-                        # Tool results → emit tool_end
+                            tool_calls = getattr(msg, "tool_calls", None) or []
+                            if tool_calls:
+                                for tc in tool_calls:
+                                    tc_id = tc.get("id", "")
+                                    tc_name = tc.get("name", "")
+                                    if not tc_id:
+                                        continue
+                                    if tc_id not in active_tool_calls:
+                                        active_tool_calls[tc_id] = tc_name
+                                        await send(
+                                            make_event(
+                                                "tool_call.started",
+                                                run_id=run_id,
+                                                turn_id=turn_id,
+                                                tool_call_id=tc_id,
+                                                payload={"name": tc_name},
+                                            )
+                                        )
+                                    input_str = json.dumps(tc.get("args", {}))
+                                    if len(input_str) > 4000:
+                                        input_str = input_str[:4000] + "..."
+                                    if tc_id not in tool_args_completed:
+                                        tool_args_completed.add(tc_id)
+                                        tool_args_buffers[tc_id] = input_str
+                                        await send(
+                                            make_event(
+                                                "tool_call.arguments.completed",
+                                                run_id=run_id,
+                                                turn_id=turn_id,
+                                                tool_call_id=tc_id,
+                                                payload={"arguments_json": input_str},
+                                            )
+                                        )
+                                        if tc_name == "execute":
+                                            command_id = tool_command_ids.get(tc_id, "") or new_id(
+                                                "cmd"
+                                            )
+                                            tool_command_ids[tc_id] = command_id
+                                            await send(
+                                                make_event(
+                                                    "command.started",
+                                                    run_id=run_id,
+                                                    turn_id=turn_id,
+                                                    tool_call_id=tc_id,
+                                                    command_id=command_id,
+                                                    payload={
+                                                        "origin": "agent_tool",
+                                                        "command": _parse_command_from_args(
+                                                            input_str
+                                                        ),
+                                                        "timeout_seconds": 0,
+                                                    },
+                                                )
+                                            )
+                                await _close_turn()
+                                continue
+
+                            if getattr(msg, "content", ""):
+                                content = (
+                                    msg.content
+                                    if isinstance(msg.content, str)
+                                    else str(msg.content)
+                                )
+                                if content and not message_open and not message_buffer:
+                                    if not message_id:
+                                        message_id = new_id("msg")
+                                    await send(
+                                        make_event(
+                                            "message.started",
+                                            run_id=run_id,
+                                            turn_id=turn_id,
+                                            message_id=message_id,
+                                            payload={"role": "assistant"},
+                                        )
+                                    )
+                                    message_open = True
+                                    message_buffer = content
+                                    ai_text_buffer += content
+                                    await send(
+                                        make_event(
+                                            "message.delta",
+                                            run_id=run_id,
+                                            turn_id=turn_id,
+                                            message_id=message_id,
+                                            payload={"text": content},
+                                        )
+                                    )
+                            await _close_turn()
+                            continue
+
                         if isinstance(msg, ToolMessage):
                             tool_name = getattr(msg, "name", "") or ""
                             tc_id = getattr(msg, "tool_call_id", "") or ""
                             output_str = str(msg.content)
                             if len(output_str) > _MAX_TOOL_OUTPUT:
                                 output_str = output_str[:_MAX_TOOL_OUTPUT] + "..."
-                            logger.info("Tool end: %s (session %s)", tool_name, session_id)
-                            active_tool_calls.pop(tc_id, None)
-                            await send(
-                                {
-                                    "type": "tool_end",
-                                    "name": tool_name,
+
+                            if tool_name == "execute":
+                                exit_code = _extract_exit_code(output_str)
+                                command_id = tool_command_ids.get(tc_id, "") or new_id("cmd")
+                                tool_command_ids[tc_id] = command_id
+                                event_kind = (
+                                    "command.failed" if exit_code != 0 else "command.completed"
+                                )
+                                payload = {
+                                    "origin": "agent_tool",
+                                    "exit_code": exit_code,
                                     "output": output_str,
                                 }
+                                if exit_code != 0:
+                                    payload["error"] = f"Command failed with exit code {exit_code}"
+                                await send(
+                                    make_event(
+                                        event_kind,
+                                        run_id=run_id,
+                                        turn_id=turn_id,
+                                        tool_call_id=tc_id,
+                                        command_id=command_id,
+                                        payload=payload,
+                                    )
+                                )
+
+                            tool_event_kind = (
+                                "tool_call.failed"
+                                if tool_name == "execute" and _extract_exit_code(output_str) != 0
+                                else "tool_call.completed"
                             )
+                            payload = {"name": tool_name, "output": output_str}
+                            if tool_event_kind == "tool_call.failed":
+                                payload["error"] = f"Tool {tool_name} failed"
+                            await send(
+                                make_event(
+                                    tool_event_kind,
+                                    run_id=run_id,
+                                    turn_id=turn_id,
+                                    tool_call_id=tc_id,
+                                    payload=payload,
+                                )
+                            )
+                            active_tool_calls.pop(tc_id, None)
 
-                        msg_dict = _langchain_message_to_dict(msg)
-                        await send({"type": "message_complete", "message": msg_dict})
-
-                    # Reset model_started when tool node completes
-                    # (next model invocation will emit a new model_start)
-                    if node_name == "tools":
-                        model_started = False
-
-        # Stream finished normally
-        logger.info("Agent stream completed for session %s", session_id)
-        await send({"type": "done", "content": ai_text_buffer.strip()})
-        await send({"type": "activity_changed", "status": "idle"})
+        await _close_turn()
+        final_text = ai_text_buffer.strip()
+        await send(make_event("run.completed", run_id=run_id, payload={"summary": final_text}))
+        outcome_status, outcome_message = _infer_outcome(final_text)
+        await send(
+            make_event(
+                "outcome.declared",
+                run_id=run_id,
+                payload={"status": outcome_status, "message": outcome_message},
+            )
+        )
+        await send(make_event("state.changed", run_id=run_id, payload={"activity": "idle"}))
 
     except asyncio.CancelledError:
-        await send({"type": "done", "content": ai_text_buffer.strip()})
-        await send({"type": "activity_changed", "status": "idle"})
+        await _close_turn()
+        await send(make_event("run.cancelled", run_id=run_id))
+        await send(make_event("state.changed", run_id=run_id, payload={"activity": "idle"}))
         raise
 
     except Exception as exc:
         logger.exception("Agent stream error for session %s", session_id)
-        await send({"type": "error", "detail": str(exc)})
-        await send({"type": "activity_changed", "status": "idle"})
+        await _close_turn()
+        await send(make_event("run.failed", run_id=run_id, payload={"error": str(exc)}))
+        await send(
+            make_event(
+                "outcome.declared",
+                run_id=run_id,
+                payload={"status": "unable_to_proceed", "message": str(exc)},
+            )
+        )
+        await send(make_event("state.changed", run_id=run_id, payload={"activity": "idle"}))
 
 
-async def run_exec(
+async def run_exec(  # noqa: PLR0915
     send: SendFn,
     command: str,
     session_id: str,
     manager: SessionManager,
     request_id: str = "",
     workspace_root: Path = Path("/workspace"),
+    *,
+    run_id: str | None = None,
+    command_id: str | None = None,
+    emit_started_event: bool = False,
 ) -> None:
-    """Execute a shell command and stream output via send callback.
-
-    Also records the command and its output in the agent's chat thread
-    so the agent has full context of what the user did.
-    """
+    """Execute a shell command and stream output via canonical events."""
     logger.info("Exec command for session %s: %s", session_id, command[:200])
     session = manager.get(session_id)
     config = {"configurable": {"thread_id": session_id}}
+    run_id = run_id or new_id("run")
+    command_id = command_id or new_id("cmd")
 
-    await send({"type": "activity_changed", "status": "exec_shell"})
+    await send(
+        make_event(
+            "state.changed",
+            run_id=run_id,
+            command_id=command_id,
+            payload={"activity": "exec_shell"},
+        )
+    )
+    if emit_started_event:
+        await send(
+            make_event(
+                "command.started",
+                run_id=run_id,
+                command_id=command_id,
+                payload={
+                    "origin": "user_exec",
+                    "command": command,
+                    "timeout_seconds": 0,
+                },
+            )
+        )
 
-    # Record the shell command in the agent's thread
     try:
         await session.agent.aupdate_state(
             config=config,
@@ -319,18 +590,6 @@ async def run_exec(
         )
     except Exception:
         logger.debug("Could not record exec command in thread", exc_info=True)
-
-    # Emit message_complete for the command
-    await send(
-        {
-            "type": "message_complete",
-            "message": {
-                "role": "user",
-                "content": f"! {command}",
-                "metadata_json": json.dumps({"type": "shell_command"}),
-            },
-        }
-    )
 
     proc = None
     output_lines: list[str] = []
@@ -346,20 +605,17 @@ async def run_exec(
             decoded = line.decode(errors="replace")
             output_lines.append(decoded)
             await send(
-                {
-                    "type": "exec_output",
-                    "output": decoded,
-                    "request_id": request_id,
-                }
+                make_event(
+                    "command.output.delta",
+                    run_id=run_id,
+                    command_id=command_id,
+                    payload={"text": decoded},
+                )
             )
 
         await proc.wait()
-        exit_code = proc.returncode
-        await send({"type": "exec_done", "output": str(exit_code), "request_id": request_id})
-
-        # Record output in the agent's thread
+        exit_code = proc.returncode or 0
         full_output = "".join(output_lines)
-        # Truncate to avoid huge messages
         if len(full_output) > 10000:
             full_output = full_output[:10000] + "\n... (truncated)"
         shell_output_content = f"Exit code: {exit_code}\n\n{full_output}"
@@ -372,31 +628,75 @@ async def run_exec(
         except Exception:
             logger.debug("Could not record exec output in thread", exc_info=True)
 
-        # Emit message_complete for the output
+        event_kind = "command.failed" if exit_code != 0 else "command.completed"
+        payload = {
+            "origin": "user_exec",
+            "exit_code": exit_code,
+            "output": shell_output_content,
+        }
+        if exit_code != 0:
+            payload["error"] = f"Command failed with exit code {exit_code}"
         await send(
-            {
-                "type": "message_complete",
-                "message": {
-                    "role": "system",
-                    "content": shell_output_content,
-                    "metadata_json": json.dumps({"type": "shell_output", "exit_code": exit_code}),
-                },
-            }
+            make_event(
+                event_kind,
+                run_id=run_id,
+                command_id=command_id,
+                payload=payload,
+            )
         )
-        await send({"type": "activity_changed", "status": "idle"})
+        if request_id:
+            await send({"type": "exec_done", "output": str(exit_code), "request_id": request_id})
+        await send(
+            make_event(
+                "state.changed",
+                run_id=run_id,
+                command_id=command_id,
+                payload={"activity": "idle"},
+            )
+        )
 
     except asyncio.CancelledError:
         if proc and proc.returncode is None:
             proc.kill()
             await proc.wait()
-        await send({"type": "exec_done", "output": "cancelled", "request_id": request_id})
-        await send({"type": "activity_changed", "status": "idle"})
+        await send(make_event("run.cancelled", run_id=run_id, command_id=command_id))
+        if request_id:
+            await send({"type": "exec_done", "output": "cancelled", "request_id": request_id})
+        await send(
+            make_event(
+                "state.changed",
+                run_id=run_id,
+                command_id=command_id,
+                payload={"activity": "idle"},
+            )
+        )
         raise
 
     except Exception as exc:
         logger.exception("Exec error for session %s", session_id)
-        await send({"type": "error", "detail": str(exc)})
-        await send({"type": "activity_changed", "status": "idle"})
+        await send(
+            make_event(
+                "command.failed",
+                run_id=run_id,
+                command_id=command_id,
+                payload={
+                    "origin": "user_exec",
+                    "exit_code": 1,
+                    "error": str(exc),
+                    "output": "",
+                },
+            )
+        )
+        if request_id:
+            await send({"type": "exec_done", "output": "1", "request_id": request_id})
+        await send(
+            make_event(
+                "state.changed",
+                run_id=run_id,
+                command_id=command_id,
+                payload={"activity": "idle"},
+            )
+        )
 
 
 _TEXT_MIME_PREFIXES = (

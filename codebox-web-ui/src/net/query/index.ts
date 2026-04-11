@@ -1,71 +1,105 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { BoxCreatePayload } from "@/net/http/types"
+import { useAuthStore } from "@/lib/auth"
 import { api } from "@/net/http/api"
+
+interface QueryHookOptions {
+  enabled?: boolean
+}
+
+function useAuthQueryEnabled(enabled: boolean = true): boolean {
+  const hasToken = useAuthStore((s) => !!s.token)
+  return hasToken && enabled
+}
 
 // ── Box queries ──────────────────────────────────────────────
 
-export function useBoxes(status?: string, trigger?: string) {
+export function useBoxes(
+  status?: string,
+  trigger?: string,
+  options?: QueryHookOptions
+) {
+  const enabled = useAuthQueryEnabled(options?.enabled)
   return useQuery({
     queryKey: ["boxes", status ?? "all", trigger ?? "all"],
     queryFn: () => api.boxes.list(status, trigger),
+    enabled,
   })
 }
 
-export function useBox(boxId: string | undefined) {
+export function useBox(boxId: string | undefined, options?: QueryHookOptions) {
+  const enabled = useAuthQueryEnabled((options?.enabled ?? true) && !!boxId)
   return useQuery({
     queryKey: ["boxes", boxId],
     queryFn: () => api.boxes.get(boxId!),
-    enabled: !!boxId,
+    enabled,
   })
 }
 
-export function useBoxMessages(boxId: string | undefined) {
+export function useBoxEvents(
+  boxId: string | undefined,
+  options?: QueryHookOptions
+) {
+  const enabled = useAuthQueryEnabled((options?.enabled ?? true) && !!boxId)
   return useQuery({
-    queryKey: ["boxes", boxId, "messages"],
-    queryFn: () => api.boxes.getMessages(boxId!),
-    enabled: !!boxId,
+    queryKey: ["boxes", boxId, "events"],
+    queryFn: () => api.boxes.getEvents(boxId!),
+    enabled,
   })
 }
 
-export function useBoxFiles(boxId: string | undefined, path: string) {
+export function useBoxFiles(
+  boxId: string | undefined,
+  path: string,
+  options?: QueryHookOptions
+) {
+  const enabled = useAuthQueryEnabled((options?.enabled ?? true) && !!boxId)
   return useQuery({
     queryKey: ["boxes", boxId, "files", path],
     queryFn: () => api.boxes.listFiles(boxId!, path),
-    enabled: !!boxId,
-    refetchInterval: 10000,
+    enabled,
+    refetchInterval: enabled ? 10000 : false,
   })
 }
 
 export function useBoxFileContent(
   boxId: string | undefined,
-  path: string | null
+  path: string | null,
+  options?: QueryHookOptions
 ) {
+  const enabled = useAuthQueryEnabled(
+    (options?.enabled ?? true) && !!boxId && !!path
+  )
   return useQuery({
     queryKey: ["boxes", boxId, "file-content", path],
     queryFn: () => api.boxes.readFile(boxId!, path!),
-    enabled: !!boxId && !!path,
+    enabled,
   })
 }
 
 export function useBoxLogs(
   boxId: string | null,
   tail: number = 200,
-  autoRefresh: boolean = false
+  autoRefresh: boolean = false,
+  options?: QueryHookOptions
 ) {
+  const enabled = useAuthQueryEnabled((options?.enabled ?? true) && !!boxId)
   return useQuery({
     queryKey: ["boxes", boxId, "logs", tail],
     queryFn: () => api.boxes.logs(boxId!, tail),
-    enabled: !!boxId,
-    refetchInterval: autoRefresh ? 3000 : false,
+    enabled,
+    refetchInterval: enabled && autoRefresh ? 3000 : false,
   })
 }
 
 // ── Model queries ────────────────────────────────────────────
 
-export function useModels(provider?: string) {
+export function useModels(provider?: string, options?: QueryHookOptions) {
+  const enabled = useAuthQueryEnabled(options?.enabled)
   return useQuery({
     queryKey: ["models", provider ?? "default"],
     queryFn: () => api.models.list(provider),
+    enabled,
     staleTime: 5 * 60 * 1000,
   })
 }
@@ -141,24 +175,30 @@ export function useSendExec() {
 
 // ── GitHub queries ──────────────────────────────────────────
 
-export function useGitHubStatus() {
+export function useGitHubStatus(options?: QueryHookOptions) {
+  const enabled = useAuthQueryEnabled(options?.enabled)
   return useQuery({
     queryKey: ["github", "status"],
     queryFn: () => api.github.status(),
+    enabled,
   })
 }
 
-export function useGitHubInstallations() {
+export function useGitHubInstallations(options?: QueryHookOptions) {
+  const enabled = useAuthQueryEnabled(options?.enabled)
   return useQuery({
     queryKey: ["github", "installations"],
     queryFn: () => api.github.listInstallations(),
+    enabled,
   })
 }
 
-export function useGitHubRepos() {
+export function useGitHubRepos(options?: QueryHookOptions) {
+  const enabled = useAuthQueryEnabled(options?.enabled)
   return useQuery({
     queryKey: ["github", "repos"],
     queryFn: () => api.github.listRepos(),
+    enabled,
   })
 }
 
@@ -191,10 +231,12 @@ export function useRemoveGitHubInstallation() {
 
 // ── Auth queries & mutations ────────────────────────────────
 
-export function useUsers() {
+export function useUsers(options?: QueryHookOptions) {
+  const enabled = useAuthQueryEnabled(options?.enabled)
   return useQuery({
     queryKey: ["users"],
     queryFn: () => api.auth.listUsers(),
+    enabled,
   })
 }
 

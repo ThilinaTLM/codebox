@@ -3,7 +3,7 @@ import type {
   AuthUser,
   Box,
   BoxCreatePayload,
-  BoxMessage,
+  CanonicalEvent,
   ContainerLogs,
   FileContent,
   FileListResponse,
@@ -21,6 +21,10 @@ const client = axios.create({
   headers: { "Content-Type": "application/json" },
 })
 
+export function isAuthError(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 401
+}
+
 // Attach auth token to every request
 client.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
@@ -34,7 +38,7 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
+    if (isAuthError(error)) {
       // Don't logout on failed login attempts
       const url = error.config?.url ?? ""
       if (!url.endsWith("/auth/login")) {
@@ -82,9 +86,13 @@ export const api = {
     sendExec: async (boxId: string, command: string): Promise<void> => {
       await client.post(`/api/boxes/${boxId}/exec`, { command })
     },
-    getMessages: async (boxId: string): Promise<Array<BoxMessage>> => {
-      const { data } = await client.get<Array<BoxMessage>>(
-        `/api/boxes/${boxId}/messages`
+    getEvents: async (
+      boxId: string,
+      afterSeq?: number
+    ): Promise<Array<CanonicalEvent>> => {
+      const { data } = await client.get<Array<CanonicalEvent>>(
+        `/api/boxes/${boxId}/events`,
+        { params: afterSeq != null ? { after_seq: afterSeq } : undefined }
       )
       return data
     },

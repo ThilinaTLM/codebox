@@ -11,7 +11,6 @@ import json
 import logging
 import tempfile
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from codebox_orchestrator.compute.domain.entities import ContainerConfig
@@ -22,7 +21,7 @@ from codebox_orchestrator.config import (
     LLM_BASE_URL,
     ORCHESTRATOR_GRPC_ADDRESS,
     TAVILY_API_KEY,
-    WORKSPACE_BASE_DIR,
+    get_workspace_base_dir,
 )
 
 if TYPE_CHECKING:
@@ -138,8 +137,8 @@ class BoxLifecycleService:
         is_github = bool(github_repo)
 
         # Create workspace directory
-        Path(WORKSPACE_BASE_DIR).mkdir(parents=True, exist_ok=True)  # noqa: ASYNC240
-        workspace = tempfile.mkdtemp(prefix=f"box-{box_id[:8]}-", dir=WORKSPACE_BASE_DIR)
+        workspace_base_dir = get_workspace_base_dir()
+        workspace = tempfile.mkdtemp(prefix=f"box-{box_id[:8]}-", dir=workspace_base_dir)
 
         # Generate JWT callback token
         callback_token = self._create_callback_token(box_id, "box")

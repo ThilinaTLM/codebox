@@ -41,13 +41,17 @@ export interface Box {
   github_branch: string | null
 }
 
-export interface BoxMessage {
-  role: string
-  content: string | null
-  tool_calls: Array<{ id: string; name: string; args_json: string }> | null
-  tool_call_id: string | null
-  tool_name: string | null
-  metadata_json: string | null
+export interface CanonicalEvent {
+  seq: number
+  event_id: string
+  timestamp_ms: number
+  kind: string
+  run_id: string
+  turn_id: string
+  message_id: string
+  tool_call_id: string
+  command_id: string
+  payload: Record<string, unknown>
 }
 
 export interface ContainerLogs {
@@ -70,34 +74,7 @@ export interface Model {
 }
 
 // SSE stream event types from orchestrator
-export type BoxStreamEvent =
-  | { type: "token"; text: string }
-  | { type: "tool_start"; name: string; tool_call_id?: string; input?: string }
-  | { type: "tool_end"; name: string; output: string }
-  | { type: "tool_exec_output"; output: string; tool_call_id: string }
-  | { type: "thinking_token"; text: string }
-  | { type: "model_start" }
-  | { type: "done"; content: string }
-  | { type: "error"; detail: string }
-  | {
-      type: "status_change"
-      container_status?: ContainerStatus
-      activity?: Activity
-      container_stop_reason?: string
-      task_outcome?: TaskOutcome
-      task_outcome_message?: string
-    }
-  | { type: "activity_changed"; status: Activity }
-  | {
-      type: "task_outcome"
-      status: TaskOutcome
-      message: string
-    }
-  | { type: "exec_output"; output: string }
-  | { type: "exec_done"; output: string }
-  | { type: "user_message"; content: string }
-  | { type: "user_exec"; command: string }
-  | { type: "message_complete"; message: Record<string, unknown> }
+export type BoxStreamEvent = CanonicalEvent
 
 export interface FileEntry {
   name: string

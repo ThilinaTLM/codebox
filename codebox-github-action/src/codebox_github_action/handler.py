@@ -28,128 +28,72 @@ def _human_print(msg: str) -> None:
     print(msg, flush=True)  # noqa: T201
 
 
-def _send_human(msg_type: str, msg: dict[str, Any]) -> None:  # noqa: PLR0912, PLR0915
+def _send_human(kind: str, msg: dict[str, Any]) -> None:
     """Emit clean, human-readable output using GitHub Actions annotations."""
-    if msg_type == "tool_start":
-        name = msg.get("name", "?")
-        tool_input = msg.get("input", "")
-        summary = ""
-        if tool_input:
-            try:
-                parsed = json.loads(tool_input)
-                if isinstance(parsed, dict):
-                    key = (
-                        parsed.get("path")
-                        or parsed.get("file_path")
-                        or parsed.get("command")
-                        or parsed.get("pattern")
-                        or parsed.get("query")
-                        or ""
-                    )
-                    if key:
-                        if len(str(key)) > 120:
-                            key = str(key)[:120] + "..."
-                        summary = f": {key}"
-            except (json.JSONDecodeError, TypeError):
-                pass
-        _human_print(f"::group::Tool: {name}{summary}")
+    payload = msg.get("payload", {}) or {}
 
-    elif msg_type == "tool_end":
-        output = msg.get("output", "")
+    if kind == "tool_call.started":
+        name = payload.get("name", "?")
+        _human_print(f"::group::Tool: {name}")
+    elif kind in {"tool_call.completed", "tool_call.failed"}:
+        output = str(payload.get("output", ""))
         if output:
             preview = output[:500]
             if len(output) > 500:
                 preview += f"\n... ({len(output)} chars total)"
             _human_print(preview)
         _human_print("::endgroup::")
-
-    elif msg_type == "model_start":
+    elif kind == "reasoning.started":
         _human_print("\n--- LLM thinking ---")
-
-    elif msg_type == "message_complete":
-        message = msg.get("message", {})
-        role = message.get("role", "")
-        content = message.get("content", "")
-        tool_calls = message.get("tool_calls", [])
-        if role == "assistant":
-            if content:
-                preview = content[:800]
-                if len(content) > 800:
-                    preview += "..."
-                _human_print(f"\n{preview}")
-            if tool_calls:
-                calls = ", ".join(tc.get("name", "?") for tc in tool_calls)
-                _human_print(f"  -> calling: {calls}")
-
-    elif msg_type == "task_outcome":
-        status = msg.get("status", "")
-        status_msg = msg.get("message", "")
+    elif kind == "message.completed" and payload.get("role") == "assistant":
+        content = str(payload.get("content", ""))
+        if content:
+            preview = content[:800]
+            if len(content) > 800:
+                preview += "..."
+            _human_print(f"\n{preview}")
+    elif kind == "outcome.declared":
+        status = payload.get("status", "")
+        status_msg = payload.get("message", "")
         line = f"::notice::Agent status: {status}"
         if status_msg:
             line += f" — {status_msg}"
         _human_print(line)
-
-    elif msg_type == "error":
-        _human_print(f"::error::Agent error: {msg.get('detail', 'unknown error')}")
-
-    elif msg_type == "done":
+    elif kind == "run.failed":
+        _human_print(f"::error::Agent error: {payload.get('error', 'unknown error')}")
+    elif kind == "run.completed":
         _human_print("\nAgent finished.")
 
 
-def _send_debug(msg_type: str, msg: dict[str, Any]) -> None:  # noqa: PLR0912
-    """Emit verbose technical output via Python logging (original behavior)."""
-    if msg_type == "tool_start":
-        name = msg.get("name", "?")
-        tool_input = msg.get("input", "")
-        if len(tool_input) > 500:
-            tool_input = tool_input[:500] + "..."
-        logger.info("Tool: %s | input: %s", name, tool_input or "(none)")
-
-    elif msg_type == "tool_end":
-        name = msg.get("name", "?")
-        output = msg.get("output", "")
-        output_len = len(output)
+def _send_debug(kind: str, msg: dict[str, Any]) -> None:
+    """Emit verbose technical output via Python logging."""
+    payload = msg.get("payload", {}) or {}
+    if kind == "tool_call.started":
+        logger.info("Tool: %s", payload.get("name", "?"))
+    elif kind in {"tool_call.completed", "tool_call.failed"}:
+        output = str(payload.get("output", ""))
         preview = output[:300].replace("\n", " ") if output else "(empty)"
-        if output_len > 300:
+        if len(output) > 300:
             preview += "..."
-        logger.info("Tool done: %s | output (%d chars): %s", name, output_len, preview)
-
-    elif msg_type == "message_complete":
-        message = msg.get("message", {})
-        role = message.get("role", "?")
-        content = message.get("content", "")
-        tool_calls = message.get("tool_calls", [])
-        if role == "assistant":
-            if content:
-                preview = content[:300].replace("\n", " ")
-                if len(content) > 300:
-                    preview += "..."
-                logger.info("Assistant: %s", preview)
-            if tool_calls:
-                for tc in tool_calls:
-                    tc_name = tc.get("name", "?")
-                    tc_args = tc.get("args_json", "")
-                    if len(tc_args) > 500:
-                        tc_args = tc_args[:500] + "..."
-                    logger.info("  -> tool_call: %s(%s)", tc_name, tc_args)
-        elif role == "tool":
-            tool_name = message.get("tool_name", "?")
-            preview = content[:200].replace("\n", " ") if content else "(empty)"
-            if len(content) > 200:
-                preview += "..."
-            logger.info("Tool result [%s]: %s", tool_name, preview)
-
-    elif msg_type == "model_start":
+        logger.info("Tool done: %s | %s", payload.get("name", "?"), preview)
+    elif kind == "message.completed" and payload.get("role") == "assistant":
+        content = str(payload.get("content", ""))
+        preview = content[:300].replace("\n", " ") if content else ""
+        if len(content) > 300:
+            preview += "..."
+        logger.info("Assistant: %s", preview)
+    elif kind == "reasoning.started":
         logger.info("LLM invocation started")
-
-    elif msg_type == "done":
-        logger.info("Agent done (output: %d chars)", len(msg.get("content", "")))
-
-    elif msg_type == "task_outcome":
-        logger.info("Agent status: %s — %s", msg.get("status", ""), msg.get("message", ""))
-
-    elif msg_type == "error":
-        logger.error("Agent error: %s", msg.get("detail", ""))
+    elif kind == "run.completed":
+        logger.info("Agent done (output: %d chars)", len(str(payload.get("summary", ""))))
+    elif kind == "outcome.declared":
+        logger.info(
+            "Agent status: %s — %s",
+            payload.get("status", ""),
+            payload.get("message", ""),
+        )
+    elif kind == "run.failed":
+        logger.error("Agent error: %s", payload.get("error", ""))
 
 
 def _gh(*args: str, stdin_input: str | None = None) -> str:
@@ -397,23 +341,19 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
     async def send(msg: dict[str, Any]) -> None:
         nonlocal final_text, agent_status, agent_status_message
         events.append(msg)
-        msg_type = msg.get("type", "")
+        kind = msg.get("kind", "")
 
-        # Dispatch to mode-specific formatter
         if human_mode:
-            _send_human(msg_type, msg)
+            _send_human(kind, msg)
         else:
-            _send_debug(msg_type, msg)
+            _send_debug(kind, msg)
 
-        # Always update state variables regardless of mode
-        if msg_type == "done":
-            final_text = msg.get("content", "")
-        elif msg_type == "task_outcome":
-            agent_status = msg.get("status", "")
-            agent_status_message = msg.get("message", "")
-
-    # Inject send_fn into status reporter
-    session.status_reporter.send_fn = send
+        payload = msg.get("payload", {}) or {}
+        if kind == "run.completed":
+            final_text = str(payload.get("summary", ""))
+        elif kind == "outcome.declared":
+            agent_status = str(payload.get("status", ""))
+            agent_status_message = str(payload.get("message", ""))
 
     # Run the agent
     prompt = _build_agent_prompt(event)

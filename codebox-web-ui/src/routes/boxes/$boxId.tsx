@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { AlertTriangle, RotateCw, Square, Trash2 } from "lucide-react"
-import { useQueryClient } from "@tanstack/react-query"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 
 import { Button } from "@/components/ui/button"
@@ -51,7 +50,6 @@ function BoxDetailPage() {
   const { boxId } = Route.useParams()
   const { data: box, isLoading, refetch } = useBox(boxId)
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const stopMutation = useStopBox()
   const deleteMutation = useDeleteBox()
   const restartMutation = useRestartBox()
@@ -154,32 +152,16 @@ function BoxDetailPage() {
 
   const handleSendMessage = useCallback(
     (content: string) => {
-      sendMessageMutation.mutate(
-        { boxId, message: content },
-        {
-          onSuccess: () =>
-            queryClient.invalidateQueries({
-              queryKey: ["boxes", boxId, "messages"],
-            }),
-        }
-      )
+      sendMessageMutation.mutate({ boxId, message: content })
     },
-    [sendMessageMutation, boxId, queryClient]
+    [sendMessageMutation, boxId]
   )
 
   const handleSendExec = useCallback(
     (command: string) => {
-      sendExecMutation.mutate(
-        { boxId, command },
-        {
-          onSuccess: () =>
-            queryClient.invalidateQueries({
-              queryKey: ["boxes", boxId, "messages"],
-            }),
-        }
-      )
+      sendExecMutation.mutate({ boxId, command })
     },
-    [sendExecMutation, boxId, queryClient]
+    [sendExecMutation, boxId]
   )
 
   const handleCancel = useCallback(() => {

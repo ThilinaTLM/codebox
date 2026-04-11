@@ -33,54 +33,56 @@ export function useAgentActivity(
       }
     }
 
-    // For RUNNING containers, scan events backwards for latest activity signal
     for (let i = events.length - 1; i >= 0; i--) {
       const ev = events[i]
-      switch (ev.type) {
-        case "model_start":
+      switch (ev.kind) {
+        case "reasoning.started":
+        case "reasoning.delta":
+        case "turn.started":
           return {
             label: "Thinking",
             animate: true,
             dotColor: "bg-primary/70",
             isWorking: true,
           }
-        case "token":
+        case "message.delta":
           return {
             label: "Writing",
             animate: true,
             dotColor: "bg-success",
             isWorking: true,
           }
-        case "tool_start":
+        case "tool_call.started":
           return {
-            label: `Using ${ev.name}`,
+            label: `Using ${String(ev.payload.name ?? "tool")}`,
             animate: true,
             dotColor: "bg-warning",
             isWorking: true,
           }
-        case "tool_end":
+        case "command.started":
           return {
-            label: "Thinking",
+            label: "Running command",
             animate: true,
-            dotColor: "bg-primary/70",
+            dotColor: "bg-warning",
             isWorking: true,
           }
-        case "done":
+        case "run.completed":
           return {
             label: "Idle",
             animate: false,
             dotColor: "bg-muted-foreground/60",
             isWorking: false,
           }
-        case "error":
+        case "run.failed":
           return {
             label: "Error",
             animate: false,
             dotColor: "bg-destructive",
             isWorking: false,
           }
-        case "activity_changed":
-          if (ev.status === Activity.AGENT_WORKING) {
+        case "state.changed": {
+          const nextActivity = ev.payload.activity as Activity | undefined
+          if (nextActivity === Activity.AGENT_WORKING) {
             return {
               label: "Working",
               animate: true,
@@ -88,7 +90,7 @@ export function useAgentActivity(
               isWorking: true,
             }
           }
-          if (ev.status === Activity.EXEC_SHELL) {
+          if (nextActivity === Activity.EXEC_SHELL) {
             return {
               label: "Running command",
               animate: true,
@@ -102,20 +104,10 @@ export function useAgentActivity(
             dotColor: "bg-muted-foreground/60",
             isWorking: false,
           }
-        case "status_change":
-          if (ev.container_status === ContainerStatus.STOPPED) {
-            return {
-              label: "Stopped",
-              animate: false,
-              dotColor: "bg-muted-foreground/40",
-              isWorking: false,
-            }
-          }
-          break
+        }
       }
     }
 
-    // Fallback based on activity
     if (activity === Activity.AGENT_WORKING) {
       return {
         label: "Working",

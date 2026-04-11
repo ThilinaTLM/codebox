@@ -51,9 +51,9 @@ export function CreateAgentDialog({
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null)
   const [initialPrompt, setInitialPrompt] = useState("")
 
-  const { data: models } = useModels(selectedProvider)
-  const { data: githubStatus } = useGitHubStatus()
-  const { data: repos } = useGitHubRepos()
+  const { data: models } = useModels(selectedProvider, { enabled: open })
+  const { data: githubStatus } = useGitHubStatus({ enabled: open })
+  const { data: repos } = useGitHubRepos({ enabled: open })
 
   const githubEnabled = githubStatus?.enabled ?? false
 

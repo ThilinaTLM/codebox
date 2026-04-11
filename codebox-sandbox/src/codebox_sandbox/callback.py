@@ -22,7 +22,8 @@ from codebox_agent.agent_runner import (
     run_agent_stream,
     run_exec,
 )
-from codebox_agent.message_store import MessageStore
+from codebox_agent.events import new_id
+from codebox_agent.message_store import EventStore
 from codebox_agent.sessions import SessionManager
 from codebox_sandbox.grpc.generated.codebox.box import box_pb2, box_pb2_grpc
 from codebox_sandbox.prompts import SANDBOX_ENVIRONMENT_SYSTEM_PROMPT
@@ -87,9 +88,9 @@ async def run_callback() -> None:
     session_id = session.session_id
     logger.info("Created session %s with provider=%s model=%s", session_id, provider, model)
 
-    # Create message store (same DB as checkpointer)
-    message_store = MessageStore(_CHECKPOINT_DB_PATH)
-    await message_store.setup()
+    # Create local event store (same DB as checkpointer)
+    event_store = EventStore(_CHECKPOINT_DB_PATH)
+    await event_store.setup()
 
     # Send initial prompt if set via env var
     initial_prompt = os.environ.get("INITIAL_PROMPT")
@@ -98,7 +99,7 @@ async def run_callback() -> None:
     while True:
         try:
             await _connect_and_run(
-                grpc_address, session_id, manager, callback_token, message_store, initial_prompt
+                grpc_address, session_id, manager, callback_token, event_store, initial_prompt
             )
             # Clean exit
             break
@@ -129,24 +130,17 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
     session_id: str,
     manager: SessionManager,
     callback_token: str,
-    message_store: MessageStore,
+    event_store: EventStore,
     initial_prompt: str | None,
 ) -> None:
     """Connect to orchestrator via gRPC and run the bidirectional stream."""
     logger.info("Connecting to orchestrator gRPC at %s", grpc_address)
 
-    # Track current activity in-memory for state queries
-    current_activity = "idle"
-
     async with grpc_aio.insecure_channel(grpc_address) as channel:
         stub = box_pb2_grpc.BoxServiceStub(channel)
-
-        # Outbound event queue
         outbound: asyncio.Queue[box_pb2.BoxEvent | None] = asyncio.Queue()
 
         async def event_iterator():
-            """Async generator that yields events to send to the orchestrator."""
-            # First event is always Register
             yield box_pb2.BoxEvent(register=box_pb2.RegisterEvent(session_id=session_id))
             while True:
                 event = await outbound.get()
@@ -154,40 +148,20 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                     break
                 yield event
 
-        # Send callback — converts agent dicts to protobuf and enqueues
-        async def send(msg: dict) -> None:
-            """Convert a dict event to protobuf and enqueue it.
-
-            Also persists messages and state changes to the local message store.
-            """
-            nonlocal current_activity
+        async def send(msg: dict[str, Any]) -> None:
+            """Persist canonical events or enqueue query results."""
             try:
-                msg_type = msg.get("type", "")
-
-                # Persist message_complete events
-                if msg_type == "message_complete":
-                    msg_data = msg.get("message", {})
-                    await message_store.append_message(
-                        role=msg_data.get("role", ""),
-                        content=msg_data.get("content"),
-                        tool_calls=msg_data.get("tool_calls"),
-                        tool_call_id=msg_data.get("tool_call_id"),
-                        tool_name=msg_data.get("tool_name"),
-                        metadata_json=msg_data.get("metadata_json"),
+                if "kind" in msg:
+                    envelope = dict(msg)
+                    envelope.setdefault("event_id", new_id("evt"))
+                    stored = await event_store.append_event(envelope)
+                    await outbound.put(
+                        box_pb2.BoxEvent(stream_event=_dict_to_stream_event(stored))
                     )
-
-                # Persist activity changes
-                if msg_type == "activity_changed":
-                    current_activity = msg.get("status", "idle")
-                    await message_store.set_state("activity", current_activity)
-
-                # Persist task outcome
-                if msg_type == "task_outcome":
-                    await message_store.set_state("task_outcome", msg.get("status", ""))
-                    await message_store.set_state("task_outcome_message", msg.get("message", ""))
+                    return
 
                 event = _dict_to_event(msg)
-                if event:
+                if event is not None:
                     await outbound.put(event)
             except Exception:
                 logger.debug("Failed to enqueue event", exc_info=True)
@@ -195,7 +169,6 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
         metadata = [("authorization", f"Bearer {callback_token}")]
         response_stream = stub.Connect(event_iterator(), metadata=metadata)
 
-        # Message loop
         current_task: asyncio.Task | None = None
 
         async def _cancel_current() -> None:
@@ -213,11 +186,6 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                 current_task = None
                 session.current_task = None
 
-        # Inject the send function into the status reporter so the set_status tool works
-        session = manager.get(session_id)
-        session.status_reporter.send_fn = send
-
-        # Track whether initial prompt has been sent (only on first connect)
         initial_prompt_sent = False
 
         try:
@@ -227,14 +195,19 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
 
                 if field == "registered":
                     logger.info("Registered with orchestrator via gRPC, session %s", session_id)
-                    # Send initial prompt on first registration if set
                     if initial_prompt and not initial_prompt_sent:
                         initial_prompt_sent = True
-                        # Persist and send the initial prompt as a user message
-                        await message_store.append_message(role="user", content=initial_prompt)
                         await _cancel_current()
                         current_task = asyncio.create_task(
-                            run_agent_stream(send, session_id, manager, new_message=initial_prompt)
+                            run_agent_stream(
+                                send,
+                                session_id,
+                                manager,
+                                new_message=initial_prompt,
+                                run_id=new_id("run"),
+                                input_message_id=new_id("msg"),
+                                emit_input_event=True,
+                            )
                         )
                         session.current_task = current_task
                         current_task.add_done_callback(_on_task_done)
@@ -247,15 +220,20 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                         session_id,
                     )
                     if not content:
-                        await send({"type": "error", "detail": "Empty message content"})
+                        logger.warning("Ignoring empty message content for session %s", session_id)
                         continue
-
-                    # Persist user message
-                    await message_store.append_message(role="user", content=content)
 
                     await _cancel_current()
                     current_task = asyncio.create_task(
-                        run_agent_stream(send, session_id, manager, new_message=content)
+                        run_agent_stream(
+                            send,
+                            session_id,
+                            manager,
+                            new_message=content,
+                            run_id=command.message.run_id or new_id("run"),
+                            input_message_id=command.message.message_id or new_id("msg"),
+                            emit_input_event=False,
+                        )
                     )
                     session.current_task = current_task
                     current_task.add_done_callback(_on_task_done)
@@ -272,16 +250,20 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
 
                     if query_field == "list_files":
                         path = query.list_files.path or str(_WORKSPACE_ROOT)
-                        logger.debug("Received list_files query: path=%s", path)
                         await handle_list_files(
-                            send, path, request_id, workspace_root=_WORKSPACE_ROOT
+                            send,
+                            path,
+                            request_id,
+                            workspace_root=_WORKSPACE_ROOT,
                         )
 
                     elif query_field == "read_file":
                         path = query.read_file.path
-                        logger.debug("Received read_file query: path=%s", path)
                         await handle_read_file(
-                            send, path, request_id, workspace_root=_WORKSPACE_ROOT
+                            send,
+                            path,
+                            request_id,
+                            workspace_root=_WORKSPACE_ROOT,
                         )
 
                     elif query_field == "exec":
@@ -292,7 +274,6 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                             session_id,
                         )
                         if not command_str:
-                            await send({"type": "error", "detail": "Empty exec command"})
                             continue
 
                         await _cancel_current()
@@ -304,90 +285,23 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                                 manager,
                                 request_id=request_id,
                                 workspace_root=_WORKSPACE_ROOT,
+                                run_id=query.exec.run_id or new_id("run"),
+                                command_id=query.exec.command_id or new_id("cmd"),
+                                emit_started_event=False,
                             )
                         )
                         session.current_task = current_task
                         current_task.add_done_callback(_on_task_done)
-
-                    elif query_field == "get_messages":
-                        await _handle_get_messages(outbound, message_store, request_id)
-
-                    elif query_field == "get_box_state":
-                        await _handle_get_box_state(
-                            outbound, message_store, request_id, current_activity
-                        )
 
                     else:
                         logger.warning("Unknown query type: %s", query_field)
 
                 else:
                     logger.warning("Unknown command type: %s", field)
-                    await send({"type": "error", "detail": f"Unknown command: {field}"})
 
         finally:
             await _cancel_current()
-            # Signal the event iterator to stop
             await outbound.put(None)
-
-
-async def _handle_get_messages(
-    outbound: asyncio.Queue,
-    store: MessageStore,
-    request_id: str,
-) -> None:
-    """Handle GetMessagesQuery: read messages from store and send back."""
-    messages = await store.get_messages()
-    proto_messages = []
-    for m in messages:
-        tool_calls = []
-        if m.get("tool_calls"):
-            tool_calls = [
-                box_pb2.ToolCall(
-                    id=tc.get("id", ""),
-                    name=tc.get("name", ""),
-                    args_json=tc.get("args_json", ""),
-                )
-                for tc in m["tool_calls"]
-            ]
-        proto_messages.append(
-            box_pb2.ChatMessage(
-                role=m.get("role", ""),
-                content=m.get("content", "") or "",
-                tool_calls=tool_calls,
-                tool_call_id=m.get("tool_call_id", "") or "",
-                tool_name=m.get("tool_name", "") or "",
-                metadata_json=m.get("metadata_json", "") or "",
-            )
-        )
-    event = box_pb2.BoxEvent(
-        query_result=box_pb2.QueryResult(
-            request_id=request_id,
-            get_messages=box_pb2.GetMessagesResult(messages=proto_messages),
-        )
-    )
-    await outbound.put(event)
-
-
-async def _handle_get_box_state(
-    outbound: asyncio.Queue,
-    store: MessageStore,
-    request_id: str,
-    current_activity: str,
-) -> None:
-    """Handle GetBoxStateQuery: read state from store and send back."""
-    task_outcome = await store.get_state("task_outcome") or ""
-    task_outcome_message = await store.get_state("task_outcome_message") or ""
-    event = box_pb2.BoxEvent(
-        query_result=box_pb2.QueryResult(
-            request_id=request_id,
-            get_box_state=box_pb2.GetBoxStateResult(
-                activity=current_activity,
-                task_outcome=task_outcome,
-                task_outcome_message=task_outcome_message,
-            ),
-        )
-    )
-    await outbound.put(event)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -395,77 +309,185 @@ async def _handle_get_box_state(
 # ──────────────────────────────────────────────────────────────
 
 
-def _build_message_completed(msg: dict[str, Any]) -> box_pb2.AgentOutput:
-    """Build a MessageCompleted agent output from a dict."""
-    msg_data = msg.get("message", {})
-    tool_calls = [
-        box_pb2.ToolCall(
-            id=tc.get("id", ""),
-            name=tc.get("name", ""),
-            args_json=tc.get("args_json", ""),
-        )
-        for tc in msg_data.get("tool_calls", [])
-    ]
-    chat_msg = box_pb2.ChatMessage(
-        role=msg_data.get("role", ""),
-        content=msg_data.get("content", ""),
-        tool_calls=tool_calls,
-        tool_call_id=msg_data.get("tool_call_id", ""),
-        tool_name=msg_data.get("tool_name", ""),
-        metadata_json=msg_data.get("metadata_json", ""),
-    )
-    return box_pb2.AgentOutput(message_completed=box_pb2.MessageCompleted(message=chat_msg))
+def _dict_to_stream_event(  # noqa: PLR0911, PLR0912
+    msg: dict[str, Any],
+) -> box_pb2.StreamEvent:
+    """Convert a canonical event dict to a StreamEvent protobuf."""
+    base = {
+        "seq": int(msg.get("seq", 0) or 0),
+        "event_id": msg.get("event_id", ""),
+        "timestamp_ms": int(msg.get("timestamp_ms", 0) or 0),
+        "run_id": msg.get("run_id", ""),
+        "turn_id": msg.get("turn_id", ""),
+        "message_id": msg.get("message_id", ""),
+        "tool_call_id": msg.get("tool_call_id", ""),
+        "command_id": msg.get("command_id", ""),
+    }
+    payload = msg.get("payload", {}) or {}
+    kind = msg.get("kind", "")
 
-
-# Builder registries — declarative mapping from dict type to protobuf
-_AGENT_OUTPUT_BUILDERS: dict[str, Any] = {
-    "token": lambda m: box_pb2.AgentOutput(token=box_pb2.TokenChunk(text=m.get("text", ""))),
-    "thinking_token": lambda m: box_pb2.AgentOutput(
-        thinking=box_pb2.ThinkingChunk(text=m.get("text", ""))
-    ),
-    "model_start": lambda _: box_pb2.AgentOutput(model_started=box_pb2.ModelStarted()),
-    "tool_start": lambda m: box_pb2.AgentOutput(
-        tool_started=box_pb2.ToolStarted(
-            name=m.get("name", ""),
-            tool_call_id=m.get("tool_call_id", ""),
-            input_json=m.get("input", ""),
+    if kind == "run.started":
+        return box_pb2.StreamEvent(
+            **base,
+            run_started=box_pb2.RunStarted(
+                trigger=payload.get("trigger", ""),
+                input=payload.get("input", ""),
+            ),
         )
-    ),
-    "tool_exec_output": lambda m: box_pb2.AgentOutput(
-        tool_output=box_pb2.ToolOutput(
-            output=m.get("output", ""),
-            tool_call_id=m.get("tool_call_id", ""),
+    if kind == "run.completed":
+        return box_pb2.StreamEvent(
+            **base,
+            run_completed=box_pb2.RunCompleted(summary=payload.get("summary", "")),
         )
-    ),
-    "tool_end": lambda m: box_pb2.AgentOutput(
-        tool_finished=box_pb2.ToolFinished(name=m.get("name", ""), output=m.get("output", ""))
-    ),
-    "message_complete": _build_message_completed,
-    "exec_output": lambda m: box_pb2.AgentOutput(
-        exec_chunk=box_pb2.ExecChunk(
-            output=m.get("output", ""),
-            request_id=m.get("request_id", ""),
+    if kind == "run.failed":
+        return box_pb2.StreamEvent(
+            **base,
+            run_failed=box_pb2.RunFailed(error=payload.get("error", "")),
         )
-    ),
-}
+    if kind == "run.cancelled":
+        return box_pb2.StreamEvent(**base, run_cancelled=box_pb2.RunCancelled())
+    if kind == "turn.started":
+        return box_pb2.StreamEvent(**base, turn_started=box_pb2.TurnStarted())
+    if kind == "turn.completed":
+        return box_pb2.StreamEvent(**base, turn_completed=box_pb2.TurnCompleted())
+    if kind == "message.started":
+        return box_pb2.StreamEvent(
+            **base,
+            message_started=box_pb2.MessageStarted(role=payload.get("role", "assistant")),
+        )
+    if kind == "message.delta":
+        return box_pb2.StreamEvent(
+            **base,
+            message_delta=box_pb2.MessageDelta(text=payload.get("text", "")),
+        )
+    if kind == "message.completed":
+        return box_pb2.StreamEvent(
+            **base,
+            message_completed=box_pb2.MessageCompleted(
+                role=payload.get("role", "assistant"),
+                content=payload.get("content", ""),
+            ),
+        )
+    if kind == "reasoning.started":
+        return box_pb2.StreamEvent(**base, reasoning_started=box_pb2.ReasoningStarted())
+    if kind == "reasoning.delta":
+        return box_pb2.StreamEvent(
+            **base,
+            reasoning_delta=box_pb2.ReasoningDelta(text=payload.get("text", "")),
+        )
+    if kind == "reasoning.completed":
+        return box_pb2.StreamEvent(**base, reasoning_completed=box_pb2.ReasoningCompleted())
+    if kind == "tool_call.started":
+        return box_pb2.StreamEvent(
+            **base,
+            tool_call_started=box_pb2.ToolCallStarted(name=payload.get("name", "")),
+        )
+    if kind == "tool_call.arguments.delta":
+        return box_pb2.StreamEvent(
+            **base,
+            tool_call_arguments_delta=box_pb2.ToolCallArgumentsDelta(text=payload.get("text", "")),
+        )
+    if kind == "tool_call.arguments.completed":
+        return box_pb2.StreamEvent(
+            **base,
+            tool_call_arguments_completed=box_pb2.ToolCallArgumentsCompleted(
+                arguments_json=payload.get("arguments_json", "")
+            ),
+        )
+    if kind == "tool_call.completed":
+        return box_pb2.StreamEvent(
+            **base,
+            tool_call_completed=box_pb2.ToolCallCompleted(
+                name=payload.get("name", ""),
+                output=payload.get("output", ""),
+            ),
+        )
+    if kind == "tool_call.failed":
+        return box_pb2.StreamEvent(
+            **base,
+            tool_call_failed=box_pb2.ToolCallFailed(
+                name=payload.get("name", ""),
+                error=payload.get("error", ""),
+                output=payload.get("output", ""),
+            ),
+        )
+    if kind == "command.started":
+        origin = payload.get("origin", "")
+        proto_origin = (
+            box_pb2.COMMAND_ORIGIN_AGENT_TOOL
+            if origin == "agent_tool"
+            else box_pb2.COMMAND_ORIGIN_USER_EXEC
+        )
+        return box_pb2.StreamEvent(
+            **base,
+            command_started=box_pb2.CommandStarted(
+                origin=proto_origin,
+                command=payload.get("command", ""),
+                timeout_seconds=int(payload.get("timeout_seconds", 0) or 0),
+            ),
+        )
+    if kind == "command.output.delta":
+        return box_pb2.StreamEvent(
+            **base,
+            command_output_delta=box_pb2.CommandOutputDelta(text=payload.get("text", "")),
+        )
+    if kind == "command.completed":
+        origin = payload.get("origin", "")
+        proto_origin = (
+            box_pb2.COMMAND_ORIGIN_AGENT_TOOL
+            if origin == "agent_tool"
+            else box_pb2.COMMAND_ORIGIN_USER_EXEC
+        )
+        return box_pb2.StreamEvent(
+            **base,
+            command_completed=box_pb2.CommandCompleted(
+                origin=proto_origin,
+                exit_code=int(payload.get("exit_code", 0) or 0),
+                output=payload.get("output", ""),
+            ),
+        )
+    if kind == "command.failed":
+        origin = payload.get("origin", "")
+        proto_origin = (
+            box_pb2.COMMAND_ORIGIN_AGENT_TOOL
+            if origin == "agent_tool"
+            else box_pb2.COMMAND_ORIGIN_USER_EXEC
+        )
+        return box_pb2.StreamEvent(
+            **base,
+            command_failed=box_pb2.CommandFailed(
+                origin=proto_origin,
+                exit_code=int(payload.get("exit_code", 1) or 1),
+                error=payload.get("error", ""),
+                output=payload.get("output", ""),
+            ),
+        )
+    if kind == "state.changed":
+        return box_pb2.StreamEvent(
+            **base,
+            state_changed=box_pb2.StateChanged(activity=payload.get("activity", "")),
+        )
+    if kind == "outcome.declared":
+        return box_pb2.StreamEvent(
+            **base,
+            outcome_declared=box_pb2.OutcomeDeclared(
+                status=payload.get("status", ""),
+                message=payload.get("message", ""),
+            ),
+        )
+    if kind == "input.requested":
+        return box_pb2.StreamEvent(
+            **base,
+            input_requested=box_pb2.InputRequested(
+                message=payload.get("message", ""),
+                questions=list(payload.get("questions", []) or []),
+            ),
+        )
 
-_STATE_CHANGE_BUILDERS: dict[str, Any] = {
-    "activity_changed": lambda m: box_pb2.StateChange(
-        activity=box_pb2.ActivityChanged(status=m.get("status", ""))
-    ),
-    "task_outcome": lambda m: box_pb2.StateChange(
-        outcome=box_pb2.TaskOutcome(status=m.get("status", ""), message=m.get("message", ""))
-    ),
-}
-
-_LIFECYCLE_BUILDERS: dict[str, Any] = {
-    "done": lambda m: box_pb2.BoxEvent(done=box_pb2.DoneEvent(content=m.get("content", ""))),
-    "error": lambda m: box_pb2.BoxEvent(error=box_pb2.ErrorEvent(detail=m.get("detail", ""))),
-}
+    raise ValueError(f"Unknown canonical event kind: {kind}")
 
 
 def _build_list_files_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
-    """Build a ListFilesResult query result from a dict."""
     request_id = msg.get("request_id", "")
     error = msg.get("error", "")
     if error:
@@ -488,7 +510,6 @@ def _build_list_files_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
 
 
 def _build_read_file_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
-    """Build a ReadFileResult query result from a dict."""
     request_id = msg.get("request_id", "")
     error = msg.get("error", "")
     if error:
@@ -498,7 +519,6 @@ def _build_read_file_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
         content = data.get("content", "")
         content_b64 = data.get("content_base64", "")
         if content_b64:
-            # Binary file — send as base64
             result = box_pb2.ReadFileResult(
                 content=content_b64,
                 encoding="base64",
@@ -516,10 +536,8 @@ def _build_read_file_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
 
 
 def _build_exec_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
-    """Build an ExecResult query result from a dict."""
     request_id = msg.get("request_id", "")
     output = msg.get("output", "")
-    # The agent_runner sends exit code as string in the "output" field
     try:
         exit_code = int(output)
     except (ValueError, TypeError):
@@ -532,7 +550,6 @@ def _build_exec_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
     )
 
 
-# Query result builders — for events that come back from agent_runner file/exec handlers
 _QUERY_RESULT_BUILDERS: dict[str, Any] = {
     "list_files_result": _build_list_files_result,
     "read_file_result": _build_read_file_result,
@@ -541,28 +558,8 @@ _QUERY_RESULT_BUILDERS: dict[str, Any] = {
 
 
 def _dict_to_event(msg: dict[str, Any]) -> box_pb2.BoxEvent | None:
-    """Convert an agent dict event to a BoxEvent protobuf.
-
-    Uses builder registries for declarative mapping. Each event type
-    is handled by a single entry in one of the registries.
-    """
     msg_type = msg.get("type", "")
-
-    # Agent output events (tokens, tools, messages, exec chunks)
-    if msg_type in _AGENT_OUTPUT_BUILDERS:
-        return box_pb2.BoxEvent(agent_output=_AGENT_OUTPUT_BUILDERS[msg_type](msg))
-
-    # State change events (activity, task outcome)
-    if msg_type in _STATE_CHANGE_BUILDERS:
-        return box_pb2.BoxEvent(state_change=_STATE_CHANGE_BUILDERS[msg_type](msg))
-
-    # Lifecycle events (done, error)
-    if msg_type in _LIFECYCLE_BUILDERS:
-        return _LIFECYCLE_BUILDERS[msg_type](msg)
-
-    # Query results (file ops, exec done) — from agent_runner handlers
     if msg_type in _QUERY_RESULT_BUILDERS:
         return _QUERY_RESULT_BUILDERS[msg_type](msg)
-
     logger.debug("Unknown event type for protobuf conversion: %s", msg_type)
     return None

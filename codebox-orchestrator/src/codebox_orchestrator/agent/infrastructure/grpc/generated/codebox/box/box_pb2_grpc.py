@@ -46,8 +46,8 @@ class BoxServiceServicer(object):
 
     def Connect(self, request_iterator, context):
         """Opened once on container startup. Stays open for the container's lifetime.
-        Box sends events (agent output, state changes, query results).
-        Orchestrator sends commands (messages, cancellation, queries).
+        Box sends canonical stream events and query responses.
+        Orchestrator sends commands and protocol-level queries.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')

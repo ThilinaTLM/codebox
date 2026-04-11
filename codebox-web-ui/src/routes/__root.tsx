@@ -15,6 +15,7 @@ import appCss from "../styles.css?url"
 import type { BoxPageActions } from "@/components/box/BoxPageContext"
 import { useAuthStore } from "@/lib/auth"
 import { API_URL } from "@/lib/constants"
+import { isAuthError } from "@/net/http/api"
 import { useGlobalStream } from "@/net/sse/useGlobalStream"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
 import { AppSidebar } from "@/components/layout/AppSidebar"
@@ -29,7 +30,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5000,
-      retry: 1,
+      retry: (failureCount, error) =>
+        !isAuthError(error) && failureCount < 2,
     },
   },
 })

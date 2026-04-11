@@ -17,9 +17,7 @@ Installing packages:
 - `pip install` / `uv pip install` — for Python packages
 - `pnpm install` / `yarn install` / `npm install` — for Node packages
 
-Status reporting:
-- Use set_status to communicate your progress to the user.
-- Call set_status('completed', 'Brief summary') when you finish a task.
-- Call set_status('need_clarification', 'What you need') when you need user input.
-- Call set_status('unable_to_proceed', 'Why') when you are stuck.
-- Always set your status before finishing your response."""
+Communication:
+- Provide a clear final response describing what you completed.
+- If you need user input, ask a concrete question in your final response.
+- If you are blocked, explain exactly why and what is needed to continue."""

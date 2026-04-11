@@ -7,7 +7,6 @@ from deepagents import create_deep_agent
 from codebox_agent.llm import LLMProviderConfig, create_chat_model
 from codebox_agent.prompts import CORE_SYSTEM_PROMPT
 from codebox_agent.streaming_backend import StreamingShellBackend
-from codebox_agent.tools.status import StatusReporter, build_status_tools
 from codebox_agent.tools.web import build_web_tools
 
 logger = logging.getLogger(__name__)
@@ -41,7 +40,6 @@ def create_agent(
     root_dir: str = "/workspace",
     sandbox_config: dict | None = None,
     checkpointer=None,
-    status_reporter: StatusReporter | None = None,
 ):
     """Create a deep agent with the given configuration.
 
@@ -57,7 +55,6 @@ def create_agent(
         root_dir: Root directory for the shell backend.
         sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
         checkpointer: Optional LangGraph checkpointer for persisting agent state.
-        status_reporter: Optional StatusReporter for the set_status tool.
 
     Returns:
         A compiled LangGraph agent.
@@ -96,8 +93,6 @@ def create_agent(
     )
 
     tools = build_web_tools()
-    if status_reporter is not None:
-        tools += build_status_tools(status_reporter)
 
     return create_deep_agent(
         model=llm,

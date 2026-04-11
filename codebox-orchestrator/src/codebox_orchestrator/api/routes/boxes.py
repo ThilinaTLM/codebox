@@ -28,9 +28,9 @@ from codebox_orchestrator.api.dependencies import (
 )
 from codebox_orchestrator.api.schemas import (
     BoxCreate,
+    BoxEventResponse,
     BoxExec,
     BoxMessage,
-    BoxMessageResponse,
     BoxResponse,
 )
 
@@ -143,24 +143,23 @@ async def get_box(
     return BoxResponse.from_view(box)
 
 
-@router.get("/boxes/{box_id}/messages")
-async def get_box_messages_route(
+@router.get("/boxes/{box_id}/events")
+async def get_box_events_route(
     box_id: str,
+    after_seq: int | None = None,
     query: BoxQueryService = Depends(get_query_service),
-) -> list[BoxMessageResponse]:
-    """Return chat messages from sandbox (requires running container)."""
+) -> list[BoxEventResponse]:
+    """Return canonical persisted events for a box."""
     box = query.get_box(box_id)
     if box is None:
         raise HTTPException(404, "Box not found")
-    if not box.grpc_connected:
-        raise HTTPException(503, "Container is not running or not connected")
     try:
-        messages = await query.get_messages(box_id)
+        events = await query.list_events(box_id, after_seq=after_seq)
     except NoActiveConnectionError as exc:
         raise HTTPException(503, "Container is not connected") from exc
     except Exception as exc:
-        raise HTTPException(502, f"Failed to get messages: {exc}") from exc
-    return [BoxMessageResponse(**m) for m in messages]
+        raise HTTPException(502, f"Failed to get events: {exc}") from exc
+    return [BoxEventResponse(**e) for e in events]
 
 
 @router.post("/boxes/{box_id}/stop")

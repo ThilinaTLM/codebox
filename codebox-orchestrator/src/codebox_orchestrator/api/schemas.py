@@ -78,13 +78,17 @@ class BoxResponse(BaseModel):
         )
 
 
-class BoxMessageResponse(BaseModel):
-    role: str
-    content: str | None = None
-    tool_calls: list[dict] | None = None
-    tool_call_id: str | None = None
-    tool_name: str | None = None
-    metadata_json: str | None = None
+class BoxEventResponse(BaseModel):
+    seq: int
+    event_id: str
+    timestamp_ms: int
+    kind: str
+    run_id: str = ""
+    turn_id: str = ""
+    message_id: str = ""
+    tool_call_id: str = ""
+    command_id: str = ""
+    payload: dict
 
 
 # ── GitHub schemas ──────────────────────────────────────────────

@@ -1,4 +1,5 @@
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
@@ -6,21 +7,24 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class CommandOrigin(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COMMAND_ORIGIN_UNSPECIFIED: _ClassVar[CommandOrigin]
+    COMMAND_ORIGIN_AGENT_TOOL: _ClassVar[CommandOrigin]
+    COMMAND_ORIGIN_USER_EXEC: _ClassVar[CommandOrigin]
+COMMAND_ORIGIN_UNSPECIFIED: CommandOrigin
+COMMAND_ORIGIN_AGENT_TOOL: CommandOrigin
+COMMAND_ORIGIN_USER_EXEC: CommandOrigin
+
 class BoxEvent(_message.Message):
-    __slots__ = ("register", "done", "error", "agent_output", "state_change", "query_result")
+    __slots__ = ("register", "stream_event", "query_result")
     REGISTER_FIELD_NUMBER: _ClassVar[int]
-    DONE_FIELD_NUMBER: _ClassVar[int]
-    ERROR_FIELD_NUMBER: _ClassVar[int]
-    AGENT_OUTPUT_FIELD_NUMBER: _ClassVar[int]
-    STATE_CHANGE_FIELD_NUMBER: _ClassVar[int]
+    STREAM_EVENT_FIELD_NUMBER: _ClassVar[int]
     QUERY_RESULT_FIELD_NUMBER: _ClassVar[int]
     register: RegisterEvent
-    done: DoneEvent
-    error: ErrorEvent
-    agent_output: AgentOutput
-    state_change: StateChange
+    stream_event: StreamEvent
     query_result: QueryResult
-    def __init__(self, register: _Optional[_Union[RegisterEvent, _Mapping]] = ..., done: _Optional[_Union[DoneEvent, _Mapping]] = ..., error: _Optional[_Union[ErrorEvent, _Mapping]] = ..., agent_output: _Optional[_Union[AgentOutput, _Mapping]] = ..., state_change: _Optional[_Union[StateChange, _Mapping]] = ..., query_result: _Optional[_Union[QueryResult, _Mapping]] = ...) -> None: ...
+    def __init__(self, register: _Optional[_Union[RegisterEvent, _Mapping]] = ..., stream_event: _Optional[_Union[StreamEvent, _Mapping]] = ..., query_result: _Optional[_Union[QueryResult, _Mapping]] = ...) -> None: ...
 
 class RegisterEvent(_message.Message):
     __slots__ = ("session_id",)
@@ -28,73 +32,159 @@ class RegisterEvent(_message.Message):
     session_id: str
     def __init__(self, session_id: _Optional[str] = ...) -> None: ...
 
-class DoneEvent(_message.Message):
-    __slots__ = ("content",)
-    CONTENT_FIELD_NUMBER: _ClassVar[int]
-    content: str
-    def __init__(self, content: _Optional[str] = ...) -> None: ...
-
-class ErrorEvent(_message.Message):
-    __slots__ = ("detail",)
-    DETAIL_FIELD_NUMBER: _ClassVar[int]
-    detail: str
-    def __init__(self, detail: _Optional[str] = ...) -> None: ...
-
-class AgentOutput(_message.Message):
-    __slots__ = ("token", "thinking", "model_started", "tool_started", "tool_output", "tool_finished", "message_completed", "exec_chunk")
-    TOKEN_FIELD_NUMBER: _ClassVar[int]
-    THINKING_FIELD_NUMBER: _ClassVar[int]
-    MODEL_STARTED_FIELD_NUMBER: _ClassVar[int]
-    TOOL_STARTED_FIELD_NUMBER: _ClassVar[int]
-    TOOL_OUTPUT_FIELD_NUMBER: _ClassVar[int]
-    TOOL_FINISHED_FIELD_NUMBER: _ClassVar[int]
+class StreamEvent(_message.Message):
+    __slots__ = ("seq", "event_id", "timestamp_ms", "run_id", "turn_id", "message_id", "tool_call_id", "command_id", "run_started", "run_completed", "run_failed", "run_cancelled", "turn_started", "turn_completed", "message_started", "message_delta", "message_completed", "reasoning_started", "reasoning_delta", "reasoning_completed", "tool_call_started", "tool_call_arguments_delta", "tool_call_arguments_completed", "tool_call_completed", "tool_call_failed", "command_started", "command_output_delta", "command_completed", "command_failed", "state_changed", "outcome_declared", "input_requested")
+    SEQ_FIELD_NUMBER: _ClassVar[int]
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_MS_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TURN_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CALL_ID_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_STARTED_FIELD_NUMBER: _ClassVar[int]
+    RUN_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    RUN_FAILED_FIELD_NUMBER: _ClassVar[int]
+    RUN_CANCELLED_FIELD_NUMBER: _ClassVar[int]
+    TURN_STARTED_FIELD_NUMBER: _ClassVar[int]
+    TURN_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_STARTED_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_DELTA_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_COMPLETED_FIELD_NUMBER: _ClassVar[int]
-    EXEC_CHUNK_FIELD_NUMBER: _ClassVar[int]
-    token: TokenChunk
-    thinking: ThinkingChunk
-    model_started: ModelStarted
-    tool_started: ToolStarted
-    tool_output: ToolOutput
-    tool_finished: ToolFinished
+    REASONING_STARTED_FIELD_NUMBER: _ClassVar[int]
+    REASONING_DELTA_FIELD_NUMBER: _ClassVar[int]
+    REASONING_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CALL_STARTED_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CALL_ARGUMENTS_DELTA_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CALL_ARGUMENTS_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CALL_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CALL_FAILED_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_STARTED_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_OUTPUT_DELTA_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FAILED_FIELD_NUMBER: _ClassVar[int]
+    STATE_CHANGED_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_DECLARED_FIELD_NUMBER: _ClassVar[int]
+    INPUT_REQUESTED_FIELD_NUMBER: _ClassVar[int]
+    seq: int
+    event_id: str
+    timestamp_ms: int
+    run_id: str
+    turn_id: str
+    message_id: str
+    tool_call_id: str
+    command_id: str
+    run_started: RunStarted
+    run_completed: RunCompleted
+    run_failed: RunFailed
+    run_cancelled: RunCancelled
+    turn_started: TurnStarted
+    turn_completed: TurnCompleted
+    message_started: MessageStarted
+    message_delta: MessageDelta
     message_completed: MessageCompleted
-    exec_chunk: ExecChunk
-    def __init__(self, token: _Optional[_Union[TokenChunk, _Mapping]] = ..., thinking: _Optional[_Union[ThinkingChunk, _Mapping]] = ..., model_started: _Optional[_Union[ModelStarted, _Mapping]] = ..., tool_started: _Optional[_Union[ToolStarted, _Mapping]] = ..., tool_output: _Optional[_Union[ToolOutput, _Mapping]] = ..., tool_finished: _Optional[_Union[ToolFinished, _Mapping]] = ..., message_completed: _Optional[_Union[MessageCompleted, _Mapping]] = ..., exec_chunk: _Optional[_Union[ExecChunk, _Mapping]] = ...) -> None: ...
+    reasoning_started: ReasoningStarted
+    reasoning_delta: ReasoningDelta
+    reasoning_completed: ReasoningCompleted
+    tool_call_started: ToolCallStarted
+    tool_call_arguments_delta: ToolCallArgumentsDelta
+    tool_call_arguments_completed: ToolCallArgumentsCompleted
+    tool_call_completed: ToolCallCompleted
+    tool_call_failed: ToolCallFailed
+    command_started: CommandStarted
+    command_output_delta: CommandOutputDelta
+    command_completed: CommandCompleted
+    command_failed: CommandFailed
+    state_changed: StateChanged
+    outcome_declared: OutcomeDeclared
+    input_requested: InputRequested
+    def __init__(self, seq: _Optional[int] = ..., event_id: _Optional[str] = ..., timestamp_ms: _Optional[int] = ..., run_id: _Optional[str] = ..., turn_id: _Optional[str] = ..., message_id: _Optional[str] = ..., tool_call_id: _Optional[str] = ..., command_id: _Optional[str] = ..., run_started: _Optional[_Union[RunStarted, _Mapping]] = ..., run_completed: _Optional[_Union[RunCompleted, _Mapping]] = ..., run_failed: _Optional[_Union[RunFailed, _Mapping]] = ..., run_cancelled: _Optional[_Union[RunCancelled, _Mapping]] = ..., turn_started: _Optional[_Union[TurnStarted, _Mapping]] = ..., turn_completed: _Optional[_Union[TurnCompleted, _Mapping]] = ..., message_started: _Optional[_Union[MessageStarted, _Mapping]] = ..., message_delta: _Optional[_Union[MessageDelta, _Mapping]] = ..., message_completed: _Optional[_Union[MessageCompleted, _Mapping]] = ..., reasoning_started: _Optional[_Union[ReasoningStarted, _Mapping]] = ..., reasoning_delta: _Optional[_Union[ReasoningDelta, _Mapping]] = ..., reasoning_completed: _Optional[_Union[ReasoningCompleted, _Mapping]] = ..., tool_call_started: _Optional[_Union[ToolCallStarted, _Mapping]] = ..., tool_call_arguments_delta: _Optional[_Union[ToolCallArgumentsDelta, _Mapping]] = ..., tool_call_arguments_completed: _Optional[_Union[ToolCallArgumentsCompleted, _Mapping]] = ..., tool_call_completed: _Optional[_Union[ToolCallCompleted, _Mapping]] = ..., tool_call_failed: _Optional[_Union[ToolCallFailed, _Mapping]] = ..., command_started: _Optional[_Union[CommandStarted, _Mapping]] = ..., command_output_delta: _Optional[_Union[CommandOutputDelta, _Mapping]] = ..., command_completed: _Optional[_Union[CommandCompleted, _Mapping]] = ..., command_failed: _Optional[_Union[CommandFailed, _Mapping]] = ..., state_changed: _Optional[_Union[StateChanged, _Mapping]] = ..., outcome_declared: _Optional[_Union[OutcomeDeclared, _Mapping]] = ..., input_requested: _Optional[_Union[InputRequested, _Mapping]] = ...) -> None: ...
 
-class TokenChunk(_message.Message):
-    __slots__ = ("text",)
-    TEXT_FIELD_NUMBER: _ClassVar[int]
-    text: str
-    def __init__(self, text: _Optional[str] = ...) -> None: ...
+class RunStarted(_message.Message):
+    __slots__ = ("trigger", "input")
+    TRIGGER_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    trigger: str
+    input: str
+    def __init__(self, trigger: _Optional[str] = ..., input: _Optional[str] = ...) -> None: ...
 
-class ThinkingChunk(_message.Message):
-    __slots__ = ("text",)
-    TEXT_FIELD_NUMBER: _ClassVar[int]
-    text: str
-    def __init__(self, text: _Optional[str] = ...) -> None: ...
+class RunCompleted(_message.Message):
+    __slots__ = ("summary",)
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    summary: str
+    def __init__(self, summary: _Optional[str] = ...) -> None: ...
 
-class ModelStarted(_message.Message):
+class RunFailed(_message.Message):
+    __slots__ = ("error",)
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    error: str
+    def __init__(self, error: _Optional[str] = ...) -> None: ...
+
+class RunCancelled(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class ToolStarted(_message.Message):
-    __slots__ = ("name", "tool_call_id", "input_json")
+class TurnStarted(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class TurnCompleted(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class MessageStarted(_message.Message):
+    __slots__ = ("role",)
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    role: str
+    def __init__(self, role: _Optional[str] = ...) -> None: ...
+
+class MessageDelta(_message.Message):
+    __slots__ = ("text",)
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    text: str
+    def __init__(self, text: _Optional[str] = ...) -> None: ...
+
+class MessageCompleted(_message.Message):
+    __slots__ = ("role", "content")
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    role: str
+    content: str
+    def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
+
+class ReasoningStarted(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ReasoningDelta(_message.Message):
+    __slots__ = ("text",)
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    text: str
+    def __init__(self, text: _Optional[str] = ...) -> None: ...
+
+class ReasoningCompleted(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ToolCallStarted(_message.Message):
+    __slots__ = ("name",)
     NAME_FIELD_NUMBER: _ClassVar[int]
-    TOOL_CALL_ID_FIELD_NUMBER: _ClassVar[int]
-    INPUT_JSON_FIELD_NUMBER: _ClassVar[int]
     name: str
-    tool_call_id: str
-    input_json: str
-    def __init__(self, name: _Optional[str] = ..., tool_call_id: _Optional[str] = ..., input_json: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ...) -> None: ...
 
-class ToolOutput(_message.Message):
-    __slots__ = ("output", "tool_call_id")
-    OUTPUT_FIELD_NUMBER: _ClassVar[int]
-    TOOL_CALL_ID_FIELD_NUMBER: _ClassVar[int]
-    output: str
-    tool_call_id: str
-    def __init__(self, output: _Optional[str] = ..., tool_call_id: _Optional[str] = ...) -> None: ...
+class ToolCallArgumentsDelta(_message.Message):
+    __slots__ = ("text",)
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    text: str
+    def __init__(self, text: _Optional[str] = ...) -> None: ...
 
-class ToolFinished(_message.Message):
+class ToolCallArgumentsCompleted(_message.Message):
+    __slots__ = ("arguments_json",)
+    ARGUMENTS_JSON_FIELD_NUMBER: _ClassVar[int]
+    arguments_json: str
+    def __init__(self, arguments_json: _Optional[str] = ...) -> None: ...
+
+class ToolCallCompleted(_message.Message):
     __slots__ = ("name", "output")
     NAME_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
@@ -102,35 +192,61 @@ class ToolFinished(_message.Message):
     output: str
     def __init__(self, name: _Optional[str] = ..., output: _Optional[str] = ...) -> None: ...
 
-class MessageCompleted(_message.Message):
-    __slots__ = ("message",)
-    MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    message: ChatMessage
-    def __init__(self, message: _Optional[_Union[ChatMessage, _Mapping]] = ...) -> None: ...
-
-class ExecChunk(_message.Message):
-    __slots__ = ("output", "request_id")
+class ToolCallFailed(_message.Message):
+    __slots__ = ("name", "error", "output")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
-    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    error: str
     output: str
-    request_id: str
-    def __init__(self, output: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., error: _Optional[str] = ..., output: _Optional[str] = ...) -> None: ...
 
-class StateChange(_message.Message):
-    __slots__ = ("activity", "outcome")
+class CommandStarted(_message.Message):
+    __slots__ = ("origin", "command", "timeout_seconds")
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    origin: CommandOrigin
+    command: str
+    timeout_seconds: int
+    def __init__(self, origin: _Optional[_Union[CommandOrigin, str]] = ..., command: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class CommandOutputDelta(_message.Message):
+    __slots__ = ("text",)
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    text: str
+    def __init__(self, text: _Optional[str] = ...) -> None: ...
+
+class CommandCompleted(_message.Message):
+    __slots__ = ("origin", "exit_code", "output")
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    origin: CommandOrigin
+    exit_code: int
+    output: str
+    def __init__(self, origin: _Optional[_Union[CommandOrigin, str]] = ..., exit_code: _Optional[int] = ..., output: _Optional[str] = ...) -> None: ...
+
+class CommandFailed(_message.Message):
+    __slots__ = ("origin", "exit_code", "error", "output")
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    origin: CommandOrigin
+    exit_code: int
+    error: str
+    output: str
+    def __init__(self, origin: _Optional[_Union[CommandOrigin, str]] = ..., exit_code: _Optional[int] = ..., error: _Optional[str] = ..., output: _Optional[str] = ...) -> None: ...
+
+class StateChanged(_message.Message):
+    __slots__ = ("activity",)
     ACTIVITY_FIELD_NUMBER: _ClassVar[int]
-    OUTCOME_FIELD_NUMBER: _ClassVar[int]
-    activity: ActivityChanged
-    outcome: TaskOutcome
-    def __init__(self, activity: _Optional[_Union[ActivityChanged, _Mapping]] = ..., outcome: _Optional[_Union[TaskOutcome, _Mapping]] = ...) -> None: ...
+    activity: str
+    def __init__(self, activity: _Optional[str] = ...) -> None: ...
 
-class ActivityChanged(_message.Message):
-    __slots__ = ("status",)
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    status: str
-    def __init__(self, status: _Optional[str] = ...) -> None: ...
-
-class TaskOutcome(_message.Message):
+class OutcomeDeclared(_message.Message):
     __slots__ = ("status", "message")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -138,21 +254,25 @@ class TaskOutcome(_message.Message):
     message: str
     def __init__(self, status: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
+class InputRequested(_message.Message):
+    __slots__ = ("message", "questions")
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    QUESTIONS_FIELD_NUMBER: _ClassVar[int]
+    message: str
+    questions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, message: _Optional[str] = ..., questions: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class QueryResult(_message.Message):
-    __slots__ = ("request_id", "list_files", "read_file", "exec", "get_messages", "get_box_state")
+    __slots__ = ("request_id", "list_files", "read_file", "exec")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     LIST_FILES_FIELD_NUMBER: _ClassVar[int]
     READ_FILE_FIELD_NUMBER: _ClassVar[int]
     EXEC_FIELD_NUMBER: _ClassVar[int]
-    GET_MESSAGES_FIELD_NUMBER: _ClassVar[int]
-    GET_BOX_STATE_FIELD_NUMBER: _ClassVar[int]
     request_id: str
     list_files: ListFilesResult
     read_file: ReadFileResult
     exec: ExecResult
-    get_messages: GetMessagesResult
-    get_box_state: GetBoxStateResult
-    def __init__(self, request_id: _Optional[str] = ..., list_files: _Optional[_Union[ListFilesResult, _Mapping]] = ..., read_file: _Optional[_Union[ReadFileResult, _Mapping]] = ..., exec: _Optional[_Union[ExecResult, _Mapping]] = ..., get_messages: _Optional[_Union[GetMessagesResult, _Mapping]] = ..., get_box_state: _Optional[_Union[GetBoxStateResult, _Mapping]] = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., list_files: _Optional[_Union[ListFilesResult, _Mapping]] = ..., read_file: _Optional[_Union[ReadFileResult, _Mapping]] = ..., exec: _Optional[_Union[ExecResult, _Mapping]] = ...) -> None: ...
 
 class ListFilesResult(_message.Message):
     __slots__ = ("entries", "error")
@@ -200,22 +320,6 @@ class ExecResult(_message.Message):
     error: str
     def __init__(self, exit_code: _Optional[int] = ..., stdout: _Optional[str] = ..., stderr: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
 
-class GetMessagesResult(_message.Message):
-    __slots__ = ("messages",)
-    MESSAGES_FIELD_NUMBER: _ClassVar[int]
-    messages: _containers.RepeatedCompositeFieldContainer[ChatMessage]
-    def __init__(self, messages: _Optional[_Iterable[_Union[ChatMessage, _Mapping]]] = ...) -> None: ...
-
-class GetBoxStateResult(_message.Message):
-    __slots__ = ("activity", "task_outcome", "task_outcome_message")
-    ACTIVITY_FIELD_NUMBER: _ClassVar[int]
-    TASK_OUTCOME_FIELD_NUMBER: _ClassVar[int]
-    TASK_OUTCOME_MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    activity: str
-    task_outcome: str
-    task_outcome_message: str
-    def __init__(self, activity: _Optional[str] = ..., task_outcome: _Optional[str] = ..., task_outcome_message: _Optional[str] = ...) -> None: ...
-
 class BoxCommand(_message.Message):
     __slots__ = ("registered", "message", "cancel", "query")
     REGISTERED_FIELD_NUMBER: _ClassVar[int]
@@ -233,30 +337,30 @@ class RegisteredAck(_message.Message):
     def __init__(self) -> None: ...
 
 class SendMessage(_message.Message):
-    __slots__ = ("content",)
+    __slots__ = ("content", "run_id", "message_id")
     CONTENT_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
     content: str
-    def __init__(self, content: _Optional[str] = ...) -> None: ...
+    run_id: str
+    message_id: str
+    def __init__(self, content: _Optional[str] = ..., run_id: _Optional[str] = ..., message_id: _Optional[str] = ...) -> None: ...
 
 class CancelTask(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class Query(_message.Message):
-    __slots__ = ("request_id", "list_files", "read_file", "exec", "get_messages", "get_box_state")
+    __slots__ = ("request_id", "list_files", "read_file", "exec")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     LIST_FILES_FIELD_NUMBER: _ClassVar[int]
     READ_FILE_FIELD_NUMBER: _ClassVar[int]
     EXEC_FIELD_NUMBER: _ClassVar[int]
-    GET_MESSAGES_FIELD_NUMBER: _ClassVar[int]
-    GET_BOX_STATE_FIELD_NUMBER: _ClassVar[int]
     request_id: str
     list_files: ListFilesQuery
     read_file: ReadFileQuery
     exec: ExecQuery
-    get_messages: GetMessagesQuery
-    get_box_state: GetBoxStateQuery
-    def __init__(self, request_id: _Optional[str] = ..., list_files: _Optional[_Union[ListFilesQuery, _Mapping]] = ..., read_file: _Optional[_Union[ReadFileQuery, _Mapping]] = ..., exec: _Optional[_Union[ExecQuery, _Mapping]] = ..., get_messages: _Optional[_Union[GetMessagesQuery, _Mapping]] = ..., get_box_state: _Optional[_Union[GetBoxStateQuery, _Mapping]] = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., list_files: _Optional[_Union[ListFilesQuery, _Mapping]] = ..., read_file: _Optional[_Union[ReadFileQuery, _Mapping]] = ..., exec: _Optional[_Union[ExecQuery, _Mapping]] = ...) -> None: ...
 
 class ListFilesQuery(_message.Message):
     __slots__ = ("path",)
@@ -271,41 +375,11 @@ class ReadFileQuery(_message.Message):
     def __init__(self, path: _Optional[str] = ...) -> None: ...
 
 class ExecQuery(_message.Message):
-    __slots__ = ("command",)
+    __slots__ = ("command", "run_id", "command_id")
     COMMAND_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
     command: str
-    def __init__(self, command: _Optional[str] = ...) -> None: ...
-
-class GetMessagesQuery(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class GetBoxStateQuery(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class ChatMessage(_message.Message):
-    __slots__ = ("role", "content", "tool_calls", "tool_call_id", "tool_name", "metadata_json")
-    ROLE_FIELD_NUMBER: _ClassVar[int]
-    CONTENT_FIELD_NUMBER: _ClassVar[int]
-    TOOL_CALLS_FIELD_NUMBER: _ClassVar[int]
-    TOOL_CALL_ID_FIELD_NUMBER: _ClassVar[int]
-    TOOL_NAME_FIELD_NUMBER: _ClassVar[int]
-    METADATA_JSON_FIELD_NUMBER: _ClassVar[int]
-    role: str
-    content: str
-    tool_calls: _containers.RepeatedCompositeFieldContainer[ToolCall]
-    tool_call_id: str
-    tool_name: str
-    metadata_json: str
-    def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ..., tool_calls: _Optional[_Iterable[_Union[ToolCall, _Mapping]]] = ..., tool_call_id: _Optional[str] = ..., tool_name: _Optional[str] = ..., metadata_json: _Optional[str] = ...) -> None: ...
-
-class ToolCall(_message.Message):
-    __slots__ = ("id", "name", "args_json")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    ARGS_JSON_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    name: str
-    args_json: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., args_json: _Optional[str] = ...) -> None: ...
+    run_id: str
+    command_id: str
+    def __init__(self, command: _Optional[str] = ..., run_id: _Optional[str] = ..., command_id: _Optional[str] = ...) -> None: ...

@@ -11,12 +11,12 @@ import logging
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
-from codebox_orchestrator.agent.infrastructure.grpc.generated.codebox.box import box_pb2
-from codebox_orchestrator.agent.infrastructure.grpc.sse_convert import _chat_message_to_sse
-
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.infrastructure.callback_registry import CallbackRegistry
     from codebox_orchestrator.agent.infrastructure.connection_adapter import AgentConnectionAdapter
+    from codebox_orchestrator.agent.infrastructure.event_repository import (
+        SqlAlchemyBoxEventRepository,
+    )
     from codebox_orchestrator.box.infrastructure.box_state_store import BoxStateStore
     from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
 
@@ -45,11 +45,13 @@ class BoxQueryService:
         registry: CallbackRegistry,
         connections: AgentConnectionAdapter,
         state_store: BoxStateStore,
+        event_repository: SqlAlchemyBoxEventRepository,
     ) -> None:
         self._runtime = runtime
         self._registry = registry
         self._connections = connections
         self._state_store = state_store
+        self._event_repository = event_repository
 
     def list_boxes(
         self,
@@ -99,22 +101,15 @@ class BoxQueryService:
             return replace(view, error_detail=error)
         return view
 
-    async def get_messages(self, box_id: str) -> list[dict[str, Any]]:
-        """Get messages from box via gRPC query."""
-        query = box_pb2.Query(get_messages=box_pb2.GetMessagesQuery())
-        result = await self._connections.send_query(box_id, query, timeout=10.0)
-        return [_chat_message_to_sse(m) for m in result.get_messages.messages]
-
-    async def get_box_state(self, box_id: str) -> dict[str, str]:
-        """Get live box state from box via gRPC query."""
-        query = box_pb2.Query(get_box_state=box_pb2.GetBoxStateQuery())
-        result = await self._connections.send_query(box_id, query, timeout=10.0)
-        bs = result.get_box_state
-        return {
-            "activity": bs.activity,
-            "task_outcome": bs.task_outcome,
-            "task_outcome_message": bs.task_outcome_message,
-        }
+    async def list_events(
+        self,
+        box_id: str,
+        *,
+        after_seq: int | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Get canonical persisted events for a box."""
+        return await self._event_repository.list_events(box_id, after_seq=after_seq, limit=limit)
 
     def _container_to_view(self, c) -> BoxView:
         """Convert a ContainerInfo to a BoxView, enriched with gRPC state."""

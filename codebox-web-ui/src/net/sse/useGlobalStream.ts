@@ -16,7 +16,10 @@ export function useGlobalStream() {
   const hadConnectionRef = useRef(false)
 
   useEffect(() => {
-    if (!token) return
+    if (!token) {
+      hadConnectionRef.current = false
+      return
+    }
 
     const ctrl = new AbortController()
     const url = `${API_URL}/api/stream`
@@ -38,6 +41,12 @@ export function useGlobalStream() {
           hadConnectionRef.current = true
           return
         }
+
+        if (response.status === 401) {
+          useAuthStore.getState().logout()
+          ctrl.abort()
+        }
+
         throw new Error(`Global SSE open failed: ${response.status}`)
       },
 
@@ -61,6 +70,8 @@ export function useGlobalStream() {
                 if (event.activity) updates.activity = event.activity
                 if (event.task_outcome)
                   updates.task_outcome = event.task_outcome
+                if (event.task_outcome_message)
+                  updates.task_outcome_message = event.task_outcome_message
                 if (event.error_detail)
                   updates.error_detail = event.error_detail
                 return { ...old, ...updates }
@@ -81,6 +92,8 @@ export function useGlobalStream() {
       },
 
       onerror() {
+        if (ctrl.signal.aborted) return
+
         // Return undefined to let fetch-event-source use default retry
         return undefined
       },
@@ -90,6 +103,7 @@ export function useGlobalStream() {
 
     return () => {
       ctrl.abort()
+      hadConnectionRef.current = false
     }
   }, [token])
 }

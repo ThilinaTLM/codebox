@@ -30,6 +30,9 @@ def create_app() -> FastAPI:  # noqa: PLR0915
     async def lifespan(app: FastAPI):  # noqa: PLR0915
         # --- Database setup ---
         import codebox_orchestrator.integration.github.infrastructure.orm_models as _gh_orm  # noqa: F401, PLC0415
+        from codebox_orchestrator.agent.infrastructure.orm_models import (  # noqa: PLC0415
+            Base as AgentBase,
+        )
         from codebox_orchestrator.auth.models import AuthBase  # noqa: PLC0415
         from codebox_orchestrator.shared.persistence.engine import (  # noqa: PLC0415
             async_session_factory,
@@ -47,6 +50,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         async with engine.begin() as conn:
             await conn.run_sync(GitHubBase.metadata.create_all)
             await conn.run_sync(AuthBase.metadata.create_all)
+            await conn.run_sync(AgentBase.metadata.create_all)
 
         # --- Auth service ---
         from codebox_orchestrator.auth.service import AuthService  # noqa: PLC0415
@@ -70,6 +74,9 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         from codebox_orchestrator.agent.infrastructure.connection_adapter import (  # noqa: PLC0415
             AgentConnectionAdapter,
         )
+        from codebox_orchestrator.agent.infrastructure.event_repository import (  # noqa: PLC0415
+            SqlAlchemyBoxEventRepository,
+        )
         from codebox_orchestrator.box.infrastructure.event_publisher import (  # noqa: PLC0415
             EventPublisherAdapter,
         )
@@ -81,6 +88,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         container_runtime = DockerRuntime()
         registry = CallbackRegistry()
         agent_connections = AgentConnectionAdapter(registry)
+        event_repository = SqlAlchemyBoxEventRepository(async_session_factory)
 
         # --- Box state store (in-memory lifecycle tracking) ---
         from codebox_orchestrator.box.infrastructure.box_state_store import (  # noqa: PLC0415
@@ -95,7 +103,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         )
 
         query_service = BoxQueryService(
-            container_runtime, registry, agent_connections, box_state_store
+            container_runtime, registry, agent_connections, box_state_store, event_repository
         )
 
         # --- Application layer: Agent commands & queries ---
@@ -113,9 +121,21 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             ReadFileHandler,
         )
 
-        send_message_handler = SendMessageHandler(event_publisher, agent_connections)
-        send_exec_handler = SendExecHandler(event_publisher, agent_connections)
-        event_handler = HandleBoxEventHandler(event_publisher, registry)
+        send_message_handler = SendMessageHandler(
+            event_publisher,
+            agent_connections,
+            event_repository,
+        )
+        send_exec_handler = SendExecHandler(
+            event_publisher,
+            agent_connections,
+            event_repository,
+        )
+        event_handler = HandleBoxEventHandler(
+            event_publisher,
+            registry,
+            event_repository,
+        )
         list_files_handler = ListFilesHandler(agent_connections)
         read_file_handler = ReadFileHandler(agent_connections)
 
@@ -229,6 +249,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.webhook_handler = webhook_handler
         app.state.installation_service = installation_service
         app.state.auth_service = auth_service
+        app.state.event_repository = event_repository
 
         yield
 
