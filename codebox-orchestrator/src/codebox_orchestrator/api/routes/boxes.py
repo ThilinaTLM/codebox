@@ -113,7 +113,6 @@ async def create_box(
         tags=body.tags,
         provider=provider,
         model=model,
-        llm_settings=body.llm.model_dump(exclude_none=True) if body.llm else None,
         system_prompt=body.system_prompt,
         auto_start_prompt=body.auto_start_prompt,
         recursion_limit=body.recursion_limit,

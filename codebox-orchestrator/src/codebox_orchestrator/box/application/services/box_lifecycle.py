@@ -66,7 +66,6 @@ class BoxLifecycleService:
         tags: list[str] | None = None,
         provider: str,
         model: str,
-        llm_settings: dict[str, Any] | None = None,
         system_prompt: str | None = None,
         auto_start_prompt: str | None = None,
         recursion_limit: int | None = None,
@@ -88,7 +87,6 @@ class BoxLifecycleService:
                 tags=tags,
                 provider=provider,
                 model=model,
-                llm_settings=llm_settings,
                 system_prompt=system_prompt,
                 auto_start_prompt=auto_start_prompt,
                 recursion_limit=recursion_limit,
@@ -139,7 +137,6 @@ class BoxLifecycleService:
         tags: list[str] | None = None,
         provider: str,
         model: str,
-        llm_settings: dict[str, Any] | None = None,
         system_prompt: str | None = None,
         auto_start_prompt: str | None = None,
         recursion_limit: int | None = None,
@@ -172,14 +169,12 @@ class BoxLifecycleService:
             extra_env["INITIAL_PROMPT"] = auto_start_prompt
 
         # ── Build CODEBOX_AGENT_CONFIG ──────────────────────────────
-        temperature = float((llm_settings or {}).get("temperature", 0.0))
         agent_config: dict[str, Any] = {
             "llm": {
                 "provider": provider,
                 "model": model,
                 "api_key": LLM_API_KEY,
                 "base_url": LLM_BASE_URL or None,
-                "temperature": temperature,
             },
             "recursion_limit": recursion_limit or (200 if is_github else 150),
         }

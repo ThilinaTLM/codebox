@@ -42,10 +42,6 @@ class TestDefaults:
         assert cfg.tools.task.enabled is True
         assert cfg.tools.compact_conversation.enabled is False  # opt-in
 
-    def test_default_temperature(self):
-        cfg = AgentConfig(**_minimal_config())
-        assert cfg.llm.temperature == 0.0
-
     def test_default_recursion_limit(self):
         cfg = AgentConfig(**_minimal_config())
         assert cfg.recursion_limit == 150
@@ -93,7 +89,6 @@ class TestFromDict:
                 "model": "anthropic/claude-sonnet-4",
                 "api_key": "sk-or-test",
                 "base_url": "https://custom.api",
-                "temperature": 0.5,
             },
             "system_prompt": "You are a backend engineer.",
             "recursion_limit": 300,
@@ -108,7 +103,6 @@ class TestFromDict:
             },
         }
         cfg = AgentConfig.from_dict(data)
-        assert cfg.llm.temperature == 0.5
         assert cfg.tools.web_fetch.enabled is False
         assert cfg.tools.task.enabled is False
         assert cfg.tools.compact_conversation.enabled is True
@@ -152,10 +146,6 @@ class TestValidation:
     def test_recursion_limit_too_high(self):
         with pytest.raises(ValidationError, match="recursion_limit"):
             AgentConfig(**_minimal_config(recursion_limit=5000))
-
-    def test_temperature_out_of_range(self):
-        with pytest.raises(ValidationError, match="temperature"):
-            AgentConfig(**_minimal_config(llm=_minimal_llm(temperature=3.0)))
 
     def test_negative_timeout(self):
         with pytest.raises(ValidationError, match="timeout"):
@@ -208,11 +198,10 @@ class TestFromEnv:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv(
             "CODEBOX_SANDBOX_CONFIG",
-            json.dumps({"temperature": 0.5, "timeout": 300, "recursion_limit": 200}),
+            json.dumps({"timeout": 300, "recursion_limit": 200}),
         )
 
         cfg = AgentConfig.from_env()
-        assert cfg.llm.temperature == 0.5
         assert cfg.tools.execute.timeout == 300
         assert cfg.recursion_limit == 200
 

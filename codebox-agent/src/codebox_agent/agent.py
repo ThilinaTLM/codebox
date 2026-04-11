@@ -66,11 +66,10 @@ def create_agent_from_config(
     tc = config.tools
 
     logger.info(
-        "Creating agent from config: provider=%s, model=%s, temperature=%s, "
+        "Creating agent from config: provider=%s, model=%s, "
         "root_dir=%s, system_prompt=%s, recursion_limit=%d",
         config.llm.provider,
         config.llm.model,
-        config.llm.temperature,
         root_dir,
         "custom" if config.system_prompt else "default",
         config.recursion_limit,
@@ -84,7 +83,6 @@ def create_agent_from_config(
             api_key=config.llm.api_key,
             base_url=config.llm.base_url,
         ),
-        temperature=config.llm.temperature,
     )
 
     # -- Backend (filesystem + shell) ----------------------------------------
@@ -187,7 +185,7 @@ def create_agent(
         dynamic_system_prompt: Optional caller-provided prompt appended after
             the environment prompt (e.g. from orchestrator or workflow config).
         root_dir: Root directory for the shell backend.
-        sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
+        sandbox_config: Optional dict with keys: timeout, recursion_limit.
         checkpointer: Optional LangGraph checkpointer for persisting agent state.
 
     Returns:
@@ -203,7 +201,6 @@ def create_agent(
             model=model,
             api_key=api_key,
             base_url=base_url,
-            temperature=float(cfg.get("temperature", 0.0)),
         ),
         system_prompt=dynamic_system_prompt,
         recursion_limit=int(cfg.get("recursion_limit", 150)),

@@ -17,7 +17,6 @@ class LLMSettings(BaseModel):
 
     provider: str | None = None
     model: str | None = None
-    temperature: float = 0.0
     base_url: str | None = None
 
 

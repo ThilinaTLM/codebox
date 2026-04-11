@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as BoxesCreateRouteImport } from './routes/boxes/create'
 import { Route as BoxesBoxIdRouteImport } from './routes/boxes/$boxId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -29,6 +30,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BoxesCreateRoute = BoxesCreateRouteImport.update({
+  id: '/boxes/create',
+  path: '/boxes/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BoxesBoxIdRoute = BoxesBoxIdRouteImport.update({
   id: '/boxes/$boxId',
   path: '/boxes/$boxId',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
+  '/boxes/create': typeof BoxesCreateRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
+  '/boxes/create': typeof BoxesCreateRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,28 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
+  '/boxes/create': typeof BoxesCreateRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/boxes/$boxId' | '/settings/'
+  fullPaths: '/' | '/login' | '/boxes/$boxId' | '/boxes/create' | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/boxes/$boxId' | '/settings'
-  id: '__root__' | '/' | '/login' | '/boxes/$boxId' | '/settings/'
+  to: '/' | '/login' | '/boxes/$boxId' | '/boxes/create' | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/boxes/$boxId'
+    | '/boxes/create'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   BoxesBoxIdRoute: typeof BoxesBoxIdRoute
+  BoxesCreateRoute: typeof BoxesCreateRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -92,6 +108,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/boxes/create': {
+      id: '/boxes/create'
+      path: '/boxes/create'
+      fullPath: '/boxes/create'
+      preLoaderRoute: typeof BoxesCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/boxes/$boxId': {
       id: '/boxes/$boxId'
       path: '/boxes/$boxId'
@@ -106,6 +129,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   BoxesBoxIdRoute: BoxesBoxIdRoute,
+  BoxesCreateRoute: BoxesCreateRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport

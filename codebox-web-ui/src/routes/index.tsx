@@ -1,11 +1,9 @@
-import { useState } from "react"
-import { createFileRoute } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { Plus } from "lucide-react"
 import type { Box } from "@/net/http/types"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AgentTable } from "@/components/box/AgentTable"
-import { CreateAgentDialog } from "@/components/box/CreateAgentDialog"
 import { useBoxes } from "@/net/query"
 import { ContainerStatus } from "@/net/http/types"
 
@@ -20,7 +18,6 @@ function isBoxActive(box: Box): boolean {
 
 function HomePage() {
   const { data: boxes, isLoading } = useBoxes()
-  const [dialogOpen, setDialogOpen] = useState(false)
 
   const activeBoxes = (boxes ?? []).filter(isBoxActive)
   const recentBoxes = (boxes ?? []).filter((b) => !isBoxActive(b))
@@ -32,7 +29,11 @@ function HomePage() {
         <h1 className="font-display text-2xl font-bold tracking-tight">
           Agents
         </h1>
-        <Button onClick={() => setDialogOpen(true)} className="gap-1.5">
+        <Button
+          nativeButton={false}
+          render={<Link to="/boxes/create" />}
+          className="gap-1.5"
+        >
           <Plus size={16} />
           New Agent
         </Button>
@@ -78,8 +79,9 @@ function HomePage() {
                 <span className="animate-cursor">_</span>
               </div>
               <Button
+                nativeButton={false}
+                render={<Link to="/boxes/create" />}
                 className="mt-6 gap-1.5"
-                onClick={() => setDialogOpen(true)}
               >
                 <Plus size={16} />
                 Create your first agent
@@ -88,8 +90,6 @@ function HomePage() {
           )}
         </div>
       </div>
-
-      <CreateAgentDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   )
 }

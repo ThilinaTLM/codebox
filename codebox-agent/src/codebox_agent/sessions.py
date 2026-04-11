@@ -148,7 +148,7 @@ class SessionManager:
             dynamic_system_prompt: Optional caller-provided prompt appended after
                 the environment prompt.
             working_dir: Root directory for the shell backend.
-            sandbox_config: Optional dict with keys: temperature, timeout, recursion_limit.
+            sandbox_config: Optional dict with keys: timeout, recursion_limit.
 
         Returns:
             The newly created Session.

@@ -40,7 +40,6 @@ class LLMConfig(BaseModel):
     base_url: str | None = Field(
         default=None, description="Custom API endpoint (OpenAI-compatible providers)"
     )
-    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +229,6 @@ class AgentConfig(BaseModel):
                 model=model,
                 api_key=api_key,
                 base_url=base_url,
-                temperature=float(sandbox_cfg.get("temperature", 0.0)),
             ),
             recursion_limit=int(sandbox_cfg.get("recursion_limit", 150)),
             tools=ToolsConfig(

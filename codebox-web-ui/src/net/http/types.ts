@@ -65,7 +65,6 @@ export interface ContainerLogs {
 export interface LLMSettings {
   provider?: string | null
   model?: string | null
-  temperature?: number
   base_url?: string | null
 }
 
