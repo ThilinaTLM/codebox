@@ -3,11 +3,19 @@ import { ThinkingBlock } from "./ThinkingBlock"
 import { ToolCallBlock } from "./ToolCallBlock"
 import { ExecBlock } from "./ExecBlock"
 import { UserMessageBlock } from "./UserMessageBlock"
+import { OutcomeDeclaredBlock } from "./OutcomeDeclaredBlock"
+import { InputRequestBlock } from "./InputRequestBlock"
 import { DoneBlock, ErrorBlock, StatusChangeBlock } from "./StatusDivider"
 import { TOOL_RENDERERS } from "./tools"
 import type { EventBlock } from "./types"
 
-export function ChatBlock({ block }: { block: EventBlock }) {
+export function ChatBlock({
+  block,
+  onSendMessage,
+}: {
+  block: EventBlock
+  onSendMessage?: (text: string) => void
+}) {
   switch (block.kind) {
     case "text":
       return <AssistantTextBlock content={block.content} />
@@ -53,5 +61,17 @@ export function ChatBlock({ block }: { block: EventBlock }) {
 
     case "user_message":
       return <UserMessageBlock content={block.content} />
+
+    case "outcome_declared":
+      return <OutcomeDeclaredBlock status={block.status} message={block.message} />
+
+    case "input_requested":
+      return (
+        <InputRequestBlock
+          message={block.message}
+          questions={block.questions}
+          onReply={(text) => onSendMessage?.(text)}
+        />
+      )
   }
 }

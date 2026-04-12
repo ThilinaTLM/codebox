@@ -50,9 +50,11 @@ function entriesToTreeElements(
 export function FileExplorer({
   boxId,
   onFileSelect,
+  disabled,
 }: {
   boxId: string
   onFileSelect?: (path: string) => void
+  disabled?: boolean
 }) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [treeElements, setTreeElements] = useState<Array<TreeViewElement>>([])
@@ -124,15 +126,15 @@ export function FileExplorer({
 
   return (
     <div className="relative flex h-full flex-col bg-card">
-      <div className="flex items-center justify-between border-b border-border/30 px-3 py-2">
-        <span className="font-terminal text-xs text-muted-foreground">
-          Files
+      <div className="flex items-center justify-between border-b border-border/40 px-3 py-2">
+        <span className="text-label">
+          Files{disabled ? " (stopped)" : treeElements.length > 0 ? ` (${countElements(treeElements)})` : ""}
         </span>
         <Button
           variant="ghost"
           size="icon-sm"
           onClick={handleRefresh}
-          disabled={isRefreshing}
+          disabled={isRefreshing || disabled}
           title="Refresh files"
           className="text-muted-foreground/50"
         >
@@ -203,6 +205,17 @@ function renderElements(
       </File>
     )
   })
+}
+
+function countElements(elements: Array<TreeViewElement>): number {
+  let count = 0
+  for (const el of elements) {
+    count++
+    if (el.children) {
+      count += countElements(el.children)
+    }
+  }
+  return count
 }
 
 function findTreeElement(

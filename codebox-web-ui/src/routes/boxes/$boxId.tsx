@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-import { AlertTriangle, RotateCw, Square, Trash2 } from "lucide-react"
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Copy,
+  Ellipsis,
+  RotateCw,
+  Square,
+  Trash2,
+} from "lucide-react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 
 import { Button } from "@/components/ui/button"
@@ -17,6 +25,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { BoxInput } from "@/components/box/BoxInput"
 import { FileExplorer } from "@/components/box/FileExplorer"
 import { FilePreview } from "@/components/box/FilePreview"
@@ -39,6 +54,7 @@ import {
 } from "@/net/query"
 import { ContainerStatus } from "@/net/http/types"
 import { useAgentActivity } from "@/hooks/useAgentActivity"
+import { useElapsedTime } from "@/hooks/useElapsedTime"
 import { useChatState } from "@/hooks/useChatState"
 import { useSetBoxPageActions } from "@/components/box/BoxPageContext"
 
@@ -76,6 +92,8 @@ function BoxDetailPage() {
     box?.container_status,
     box?.activity ?? undefined
   )
+
+  const elapsed = useElapsedTime(box?.started_at ?? null, !!isActive)
 
   const handleStop = useCallback(() => {
     stopMutation.mutate(boxId, {
@@ -168,6 +186,11 @@ function BoxDetailPage() {
     cancelMutation.mutate(boxId)
   }, [cancelMutation, boxId])
 
+  const handleCopyId = useCallback(() => {
+    navigator.clipboard.writeText(boxId)
+    toast.success("Copied agent ID")
+  }, [boxId])
+
   if (isLoading) return <BoxDetailSkeleton />
 
   if (!box) {
@@ -189,8 +212,6 @@ function BoxDetailPage() {
     )
   }
 
-  const canShowFiles = box.container_status === ContainerStatus.RUNNING
-
   return (
     <div className="flex h-[calc(100svh-24px)] flex-col">
       {/* Main content area */}
@@ -207,47 +228,78 @@ function BoxDetailPage() {
             onResize={(size) => setShowFiles(size.asPercentage > 0)}
             className="rounded-lg border border-border/60 bg-card"
           >
-            {canShowFiles ? (
-              <FileExplorer boxId={boxId} onFileSelect={handleFileSelect} />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-xs text-muted-foreground">
-                  {box.container_status === ContainerStatus.STARTING
-                    ? "Starting..."
-                    : "Not active"}
-                </p>
-              </div>
-            )}
+            <FileExplorer
+              boxId={boxId}
+              onFileSelect={handleFileSelect}
+              disabled={!isActive}
+            />
           </ResizablePanel>
           <ResizableHandle withHandle className="bg-transparent" />
 
           {/* Chat panel */}
           <ResizablePanel id="chat-panel" defaultSize={80} minSize={30}>
-            <div className="relative flex h-full flex-col">
-              {/* Inline header */}
-              <div className="flex items-center justify-between border-b border-border/30 px-4 py-2">
-                <div className="flex items-center gap-3">
-                  <span className="font-display text-sm">
-                    {box.name || "Agent"}
-                  </span>
-                  <BoxStatusBadge
-                    containerStatus={box.container_status}
-                    boxActivity={box.activity ?? undefined}
-                    taskOutcome={box.task_outcome}
-                    activity={activity}
-                  />
-                  <span className="font-terminal text-xs text-muted-foreground">
-                    {box.model}
-                  </span>
+            <div className="flex h-full flex-col">
+              {/* Toolbar */}
+              <div className="flex items-center justify-between border-b border-border/40 px-4 py-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    nativeButton={false}
+                    render={<Link to="/" />}
+                    className="shrink-0 text-muted-foreground"
+                  >
+                    <ArrowLeft size={16} />
+                  </Button>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-display text-sm font-medium">
+                        {box.name || "Agent"}
+                      </span>
+                      <BoxStatusBadge
+                        containerStatus={box.container_status}
+                        boxActivity={box.activity ?? undefined}
+                        taskOutcome={box.task_outcome}
+                        activity={activity}
+                      />
+                      {elapsed && (
+                        <span className="whitespace-nowrap text-xs text-muted-foreground">
+                          · {elapsed}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {box.description && (
+                        <span className="truncate text-xs text-muted-foreground">
+                          {box.description}
+                        </span>
+                      )}
+                      {!box.description && (
+                        <span className="text-xs text-muted-foreground">
+                          {box.provider} · {box.model}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {box.tags &&
+                    box.tags.length > 0 &&
+                    box.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-2xs"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                   {isStopped && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={handleRestart}
                       disabled={restartMutation.isPending}
-                      className="font-terminal gap-1.5 text-xs"
+                      className="gap-1.5 text-xs"
                     >
                       <RotateCw
                         size={12}
@@ -266,7 +318,7 @@ function BoxDetailPage() {
                             size="sm"
                             variant="outline"
                             disabled={stopMutation.isPending}
-                            className="font-terminal gap-1.5 text-xs"
+                            className="gap-1.5 text-xs"
                           />
                         }
                       >
@@ -290,61 +342,78 @@ function BoxDetailPage() {
                       </AlertDialogContent>
                     </AlertDialog>
                   )}
-                  <AlertDialog>
-                    <AlertDialogTrigger
+                  {/* Overflow menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
                       render={
                         <Button
                           size="icon-sm"
                           variant="ghost"
-                          disabled={deleteMutation.isPending}
-                          className="text-muted-foreground hover:text-destructive"
+                          className="text-muted-foreground"
                         />
                       }
                     >
-                      <Trash2 size={14} />
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete agent?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. The agent and all its
-                          data will be permanently deleted.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete}>
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                      <Ellipsis size={14} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={handleCopyId}>
+                        <Copy size={14} />
+                        Copy ID
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={handleDelete}
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
               {/* Activity bar */}
               <ActivityBar activity={activity} />
 
+              {/* gRPC connection warning */}
+              {box.container_status === ContainerStatus.RUNNING &&
+                !box.grpc_connected && (
+                  <div className="mx-4 mt-1 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
+                    <AlertTriangle size={14} className="shrink-0 text-warning" />
+                    <span className="text-sm text-warning">
+                      Sandbox connection lost
+                    </span>
+                  </div>
+                )}
+
               {/* Error banner for failed boxes */}
               {box.error_detail && (
                 <div className="mx-4 mt-1 rounded-lg border border-l-4 border-destructive/30 border-l-destructive bg-destructive/5 px-3 py-2">
                   <div className="mb-0.5 flex items-center gap-1.5">
                     <AlertTriangle size={12} className="text-state-error/80" />
-                    <span className="font-terminal text-xs text-state-error/60">
+                    <span className="text-xs text-state-error/60">
                       Failed to start
                     </span>
                   </div>
-                  <p className="text-sm text-state-error">{box.error_detail}</p>
+                  <p className="text-sm text-state-error">
+                    {box.error_detail}
+                  </p>
                 </div>
               )}
 
               {/* Event stream */}
-              <div className="min-h-0 flex-1">
-                <ChatStream blocks={blocks} centered bottomInset isWorking={activity.isWorking} />
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <ChatStream
+                  blocks={blocks}
+                  centered
+                  isWorking={activity.isWorking}
+                  onSendMessage={handleSendMessage}
+                />
               </div>
 
-              {/* Floating input */}
-              <div className="absolute inset-x-0 bottom-0 z-raised px-4 pb-3">
+              {/* Docked input */}
+              <div className="border-t border-border/40 px-4 py-3">
                 <div className="mx-auto max-w-4xl">
                   <BoxInput
                     onSendMessage={handleSendMessage}

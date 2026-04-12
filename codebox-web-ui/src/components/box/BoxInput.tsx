@@ -3,6 +3,12 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowUp01Icon } from "@hugeicons/core-free-icons"
 import { Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 const MAX_HEIGHT = 200
@@ -21,10 +27,8 @@ export function BoxInput({
   disabled?: boolean
 }) {
   const [input, setInput] = useState("")
-  const [focused, setFocused] = useState(false)
+  const [mode, setMode] = useState<"chat" | "shell">("chat")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  const isExecMode = input.startsWith("!")
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current
@@ -46,11 +50,8 @@ export function BoxInput({
     const trimmed = input.trim()
     if (!trimmed) return
 
-    if (trimmed.startsWith("!")) {
-      const command = trimmed.slice(1).trim()
-      if (command) {
-        onSendExec(command)
-      }
+    if (mode === "shell") {
+      onSendExec(trimmed)
     } else {
       onSendMessage(trimmed)
     }
@@ -60,61 +61,83 @@ export function BoxInput({
   const placeholder = disabled
     ? isWorking
       ? "Waiting for agent..."
-      : "Box is not active..."
-    : "Message the agent, or type ! for shell..."
+      : "Agent is stopped"
+    : mode === "shell"
+      ? "Type a command..."
+      : "Type a message..."
 
   return (
     <div>
       <div
         className={cn(
-          "relative rounded-lg border bg-inset shadow-sm transition-colors duration-slow",
+          "relative rounded-xl border bg-card transition-colors duration-slow",
           isWorking
-            ? "animate-glow-pulse border-state-writing/30 shadow-sm"
+            ? "animate-glow-pulse border-state-writing/30"
             : "border-border"
         )}
       >
-        {/* Prompt glyph */}
-        <span
-          className={cn(
-            "font-terminal pointer-events-none absolute top-2.5 left-4 text-sm font-medium",
-            isExecMode ? "text-state-thinking" : "text-primary"
+        <div className="flex items-end gap-2 px-3 py-2">
+          {/* Mode selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <button
+                type="button"
+                className="mb-0.5 flex shrink-0 items-center gap-1 rounded-md border border-border/50 bg-muted/30 px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {mode === "chat" ? "Chat" : "Shell"} ▾
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top" sideOffset={8}>
+              <DropdownMenuItem onSelect={() => setMode("chat")}>
+                Chat
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setMode("shell")}>
+                Shell
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Shell prefix */}
+          {mode === "shell" && (
+            <span className="pointer-events-none mb-0.5 shrink-0 text-sm font-medium text-muted-foreground">
+              $
+            </span>
           )}
-        >
-          {isExecMode ? "$" : ">_"}
-        </span>
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          placeholder={placeholder}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault()
-              handleSend()
-            }
-          }}
-          disabled={disabled}
-          className="font-terminal w-full resize-none rounded-lg bg-transparent pt-2.5 pr-14 pb-2.5 pl-10 text-sm outline-none placeholder:text-ghost disabled:opacity-50"
-          style={{
-            maxHeight: `${MAX_HEIGHT}px`,
-            overflowY: "hidden",
-          }}
-        />
-        <div className="absolute right-3 bottom-2">
-          {isWorking ? (
-            <Button
-              size="icon-sm"
-              variant="destructive"
-              onClick={onCancel}
-              title="Stop agent"
-              className="rounded-md"
-            >
-              <Square size={14} fill="currentColor" />
-            </Button>
-          ) : (
+
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            placeholder={placeholder}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault()
+                handleSend()
+              }
+            }}
+            disabled={disabled}
+            className="min-h-[28px] w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground/50 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{
+              maxHeight: `${MAX_HEIGHT}px`,
+              overflowY: "hidden",
+            }}
+          />
+
+          {/* Send / Cancel buttons */}
+          <div className="mb-0.5 flex shrink-0 items-center gap-1">
+            {isWorking && (
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={onCancel}
+                title="Cancel"
+                className="text-muted-foreground hover:text-warning"
+              >
+                <Square size={14} fill="currentColor" />
+              </Button>
+            )}
             <Button
               size="icon-sm"
               onClick={handleSend}
@@ -123,15 +146,13 @@ export function BoxInput({
             >
               <HugeiconsIcon icon={ArrowUp01Icon} size={16} strokeWidth={2.5} />
             </Button>
-          )}
+          </div>
         </div>
       </div>
       {/* Keyboard hints */}
-      {focused && input.trim() && (
-        <div className="mt-0.5 text-center text-2xs text-ghost">
-          Enter to send · Shift+Enter for newline
-        </div>
-      )}
+      <p className="mt-1 text-center text-2xs text-muted-foreground">
+        Shift+Enter for newline · Enter to send
+      </p>
     </div>
   )
 }

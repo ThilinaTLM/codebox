@@ -21,6 +21,7 @@ import { ThemeProvider } from "@/components/layout/ThemeProvider"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { StatusBar } from "@/components/layout/StatusBar"
 import { Toaster } from "@/components/ui/sonner"
+import { CommandPalette } from "@/components/CommandPalette"
 import {
   BoxPageActionsContext,
   BoxPageSetterContext,
@@ -102,6 +103,7 @@ function AuthenticatedApp() {
   const [boxPageActions, setBoxPageActions] = useState<BoxPageActions | null>(
     null
   )
+  const location = useLocation()
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -113,12 +115,16 @@ function AuthenticatedApp() {
                 <div className="flex h-svh overflow-hidden">
                   <AppSidebar />
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <main className="flex-1 overflow-hidden">
+                    <main
+                      key={location.pathname}
+                      className="flex-1 overflow-hidden animate-page-enter"
+                    >
                       <Outlet />
                     </main>
                     <StatusBar />
                   </div>
                 </div>
+                <CommandPalette />
                 <Toaster />
               </BoxPageActionsContext>
             </BoxPageSetterContext>

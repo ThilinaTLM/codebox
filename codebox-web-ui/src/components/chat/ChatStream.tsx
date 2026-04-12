@@ -210,6 +210,20 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
         break
       }
 
+      case "run.started":
+        flushText()
+        flushThinking()
+        flushExec()
+        blocks.push({ kind: "status_change", status: "Run started" })
+        break
+
+      case "run.cancelled":
+        flushText()
+        flushThinking()
+        flushExec()
+        blocks.push({ kind: "status_change", status: "Cancelled" })
+        break
+
       case "run.completed":
         flushText()
         flushThinking()
@@ -222,6 +236,30 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
         flushThinking()
         flushExec()
         blocks.push({ kind: "error", detail: String(payload.error ?? "Run failed") })
+        break
+
+      case "outcome.declared":
+        flushText()
+        flushThinking()
+        flushExec()
+        blocks.push({
+          kind: "outcome_declared",
+          status: String(payload.status ?? ""),
+          message: String(payload.message ?? ""),
+        })
+        break
+
+      case "input.requested":
+        flushText()
+        flushThinking()
+        flushExec()
+        blocks.push({
+          kind: "input_requested",
+          message: String(payload.message ?? ""),
+          questions: Array.isArray(payload.questions)
+            ? (payload.questions as Array<string>)
+            : undefined,
+        })
         break
 
       default:
@@ -258,13 +296,13 @@ function blockKey(block: EventBlock, index: number): string {
 export function ChatStream({
   blocks,
   centered,
-  bottomInset,
   isWorking,
+  onSendMessage,
 }: {
   blocks: Array<EventBlock>
   centered?: boolean
-  bottomInset?: boolean
   isWorking?: boolean
+  onSendMessage?: (text: string) => void
 }) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const prevLenRef = useRef(0)
@@ -279,17 +317,15 @@ export function ChatStream({
   return (
     <ScrollArea className="h-full">
       <div className={centered ? "mx-auto max-w-4xl px-4" : "px-5"}>
-        <div
-          className={`flex flex-col gap-1.5 py-3 text-sm ${bottomInset ? "pb-36" : ""}`}
-        >
+        <div className="flex flex-col gap-3 py-3 text-sm">
           {blocks.map((block, i) => (
             <div key={blockKey(block, i)}>
-              <ChatBlock block={block} />
+              <ChatBlock block={block} onSendMessage={onSendMessage} />
             </div>
           ))}
           {isWorking && !_hasActiveBlock(blocks) && (
             <div key="__working">
-              <ChatBlock block={{ kind: "thinking", isStreaming: true }} />
+              <ChatBlock block={{ kind: "thinking", isStreaming: true }} onSendMessage={onSendMessage} />
             </div>
           )}
           {blocks.length === 0 && !isWorking && (

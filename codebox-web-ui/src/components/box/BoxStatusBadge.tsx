@@ -82,7 +82,7 @@ export function BoxStatusBadge({
   // If we have a live activity override, use it
   if (activity) {
     return (
-      <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
         <StatusDot color={STATE_DOT_COLORS[activity.state]} animate={activity.animate} />
         {activity.label}
       </span>
@@ -98,7 +98,7 @@ export function BoxStatusBadge({
     boxActivity !== Activity.IDLE
   ) {
     return (
-      <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
         <StatusDot color={activityDotColors[boxActivity]} animate />
         {activityLabels[boxActivity]}
       </span>
@@ -111,7 +111,7 @@ export function BoxStatusBadge({
     taskOutcome === TaskOutcome.COMPLETED
   ) {
     return (
-      <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
         <StatusDot color="bg-state-completed" />
         Completed
       </span>
@@ -119,7 +119,7 @@ export function BoxStatusBadge({
   }
 
   return (
-    <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <StatusDot color={config.dotColor} animate={config.animate} />
       {config.label}
     </span>
@@ -128,7 +128,7 @@ export function BoxStatusBadge({
 
 export function TaskOutcomeBadge({ status }: { status: TaskOutcome }) {
   return (
-    <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <StatusDot color={outcomeDotColors[status]} />
       {outcomeLabels[status]}
     </span>

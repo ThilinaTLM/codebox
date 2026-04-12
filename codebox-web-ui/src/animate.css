@@ -124,4 +124,25 @@
     opacity: 0.3;
     animation: scan-line 3s linear infinite;
   }
+
+  /* Page enter — fade + slide up */
+  @keyframes page-enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-page-enter {
+    animation: page-enter var(--duration-normal) var(--ease-out) both;
+  }
+}
+
+/* ── Reduced Motion ────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

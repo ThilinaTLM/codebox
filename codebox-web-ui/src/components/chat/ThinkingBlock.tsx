@@ -1,11 +1,7 @@
 import { useState } from "react"
 import { ChevronRight } from "lucide-react"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import { Spinner } from "@/components/ui/spinner"
+import { cn } from "@/lib/utils"
 
 export function ThinkingBlock({
   content,
@@ -18,13 +14,15 @@ export function ThinkingBlock({
 
   if (isStreaming) {
     return (
-      <div>
-        <div className="flex items-center gap-1.5 py-1">
+      <div className="rounded-xl border-l-2 border-state-thinking/40 bg-state-thinking/5 px-4 py-3">
+        <div className="flex items-center gap-1.5">
           <Spinner className="size-3 text-state-thinking" />
-          <span className="text-xs text-state-thinking">Thinking…</span>
+          <span className="text-sm font-medium text-state-thinking">
+            Thinking…
+          </span>
         </div>
         {content && (
-          <p className="font-terminal pb-1 pl-4 text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+          <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
             {content}
           </p>
         )}
@@ -35,19 +33,29 @@ export function ThinkingBlock({
   if (!content) return null
 
   return (
-    <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex cursor-pointer items-center gap-1 py-1 text-xs text-muted-foreground transition-colors hover:text-state-thinking">
+    <div className="rounded-xl border-l-2 border-state-thinking/40 bg-state-thinking/5 px-4 py-3">
+      <button
+        type="button"
+        className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-state-thinking"
+        onClick={() => setExpanded((v) => !v)}
+      >
         <ChevronRight
-          size={12}
-          className={`shrink-0 transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
+          size={14}
+          className={cn(
+            "shrink-0 transition-transform duration-150",
+            expanded && "rotate-90"
+          )}
         />
-        <span>Thinking</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <p className="font-terminal pb-1 pl-4 text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
-          {content}
-        </p>
-      </CollapsibleContent>
-    </Collapsible>
+        <span className="font-medium">Thinking</span>
+      </button>
+      <div
+        className={cn(
+          "mt-2 text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground",
+          !expanded && "line-clamp-3"
+        )}
+      >
+        {content}
+      </div>
+    </div>
   )
 }

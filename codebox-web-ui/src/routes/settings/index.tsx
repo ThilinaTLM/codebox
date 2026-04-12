@@ -22,7 +22,6 @@ import {
 } from "@/net/query"
 import { useAuthStore } from "@/lib/auth"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -47,21 +46,31 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { API_URL } from "@/lib/constants"
+import { cn } from "@/lib/utils"
 
-const VALID_TABS = [
+// ── Route ───────────────────────────────────────────────────
+
+const VALID_SECTIONS = [
   "account",
   "llm-profiles",
   "integrations",
-  "appearance",
   "github",
-  "about",
 ] as const
-type SettingsTab = (typeof VALID_TABS)[number]
+type SettingsSection = (typeof VALID_SECTIONS)[number]
+
+const SECTIONS: Array<{ id: SettingsSection; label: string }> = [
+  { id: "account", label: "Account" },
+  { id: "llm-profiles", label: "LLM Profiles" },
+  { id: "integrations", label: "Integrations" },
+  { id: "github", label: "GitHub" },
+]
 
 export const Route = createFileRoute("/settings/")({
-  validateSearch: (search: Record<string, unknown>): { tab: SettingsTab } => {
-    const tab = VALID_TABS.includes(search.tab as SettingsTab)
-      ? (search.tab as SettingsTab)
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { tab: SettingsSection } => {
+    const tab = VALID_SECTIONS.includes(search.tab as SettingsSection)
+      ? (search.tab as SettingsSection)
       : "account"
     return { tab }
   },
@@ -71,85 +80,65 @@ export const Route = createFileRoute("/settings/")({
 function SettingsPage() {
   const { tab } = Route.useSearch()
   const navigate = useNavigate()
+
+  const setSection = (id: SettingsSection) => {
+    navigate({
+      to: "/settings",
+      search: { tab: id },
+      replace: true,
+    })
+  }
+
+  const renderSection = () => {
+    switch (tab) {
+      case "account":
+        return <AccountSection />
+      case "llm-profiles":
+        return <LLMProfilesSection />
+      case "integrations":
+        return <IntegrationsSection />
+      case "github":
+        return <GitHubSection />
+    }
+  }
+
   return (
-    <div className="flex h-[calc(100svh-24px)] flex-col overflow-y-auto">
-      {/* Page header */}
-      <div className="px-6 pt-8 pb-2">
-        <div className="mx-auto max-w-6xl">
-          <h1 className="font-display text-2xl font-bold tracking-tight">
-            Settings
-          </h1>
-        </div>
-      </div>
-
-      {/* Tabbed content */}
-      <div className="flex-1 px-6 pb-12">
-        <div className="mx-auto max-w-6xl">
-          <Tabs
-            value={tab}
-            onValueChange={(value) =>
-              navigate({
-                to: "/settings",
-                search: { tab: value as SettingsTab },
-                replace: true,
-              })
-            }
+    <div className="flex h-[calc(100svh-24px)]">
+      {/* Left nav */}
+      <nav className="w-48 shrink-0 space-y-1 overflow-y-auto border-r border-border p-4">
+        <h1 className="mb-4 px-3 font-display text-lg font-semibold tracking-tight">
+          Settings
+        </h1>
+        {SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => setSection(s.id)}
+            className={cn(
+              "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
+              tab === s.id
+                ? "bg-muted font-medium text-foreground"
+                : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+            )}
           >
-            <TabsList variant="line" className="mb-6">
-              <TabsTrigger value="account" className="font-terminal text-sm">
-                Account
-              </TabsTrigger>
-              <TabsTrigger
-                value="llm-profiles"
-                className="font-terminal text-sm"
-              >
-                LLM Profiles
-              </TabsTrigger>
-              <TabsTrigger
-                value="integrations"
-                className="font-terminal text-sm"
-              >
-                Integrations
-              </TabsTrigger>
-              <TabsTrigger value="appearance" className="font-terminal text-sm">
-                Appearance
-              </TabsTrigger>
-              <TabsTrigger value="github" className="font-terminal text-sm">
-                GitHub
-              </TabsTrigger>
-              <TabsTrigger value="about" className="font-terminal text-sm">
-                About
-              </TabsTrigger>
-            </TabsList>
+            {s.label}
+          </button>
+        ))}
+      </nav>
 
-            <TabsContent value="account">
-              <AccountTab />
-            </TabsContent>
-            <TabsContent value="llm-profiles">
-              <LLMProfilesTab />
-            </TabsContent>
-            <TabsContent value="integrations">
-              <IntegrationsTab />
-            </TabsContent>
-            <TabsContent value="appearance">
-              <AppearanceTab />
-            </TabsContent>
-            <TabsContent value="github">
-              <GitHubTab />
-            </TabsContent>
-            <TabsContent value="about">
-              <AboutTab />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+      {/* Right content */}
+      <main className="flex-1 overflow-y-auto p-6">
+        <div className="mx-auto max-w-3xl">{renderSection()}</div>
+      </main>
     </div>
   )
 }
 
-// ── Account Tab ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// Account Section
+// ═══════════════════════════════════════════════════════════════
 
-function AccountTab() {
+function AccountSection() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
 
@@ -160,11 +149,11 @@ function AccountTab() {
         <div className="mt-4 grid max-w-md gap-3">
           <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
             <span className="text-sm text-muted-foreground">Username</span>
-            <span className="font-terminal text-sm">{user?.username}</span>
+            <span className="text-sm">{user?.username}</span>
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
             <span className="text-sm text-muted-foreground">Role</span>
-            <Badge variant="outline" className="font-terminal text-xs">
+            <Badge variant="outline" className="text-xs">
               {user?.user_type}
             </Badge>
           </div>
@@ -173,8 +162,20 @@ function AccountTab() {
 
       <ChangePasswordSection />
 
+      {/* Theme */}
       <section>
-        <h2 className="font-display text-lg">Session</h2>
+        <h2 className="font-display text-lg">Theme</h2>
+        <p className="mt-1 max-w-md text-sm text-muted-foreground">
+          Toggle between light and dark mode.
+        </p>
+        <div className="mt-4">
+          <ThemeToggle />
+        </div>
+      </section>
+
+      {/* Danger zone */}
+      <section>
+        <h2 className="font-display text-lg text-destructive">Danger Zone</h2>
         <p className="mt-1 max-w-md text-sm text-muted-foreground">
           Sign out of your current session.
         </p>
@@ -273,110 +274,11 @@ function ChangePasswordSection() {
   )
 }
 
-function TavilyKeySection() {
-  const { data: settings } = useUserSettings()
-  const updateMutation = useUpdateUserSettings()
-  const [tavilyKey, setTavilyKey] = useState("")
+// ═══════════════════════════════════════════════════════════════
+// LLM Profiles Section
+// ═══════════════════════════════════════════════════════════════
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!tavilyKey) return
-    updateMutation.mutate(
-      { tavily_api_key: tavilyKey },
-      {
-        onSuccess: () => {
-          toast.success("Tavily API key saved")
-          setTavilyKey("")
-        },
-        onError: () => toast.error("Failed to save Tavily API key"),
-      }
-    )
-  }
-
-  return (
-    <section>
-      <h2 className="font-display text-lg">API Keys</h2>
-      <p className="mt-1 max-w-md text-sm text-muted-foreground">
-        Manage external service API keys.
-      </p>
-      <form onSubmit={handleSave} className="mt-4 max-w-md space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="tavily-key">Tavily API Key</Label>
-          {settings?.tavily_api_key_masked ? (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
-              <span className="font-terminal text-sm text-muted-foreground">
-                {settings.tavily_api_key_masked}
-              </span>
-              <Badge variant="outline" className="ml-auto text-xs">
-                Configured
-              </Badge>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-lg border border-dashed border-border px-4 py-2.5">
-              <span className="text-sm text-muted-foreground">
-                Not configured
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-end gap-2">
-          <div className="flex-1 space-y-1.5">
-            <Label htmlFor="tavily-key-input">
-              {settings?.tavily_api_key_masked
-                ? "Replace key"
-                : "Enter API key"}
-            </Label>
-            <Input
-              id="tavily-key-input"
-              type="password"
-              value={tavilyKey}
-              onChange={(e) => setTavilyKey(e.target.value)}
-              placeholder="tvly-..."
-            />
-          </div>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={updateMutation.isPending || !tavilyKey}
-          >
-            {updateMutation.isPending ? "Saving..." : "Save"}
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Used for web search tool. Get a key at{" "}
-          <a
-            href="https://tavily.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline underline-offset-2 hover:text-foreground"
-          >
-            tavily.com
-          </a>
-        </p>
-      </form>
-    </section>
-  )
-}
-
-// ── Integrations Tab ────────────────────────────────────────
-
-function IntegrationsTab() {
-  return (
-    <div className="space-y-10">
-      <div>
-        <h2 className="font-display text-lg">API Keys</h2>
-        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
-          Manage API keys for external services used by your boxes.
-        </p>
-      </div>
-      <TavilyKeySection />
-    </div>
-  )
-}
-
-// ── LLM Profiles Tab ────────────────────────────────────────
-
-function LLMProfilesTab() {
+function LLMProfilesSection() {
   const { data: profiles = [], isLoading } = useLLMProfiles()
   const { data: settings } = useUserSettings()
   const [createOpen, setCreateOpen] = useState(false)
@@ -497,9 +399,7 @@ function LLMProfileCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-display truncate">
-                  {profile.name}
-                </span>
+                <span className="font-display truncate">{profile.name}</span>
                 {isDefault && (
                   <Badge variant="default" className="shrink-0 text-xs">
                     Default
@@ -509,11 +409,11 @@ function LLMProfileCard({
               <p className="mt-1 text-sm text-muted-foreground">
                 {profile.provider} &middot; {profile.model}
               </p>
-              <p className="mt-1 font-terminal text-xs text-muted-foreground">
+              <p className="mt-1 font-mono text-xs text-muted-foreground">
                 {profile.api_key_masked}
               </p>
               {profile.base_url && (
-                <p className="mt-1 font-terminal text-xs text-muted-foreground truncate">
+                <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
                   {profile.base_url}
                 </p>
               )}
@@ -721,7 +621,7 @@ function LLMProfileFormDialog({
               }
             />
             {mode === "edit" && profile && (
-              <p className="font-terminal text-xs text-muted-foreground">
+              <p className="font-mono text-xs text-muted-foreground">
                 Current: {profile.api_key_masked}
               </p>
             )}
@@ -767,26 +667,114 @@ function LLMProfileFormDialog({
   )
 }
 
-// ── Appearance Tab ──────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// Integrations Section
+// ═══════════════════════════════════════════════════════════════
 
-function AppearanceTab() {
+function IntegrationsSection() {
   return (
-    <section className="space-y-4">
+    <div className="space-y-10">
       <div>
-        <h2 className="font-display text-lg">Theme</h2>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          Choose your preferred theme. Dark theme is the default for the
-          command-center aesthetic.
+        <h2 className="font-display text-lg">API Keys</h2>
+        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+          Manage API keys for external services used by your boxes.
         </p>
       </div>
-      <ThemeToggle />
+      <TavilyKeySection />
+    </div>
+  )
+}
+
+function TavilyKeySection() {
+  const { data: settings } = useUserSettings()
+  const updateMutation = useUpdateUserSettings()
+  const [tavilyKey, setTavilyKey] = useState("")
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!tavilyKey) return
+    updateMutation.mutate(
+      { tavily_api_key: tavilyKey },
+      {
+        onSuccess: () => {
+          toast.success("Tavily API key saved")
+          setTavilyKey("")
+        },
+        onError: () => toast.error("Failed to save Tavily API key"),
+      }
+    )
+  }
+
+  return (
+    <section>
+      <h2 className="font-display text-lg">Tavily</h2>
+      <p className="mt-1 max-w-md text-sm text-muted-foreground">
+        Used for the web search tool.
+      </p>
+      <form onSubmit={handleSave} className="mt-4 max-w-md space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="tavily-key">API Key</Label>
+          {settings?.tavily_api_key_masked ? (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
+              <span className="font-mono text-sm text-muted-foreground">
+                {settings.tavily_api_key_masked}
+              </span>
+              <Badge variant="outline" className="ml-auto text-xs">
+                Configured
+              </Badge>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-dashed border-border px-4 py-2.5">
+              <span className="text-sm text-muted-foreground">
+                Not configured
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-end gap-2">
+          <div className="flex-1 space-y-1.5">
+            <Label htmlFor="tavily-key-input">
+              {settings?.tavily_api_key_masked
+                ? "Replace key"
+                : "Enter API key"}
+            </Label>
+            <Input
+              id="tavily-key-input"
+              type="password"
+              value={tavilyKey}
+              onChange={(e) => setTavilyKey(e.target.value)}
+              placeholder="tvly-..."
+            />
+          </div>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={updateMutation.isPending || !tavilyKey}
+          >
+            {updateMutation.isPending ? "Saving..." : "Save"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Get a key at{" "}
+          <a
+            href="https://tavily.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            tavily.com
+          </a>
+        </p>
+      </form>
     </section>
   )
 }
 
-// ── GitHub Tab ──────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// GitHub Section
+// ═══════════════════════════════════════════════════════════════
 
-function GitHubTab() {
+function GitHubSection() {
   const { data: status, isLoading: statusLoading } = useGitHubStatus()
   const { data: installations, isLoading: installationsLoading } =
     useGitHubInstallations()
@@ -834,7 +822,6 @@ function GitHubAppConfigSection({
   const [defaultBranch, setDefaultBranch] = useState("")
   const [formDirty, setFormDirty] = useState(false)
 
-  // Populate form from settings when loaded
   // biome-ignore lint/correctness/useExhaustiveDependencies: seed form once when settings arrive
   useEffect(() => {
     if (!settings || formDirty) return
@@ -882,9 +869,7 @@ function GitHubAppConfigSection({
   if (statusLoading) {
     return (
       <section>
-        <h2 className="font-display text-lg">
-          GitHub App Configuration
-        </h2>
+        <h2 className="font-display text-lg">GitHub App Configuration</h2>
         <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
       </section>
     )
@@ -897,9 +882,7 @@ function GitHubAppConfigSection({
 
   return (
     <section>
-      <h2 className="font-display text-lg">
-        GitHub App Configuration
-      </h2>
+      <h2 className="font-display text-lg">GitHub App Configuration</h2>
       <p className="mt-1 max-w-lg text-sm text-muted-foreground">
         Connect a GitHub App to enable issue and PR triggers. You&apos;ll need
         the App ID, private key, and webhook secret from your GitHub App
@@ -912,7 +895,7 @@ function GitHubAppConfigSection({
             Webhook URL
           </p>
           <div className="mt-1 flex items-center gap-2">
-            <code className="font-terminal flex-1 truncate text-sm">
+            <code className="flex-1 truncate font-mono text-sm">
               {webhookUrl}
             </code>
             <Button
@@ -956,10 +939,10 @@ function GitHubAppConfigSection({
               markDirty()
             }}
             placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;..."
-            className="font-terminal text-xs"
+            className="font-mono text-xs"
           />
           {settings?.github_private_key_masked && (
-            <p className="font-terminal text-xs text-muted-foreground">
+            <p className="font-mono text-xs text-muted-foreground">
               Current: {settings.github_private_key_masked}
             </p>
           )}
@@ -982,7 +965,7 @@ function GitHubAppConfigSection({
             }
           />
           {settings?.github_webhook_secret_masked && (
-            <p className="font-terminal text-xs text-muted-foreground">
+            <p className="font-mono text-xs text-muted-foreground">
               Current: {settings.github_webhook_secret_masked}
             </p>
           )}
@@ -1028,11 +1011,7 @@ function GitHubAppConfigSection({
           />
         </div>
 
-        <Button
-          type="submit"
-          size="sm"
-          disabled={updateMutation.isPending}
-        >
+        <Button type="submit" size="sm" disabled={updateMutation.isPending}>
           {updateMutation.isPending ? "Saving..." : "Save Configuration"}
         </Button>
       </form>
@@ -1119,9 +1098,7 @@ function InstallationsList({
   if (isLoading) {
     return (
       <section>
-        <h2 className="font-display text-lg">
-          Connected Installations
-        </h2>
+        <h2 className="font-display text-lg">Connected Installations</h2>
         <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
       </section>
     )
@@ -1129,9 +1106,7 @@ function InstallationsList({
 
   return (
     <section>
-      <h2 className="font-display text-lg">
-        Connected Installations
-      </h2>
+      <h2 className="font-display text-lg">Connected Installations</h2>
       {installations.length === 0 ? (
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
           No GitHub App installations connected yet.
@@ -1178,10 +1153,8 @@ function InstallationCard({
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-display">
-              {installation.account_login}
-            </p>
-            <p className="font-terminal text-xs text-muted-foreground">
+            <p className="font-display">{installation.account_login}</p>
+            <p className="font-mono text-xs text-muted-foreground">
               {installation.account_type} &middot; ID:{" "}
               {installation.installation_id} &middot;{" "}
               {new Date(installation.created_at).toLocaleDateString()}
@@ -1214,7 +1187,7 @@ function InstallationCard({
                 key={repo.full_name}
                 className="flex items-center gap-2 text-sm"
               >
-                <span className="font-terminal">{repo.full_name}</span>
+                <span className="font-mono">{repo.full_name}</span>
                 {repo.private && (
                   <Badge variant="outline" className="py-0 text-xs">
                     private
@@ -1226,33 +1199,5 @@ function InstallationCard({
         )}
       </CardContent>
     </Card>
-  )
-}
-
-// ── About Tab ───────────────────────────────────────────────
-
-function AboutTab() {
-  return (
-    <section className="space-y-6">
-      <div>
-        <h2 className="font-display text-2xl font-bold">Codebox</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Sandboxed AI coding agent platform.
-        </p>
-      </div>
-
-      <div className="grid max-w-md gap-3">
-        <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
-          <span className="text-sm text-muted-foreground">Version</span>
-          <span className="font-terminal text-sm">0.1.0</span>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
-          <span className="text-sm text-muted-foreground">API URL</span>
-          <span className="font-terminal text-xs text-foreground/70">
-            {API_URL}
-          </span>
-        </div>
-      </div>
-    </section>
   )
 }

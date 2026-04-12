@@ -1,15 +1,18 @@
 import { useState } from "react"
-import { useNavigate } from "@tanstack/react-router"
-import { formatDistanceToNow } from "date-fns"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Github01Icon } from "@hugeicons/core-free-icons"
+import { Link } from "@tanstack/react-router"
+import { formatDistanceToNow, isToday, isYesterday } from "date-fns"
 import { Square, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table"
 import type { Box } from "@/net/http/types"
 import { Activity, ContainerStatus, TaskOutcome } from "@/net/http/types"
 import { useDeleteBox, useStopBox } from "@/net/query"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,9 +25,15 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 
-interface AgentTableProps {
-  boxes: Array<Box>
-  variant: "active" | "recent"
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function isBoxActive(box: Box): boolean {
+  return (
+    box.container_status === ContainerStatus.STARTING ||
+    box.container_status === ContainerStatus.RUNNING
+  )
 }
 
 function getStatusDotClass(box: Box): string {
@@ -40,7 +49,6 @@ function getStatusDotClass(box: Box): string {
   if (box.container_status === ContainerStatus.STARTING) {
     return "bg-state-starting"
   }
-  // stopped
   if (box.task_outcome === TaskOutcome.COMPLETED) {
     return "bg-state-completed"
   }
@@ -50,228 +58,143 @@ function getStatusDotClass(box: Box): string {
   return "bg-state-idle"
 }
 
-function getRowBorderClass(box: Box): string {
+function getStatusText(box: Box): string {
+  if (box.container_status === ContainerStatus.STARTING) return "Starting…"
   if (box.container_status === ContainerStatus.RUNNING) {
-    if (
-      box.activity === Activity.AGENT_WORKING ||
-      box.activity === Activity.EXEC_SHELL
-    ) {
-      return "border-l-state-writing"
-    }
-    return "border-l-state-idle"
+    if (box.activity === Activity.AGENT_WORKING) return "Working…"
+    if (box.activity === Activity.EXEC_SHELL) return "Running command…"
+    return "Idle"
   }
-  if (box.container_status === ContainerStatus.STARTING) {
-    return "border-l-state-starting"
-  }
-  if (box.task_outcome === TaskOutcome.COMPLETED) {
-    return "border-l-state-completed"
-  }
-  if (box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED) {
-    return "border-l-state-error"
-  }
-  return "border-l-state-idle"
+  if (box.task_outcome_message) return box.task_outcome_message
+  if (box.task_outcome === TaskOutcome.COMPLETED) return "Completed"
+  if (box.task_outcome === TaskOutcome.NEED_CLARIFICATION)
+    return "Needs clarification"
+  if (box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED)
+    return "Unable to proceed"
+  if (box.error_detail) return "Error"
+  return "Stopped"
 }
 
-function getTimestamp(box: Box, variant: "active" | "recent"): string {
-  const ts =
-    variant === "active"
-      ? (box.started_at ?? box.created_at)
-      : (box.created_at ?? box.started_at)
+function getRelativeTime(box: Box): string {
+  const ts = box.started_at ?? box.created_at
   if (!ts) return ""
   return formatDistanceToNow(new Date(ts), { addSuffix: true })
 }
 
-function isActive(box: Box): boolean {
+type GroupKey = "active" | "today" | "yesterday" | "older"
+
+function groupBoxes(
+  boxes: Array<Box>
+): Array<{ key: GroupKey; title: string; boxes: Array<Box> }> {
+  const groups: Record<GroupKey, Array<Box>> = {
+    active: [],
+    today: [],
+    yesterday: [],
+    older: [],
+  }
+
+  for (const box of boxes) {
+    if (isBoxActive(box)) {
+      groups.active.push(box)
+    } else {
+      const ts = box.created_at ? new Date(box.created_at) : null
+      if (ts && isToday(ts)) {
+        groups.today.push(box)
+      } else if (ts && isYesterday(ts)) {
+        groups.yesterday.push(box)
+      } else {
+        groups.older.push(box)
+      }
+    }
+  }
+
+  const labels: Record<GroupKey, string> = {
+    active: "Active",
+    today: "Today",
+    yesterday: "Yesterday",
+    older: "Older",
+  }
+
   return (
-    box.container_status === ContainerStatus.STARTING ||
-    box.container_status === ContainerStatus.RUNNING
+    (["active", "today", "yesterday", "older"] as Array<GroupKey>)
   )
+    .filter((k) => groups[k].length > 0)
+    .map((k) => ({ key: k, title: labels[k], boxes: groups[k] }))
 }
 
-export function AgentTable({ boxes, variant }: AgentTableProps) {
-  const navigate = useNavigate()
+// ---------------------------------------------------------------------------
+// TanStack Table setup (used for future sorting/filtering)
+// ---------------------------------------------------------------------------
 
-  return (
-    <table className="w-full">
-      <thead>
-        <tr className="border-b border-border/30">
-          <th className="font-terminal w-8 px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase" />
-          <th className="font-terminal px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase">
-            Name
-          </th>
-          <th className="font-terminal hidden px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase md:table-cell">
-            Status
-          </th>
-          <th className="font-terminal hidden px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase lg:table-cell">
-            Model
-          </th>
-          <th className="font-terminal hidden px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase sm:table-cell">
-            Trigger
-          </th>
-          <th className="font-terminal px-3 py-2 text-right text-2xs font-medium tracking-wider text-ghost uppercase">
-            Time
-          </th>
-          <th className="font-terminal w-20 px-3 py-2 text-right text-2xs font-medium tracking-wider text-ghost uppercase" />
-        </tr>
-      </thead>
-      <tbody>
-        {boxes.map((box) => (
-          <AgentRow
-            key={box.id}
-            box={box}
-            variant={variant}
-            onNavigate={() =>
-              navigate({ to: "/boxes/$boxId", params: { boxId: box.id } })
-            }
-          />
-        ))}
-      </tbody>
-    </table>
-  )
-}
+const columnHelper = createColumnHelper<Box>()
 
-function AgentRow({
+const columns = [
+  columnHelper.display({ id: "row", cell: () => null }),
+]
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function StatusDot({
   box,
-  variant,
-  onNavigate,
+  className,
 }: {
   box: Box
-  variant: "active" | "recent"
-  onNavigate: () => void
+  className?: string
 }) {
-  const stopMutation = useStopBox()
-  const deleteMutation = useDeleteBox()
-  const [showStopDialog, setShowStopDialog] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const active = isActive(box)
+  const active = isBoxActive(box)
   const dotClass = getStatusDotClass(box)
+  return (
+    <div className={cn("relative flex items-center justify-center", className)}>
+      <div className={cn("size-2 rounded-full", dotClass)} />
+      {active && (
+        <div
+          className={cn(
+            "animate-status-ping absolute size-2 rounded-full",
+            dotClass
+          )}
+        />
+      )}
+    </div>
+  )
+}
+
+function StopButton({
+  box,
+  onConfirm,
+}: {
+  box: Box
+  onConfirm: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const stopMutation = useStopBox()
 
   const handleStop = () => {
     stopMutation.mutate(box.id, {
       onSuccess: () => toast.success("Agent stopped"),
       onError: () => toast.error("Failed to stop agent"),
     })
-    setShowStopDialog(false)
+    setOpen(false)
+    onConfirm()
   }
-
-  const handleDelete = () => {
-    deleteMutation.mutate(box.id, {
-      onSuccess: () => toast.success("Agent deleted"),
-      onError: () => toast.error("Failed to delete agent"),
-    })
-    setShowDeleteDialog(false)
-  }
-
-  const triggerLabel =
-    box.trigger === "github_issue"
-      ? `Issue #${box.github_issue_number ?? ""}`
-      : box.trigger === "github_pr"
-        ? `PR #${box.github_issue_number ?? ""}`
-        : null
-
-  const preview = box.task_outcome_message ?? ""
 
   return (
     <>
-      <tr
-        onClick={onNavigate}
-        className={cn(
-          "group cursor-pointer border-b border-border/30 transition-colors duration-fast hover:bg-accent/50",
-          variant === "active" && "border-l-2",
-          variant === "active" && getRowBorderClass(box)
-        )}
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="text-muted-foreground hover:text-warning"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setOpen(true)
+        }}
       >
-        {/* Status dot */}
-        <td className="px-3 py-2.5">
-          <div className="relative flex items-center justify-center">
-            <div className={cn("size-2 rounded-full", dotClass)} />
-            {active && (
-              <div
-                className={cn(
-                  "animate-status-ping absolute size-2 rounded-full",
-                  dotClass
-                )}
-              />
-            )}
-          </div>
-        </td>
+        <Square size={15} />
+      </Button>
 
-        {/* Name + preview */}
-        <td className="max-w-xs px-3 py-2.5">
-          <div className="min-w-0">
-            <div className="truncate font-display font-medium">{box.name}</div>
-            {preview && (
-              <div className="truncate text-xs font-terminal text-muted-foreground">
-                {preview}
-              </div>
-            )}
-          </div>
-        </td>
-
-        {/* Status text */}
-        <td className="hidden px-3 py-2.5 md:table-cell">
-          <StatusLabel box={box} />
-        </td>
-
-        {/* Model */}
-        <td className="hidden px-3 py-2.5 lg:table-cell">
-          <Badge
-            variant="outline"
-            className="font-terminal text-xs text-muted-foreground"
-          >
-            {box.model}
-          </Badge>
-        </td>
-
-        {/* Trigger */}
-        <td className="hidden px-3 py-2.5 sm:table-cell">
-          {triggerLabel ? (
-            <Badge variant="outline" className="gap-1 py-0 text-xs font-terminal">
-              <HugeiconsIcon icon={Github01Icon} size={12} />
-              {triggerLabel}
-            </Badge>
-          ) : (
-            <span className="text-xs font-terminal text-ghost">Manual</span>
-          )}
-        </td>
-
-        {/* Time */}
-        <td className="px-3 py-2.5 text-right">
-          <span className="text-2xs font-terminal whitespace-nowrap text-muted-foreground">
-            {getTimestamp(box, variant)}
-          </span>
-        </td>
-
-        {/* Actions */}
-        <td className="px-3 py-2.5 text-right">
-          <div
-            className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {active && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="hover:text-warning text-muted-foreground"
-                onClick={() => setShowStopDialog(true)}
-              >
-                <Square size={15} />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={() => setShowDeleteDialog(true)}
-            >
-              <Trash2 size={15} />
-            </Button>
-          </div>
-        </td>
-      </tr>
-
-      {/* Stop confirmation dialog */}
-      <AlertDialog open={showStopDialog} onOpenChange={setShowStopDialog}>
+      <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
             <AlertDialogTitle>Stop Agent</AlertDialogTitle>
@@ -291,9 +214,45 @@ function AgentRow({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  )
+}
 
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+function DeleteButton({
+  box,
+  onConfirm,
+}: {
+  box: Box
+  onConfirm: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const deleteMutation = useDeleteBox()
+
+  const handleDelete = () => {
+    deleteMutation.mutate(box.id, {
+      onSuccess: () => toast.success("Agent deleted"),
+      onError: () => toast.error("Failed to delete agent"),
+    })
+    setOpen(false)
+    onConfirm()
+  }
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="text-muted-foreground hover:text-destructive"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setOpen(true)
+        }}
+      >
+        <Trash2 size={15} />
+      </Button>
+
+      <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Agent</AlertDialogTitle>
@@ -318,24 +277,132 @@ function AgentRow({
   )
 }
 
-function StatusLabel({ box }: { box: Box }) {
-  if (box.container_status === ContainerStatus.STARTING) {
-    return <span className="text-xs text-state-starting">Starting</span>
-  }
-  if (box.container_status === ContainerStatus.RUNNING) {
-    if (box.activity === Activity.AGENT_WORKING) {
-      return <span className="text-xs text-state-writing">Working</span>
-    }
-    if (box.activity === Activity.EXEC_SHELL) {
-      return <span className="text-xs text-state-writing">Running command</span>
-    }
-    return <span className="text-xs text-state-idle">Idle</span>
-  }
-  if (box.task_outcome === TaskOutcome.COMPLETED) {
-    return <span className="text-xs text-state-completed">Completed</span>
-  }
-  if (box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED) {
-    return <span className="text-xs text-state-error">Error</span>
-  }
-  return <span className="text-xs text-state-idle">Stopped</span>
+// ---------------------------------------------------------------------------
+// Row
+// ---------------------------------------------------------------------------
+
+function AgentRow({ box }: { box: Box }) {
+  const active = isBoxActive(box)
+
+  return (
+    <Link
+      to="/boxes/$boxId"
+      params={{ boxId: box.id }}
+      className="group flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:border-border/40 hover:bg-muted/30"
+    >
+      {/* Status dot */}
+      <StatusDot box={box} className="mt-1.5" />
+
+      <div className="min-w-0 flex-1">
+        {/* Line 1: Name + Tags + Time */}
+        <div className="flex items-center gap-2">
+          <span className="truncate font-display font-medium">
+            {box.name || "Unnamed"}
+          </span>
+          {box.tags?.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-md bg-muted px-1.5 py-0.5 text-2xs"
+            >
+              {tag}
+            </span>
+          ))}
+          <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground">
+            {getRelativeTime(box)}
+          </span>
+        </div>
+
+        {/* Line 2: Status text + Trigger + Model */}
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{getStatusText(box)}</span>
+          {box.github_repo && (
+            <>
+              <span>·</span>
+              <span>
+                {box.github_repo}
+                {box.github_issue_number
+                  ? ` #${box.github_issue_number}`
+                  : ""}
+              </span>
+            </>
+          )}
+          <span className="ml-auto hidden lg:inline">
+            {box.provider} · {box.model}
+          </span>
+        </div>
+
+        {/* Error line */}
+        {box.error_detail && (
+          <div
+            className="mt-1 truncate text-xs text-destructive"
+            title={box.error_detail}
+          >
+            {box.error_detail}
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div
+        className="flex items-center gap-1 opacity-50 transition-opacity group-hover:opacity-100"
+        onClick={(e) => e.preventDefault()}
+      >
+        {active && <StopButton box={box} onConfirm={() => {}} />}
+        <DeleteButton box={box} onConfirm={() => {}} />
+      </div>
+    </Link>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Section header
+// ---------------------------------------------------------------------------
+
+function SectionHeader({ title, count }: { title: string; count: number }) {
+  return (
+    <div className="text-label mb-2 mt-6 flex items-center gap-2 first:mt-0">
+      {title}
+      <span className="rounded-full bg-muted px-2 py-0.5 text-2xs">
+        {count}
+      </span>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
+interface AgentTableProps {
+  boxes: Array<Box>
+  variant?: "active" | "recent"
+}
+
+export function AgentTable({ boxes }: AgentTableProps) {
+  const table = useReactTable({
+    data: boxes,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
+  const groups = groupBoxes(boxes)
+
+  // Keep flexRender accessible for future column-based rendering
+  void flexRender
+  void table
+
+  return (
+    <div>
+      {groups.map((group) => (
+        <div key={group.key}>
+          <SectionHeader title={group.title} count={group.boxes.length} />
+          <div className="flex flex-col gap-0.5">
+            {group.boxes.map((box) => (
+              <AgentRow key={box.id} box={box} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }

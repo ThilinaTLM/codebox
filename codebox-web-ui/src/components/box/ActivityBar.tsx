@@ -28,7 +28,7 @@ export function ActivityBar({ activity }: ActivityBarProps) {
       }`}
     >
       <div
-        className={`h-full w-full bg-gradient-to-r ${STATE_BAR_COLORS[activity.state]} to-transparent transition-colors duration-slower ${
+        className={`h-full w-full bg-gradient-to-r ${STATE_BAR_COLORS[activity.state]} to-transparent transition-all duration-300 ease-in-out ${
           activity.animate ? "animate-glow-pulse" : ""
         }`}
       />

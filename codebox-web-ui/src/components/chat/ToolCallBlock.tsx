@@ -47,9 +47,11 @@ export function ToolCallBlock({
 
   if (isRunning) {
     return (
-      <div className="flex items-center gap-2 py-1">
-        <Spinner className="size-3 text-state-tool-use" />
-        <span className="font-terminal text-sm text-foreground/70">{name}</span>
+      <div className="rounded-xl border border-border/40 px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <Spinner className="size-3 text-state-tool-use" />
+          <span className="font-terminal text-sm text-foreground/70">{name}</span>
+        </div>
       </div>
     )
   }
@@ -57,8 +59,8 @@ export function ToolCallBlock({
   const outputSummary = hasOutput ? getOutputSummary(output) : ""
 
   return (
-    <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent/50">
+    <Collapsible open={expanded} onOpenChange={setExpanded} className="rounded-xl border border-border/40">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-accent/50">
         <ChevronRight
           size={12}
           className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
@@ -72,7 +74,7 @@ export function ToolCallBlock({
         )}
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="pl-7">
+        <div className="px-3 pb-3 pl-7">
           {hasInput && (
             <div className="pt-1">
               <button

@@ -8,6 +8,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { useAuthStore } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
@@ -45,6 +46,10 @@ export function AppSidebar() {
     },
   ]
 
+  const userInitial = user?.username
+    ? user.username.charAt(0).toUpperCase()
+    : "?"
+
   return (
     <aside
       className={cn(
@@ -55,7 +60,7 @@ export function AppSidebar() {
       {/* Top: Logo */}
       <div
         className={cn(
-          "flex h-12 shrink-0 items-center border-b border-sidebar-border px-3",
+          "flex h-14 shrink-0 items-center border-b border-sidebar-border px-3",
           collapsed && "justify-center"
         )}
       >
@@ -83,10 +88,10 @@ export function AppSidebar() {
             nativeButton={false}
             render={<Link to={item.to} />}
             className={cn(
-              "justify-start gap-2",
+              "justify-start gap-2 rounded-none",
               item.active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                ? "border-l-[3px] border-primary bg-primary/5 text-foreground"
+                : "border-l-[3px] border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30",
               collapsed && "justify-center px-0"
             )}
           >
@@ -104,24 +109,42 @@ export function AppSidebar() {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Bottom: New Agent + Collapse toggle */}
-      <div className="flex flex-col gap-1 border-t border-sidebar-border p-2">
+      {/* Bottom: User section + collapse toggle */}
+      <div className="flex flex-col gap-2 border-t border-sidebar-border p-2">
+        {/* User info row */}
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            collapsed && "justify-center"
+          )}
+        >
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+            {userInitial}
+          </div>
+          {!collapsed && (
+            <>
+              <span className="min-w-0 flex-1 truncate text-sm text-sidebar-foreground">
+                {user?.username}
+              </span>
+              <ThemeToggle />
+            </>
+          )}
+        </div>
+
+        {/* Collapse toggle */}
         <Button
           variant="ghost"
-          size={collapsed ? "icon-sm" : "sm"}
+          size={collapsed ? "icon-sm" : "icon-sm"}
           className={cn(
             "text-muted-foreground hover:text-sidebar-foreground",
-            !collapsed && "w-full justify-start gap-2"
+            !collapsed && "self-end"
           )}
           onClick={() => setCollapsed((c) => !c)}
         >
           {collapsed ? (
             <PanelLeftOpen size={16} />
           ) : (
-            <>
-              <PanelLeftClose size={16} />
-              <span>Collapse</span>
-            </>
+            <PanelLeftClose size={16} />
           )}
         </Button>
       </div>

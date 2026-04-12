@@ -1,13 +1,16 @@
-import { AlertTriangle, Circle } from "lucide-react"
+import { AlertTriangle } from "lucide-react"
 
 export function DoneBlock() {
   return (
-    <div className="flex items-center gap-2 py-1.5">
-      <div className="h-px flex-1 bg-border-subtle" />
-      <span className="font-terminal text-2xs text-ghost">
-        completed
-      </span>
-      <div className="h-px flex-1 bg-border-subtle" />
+    <div className="flex items-center gap-3 py-2">
+      <div className="h-px flex-1 bg-border/30" />
+      <div className="flex items-center gap-1.5 rounded-full bg-muted/50 px-3 py-1">
+        <span className="size-1.5 rounded-full bg-state-completed" />
+        <span className="text-2xs font-medium text-muted-foreground">
+          Completed
+        </span>
+      </div>
+      <div className="h-px flex-1 bg-border/30" />
     </div>
   )
 }
@@ -26,16 +29,15 @@ export function ErrorBlock({ detail }: { detail: string }) {
 
 export function StatusChangeBlock({ status }: { status: string }) {
   return (
-    <div className="flex items-center gap-2 py-1">
-      <div className="h-px flex-1 bg-border-subtle" />
-      <div className="flex items-center gap-1.5">
-        <Circle
-          size={6}
-          className="fill-muted-foreground/40 text-muted-foreground/40"
-        />
-        <span className="text-xs text-muted-foreground">{status}</span>
+    <div className="flex items-center gap-3 py-2">
+      <div className="h-px flex-1 bg-border/30" />
+      <div className="flex items-center gap-1.5 rounded-full bg-muted/50 px-3 py-1">
+        <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+        <span className="text-2xs font-medium text-muted-foreground">
+          {status}
+        </span>
       </div>
-      <div className="h-px flex-1 bg-border-subtle" />
+      <div className="h-px flex-1 bg-border/30" />
     </div>
   )
 }

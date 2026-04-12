@@ -192,8 +192,8 @@ function UserRow({ user, isSelf }: { user: AuthUser; isSelf: boolean }) {
     <Card className="rounded-lg border-border bg-card">
       <CardContent className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <span className="font-terminal">{user.username}</span>
-          <Badge variant="outline" className="font-terminal text-xs">
+          <span className="text-sm font-medium">{user.username}</span>
+          <Badge variant="outline" className="text-xs">
             {user.user_type}
           </Badge>
           {isSelf && (
@@ -201,7 +201,7 @@ function UserRow({ user, isSelf }: { user: AuthUser; isSelf: boolean }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-terminal text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {user.created_at
               ? new Date(user.created_at).toLocaleDateString()
               : ""}

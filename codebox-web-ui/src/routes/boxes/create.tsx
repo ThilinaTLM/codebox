@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useEffect, useRef, useState } from "react"
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 
 import type { BoxCreatePayload, GitHubRepo, LLMProfile } from "@/net/http/types"
@@ -16,9 +16,14 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { generateReadableName } from "@/lib/name-generator"
+import { Spinner } from "@/components/ui/spinner"
 import {
   useCreateBox,
   useGitHubRepos,
@@ -34,16 +39,25 @@ export const Route = createFileRoute("/boxes/create")({
 
 // ── Constants ───────────────────────────────────────────────
 
-const LABEL_CLS =
-  "font-terminal text-xs tracking-wider text-ghost uppercase" as const
 const INPUT_CLS =
-  "h-9 w-full rounded-lg border border-border bg-inset px-3 py-1 text-sm text-foreground transition-colors duration-fast outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
+  "h-9 w-full rounded-lg border border-border bg-background px-3 py-1 text-sm text-foreground transition-colors duration-fast outline-none placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
 const TEXTAREA_CLS =
-  "w-full resize-none rounded-lg border border-border bg-inset px-3 py-2 text-sm text-foreground transition-colors duration-fast outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
+  "w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors duration-fast outline-none placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
 const NUM_INPUT_CLS =
-  "h-8 w-20 rounded-lg border border-border bg-inset px-2 py-1 text-sm text-foreground tabular-nums outline-none duration-fast focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
-const SECTION_HEADING =
-  "font-display text-base tracking-tight" as const
+  "h-8 w-20 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground tabular-nums outline-none duration-fast focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
+
+// ── Helpers ─────────────────────────────────────────────────
+
+function autoName(task: string): string {
+  return task
+    .trim()
+    .split(/\s+/)
+    .slice(0, 5)
+    .join("-")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "")
+    .substring(0, 40)
+}
 
 // ── Tag Chips ───────────────────────────────────────────────
 
@@ -65,7 +79,7 @@ function TagInput({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-inset px-2 py-1.5">
+    <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1.5">
       {tags.map((tag) => (
         <span
           key={tag}
@@ -95,7 +109,7 @@ function TagInput({
         }}
         onBlur={addTag}
         placeholder={tags.length === 0 ? "Add tags…" : ""}
-        className="min-w-[80px] flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        className="min-w-[80px] flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
       />
     </div>
   )
@@ -115,13 +129,13 @@ function ToolRow({
   children?: React.ReactNode
 }) {
   return (
-    <div className="rounded-lg border border-border px-3 py-2.5">
+    <div className="rounded-lg border border-border/50 px-3 py-2.5">
       <div className="flex items-center justify-between">
         <span className="text-sm text-foreground">{label}</span>
         <Switch checked={enabled} onCheckedChange={onToggle} size="sm" />
       </div>
       {enabled && children && (
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-2">
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border/30 pt-2">
           {children}
         </div>
       )}
@@ -159,12 +173,18 @@ function NumberField({
 function CreateAgentPage() {
   const navigate = useNavigate()
   const createMutation = useCreateBox()
+  const taskRef = useRef<HTMLTextAreaElement>(null)
+
+  // ── Wizard step ─────────────────────────────────────────
+  const [step, setStep] = useState(1)
 
   // ── Form state ──────────────────────────────────────────
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [tags, setTags] = useState<Array<string>>([])
-  const [selectedProfile, setSelectedProfile] = useState<LLMProfile | null>(null)
+  const [selectedProfile, setSelectedProfile] = useState<LLMProfile | null>(
+    null
+  )
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null)
   const [systemPrompt, setSystemPrompt] = useState("")
   const [autoStartPrompt, setAutoStartPrompt] = useState("")
@@ -187,7 +207,12 @@ function CreateAgentPage() {
   const { data: repos } = useGitHubRepos()
   const githubEnabled = githubStatus?.enabled ?? false
 
-  const previewName = useMemo(() => generateReadableName(), [])
+  // Auto-focus task textarea on mount
+  useEffect(() => {
+    if (step === 1) {
+      taskRef.current?.focus()
+    }
+  }, [step])
 
   // Pre-select the default profile
   useEffect(() => {
@@ -199,8 +224,10 @@ function CreateAgentPage() {
 
   // ── Submit ──────────────────────────────────────────────
   const handleCreate = () => {
+    const generatedName = name.trim() || autoName(autoStartPrompt) || undefined
+
     const payload: BoxCreatePayload = {
-      name: name.trim() || undefined,
+      name: generatedName,
       description: description.trim() || undefined,
       tags: tags.length > 0 ? tags : undefined,
       llm_profile_id: selectedProfile?.id || undefined,
@@ -242,241 +269,241 @@ function CreateAgentPage() {
     })
   }
 
-  // ── Render ──────────────────────────────────────────────
+  const isPending = createMutation.isPending
+
+  // ══════════════════════════════════════════════════════════
+  // Step 1: "What should the agent do?"
+  // ══════════════════════════════════════════════════════════
+
+  if (step === 1) {
+    return (
+      <div className="flex h-[calc(100svh-24px)] flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-6 py-3">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              nativeButton={false}
+              render={<Link to="/" />}
+            >
+              <ArrowLeft size={16} />
+            </Button>
+            <h1 className="font-display text-lg font-semibold tracking-tight">
+              Create Agent
+            </h1>
+          </div>
+          <span className="text-xs text-muted-foreground">Step 1 of 2</span>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 pb-16 pt-8">
+          <div className="mx-auto max-w-2xl space-y-6">
+            {/* Task — primary field */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="task" className="text-label">
+                What should the agent do?
+              </Label>
+              <textarea
+                ref={taskRef}
+                id="task"
+                value={autoStartPrompt}
+                onChange={(e) => setAutoStartPrompt(e.target.value)}
+                placeholder="e.g., Fix the authentication bug in login.ts"
+                rows={5}
+                className={TEXTAREA_CLS}
+              />
+            </div>
+
+            {/* Name — optional */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="agent-name" className="text-label">
+                Name (optional)
+              </Label>
+              <input
+                id="agent-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={autoName(autoStartPrompt) || "auto-generated"}
+                className={INPUT_CLS}
+              />
+            </div>
+
+            {/* LLM Profile */}
+            <div className="grid gap-1.5">
+              <Label className="text-label">LLM Profile</Label>
+              {profiles && profiles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No LLM profiles configured.{" "}
+                  <Link
+                    to="/settings"
+                    search={{ tab: "llm-profiles" }}
+                    className="underline hover:text-foreground"
+                  >
+                    Set up a profile →
+                  </Link>
+                </p>
+              ) : (
+                <Combobox
+                  value={selectedProfile}
+                  onValueChange={setSelectedProfile}
+                  items={profiles ?? []}
+                  itemToStringLabel={(p: LLMProfile) =>
+                    `${p.name} (${p.provider} / ${p.model})`
+                  }
+                  isItemEqualToValue={(a: LLMProfile, b: LLMProfile) =>
+                    a.id === b.id
+                  }
+                >
+                  <ComboboxInput
+                    placeholder="Select LLM profile"
+                    className="w-full"
+                    showClear={!!selectedProfile}
+                  />
+                  <ComboboxContent>
+                    <ComboboxList>
+                      <ComboboxCollection>
+                        {(p: LLMProfile) => (
+                          <ComboboxItem key={p.id} value={p}>
+                            <div className="grid">
+                              <span className="truncate text-sm">
+                                {p.name}
+                                {p.is_default && (
+                                  <span className="ml-1.5 text-xs text-muted-foreground">
+                                    (default)
+                                  </span>
+                                )}
+                              </span>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {p.provider} · {p.model}
+                              </span>
+                            </div>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxCollection>
+                    </ComboboxList>
+                    <ComboboxEmpty>No profiles found</ComboboxEmpty>
+                  </ComboboxContent>
+                </Combobox>
+              )}
+            </div>
+
+            {/* Source Repository — conditional */}
+            {githubEnabled && repos && repos.length > 0 && (
+              <div className="grid gap-1.5">
+                <Label className="text-label">
+                  Source Repository (optional)
+                </Label>
+                <Combobox
+                  value={selectedRepo}
+                  onValueChange={setSelectedRepo}
+                  items={repos}
+                  itemToStringLabel={(r: GitHubRepo) => r.full_name}
+                  isItemEqualToValue={(a: GitHubRepo, b: GitHubRepo) =>
+                    a.full_name === b.full_name
+                  }
+                >
+                  <ComboboxInput
+                    placeholder="Select repository"
+                    className="w-full"
+                    showClear={!!selectedRepo}
+                  />
+                  <ComboboxContent>
+                    <ComboboxList>
+                      <ComboboxCollection>
+                        {(r: GitHubRepo) => (
+                          <ComboboxItem key={r.full_name} value={r}>
+                            <span className="truncate text-sm">
+                              {r.full_name}
+                            </span>
+                            {r.private && (
+                              <span className="ml-auto text-xs text-muted-foreground">
+                                private
+                              </span>
+                            )}
+                          </ComboboxItem>
+                        )}
+                      </ComboboxCollection>
+                    </ComboboxList>
+                    <ComboboxEmpty>No repos found</ComboboxEmpty>
+                  </ComboboxContent>
+                </Combobox>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setStep(2)}
+                className="gap-1.5"
+              >
+                Configure Tools
+                <ChevronRight size={14} />
+              </Button>
+              <Button onClick={handleCreate} disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Spinner className="size-4" />
+                    Creating…
+                  </>
+                ) : (
+                  "Create Agent"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // Step 2: "Fine-tune"
+  // ══════════════════════════════════════════════════════════
+
   return (
     <div className="flex h-[calc(100svh-24px)] flex-col">
-      {/* Sticky header */}
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-6 py-3">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => navigate({ to: "/" })}
+            onClick={() => setStep(1)}
           >
             <ArrowLeft size={16} />
           </Button>
           <h1 className="font-display text-lg font-semibold tracking-tight">
-            Create Agent
+            Configure Tools
           </h1>
         </div>
-        <Button
-          onClick={handleCreate}
-          disabled={createMutation.isPending}
-        >
-          {createMutation.isPending ? "Creating…" : "Create Agent"}
-        </Button>
+        <span className="text-xs text-muted-foreground">Step 2 of 2</span>
       </div>
 
-      {/* Scrollable content */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto px-6 pb-16 pt-8">
-        <div className="mx-auto max-w-3xl space-y-10">
-          {/* ── General ──────────────────────────────────── */}
-          <section>
-            <h2 className={SECTION_HEADING}>General</h2>
-            <div className="mt-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="agent-name" className={LABEL_CLS}>
-                    Name
-                  </Label>
-                  <input
-                    id="agent-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={previewName}
-                    className={INPUT_CLS}
-                  />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="agent-desc" className={LABEL_CLS}>
-                    Description
-                  </Label>
-                  <input
-                    id="agent-desc"
-                    type="text"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What is this agent for?"
-                    className={INPUT_CLS}
-                  />
-                </div>
-              </div>
-              <div className="grid gap-1.5">
-                <Label className={LABEL_CLS}>Tags</Label>
-                <TagInput tags={tags} onChange={setTags} />
-              </div>
-            </div>
-          </section>
+        <div className="mx-auto max-w-2xl space-y-8">
+          {/* System Prompt */}
+          <div className="grid gap-1.5">
+            <Label htmlFor="system-prompt" className="text-label">
+              System Prompt (optional)
+            </Label>
+            <textarea
+              id="system-prompt"
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              placeholder="Uses default agent prompt if empty"
+              rows={4}
+              className={TEXTAREA_CLS}
+            />
+          </div>
 
-          {/* ── LLM Profile ──────────────────────────────── */}
-          <section>
-            <h2 className={SECTION_HEADING}>LLM Profile</h2>
-            <div className="mt-4 space-y-4">
-              {profiles && profiles.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No LLM profiles configured.{" "}
-                  <a href="/settings" className="underline hover:text-foreground">
-                    Create one in Settings
-                  </a>
-                </p>
-              ) : (
-                <div className="grid gap-1.5">
-                  <Label className={LABEL_CLS}>Profile</Label>
-                  <Combobox
-                    value={selectedProfile}
-                    onValueChange={setSelectedProfile}
-                    items={profiles ?? []}
-                    itemToStringLabel={(p: LLMProfile) =>
-                      `${p.name} (${p.provider} / ${p.model})`
-                    }
-                    isItemEqualToValue={(a: LLMProfile, b: LLMProfile) =>
-                      a.id === b.id
-                    }
-                  >
-                    <ComboboxInput
-                      placeholder="Select LLM profile"
-                      className="w-full"
-                      showClear={!!selectedProfile}
-                    />
-                    <ComboboxContent>
-                      <ComboboxList>
-                        <ComboboxCollection>
-                          {(p: LLMProfile) => (
-                            <ComboboxItem key={p.id} value={p}>
-                              <div className="grid">
-                                <span className="truncate text-sm">
-                                  {p.name}
-                                  {p.is_default && (
-                                    <span className="ml-1.5 text-xs text-muted-foreground">
-                                      (default)
-                                    </span>
-                                  )}
-                                </span>
-                                <span className="truncate text-xs text-muted-foreground">
-                                  {p.provider} · {p.model}
-                                </span>
-                              </div>
-                            </ComboboxItem>
-                          )}
-                        </ComboboxCollection>
-                      </ComboboxList>
-                      <ComboboxEmpty>
-                        No profiles found
-                      </ComboboxEmpty>
-                    </ComboboxContent>
-                  </Combobox>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* ── Source ────────────────────────────────────── */}
-          <section>
-            <h2 className={SECTION_HEADING}>Source</h2>
-            <div className="mt-4 space-y-4">
-              {/* GitHub Repo */}
-              {githubEnabled && (
-                <div className="grid gap-1.5">
-                  <Label className={LABEL_CLS}>GitHub Repo</Label>
-                  <Combobox
-                    value={selectedRepo}
-                    onValueChange={setSelectedRepo}
-                    items={repos ?? []}
-                    itemToStringLabel={(r: GitHubRepo) => r.full_name}
-                    isItemEqualToValue={(a: GitHubRepo, b: GitHubRepo) =>
-                      a.full_name === b.full_name
-                    }
-                  >
-                    <ComboboxInput
-                      placeholder="None (no repo cloned)"
-                      className="w-full"
-                      showClear={!!selectedRepo}
-                    />
-                    <ComboboxContent>
-                      <ComboboxList>
-                        <ComboboxCollection>
-                          {(r: GitHubRepo) => (
-                            <ComboboxItem key={r.full_name} value={r}>
-                              <span className="truncate text-sm">
-                                {r.full_name}
-                              </span>
-                              {r.private && (
-                                <span className="ml-auto text-xs text-muted-foreground">
-                                  private
-                                </span>
-                              )}
-                            </ComboboxItem>
-                          )}
-                        </ComboboxCollection>
-                      </ComboboxList>
-                      <ComboboxEmpty>No repos found</ComboboxEmpty>
-                    </ComboboxContent>
-                  </Combobox>
-                </div>
-              )}
-
-              {/* Init Script */}
-              <div className="grid gap-1.5">
-                <Label htmlFor="init-script" className={LABEL_CLS}>
-                  Init Script
-                </Label>
-                <textarea
-                  id="init-script"
-                  value={initBashScript}
-                  onChange={(e) => setInitBashScript(e.target.value)}
-                  placeholder={"#!/bin/bash\n# Runs after repo clone, before agent starts"}
-                  rows={5}
-                  className={`font-mono ${TEXTAREA_CLS}`}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Bash script executed inside the container before the agent
-                  starts.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Prompts ──────────────────────────────────── */}
-          <section>
-            <h2 className={SECTION_HEADING}>Prompts</h2>
-            <div className="mt-4 space-y-4">
-              {/* System Prompt */}
-              <div className="grid gap-1.5">
-                <Label htmlFor="system-prompt" className={LABEL_CLS}>
-                  System Prompt
-                </Label>
-                <textarea
-                  id="system-prompt"
-                  value={systemPrompt}
-                  onChange={(e) => setSystemPrompt(e.target.value)}
-                  placeholder="Custom instructions for the agent (optional)"
-                  rows={6}
-                  className={TEXTAREA_CLS}
-                />
-              </div>
-
-              {/* Initial Prompt */}
-              <div className="grid gap-1.5">
-                <Label htmlFor="auto-start-prompt" className={LABEL_CLS}>
-                  Initial Prompt
-                </Label>
-                <textarea
-                  id="auto-start-prompt"
-                  value={autoStartPrompt}
-                  onChange={(e) => setAutoStartPrompt(e.target.value)}
-                  placeholder="What should the agent work on?"
-                  rows={8}
-                  className={`font-terminal ${TEXTAREA_CLS}`}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* ── Tools ────────────────────────────────────── */}
-          <section>
-            <h2 className={SECTION_HEADING}>Tools</h2>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+          {/* Tools */}
+          <div>
+            <h2 className="text-label mb-3">Tools</h2>
+            <div className="grid grid-cols-2 gap-3">
               <ToolRow
                 label="Shell Execute"
                 enabled={executeEnabled}
@@ -527,30 +554,93 @@ function CreateAgentPage() {
                 onToggle={setTaskEnabled}
               />
             </div>
-          </section>
+          </div>
 
-          {/* ── Limits ───────────────────────────────────── */}
-          <section>
-            <h2 className={SECTION_HEADING}>Limits</h2>
-            <div className="mt-4">
-              <div className="grid gap-1.5">
-                <Label className={LABEL_CLS}>Recursion Limit</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={1000}
-                    value={recursionLimit}
-                    onChange={(e) => setRecursionLimit(Number(e.target.value))}
-                    className={`${INPUT_CLS} max-w-[120px]`}
+          {/* Advanced Options — collapsible */}
+          <Collapsible>
+            <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&[data-panel-open]>svg]:rotate-90">
+              <ChevronRight
+                size={14}
+                className="shrink-0 transition-transform duration-150"
+              />
+              Advanced Options
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-4 space-y-4">
+                {/* Description */}
+                <div className="grid gap-1.5">
+                  <Label htmlFor="agent-desc" className="text-label">
+                    Description
+                  </Label>
+                  <textarea
+                    id="agent-desc"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="What is this agent for?"
+                    rows={2}
+                    className={TEXTAREA_CLS}
                   />
-                  <span className="text-xs text-muted-foreground">
-                    Max LLM calls per task (1–1000)
-                  </span>
+                </div>
+
+                {/* Tags */}
+                <div className="grid gap-1.5">
+                  <Label className="text-label">Tags</Label>
+                  <TagInput tags={tags} onChange={setTags} />
+                </div>
+
+                {/* Init Script */}
+                <div className="grid gap-1.5">
+                  <Label htmlFor="init-script" className="text-label">
+                    Init Script
+                  </Label>
+                  <textarea
+                    id="init-script"
+                    value={initBashScript}
+                    onChange={(e) => setInitBashScript(e.target.value)}
+                    placeholder={
+                      "#!/bin/bash\n# Bash commands to run before the agent starts"
+                    }
+                    rows={4}
+                    className={`font-mono ${TEXTAREA_CLS}`}
+                  />
+                </div>
+
+                {/* Recursion Limit */}
+                <div className="grid gap-1.5">
+                  <Label className="text-label">Recursion Limit</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={1000}
+                      value={recursionLimit}
+                      onChange={(e) =>
+                        setRecursionLimit(Number(e.target.value))
+                      }
+                      className={`${INPUT_CLS} max-w-[120px]`}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      Maximum agent iterations. Higher = longer tasks possible.
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Submit */}
+          <div className="flex items-center justify-end pt-4">
+            <Button onClick={handleCreate} disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner className="size-4" />
+                  Creating…
+                </>
+              ) : (
+                "Create Agent"
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -20,16 +20,16 @@ export function StatusBar() {
   ).length
 
   return (
-    <footer className="font-terminal flex h-6 shrink-0 items-center justify-between border-t border-border bg-inset px-3 text-xs">
+    <footer className="flex h-6 shrink-0 items-center justify-between border-t border-border bg-inset px-3 text-xs">
       {/* Left: connection status */}
       <div className="flex items-center gap-1.5">
-        <span className="size-1.5 rounded-full bg-state-completed" />
+        <span className="size-1.5 animate-pulse rounded-full bg-state-completed" />
         <span className="text-muted-foreground">Connected</span>
       </div>
 
-      {/* Center: agent activity (box pages only) */}
+      {/* Center: agent activity or count */}
       <div className="flex items-center gap-1.5">
-        {isBoxPage && boxPageActions?.activity && (
+        {isBoxPage && boxPageActions?.activity ? (
           <>
             <span
               className={cn(
@@ -41,16 +41,19 @@ export function StatusBar() {
               {boxPageActions.activity.label}
             </span>
           </>
+        ) : (
+          <span className="text-muted-foreground">
+            {activeCount > 0
+              ? `${activeCount} active agent${activeCount !== 1 ? "s" : ""}`
+              : "No active agents"}
+          </span>
         )}
       </div>
 
-      {/* Right: active agent count */}
-      <div className="text-2xs text-muted-foreground">
-        {activeCount > 0 && (
-          <span>
-            {activeCount} active agent{activeCount !== 1 ? "s" : ""}
-          </span>
-        )}
+      {/* Right: command palette hint + version */}
+      <div className="flex items-center gap-2">
+        <span className="text-2xs text-muted-foreground">⌘K</span>
+        <span className="text-2xs text-ghost">v0.1.0</span>
       </div>
     </footer>
   )
