@@ -1,9 +1,14 @@
 import { useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { GridViewIcon, Settings02Icon } from "@hugeicons/core-free-icons"
+import {
+  GridViewIcon,
+  Settings02Icon,
+  UserGroupIcon,
+} from "@hugeicons/core-free-icons"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useAuthStore } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
 export function AppSidebar() {
@@ -13,6 +18,8 @@ export function AppSidebar() {
   const isBoxPage = currentPath.startsWith("/boxes/")
   const [collapsed, setCollapsed] = useState(isBoxPage)
 
+  const user = useAuthStore((s) => s.user)
+
   const navItems = [
     {
       icon: GridViewIcon,
@@ -20,6 +27,16 @@ export function AppSidebar() {
       to: "/" as const,
       active: currentPath === "/",
     },
+    ...(user?.user_type === "admin"
+      ? [
+          {
+            icon: UserGroupIcon,
+            label: "Users",
+            to: "/users" as const,
+            active: currentPath.startsWith("/users"),
+          },
+        ]
+      : []),
     {
       icon: Settings02Icon,
       label: "Settings",

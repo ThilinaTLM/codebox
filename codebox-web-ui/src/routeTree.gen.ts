@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as BoxesCreateRouteImport } from './routes/boxes/create'
 import { Route as BoxesBoxIdRouteImport } from './routes/boxes/$boxId'
 
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -44,6 +50,7 @@ const BoxesBoxIdRoute = BoxesBoxIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/users': typeof UsersRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/boxes/create': typeof BoxesCreateRoute
   '/settings/': typeof SettingsIndexRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/users': typeof UsersRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/boxes/create': typeof BoxesCreateRoute
   '/settings': typeof SettingsIndexRoute
@@ -59,19 +67,33 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/users': typeof UsersRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/boxes/create': typeof BoxesCreateRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/boxes/$boxId' | '/boxes/create' | '/settings/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/users'
+    | '/boxes/$boxId'
+    | '/boxes/create'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/boxes/$boxId' | '/boxes/create' | '/settings'
+  to:
+    | '/'
+    | '/login'
+    | '/users'
+    | '/boxes/$boxId'
+    | '/boxes/create'
+    | '/settings'
   id:
     | '__root__'
     | '/'
     | '/login'
+    | '/users'
     | '/boxes/$boxId'
     | '/boxes/create'
     | '/settings/'
@@ -80,6 +102,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  UsersRoute: typeof UsersRoute
   BoxesBoxIdRoute: typeof BoxesBoxIdRoute
   BoxesCreateRoute: typeof BoxesCreateRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -87,6 +110,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -128,6 +158,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  UsersRoute: UsersRoute,
   BoxesBoxIdRoute: BoxesBoxIdRoute,
   BoxesCreateRoute: BoxesCreateRoute,
   SettingsIndexRoute: SettingsIndexRoute,
