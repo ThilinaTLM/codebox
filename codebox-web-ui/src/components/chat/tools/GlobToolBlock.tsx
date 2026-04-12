@@ -27,10 +27,10 @@ export function GlobToolBlock({
   if (isRunning) {
     return (
       <div className="flex items-center gap-2 py-1">
-        <Spinner className="size-3 text-muted-foreground" />
-        <FolderSearch size={14} className="text-muted-foreground" />
+        <Spinner className="size-3 text-state-tool-use" />
+        <FolderSearch size={12} className="text-muted-foreground" />
         <span className="font-terminal text-sm text-foreground/70">
-          <code className="rounded bg-inset px-1">{pattern}</code>
+          <code className="rounded border border-border/20 bg-inset px-1">{pattern}</code>
         </span>
       </div>
     )
@@ -38,14 +38,14 @@ export function GlobToolBlock({
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-card/80">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent/50">
         <ChevronRight
-          size={14}
+          size={12}
           className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
-        <FolderSearch size={14} className="shrink-0 text-muted-foreground" />
-        <code className="font-terminal rounded bg-inset px-1.5 py-0.5 text-xs text-foreground/70">
+        <FolderSearch size={12} className="shrink-0 text-muted-foreground" />
+        <code className="font-terminal rounded border border-border/20 bg-inset px-1.5 py-0.5 text-xs text-foreground/70">
           {pattern}
         </code>
         {!expanded && (
@@ -69,7 +69,7 @@ export function GlobToolBlock({
                 .map((file, i) => (
                   <div
                     key={i}
-                    className="font-terminal py-0.5 text-xs text-foreground/80 hover:text-foreground"
+                    className="font-terminal py-0.5 text-xs text-foreground/80 hover:text-primary"
                   >
                     {file}
                   </div>

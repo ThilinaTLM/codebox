@@ -20,7 +20,11 @@ function getFileColorClass(name: string, isDir: boolean): string {
     case "json":
       return "text-file-json"
     case "md":
-      return "text-muted-foreground"
+    case "mdx":
+      return "text-file-md"
+    case "yaml":
+    case "yml":
+      return "text-file-yaml"
     case "css":
       return "text-file-css"
     default:
@@ -143,7 +147,7 @@ export function FileExplorer({
             <Skeleton className="h-5 w-28" />
           </div>
         ) : treeElements.length > 0 ? (
-          <Tree elements={treeElements} className="p-3 text-sm">
+          <Tree elements={treeElements} className="p-3 text-sm font-terminal">
             {renderElements(
               treeElements,
               handleItemClick,
@@ -194,7 +198,7 @@ function renderElements(
       <File key={el.id} value={el.id} onClick={() => onSelect(el.id)}>
         <span className={colorClass}>{el.name}</span>
         {isBinary && (
-          <span className="ml-1 text-[10px] text-muted-foreground/50">bin</span>
+          <span className="ml-1 text-2xs text-muted-foreground/50">bin</span>
         )}
       </File>
     )

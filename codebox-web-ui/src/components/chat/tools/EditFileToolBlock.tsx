@@ -30,7 +30,7 @@ export function EditFileToolBlock({
   if (isRunning) {
     return (
       <div className="flex items-center gap-2 py-1">
-        <Spinner className="size-3 text-muted-foreground" />
+        <Spinner className="size-3 text-state-writing" />
         <Pencil size={14} className="text-muted-foreground" />
         <span className="font-terminal text-sm text-foreground/70">
           {fileName || "file"}
@@ -41,9 +41,9 @@ export function EditFileToolBlock({
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-card/80">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent/50">
         <ChevronRight
-          size={14}
+          size={12}
           className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
@@ -69,9 +69,9 @@ export function EditFileToolBlock({
                 {oldStr.split("\n").map((line, i) => (
                   <div
                     key={`old-${i}`}
-                    className="flex bg-destructive/5 px-3 py-px"
+                    className="flex bg-destructive/8 px-3 py-px"
                   >
-                    <span className="mr-2 text-destructive/40 select-none">
+                    <span className="mr-2 text-destructive/50 select-none">
                       -
                     </span>
                     <span className="whitespace-pre-wrap text-destructive/70">
@@ -86,9 +86,9 @@ export function EditFileToolBlock({
                 {newStr.split("\n").map((line, i) => (
                   <div
                     key={`new-${i}`}
-                    className="flex bg-state-completed/5 px-3 py-px"
+                    className="flex bg-state-completed/8 px-3 py-px"
                   >
-                    <span className="mr-2 text-state-completed/40 select-none">
+                    <span className="mr-2 text-state-completed/50 select-none">
                       +
                     </span>
                     <span className="whitespace-pre-wrap text-state-completed/70">

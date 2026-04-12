@@ -280,7 +280,7 @@ export function ChatStream({
     <ScrollArea className="h-full">
       <div className={centered ? "mx-auto max-w-4xl px-4" : "px-5"}>
         <div
-          className={`flex flex-col gap-1.5 py-3 text-sm ${bottomInset ? "pb-28" : ""}`}
+          className={`flex flex-col gap-1.5 py-3 text-sm ${bottomInset ? "pb-36" : ""}`}
         >
           {blocks.map((block, i) => (
             <div key={blockKey(block, i)}>

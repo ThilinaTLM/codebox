@@ -200,8 +200,8 @@ function BoxDetailPage() {
           <ResizablePanel
             panelRef={filePanelRef}
             id="file-explorer"
-            defaultSize={20}
-            minSize={15}
+            defaultSize={18}
+            minSize={12}
             collapsible
             collapsedSize={0}
             onResize={(size) => setShowFiles(size.asPercentage > 0)}
@@ -327,7 +327,7 @@ function BoxDetailPage() {
 
               {/* Error banner for failed boxes */}
               {box.error_detail && (
-                <div className="mx-4 mt-1 rounded-lg border border-l-2 border-state-error/20 border-l-state-error bg-state-error/5 px-3 py-2">
+                <div className="mx-4 mt-1 rounded-lg border border-l-4 border-destructive/30 border-l-destructive bg-destructive/5 px-3 py-2">
                   <div className="mb-0.5 flex items-center gap-1.5">
                     <AlertTriangle size={12} className="text-state-error/80" />
                     <span className="font-terminal text-xs text-state-error/60">
@@ -344,7 +344,7 @@ function BoxDetailPage() {
               </div>
 
               {/* Floating input */}
-              <div className="absolute inset-x-0 bottom-0 px-4 pb-3">
+              <div className="absolute inset-x-0 bottom-0 z-raised px-4 pb-3">
                 <div className="mx-auto max-w-4xl">
                   <BoxInput
                     onSendMessage={handleSendMessage}

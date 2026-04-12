@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils"
 import { useBoxPageActions } from "@/components/box/BoxPageContext"
 import { useBoxes } from "@/net/query"
 import { ContainerStatus } from "@/net/http/types"
+import { STATE_DOT_COLORS } from "@/lib/state-colors"
 
 export function StatusBar() {
   const routerState = useRouterState()
@@ -33,7 +34,7 @@ export function StatusBar() {
             <span
               className={cn(
                 "size-1.5 rounded-full",
-                boxPageActions.activity.dotColor
+                STATE_DOT_COLORS[boxPageActions.activity.state]
               )}
             />
             <span className="text-muted-foreground">
@@ -44,7 +45,7 @@ export function StatusBar() {
       </div>
 
       {/* Right: active agent count */}
-      <div className="text-muted-foreground">
+      <div className="text-2xs text-muted-foreground">
         {activeCount > 0 && (
           <span>
             {activeCount} active agent{activeCount !== 1 ? "s" : ""}

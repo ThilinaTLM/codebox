@@ -48,7 +48,7 @@ export function AppSidebar() {
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200",
+        "flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-normal",
         collapsed ? "w-14" : "w-[220px]"
       )}
     >
@@ -66,7 +66,7 @@ export function AppSidebar() {
             className="size-5 shrink-0"
           />
           {!collapsed && (
-            <span className="truncate font-display text-sm font-semibold text-sidebar-foreground">
+            <span className="truncate font-display text-sm text-sidebar-foreground">
               Codebox
             </span>
           )}

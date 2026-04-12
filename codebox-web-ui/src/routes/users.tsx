@@ -83,7 +83,7 @@ function AddUserSection() {
 
   return (
     <section>
-      <h2 className="font-display text-lg font-semibold">Add User</h2>
+      <h2 className="font-display text-lg">Add User</h2>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
         Create a new user account. Users can only be created by admins.
       </p>
@@ -155,7 +155,7 @@ function UsersList({
   if (isLoading) {
     return (
       <section>
-        <h2 className="font-display text-lg font-semibold">All Users</h2>
+        <h2 className="font-display text-lg">All Users</h2>
         <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
       </section>
     )
@@ -163,7 +163,7 @@ function UsersList({
 
   return (
     <section>
-      <h2 className="font-display text-lg font-semibold">All Users</h2>
+      <h2 className="font-display text-lg">All Users</h2>
       {users.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">No users found.</p>
       ) : (
@@ -192,7 +192,7 @@ function UserRow({ user, isSelf }: { user: AuthUser; isSelf: boolean }) {
     <Card className="rounded-lg border-border bg-card">
       <CardContent className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <span className="font-display font-semibold">{user.username}</span>
+          <span className="font-terminal">{user.username}</span>
           <Badge variant="outline" className="font-terminal text-xs">
             {user.user_type}
           </Badge>

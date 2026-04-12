@@ -2,10 +2,12 @@ import { useMemo } from "react"
 import type { BoxStreamEvent } from "@/net/http/types"
 import { Activity, ContainerStatus } from "@/net/http/types"
 
+export type AgentState = "thinking" | "writing" | "tool-use" | "idle" | "error" | "completed" | "starting" | "stopped"
+
 export interface AgentActivity {
   label: string
   animate: boolean
-  dotColor: string
+  state: AgentState
   isWorking: boolean
 }
 
@@ -19,7 +21,7 @@ export function useAgentActivity(
       return {
         label: "Starting",
         animate: true,
-        dotColor: "bg-warning",
+        state: "starting",
         isWorking: false,
       }
     }
@@ -28,7 +30,7 @@ export function useAgentActivity(
       return {
         label: "Stopped",
         animate: false,
-        dotColor: "bg-muted-foreground/40",
+        state: "stopped",
         isWorking: false,
       }
     }
@@ -42,42 +44,42 @@ export function useAgentActivity(
           return {
             label: "Thinking",
             animate: true,
-            dotColor: "bg-primary/70",
+            state: "thinking",
             isWorking: true,
           }
         case "message.delta":
           return {
             label: "Writing",
             animate: true,
-            dotColor: "bg-success",
+            state: "writing",
             isWorking: true,
           }
         case "tool_call.started":
           return {
             label: `Using ${String(ev.payload.name ?? "tool")}`,
             animate: true,
-            dotColor: "bg-warning",
+            state: "tool-use",
             isWorking: true,
           }
         case "command.started":
           return {
             label: "Running command",
             animate: true,
-            dotColor: "bg-warning",
+            state: "tool-use",
             isWorking: true,
           }
         case "run.completed":
           return {
             label: "Idle",
             animate: false,
-            dotColor: "bg-muted-foreground/60",
+            state: "idle",
             isWorking: false,
           }
         case "run.failed":
           return {
             label: "Error",
             animate: false,
-            dotColor: "bg-destructive",
+            state: "error",
             isWorking: false,
           }
         case "state.changed": {
@@ -86,7 +88,7 @@ export function useAgentActivity(
             return {
               label: "Working",
               animate: true,
-              dotColor: "bg-success",
+              state: "writing",
               isWorking: true,
             }
           }
@@ -94,14 +96,14 @@ export function useAgentActivity(
             return {
               label: "Running command",
               animate: true,
-              dotColor: "bg-warning",
+              state: "tool-use",
               isWorking: true,
             }
           }
           return {
             label: "Idle",
             animate: false,
-            dotColor: "bg-muted-foreground/60",
+            state: "idle",
             isWorking: false,
           }
         }
@@ -112,7 +114,7 @@ export function useAgentActivity(
       return {
         label: "Working",
         animate: true,
-        dotColor: "bg-success",
+        state: "writing",
         isWorking: true,
       }
     }
@@ -120,14 +122,14 @@ export function useAgentActivity(
       return {
         label: "Running command",
         animate: true,
-        dotColor: "bg-warning",
+        state: "tool-use",
         isWorking: true,
       }
     }
     return {
       label: "Idle",
       animate: false,
-      dotColor: "bg-muted-foreground/60",
+      state: "idle",
       isWorking: false,
     }
   }, [events, containerStatus, activity])

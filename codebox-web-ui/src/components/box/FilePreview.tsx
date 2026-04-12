@@ -89,7 +89,7 @@ export function FilePreview({ boxId, filePath, onClose }: FilePreviewProps) {
               </a>
             </div>
           ) : (
-            <pre className="font-terminal overflow-auto rounded-md bg-inset p-4 text-sm text-foreground/90">
+            <pre className="font-terminal overflow-auto rounded-md bg-inset p-4 text-sm font-terminal text-foreground/90">
               {fileContent?.content ?? "Unable to read file"}
             </pre>
           )}

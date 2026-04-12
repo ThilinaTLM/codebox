@@ -25,8 +25,8 @@ export function WriteFileToolBlock({
   if (isRunning) {
     return (
       <div className="flex items-center gap-2 py-1">
-        <Spinner className="size-3 text-muted-foreground" />
-        <FilePlus size={14} className="text-muted-foreground" />
+        <Spinner className="size-3 text-state-writing" />
+        <FilePlus size={12} className="text-muted-foreground" />
         <span className="font-terminal text-sm text-foreground/70">
           {fileName || "file"}
         </span>
@@ -36,13 +36,13 @@ export function WriteFileToolBlock({
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-card/80">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent/50">
         <ChevronRight
-          size={14}
+          size={12}
           className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
-        <FilePlus size={14} className="shrink-0 text-muted-foreground" />
+        <FilePlus size={12} className="shrink-0 text-muted-foreground" />
         <span className="font-terminal text-sm text-foreground/70">
           {fileName}
         </span>

@@ -12,23 +12,23 @@ export function ThemeToggle() {
         type="button"
         onClick={() => setTheme("light")}
         className={cn(
-          "flex w-36 items-center rounded-lg border-2 p-3 transition-colors",
+          "flex w-36 items-center rounded-lg border-2 p-3 transition-colors duration-normal",
           theme === "light"
             ? "border-primary bg-primary/5"
             : "border-border bg-card hover:border-muted-foreground/30"
         )}
       >
-        {/* Light preview – always renders light colors */}
-        <div className="rounded-md bg-white p-2">
+        {/* Light preview – always renders light colors (inline styles for static preview) */}
+        <div className="rounded-md border p-2" style={{ background: 'oklch(0.98 0.002 265)' }}>
           <div className="flex gap-1">
-            <div className="size-1.5 rounded-full bg-gray-300" />
-            <div className="size-1.5 rounded-full bg-gray-300" />
-            <div className="size-1.5 rounded-full bg-gray-300" />
+            <div className="size-1.5 rounded-full" style={{ background: 'oklch(0.89 0.004 265)' }} />
+            <div className="size-1.5 rounded-full" style={{ background: 'oklch(0.89 0.004 265)' }} />
+            <div className="size-1.5 rounded-full" style={{ background: 'oklch(0.89 0.004 265)' }} />
           </div>
           <div className="mt-2 space-y-1.5">
-            <div className="h-1.5 w-3/4 rounded-full bg-gray-300" />
-            <div className="h-1.5 w-1/2 rounded-full bg-gray-200" />
-            <div className="h-1.5 w-2/3 rounded-full bg-gray-200" />
+            <div className="h-1.5 w-3/4 rounded-full" style={{ background: 'oklch(0.89 0.004 265)' }} />
+            <div className="h-1.5 w-1/2 rounded-full" style={{ background: 'oklch(0.945 0.003 265)' }} />
+            <div className="h-1.5 w-2/3 rounded-full" style={{ background: 'oklch(0.945 0.003 265)' }} />
           </div>
         </div>
         <div className="ml-3 flex items-center gap-2">
@@ -55,23 +55,23 @@ export function ThemeToggle() {
         type="button"
         onClick={() => setTheme("dark")}
         className={cn(
-          "flex w-36 items-center rounded-lg border-2 p-3 transition-colors",
+          "flex w-36 items-center rounded-lg border-2 p-3 transition-colors duration-normal",
           theme === "dark"
             ? "border-primary bg-primary/5"
             : "border-border bg-card hover:border-muted-foreground/30"
         )}
       >
-        {/* Dark preview – always renders dark colors */}
-        <div className="rounded-md bg-zinc-900 p-2">
+        {/* Dark preview – always renders dark colors (inline styles for static preview) */}
+        <div className="rounded-md border p-2" style={{ background: 'oklch(0.13 0.008 265)' }}>
           <div className="flex gap-1">
-            <div className="size-1.5 rounded-full bg-zinc-600" />
-            <div className="size-1.5 rounded-full bg-zinc-600" />
-            <div className="size-1.5 rounded-full bg-zinc-600" />
+            <div className="size-1.5 rounded-full" style={{ background: 'oklch(0.25 0.01 265)' }} />
+            <div className="size-1.5 rounded-full" style={{ background: 'oklch(0.25 0.01 265)' }} />
+            <div className="size-1.5 rounded-full" style={{ background: 'oklch(0.25 0.01 265)' }} />
           </div>
           <div className="mt-2 space-y-1.5">
-            <div className="h-1.5 w-3/4 rounded-full bg-zinc-600" />
-            <div className="h-1.5 w-1/2 rounded-full bg-zinc-700" />
-            <div className="h-1.5 w-2/3 rounded-full bg-zinc-700" />
+            <div className="h-1.5 w-3/4 rounded-full" style={{ background: 'oklch(0.25 0.01 265)' }} />
+            <div className="h-1.5 w-1/2 rounded-full" style={{ background: 'oklch(0.19 0.008 265)' }} />
+            <div className="h-1.5 w-2/3 rounded-full" style={{ background: 'oklch(0.19 0.008 265)' }} />
           </div>
         </div>
         <div className="ml-3 flex items-center gap-2">

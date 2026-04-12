@@ -54,7 +54,7 @@ function HomePage() {
               {/* Active agents */}
               {activeBoxes.length > 0 && (
                 <section className="pt-4">
-                  <h2 className="font-terminal mb-3 text-xs tracking-widest text-ghost uppercase">
+                  <h2 className="font-terminal mb-3 text-2xs tracking-wider text-ghost uppercase">
                     Active
                   </h2>
                   <AgentTable boxes={activeBoxes} variant="active" />
@@ -64,7 +64,7 @@ function HomePage() {
               {/* Recent agents */}
               {recentBoxes.length > 0 && (
                 <section className="pt-8">
-                  <h2 className="font-terminal mb-3 text-xs tracking-widest text-ghost uppercase">
+                  <h2 className="font-terminal mb-3 text-2xs tracking-wider text-ghost uppercase">
                     Recent
                   </h2>
                   <AgentTable boxes={recentBoxes} variant="recent" />

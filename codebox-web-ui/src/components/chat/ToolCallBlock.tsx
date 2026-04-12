@@ -48,7 +48,7 @@ export function ToolCallBlock({
   if (isRunning) {
     return (
       <div className="flex items-center gap-2 py-1">
-        <Spinner className="size-3 text-muted-foreground" />
+        <Spinner className="size-3 text-state-tool-use" />
         <span className="font-terminal text-sm text-foreground/70">{name}</span>
       </div>
     )
@@ -58,9 +58,9 @@ export function ToolCallBlock({
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-card/80">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent/50">
         <ChevronRight
-          size={14}
+          size={12}
           className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
@@ -80,7 +80,7 @@ export function ToolCallBlock({
                   e.stopPropagation()
                   setArgsExpanded(!argsExpanded)
                 }}
-                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-state-tool-use"
               >
                 <ChevronRight
                   size={10}

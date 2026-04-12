@@ -30,10 +30,10 @@ export function GrepToolBlock({
   if (isRunning) {
     return (
       <div className="flex items-center gap-2 py-1">
-        <Spinner className="size-3 text-muted-foreground" />
-        <Search size={14} className="text-muted-foreground" />
+        <Spinner className="size-3 text-state-tool-use" />
+        <Search size={12} className="text-muted-foreground" />
         <span className="font-terminal text-sm text-foreground/70">
-          <code className="rounded bg-inset px-1">{pattern}</code>
+          <code className="rounded border border-border/20 bg-inset px-1">{pattern}</code>
         </span>
       </div>
     )
@@ -41,14 +41,14 @@ export function GrepToolBlock({
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-card/80">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent/50">
         <ChevronRight
-          size={14}
+          size={12}
           className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
-        <Search size={14} className="shrink-0 text-muted-foreground" />
-        <code className="font-terminal rounded bg-inset px-1.5 py-0.5 text-xs text-foreground/70">
+        <Search size={12} className="shrink-0 text-muted-foreground" />
+        <code className="font-terminal rounded border border-border/20 bg-inset px-1.5 py-0.5 text-xs text-foreground/70">
           {pattern}
         </code>
         {!expanded && (

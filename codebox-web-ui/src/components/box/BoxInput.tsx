@@ -67,9 +67,9 @@ export function BoxInput({
     <div>
       <div
         className={cn(
-          "relative rounded-lg border bg-inset shadow-sm transition-colors duration-300",
+          "relative rounded-lg border bg-inset shadow-sm transition-colors duration-slow",
           isWorking
-            ? "animate-glow-pulse border-state-thinking/30"
+            ? "animate-glow-pulse border-state-writing/30 shadow-sm"
             : "border-border"
         )}
       >
@@ -128,7 +128,7 @@ export function BoxInput({
       </div>
       {/* Keyboard hints */}
       {focused && input.trim() && (
-        <div className="mt-0.5 text-center text-[10px] text-ghost">
+        <div className="mt-0.5 text-center text-2xs text-ghost">
           Enter to send · Shift+Enter for newline
         </div>
       )}

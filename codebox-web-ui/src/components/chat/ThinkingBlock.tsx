@@ -20,8 +20,8 @@ export function ThinkingBlock({
     return (
       <div>
         <div className="flex items-center gap-1.5 py-1">
-          <Spinner className="size-3 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Thinking…</span>
+          <Spinner className="size-3 text-state-thinking" />
+          <span className="text-xs text-state-thinking">Thinking…</span>
         </div>
         {content && (
           <p className="font-terminal pb-1 pl-4 text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
@@ -36,7 +36,7 @@ export function ThinkingBlock({
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex cursor-pointer items-center gap-1 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+      <CollapsibleTrigger className="flex cursor-pointer items-center gap-1 py-1 text-xs text-muted-foreground transition-colors hover:text-state-thinking">
         <ChevronRight
           size={12}
           className={`shrink-0 transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}

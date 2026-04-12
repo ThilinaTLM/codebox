@@ -1,5 +1,6 @@
 import type { AgentActivity } from "@/hooks/useAgentActivity"
 import { Activity, ContainerStatus, TaskOutcome } from "@/net/http/types"
+import { STATE_DOT_COLORS } from "@/lib/state-colors"
 
 const containerConfig: Record<
   ContainerStatus,
@@ -80,10 +81,9 @@ export function BoxStatusBadge({
 }: BoxStatusBadgeProps) {
   // If we have a live activity override, use it
   if (activity) {
-    const dotColor = getLiveActivityDotColor(activity.label)
     return (
       <span className="font-terminal inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-        <StatusDot color={dotColor} animate={activity.animate} />
+        <StatusDot color={STATE_DOT_COLORS[activity.state]} animate={activity.animate} />
         {activity.label}
       </span>
     )
@@ -135,14 +135,4 @@ export function TaskOutcomeBadge({ status }: { status: TaskOutcome }) {
   )
 }
 
-function getLiveActivityDotColor(label: string): string {
-  if (label.includes("Thinking")) return "bg-state-thinking"
-  if (label.includes("Writing")) return "bg-state-writing"
-  if (label.includes("Using")) return "bg-state-tool-use"
-  if (label.includes("Working")) return "bg-state-writing"
-  if (label.includes("Running")) return "bg-state-thinking"
-  if (label === "Error") return "bg-state-error"
-  if (label === "Stopped") return "bg-state-idle"
-  if (label === "Starting") return "bg-state-starting"
-  return "bg-state-idle"
-}
+

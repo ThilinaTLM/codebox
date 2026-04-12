@@ -53,7 +53,7 @@ export function ExecuteToolBlock({
           )}
           {isDone && (
             <span
-              className={`font-terminal shrink-0 text-xs ${isSuccess ? "text-muted-foreground" : "text-destructive"}`}
+              className={`font-terminal shrink-0 text-2xs rounded-sm px-1.5 py-0.5 ${isSuccess ? "bg-state-completed/10 text-state-completed" : "bg-destructive/10 text-destructive"}`}
             >
               exit {exitCode}
             </span>
@@ -64,14 +64,14 @@ export function ExecuteToolBlock({
       {/* Output body */}
       {hasOutput && outputData && (
         <pre
-          className={`font-terminal max-h-[300px] overflow-auto text-xs leading-relaxed text-foreground/80 ${command ? "border-t border-border/15" : ""}`}
+          className={`font-terminal max-h-[300px] overflow-auto text-xs leading-relaxed text-foreground/80 ${command ? "border-t border-border/20" : ""}`}
         >
           {outputData.numbered ? (
             <table className="w-full border-collapse">
               <tbody>
                 {outputData.lines.map((line, i) => (
                   <tr key={i} className="hover:bg-border/5">
-                    <td className="w-8 pr-3 text-right align-top text-ghost/60 select-none">
+                    <td className="w-8 pr-3 text-right align-top text-ghost select-none">
                       {i + 1}
                     </td>
                     <td className="py-px pl-3 align-top whitespace-pre-wrap">

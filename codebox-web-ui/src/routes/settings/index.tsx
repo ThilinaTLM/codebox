@@ -156,7 +156,7 @@ function AccountTab() {
   return (
     <div className="space-y-10">
       <section>
-        <h2 className="font-display text-lg font-semibold">Profile</h2>
+        <h2 className="font-display text-lg">Profile</h2>
         <div className="mt-4 grid max-w-md gap-3">
           <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
             <span className="text-sm text-muted-foreground">Username</span>
@@ -174,7 +174,7 @@ function AccountTab() {
       <ChangePasswordSection />
 
       <section>
-        <h2 className="font-display text-lg font-semibold">Session</h2>
+        <h2 className="font-display text-lg">Session</h2>
         <p className="mt-1 max-w-md text-sm text-muted-foreground">
           Sign out of your current session.
         </p>
@@ -221,7 +221,7 @@ function ChangePasswordSection() {
 
   return (
     <section>
-      <h2 className="font-display text-lg font-semibold">Change Password</h2>
+      <h2 className="font-display text-lg">Change Password</h2>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
         Update your account password.
       </p>
@@ -295,7 +295,7 @@ function TavilyKeySection() {
 
   return (
     <section>
-      <h2 className="font-display text-lg font-semibold">API Keys</h2>
+      <h2 className="font-display text-lg">API Keys</h2>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
         Manage external service API keys.
       </p>
@@ -364,7 +364,7 @@ function IntegrationsTab() {
   return (
     <div className="space-y-10">
       <div>
-        <h2 className="font-display text-lg font-semibold">API Keys</h2>
+        <h2 className="font-display text-lg">API Keys</h2>
         <p className="mt-1 max-w-lg text-sm text-muted-foreground">
           Manage API keys for external services used by your boxes.
         </p>
@@ -390,7 +390,7 @@ function LLMProfilesTab() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="font-display text-lg font-semibold">LLM Profiles</h2>
+          <h2 className="font-display text-lg">LLM Profiles</h2>
           <p className="mt-1 max-w-lg text-sm text-muted-foreground">
             Manage your LLM provider configurations. Each profile stores a
             provider, model, and API key.
@@ -443,7 +443,7 @@ function LLMProfilesEmptyState({
 }) {
   return (
     <div className="rounded-lg border border-dashed border-border p-12 text-center">
-      <h3 className="font-display text-base font-semibold">
+      <h3 className="font-display text-base">
         No LLM profiles configured yet
       </h3>
       <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
@@ -497,7 +497,7 @@ function LLMProfileCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-display font-semibold truncate">
+                <span className="font-display truncate">
                   {profile.name}
                 </span>
                 {isDefault && (
@@ -773,7 +773,7 @@ function AppearanceTab() {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-display text-lg font-semibold">Theme</h2>
+        <h2 className="font-display text-lg">Theme</h2>
         <p className="mt-1 max-w-md text-sm text-muted-foreground">
           Choose your preferred theme. Dark theme is the default for the
           command-center aesthetic.
@@ -882,7 +882,7 @@ function GitHubAppConfigSection({
   if (statusLoading) {
     return (
       <section>
-        <h2 className="font-display text-lg font-semibold">
+        <h2 className="font-display text-lg">
           GitHub App Configuration
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
@@ -897,7 +897,7 @@ function GitHubAppConfigSection({
 
   return (
     <section>
-      <h2 className="font-display text-lg font-semibold">
+      <h2 className="font-display text-lg">
         GitHub App Configuration
       </h2>
       <p className="mt-1 max-w-lg text-sm text-muted-foreground">
@@ -1044,7 +1044,7 @@ function ConnectSection({ appSlug }: { appSlug: string | null }) {
   const installUrl = `https://github.com/apps/${appSlug}/installations/new`
   return (
     <section>
-      <h2 className="font-display text-lg font-semibold">Connect GitHub</h2>
+      <h2 className="font-display text-lg">Connect GitHub</h2>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
         Install the GitHub App on your organization or repositories to enable
         agent triggers from issues and pull requests.
@@ -1084,7 +1084,7 @@ function ManualInstallSection() {
 
   return (
     <section>
-      <h2 className="font-display text-lg font-semibold">Manual Setup</h2>
+      <h2 className="font-display text-lg">Manual Setup</h2>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
         If the callback redirect doesn&apos;t work, you can manually enter a
         GitHub App installation ID.
@@ -1119,7 +1119,7 @@ function InstallationsList({
   if (isLoading) {
     return (
       <section>
-        <h2 className="font-display text-lg font-semibold">
+        <h2 className="font-display text-lg">
           Connected Installations
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
@@ -1129,7 +1129,7 @@ function InstallationsList({
 
   return (
     <section>
-      <h2 className="font-display text-lg font-semibold">
+      <h2 className="font-display text-lg">
         Connected Installations
       </h2>
       {installations.length === 0 ? (
@@ -1178,7 +1178,7 @@ function InstallationCard({
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-display font-semibold">
+            <p className="font-display">
               {installation.account_login}
             </p>
             <p className="font-terminal text-xs text-muted-foreground">

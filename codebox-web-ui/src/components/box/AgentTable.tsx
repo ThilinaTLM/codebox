@@ -95,23 +95,23 @@ export function AgentTable({ boxes, variant }: AgentTableProps) {
     <table className="w-full">
       <thead>
         <tr className="border-b border-border/30">
-          <th className="font-terminal w-8 px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase" />
-          <th className="font-terminal px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase">
+          <th className="font-terminal w-8 px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase" />
+          <th className="font-terminal px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase">
             Name
           </th>
-          <th className="font-terminal hidden px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase md:table-cell">
+          <th className="font-terminal hidden px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase md:table-cell">
             Status
           </th>
-          <th className="font-terminal hidden px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase lg:table-cell">
+          <th className="font-terminal hidden px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase lg:table-cell">
             Model
           </th>
-          <th className="font-terminal hidden px-3 py-2 text-left text-xs font-normal tracking-wider text-ghost uppercase sm:table-cell">
+          <th className="font-terminal hidden px-3 py-2 text-left text-2xs font-medium tracking-wider text-ghost uppercase sm:table-cell">
             Trigger
           </th>
-          <th className="font-terminal px-3 py-2 text-right text-xs font-normal tracking-wider text-ghost uppercase">
+          <th className="font-terminal px-3 py-2 text-right text-2xs font-medium tracking-wider text-ghost uppercase">
             Time
           </th>
-          <th className="font-terminal w-20 px-3 py-2 text-right text-xs font-normal tracking-wider text-ghost uppercase" />
+          <th className="font-terminal w-20 px-3 py-2 text-right text-2xs font-medium tracking-wider text-ghost uppercase" />
         </tr>
       </thead>
       <tbody>
@@ -176,7 +176,7 @@ function AgentRow({
       <tr
         onClick={onNavigate}
         className={cn(
-          "group cursor-pointer border-b border-border/30 transition-colors hover:bg-accent/30",
+          "group cursor-pointer border-b border-border/30 transition-colors duration-fast hover:bg-accent/50",
           variant === "active" && "border-l-2",
           variant === "active" && getRowBorderClass(box)
         )}
@@ -201,7 +201,7 @@ function AgentRow({
           <div className="min-w-0">
             <div className="truncate font-display font-medium">{box.name}</div>
             {preview && (
-              <div className="truncate text-sm text-muted-foreground">
+              <div className="truncate text-xs font-terminal text-muted-foreground">
                 {preview}
               </div>
             )}
@@ -226,18 +226,18 @@ function AgentRow({
         {/* Trigger */}
         <td className="hidden px-3 py-2.5 sm:table-cell">
           {triggerLabel ? (
-            <Badge variant="outline" className="gap-1 py-0 text-xs">
+            <Badge variant="outline" className="gap-1 py-0 text-xs font-terminal">
               <HugeiconsIcon icon={Github01Icon} size={12} />
               {triggerLabel}
             </Badge>
           ) : (
-            <span className="text-xs text-ghost">Manual</span>
+            <span className="text-xs font-terminal text-ghost">Manual</span>
           )}
         </td>
 
         {/* Time */}
         <td className="px-3 py-2.5 text-right">
-          <span className="text-xs whitespace-nowrap text-muted-foreground">
+          <span className="text-2xs font-terminal whitespace-nowrap text-muted-foreground">
             {getTimestamp(box, variant)}
           </span>
         </td>

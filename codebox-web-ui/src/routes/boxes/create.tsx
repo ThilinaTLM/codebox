@@ -37,13 +37,13 @@ export const Route = createFileRoute("/boxes/create")({
 const LABEL_CLS =
   "font-terminal text-xs tracking-wider text-ghost uppercase" as const
 const INPUT_CLS =
-  "h-9 w-full rounded-lg border border-border bg-inset px-3 py-1 text-sm text-foreground transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
+  "h-9 w-full rounded-lg border border-border bg-inset px-3 py-1 text-sm text-foreground transition-colors duration-fast outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
 const TEXTAREA_CLS =
-  "w-full resize-none rounded-lg border border-border bg-inset px-3 py-2 text-sm text-foreground transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
+  "w-full resize-none rounded-lg border border-border bg-inset px-3 py-2 text-sm text-foreground transition-colors duration-fast outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
 const NUM_INPUT_CLS =
-  "h-8 w-20 rounded-lg border border-border bg-inset px-2 py-1 text-sm text-foreground tabular-nums outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
+  "h-8 w-20 rounded-lg border border-border bg-inset px-2 py-1 text-sm text-foreground tabular-nums outline-none duration-fast focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" as const
 const SECTION_HEADING =
-  "font-display text-lg font-semibold" as const
+  "font-display text-base tracking-tight" as const
 
 // ── Tag Chips ───────────────────────────────────────────────
 
