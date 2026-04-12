@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
+import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { api } from "@/net/http/api"
 import { useAuthStore } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -17,26 +18,25 @@ function LoginPage() {
   const login = useAuthStore((s) => s.login)
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!username || !password) return
-
-    setLoading(true)
-    try {
-      const res = await api.auth.login(username, password)
+  const loginMutation = useMutation({
+    mutationFn: (credentials: { username: string; password: string }) =>
+      api.auth.login(credentials.username, credentials.password),
+    onSuccess: (res) => {
       login(res.token, {
         id: res.user.id,
         username: res.user.username,
         user_type: res.user.user_type,
       })
-      await navigate({ to: "/" })
-    } catch {
-      toast.error("Invalid username or password")
-    } finally {
-      setLoading(false)
-    }
+      navigate({ to: "/" })
+    },
+    onError: () => toast.error("Invalid username or password"),
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!username || !password) return
+    loginMutation.mutate({ username, password })
   }
 
   return (
@@ -81,9 +81,9 @@ function LoginPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading || !username || !password}
+              disabled={loginMutation.isPending || !username || !password}
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loginMutation.isPending ? "Signing in..." : "Sign in"}
             </Button>
           </form>
         </CardContent>

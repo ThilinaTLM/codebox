@@ -1,33 +1,11 @@
 import { isToday } from "date-fns"
 import type { Box } from "@/net/http/types"
-import { Activity, ContainerStatus, TaskOutcome } from "@/net/http/types"
+import { ContainerStatus, TaskOutcome } from "@/net/http/types"
 import { cn } from "@/lib/utils"
+import { getStatusDotClass, isBoxActive } from "@/lib/box-utils"
 
 interface DashboardStatsProps {
   boxes: Array<Box>
-}
-
-function isBoxActive(box: Box): boolean {
-  return (
-    box.container_status === ContainerStatus.STARTING ||
-    box.container_status === ContainerStatus.RUNNING
-  )
-}
-
-function getAgentDotColor(box: Box): string {
-  if (box.container_status === ContainerStatus.STARTING) {
-    return "bg-state-starting"
-  }
-  if (box.container_status === ContainerStatus.RUNNING) {
-    if (
-      box.activity === Activity.AGENT_WORKING ||
-      box.activity === Activity.EXEC_SHELL
-    ) {
-      return "bg-state-writing"
-    }
-    return "bg-state-idle"
-  }
-  return "bg-state-idle"
 }
 
 export function DashboardStats({ boxes }: DashboardStatsProps) {
@@ -63,7 +41,7 @@ export function DashboardStats({ boxes }: DashboardStatsProps) {
             {activeBoxes.slice(0, 10).map((box) => (
               <span
                 key={box.id}
-                className={cn("size-1.5 rounded-full", getAgentDotColor(box))}
+                className={cn("size-1.5 rounded-full", getStatusDotClass(box))}
               />
             ))}
           </div>

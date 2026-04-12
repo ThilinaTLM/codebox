@@ -1,85 +1,19 @@
 import { useState } from "react"
 import { Link } from "@tanstack/react-router"
-import { formatDistanceToNow, isToday, isYesterday } from "date-fns"
+import { isToday, isYesterday } from "date-fns"
 import { Square, Trash2 } from "lucide-react"
 import { toast } from "sonner"
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table"
 import type { Box } from "@/net/http/types"
-import { Activity, ContainerStatus, TaskOutcome } from "@/net/http/types"
 import { useDeleteBox, useStopBox } from "@/net/query"
 import { Button } from "@/components/ui/button"
+import { ConfirmActionDialog } from "@/components/ConfirmActionDialog"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { cn } from "@/lib/utils"
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function isBoxActive(box: Box): boolean {
-  return (
-    box.container_status === ContainerStatus.STARTING ||
-    box.container_status === ContainerStatus.RUNNING
-  )
-}
-
-function getStatusDotClass(box: Box): string {
-  if (box.container_status === ContainerStatus.RUNNING) {
-    if (
-      box.activity === Activity.AGENT_WORKING ||
-      box.activity === Activity.EXEC_SHELL
-    ) {
-      return "bg-state-writing"
-    }
-    return "bg-state-idle"
-  }
-  if (box.container_status === ContainerStatus.STARTING) {
-    return "bg-state-starting"
-  }
-  if (box.task_outcome === TaskOutcome.COMPLETED) {
-    return "bg-state-completed"
-  }
-  if (box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED) {
-    return "bg-state-error"
-  }
-  return "bg-state-idle"
-}
-
-function getStatusText(box: Box): string {
-  if (box.container_status === ContainerStatus.STARTING) return "Starting…"
-  if (box.container_status === ContainerStatus.RUNNING) {
-    if (box.activity === Activity.AGENT_WORKING) return "Working…"
-    if (box.activity === Activity.EXEC_SHELL) return "Running command…"
-    return "Idle"
-  }
-  if (box.task_outcome_message) return box.task_outcome_message
-  if (box.task_outcome === TaskOutcome.COMPLETED) return "Completed"
-  if (box.task_outcome === TaskOutcome.NEED_CLARIFICATION)
-    return "Needs clarification"
-  if (box.task_outcome === TaskOutcome.UNABLE_TO_PROCEED)
-    return "Unable to proceed"
-  if (box.error_detail) return "Error"
-  return "Stopped"
-}
-
-function getRelativeTime(box: Box): string {
-  const ts = box.started_at ?? box.created_at
-  if (!ts) return ""
-  return formatDistanceToNow(new Date(ts), { addSuffix: true })
-}
+  getRelativeTime,
+  getStatusDotClass,
+  getStatusText,
+  isBoxActive,
+} from "@/lib/box-utils"
+import { StatusDot } from "@/components/ui/status-dot"
 
 type GroupKey = "active" | "today" | "yesterday" | "older"
 
@@ -123,61 +57,12 @@ function groupBoxes(
 }
 
 // ---------------------------------------------------------------------------
-// TanStack Table setup (used for future sorting/filtering)
-// ---------------------------------------------------------------------------
-
-const columnHelper = createColumnHelper<Box>()
-
-const columns = [
-  columnHelper.display({ id: "row", cell: () => null }),
-]
-
-// ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function StatusDot({
-  box,
-  className,
-}: {
-  box: Box
-  className?: string
-}) {
-  const active = isBoxActive(box)
-  const dotClass = getStatusDotClass(box)
-  return (
-    <div className={cn("relative flex items-center justify-center", className)}>
-      <div className={cn("size-2 rounded-full", dotClass)} />
-      {active && (
-        <div
-          className={cn(
-            "animate-status-ping absolute size-2 rounded-full",
-            dotClass
-          )}
-        />
-      )}
-    </div>
-  )
-}
-
-function StopButton({
-  box,
-  onConfirm,
-}: {
-  box: Box
-  onConfirm: () => void
-}) {
+function StopButton({ box }: { box: Box }) {
   const [open, setOpen] = useState(false)
   const stopMutation = useStopBox()
-
-  const handleStop = () => {
-    stopMutation.mutate(box.id, {
-      onSuccess: () => toast.success("Agent stopped"),
-      onError: () => toast.error("Failed to stop agent"),
-    })
-    setOpen(false)
-    onConfirm()
-  }
 
   return (
     <>
@@ -193,49 +78,28 @@ function StopButton({
       >
         <Square size={15} />
       </Button>
-
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent size="sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Stop Agent</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will interrupt the running process and stop the agent. You
-              can restart it later.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleStop}
-              disabled={stopMutation.isPending}
-            >
-              Stop
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmActionDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Stop Agent"
+        description="This will interrupt the running process and stop the agent. You can restart it later."
+        confirmLabel="Stop"
+        isPending={stopMutation.isPending}
+        onConfirm={() => {
+          stopMutation.mutate(box.id, {
+            onSuccess: () => toast.success("Agent stopped"),
+            onError: () => toast.error("Failed to stop agent"),
+          })
+          setOpen(false)
+        }}
+      />
     </>
   )
 }
 
-function DeleteButton({
-  box,
-  onConfirm,
-}: {
-  box: Box
-  onConfirm: () => void
-}) {
+function DeleteButton({ box }: { box: Box }) {
   const [open, setOpen] = useState(false)
   const deleteMutation = useDeleteBox()
-
-  const handleDelete = () => {
-    deleteMutation.mutate(box.id, {
-      onSuccess: () => toast.success("Agent deleted"),
-      onError: () => toast.error("Failed to delete agent"),
-    })
-    setOpen(false)
-    onConfirm()
-  }
 
   return (
     <>
@@ -251,28 +115,22 @@ function DeleteButton({
       >
         <Trash2 size={15} />
       </Button>
-
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent size="sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Agent</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the agent and its container. This
-              action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmActionDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Delete Agent"
+        description="This will permanently delete the agent and its container. This action cannot be undone."
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          deleteMutation.mutate(box.id, {
+            onSuccess: () => toast.success("Agent deleted"),
+            onError: () => toast.error("Failed to delete agent"),
+          })
+          setOpen(false)
+        }}
+      />
     </>
   )
 }
@@ -291,7 +149,11 @@ function AgentRow({ box }: { box: Box }) {
       className="group flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:border-border/40 hover:bg-muted/30"
     >
       {/* Status dot */}
-      <StatusDot box={box} className="mt-1.5" />
+      <StatusDot
+        color={getStatusDotClass(box)}
+        animate={active}
+        className="mt-1.5"
+      />
 
       <div className="min-w-0 flex-1">
         {/* Line 1: Name + Tags + Time */}
@@ -347,8 +209,8 @@ function AgentRow({ box }: { box: Box }) {
         className="flex items-center gap-1 opacity-50 transition-opacity group-hover:opacity-100"
         onClick={(e) => e.preventDefault()}
       >
-        {active && <StopButton box={box} onConfirm={() => {}} />}
-        <DeleteButton box={box} onConfirm={() => {}} />
+        {active && <StopButton box={box} />}
+        <DeleteButton box={box} />
       </div>
     </Link>
   )
@@ -375,21 +237,10 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
 
 interface AgentTableProps {
   boxes: Array<Box>
-  variant?: "active" | "recent"
 }
 
 export function AgentTable({ boxes }: AgentTableProps) {
-  const table = useReactTable({
-    data: boxes,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  })
-
   const groups = groupBoxes(boxes)
-
-  // Keep flexRender accessible for future column-based rendering
-  void flexRender
-  void table
 
   return (
     <div>

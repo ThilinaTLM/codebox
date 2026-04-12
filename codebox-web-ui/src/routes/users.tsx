@@ -2,13 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import type { AuthUser } from "@/net/http/types"
+import { ConfirmActionDialog } from "@/components/ConfirmActionDialog"
 import { useCreateUser, useDeleteUser, useUsers } from "@/net/query"
 import { useAuthStore } from "@/lib/auth"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 
 export const Route = createFileRoute("/users")({
   component: UsersPage,
@@ -179,14 +180,7 @@ function UsersList({
 
 function UserRow({ user, isSelf }: { user: AuthUser; isSelf: boolean }) {
   const deleteMutation = useDeleteUser()
-
-  const handleDelete = () => {
-    if (!confirm(`Delete user "${user.username}"?`)) return
-    deleteMutation.mutate(user.id, {
-      onSuccess: () => toast.success(`User "${user.username}" deleted`),
-      onError: () => toast.error("Failed to delete user"),
-    })
-  }
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   return (
     <Card className="rounded-lg border-border bg-card">
@@ -210,7 +204,7 @@ function UserRow({ user, isSelf }: { user: AuthUser; isSelf: boolean }) {
             <Button
               variant="ghost"
               size="xs"
-              onClick={handleDelete}
+              onClick={() => setConfirmDelete(true)}
               disabled={deleteMutation.isPending}
               className="text-destructive hover:text-destructive"
             >
@@ -219,6 +213,24 @@ function UserRow({ user, isSelf }: { user: AuthUser; isSelf: boolean }) {
           )}
         </div>
       </CardContent>
+      <ConfirmActionDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete User"
+        description={`Are you sure you want to delete "${user.username}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          deleteMutation.mutate(user.id, {
+            onSuccess: () => {
+              toast.success(`User "${user.username}" deleted`)
+              setConfirmDelete(false)
+            },
+            onError: () => toast.error("Failed to delete user"),
+          })
+        }}
+      />
     </Card>
   )
 }

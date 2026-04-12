@@ -1,21 +1,15 @@
-import { useState } from "react"
-import { ChevronRight, Pencil } from "lucide-react"
+import { Pencil } from "lucide-react"
 
+import { CollapsibleToolBlock } from "./CollapsibleToolBlock"
+import { ToolRunningIndicator } from "./ToolRunningIndicator"
 import { parseInput } from "./types"
 import type { ToolCallBlockProps } from "./types"
-import { Spinner } from "@/components/ui/spinner"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 
 export function EditFileToolBlock({
   input,
   output,
   isRunning,
 }: ToolCallBlockProps) {
-  const [expanded, setExpanded] = useState(false)
   const args = parseInput<{
     file_path?: string
     old_string?: string
@@ -29,83 +23,62 @@ export function EditFileToolBlock({
 
   if (isRunning) {
     return (
-      <div className="flex items-center gap-2 py-1">
-        <Spinner className="size-3 text-state-writing" />
-        <Pencil size={14} className="text-muted-foreground" />
-        <span className="font-terminal text-sm text-foreground/70">
-          {fileName || "file"}
-        </span>
-      </div>
+      <ToolRunningIndicator
+        icon={Pencil}
+        iconSize={14}
+        label={fileName || "file"}
+        spinnerColor="text-state-writing"
+      />
     )
   }
 
   return (
-    <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent/50">
-        <ChevronRight
-          size={12}
-          className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
-        />
-        <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
-        <Pencil size={14} className="shrink-0 text-muted-foreground" />
-        <span className="font-terminal text-sm text-foreground/70">
-          {fileName}
-        </span>
-        {!expanded && (
-          <span className="font-terminal min-w-0 flex-1 truncate text-xs text-muted-foreground">
-            edited
-          </span>
-        )}
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="pl-7">
-          <p className="font-terminal pt-1 text-xs text-muted-foreground">
-            {filePath}
-          </p>
-          {/* Diff view */}
-          <div className="font-terminal mt-1 mb-0.5 overflow-auto rounded-md bg-inset text-xs leading-relaxed">
-            {oldStr && (
-              <div className="border-b border-border/10">
-                {oldStr.split("\n").map((line, i) => (
-                  <div
-                    key={`old-${i}`}
-                    className="flex bg-destructive/8 px-3 py-px"
-                  >
-                    <span className="mr-2 text-destructive/50 select-none">
-                      -
-                    </span>
-                    <span className="whitespace-pre-wrap text-destructive/70">
-                      {line}
-                    </span>
-                  </div>
-                ))}
+    <CollapsibleToolBlock icon={Pencil} iconSize={14} label={fileName} summary="edited">
+      <p className="font-terminal pt-1 text-xs text-muted-foreground">
+        {filePath}
+      </p>
+      {/* Diff view */}
+      <div className="font-terminal mt-1 mb-0.5 overflow-auto rounded-md bg-inset text-xs leading-relaxed">
+        {oldStr && (
+          <div className="border-b border-border/10">
+            {oldStr.split("\n").map((line, i) => (
+              <div
+                key={`old-${i}`}
+                className="flex bg-destructive/8 px-3 py-px"
+              >
+                <span className="mr-2 text-destructive/50 select-none">
+                  -
+                </span>
+                <span className="whitespace-pre-wrap text-destructive/70">
+                  {line}
+                </span>
               </div>
-            )}
-            {newStr && (
-              <div>
-                {newStr.split("\n").map((line, i) => (
-                  <div
-                    key={`new-${i}`}
-                    className="flex bg-state-completed/8 px-3 py-px"
-                  >
-                    <span className="mr-2 text-state-completed/50 select-none">
-                      +
-                    </span>
-                    <span className="whitespace-pre-wrap text-state-completed/70">
-                      {line}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
-          {output && output.includes("Error") && (
-            <p className="font-terminal mb-0.5 text-xs text-destructive/70">
-              {output.slice(0, 200)}
-            </p>
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+        )}
+        {newStr && (
+          <div>
+            {newStr.split("\n").map((line, i) => (
+              <div
+                key={`new-${i}`}
+                className="flex bg-state-completed/8 px-3 py-px"
+              >
+                <span className="mr-2 text-state-completed/50 select-none">
+                  +
+                </span>
+                <span className="whitespace-pre-wrap text-state-completed/70">
+                  {line}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {output && output.includes("Error") && (
+        <p className="font-terminal mb-0.5 text-xs text-destructive/70">
+          {output.slice(0, 200)}
+        </p>
+      )}
+    </CollapsibleToolBlock>
   )
 }

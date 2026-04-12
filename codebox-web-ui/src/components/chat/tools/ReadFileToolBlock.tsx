@@ -1,21 +1,15 @@
-import { useState } from "react"
-import { ChevronRight, FileText } from "lucide-react"
+import { FileText } from "lucide-react"
 
+import { CollapsibleToolBlock } from "./CollapsibleToolBlock"
+import { ToolRunningIndicator } from "./ToolRunningIndicator"
 import { parseInput } from "./types"
 import type { ToolCallBlockProps } from "./types"
-import { Spinner } from "@/components/ui/spinner"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 
 export function ReadFileToolBlock({
   input,
   output,
   isRunning,
 }: ToolCallBlockProps) {
-  const [expanded, setExpanded] = useState(false)
   const args = parseInput<{
     file_path?: string
     offset?: number
@@ -28,62 +22,40 @@ export function ReadFileToolBlock({
 
   if (isRunning) {
     return (
-      <div className="flex items-center gap-2 py-1">
-        <Spinner className="size-3 text-state-tool-use" />
-        <FileText size={12} className="text-muted-foreground" />
-        <span className="font-terminal text-sm text-foreground/70">
-          {fileName || "file"}
-        </span>
-      </div>
+      <ToolRunningIndicator icon={FileText} label={fileName || "file"} />
     )
   }
 
   return (
-    <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent/50">
-        <ChevronRight
-          size={12}
-          className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
-        />
-        <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
-        <FileText size={12} className="shrink-0 text-muted-foreground" />
-        <span className="font-terminal text-sm text-foreground/70">
-          {fileName}
-        </span>
-        {!expanded && hasOutput && (
-          <span className="font-terminal min-w-0 flex-1 truncate text-xs text-muted-foreground">
-            {lineCount} lines
-          </span>
-        )}
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="pl-7">
-          {filePath && (
-            <p className="font-terminal pt-1 text-xs text-muted-foreground">
-              {filePath}
-              {args?.offset ? ` (offset: ${args.offset})` : ""}
-            </p>
-          )}
-          {hasOutput && (
-            <pre className="font-terminal mt-1 mb-0.5 max-h-[300px] overflow-auto rounded-md bg-inset text-xs leading-relaxed text-foreground/80">
-              <table className="w-full border-collapse">
-                <tbody>
-                  {output.split("\n").map((line, i) => (
-                    <tr key={i} className="hover:bg-border/5">
-                      <td className="w-8 pr-3 text-right align-top text-ghost select-none">
-                        {(args?.offset ?? 0) + i + 1}
-                      </td>
-                      <td className="py-px pl-3 align-top whitespace-pre-wrap">
-                        {line}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </pre>
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+    <CollapsibleToolBlock
+      icon={FileText}
+      label={fileName}
+      summary={hasOutput ? `${lineCount} lines` : undefined}
+    >
+      {filePath && (
+        <p className="font-terminal pt-1 text-xs text-muted-foreground">
+          {filePath}
+          {args?.offset ? ` (offset: ${args.offset})` : ""}
+        </p>
+      )}
+      {hasOutput && (
+        <pre className="font-terminal mt-1 mb-0.5 max-h-[300px] overflow-auto rounded-md bg-inset text-xs leading-relaxed text-foreground/80">
+          <table className="w-full border-collapse">
+            <tbody>
+              {output.split("\n").map((line, i) => (
+                <tr key={i} className="hover:bg-border/5">
+                  <td className="w-8 pr-3 text-right align-top text-ghost select-none">
+                    {(args?.offset ?? 0) + i + 1}
+                  </td>
+                  <td className="py-px pl-3 align-top whitespace-pre-wrap">
+                    {line}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </pre>
+      )}
+    </CollapsibleToolBlock>
   )
 }

@@ -1,6 +1,7 @@
 import type { AgentActivity } from "@/hooks/useAgentActivity"
 import { Activity, ContainerStatus, TaskOutcome } from "@/net/http/types"
 import { STATE_DOT_COLORS } from "@/lib/state-colors"
+import { StatusDot } from "@/components/ui/status-dot"
 
 const containerConfig: Record<
   ContainerStatus,
@@ -51,19 +52,6 @@ const outcomeDotColors: Record<TaskOutcome, string> = {
   [TaskOutcome.NEED_CLARIFICATION]: "bg-state-thinking",
   [TaskOutcome.UNABLE_TO_PROCEED]: "bg-state-error",
   [TaskOutcome.NOT_ENOUGH_CONTEXT]: "bg-state-error",
-}
-
-function StatusDot({ color, animate }: { color: string; animate?: boolean }) {
-  return (
-    <span className="relative flex size-2">
-      {animate && (
-        <span
-          className={`absolute inset-0 rounded-full ${color} animate-status-ping`}
-        />
-      )}
-      <span className={`relative size-2 rounded-full ${color}`} />
-    </span>
-  )
 }
 
 interface BoxStatusBadgeProps {
