@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 
 from codebox_orchestrator.box.application.name_generator import generate_readable_name
 from codebox_orchestrator.box.domain.views import BoxView
-from codebox_orchestrator.config import LLM_MODEL, LLM_PROVIDER
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
@@ -32,8 +31,11 @@ class CreateBoxHandler:
         name: str | None = None,
         description: str | None = None,
         tags: list[str] | None = None,
-        provider: str | None = None,
-        model: str | None = None,
+        provider: str = "",
+        model: str = "",
+        api_key: str = "",
+        base_url: str | None = None,
+        tavily_api_key: str | None = None,
         system_prompt: str | None = None,
         auto_start_prompt: str | None = None,
         recursion_limit: int | None = None,
@@ -45,11 +47,12 @@ class CreateBoxHandler:
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
         init_bash_script: str | None = None,
+        user_id: str | None = None,  # noqa: ARG002
     ) -> BoxView:
         box_id = str(uuid.uuid4())
         box_name = name or generate_readable_name()
-        box_provider = provider or LLM_PROVIDER
-        box_model = model or LLM_MODEL
+        box_provider = provider
+        box_model = model
         now = datetime.now(UTC)
 
         # Publish creation events
@@ -76,6 +79,9 @@ class CreateBoxHandler:
             tags=tags,
             provider=box_provider,
             model=box_model,
+            api_key=api_key,
+            base_url=base_url,
+            tavily_api_key=tavily_api_key,
             system_prompt=system_prompt,
             auto_start_prompt=auto_start_prompt,
             recursion_limit=recursion_limit,

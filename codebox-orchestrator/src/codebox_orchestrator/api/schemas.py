@@ -12,14 +12,6 @@ if TYPE_CHECKING:
 # ── Request schemas ──────────────────────────────────────────────
 
 
-class LLMSettings(BaseModel):
-    """LLM provider/model overrides.  All fields are optional — server defaults apply."""
-
-    provider: str | None = None
-    model: str | None = None
-    base_url: str | None = None
-
-
 class ToolSettings(BaseModel):
     """Per-tool configuration overrides.
 
@@ -44,8 +36,8 @@ class BoxCreate(BaseModel):
     description: str | None = None
     tags: list[str] | None = None
 
-    # LLM
-    llm: LLMSettings | None = None
+    # LLM profile
+    llm_profile_id: str | None = None
 
     # Agent behaviour
     system_prompt: str | None = None
@@ -139,7 +131,8 @@ class BoxEventResponse(BaseModel):
 
 class GitHubStatusResponse(BaseModel):
     enabled: bool
-    app_slug: str
+    app_slug: str | None = None
+    webhook_url: str | None = None
 
 
 class GitHubInstallationCreate(BaseModel):
@@ -166,3 +159,59 @@ class ModelResponse(BaseModel):
     provider: str
     id: str
     name: str
+
+
+# ── LLM Profile schemas ─────────────────────────────────────────
+
+
+class LLMProfileCreate(BaseModel):
+    name: str
+    provider: str
+    model: str
+    api_key: str
+    base_url: str | None = None
+
+
+class LLMProfileUpdate(BaseModel):
+    name: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    api_key: str | None = None
+    base_url: str | None = None
+
+
+class LLMProfileResponse(BaseModel):
+    id: str
+    name: str
+    provider: str
+    model: str
+    api_key_masked: str
+    base_url: str | None = None
+    is_default: bool = False
+    created_at: str
+    updated_at: str
+
+
+# ── User Settings schemas ───────────────────────────────────────
+
+
+class UserSettingsResponse(BaseModel):
+    default_llm_profile_id: str | None = None
+    tavily_api_key_masked: str | None = None
+    github_app_id: str | None = None
+    github_private_key_masked: str | None = None
+    github_webhook_secret_masked: str | None = None
+    github_app_slug: str | None = None
+    github_bot_name: str | None = None
+    github_default_base_branch: str | None = None
+
+
+class UserSettingsUpdate(BaseModel):
+    default_llm_profile_id: str | None = None
+    tavily_api_key: str | None = None
+    github_app_id: str | None = None
+    github_private_key: str | None = None
+    github_webhook_secret: str | None = None
+    github_app_slug: str | None = None
+    github_bot_name: str | None = None
+    github_default_base_branch: str | None = None

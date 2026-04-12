@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { BoxCreatePayload } from "@/net/http/types"
+import type {
+  BoxCreatePayload,
+  LLMProfileCreate,
+  LLMProfileUpdate,
+  UserSettingsUpdate,
+} from "@/net/http/types"
 import { useAuthStore } from "@/lib/auth"
 import { api } from "@/net/http/api"
 
@@ -94,13 +99,78 @@ export function useBoxLogs(
 
 // ── Model queries ────────────────────────────────────────────
 
-export function useModels(provider?: string, options?: QueryHookOptions) {
+export function useModels(profileId?: string, options?: QueryHookOptions) {
   const enabled = useAuthQueryEnabled(options?.enabled)
   return useQuery({
-    queryKey: ["models", provider ?? "default"],
-    queryFn: () => api.models.list(provider),
+    queryKey: ["models", profileId ?? "default"],
+    queryFn: () => api.models.list(profileId),
     enabled,
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+// ── LLM Profile queries & mutations ─────────────────────────
+
+export function useLLMProfiles(options?: QueryHookOptions) {
+  const enabled = useAuthQueryEnabled(options?.enabled)
+  return useQuery({
+    queryKey: ["llm-profiles"],
+    queryFn: () => api.llmProfiles.list(),
+    enabled,
+  })
+}
+
+export function useCreateLLMProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: LLMProfileCreate) => api.llmProfiles.create(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["llm-profiles"] })
+    },
+  })
+}
+
+export function useUpdateLLMProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: LLMProfileUpdate }) =>
+      api.llmProfiles.update(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["llm-profiles"] })
+    },
+  })
+}
+
+export function useDeleteLLMProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.llmProfiles.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["llm-profiles"] })
+    },
+  })
+}
+
+// ── User Settings queries & mutations ───────────────────────
+
+export function useUserSettings(options?: QueryHookOptions) {
+  const enabled = useAuthQueryEnabled(options?.enabled)
+  return useQuery({
+    queryKey: ["user-settings"],
+    queryFn: () => api.userSettings.get(),
+    enabled,
+  })
+}
+
+export function useUpdateUserSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: UserSettingsUpdate) =>
+      api.userSettings.update(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["user-settings"] })
+      qc.invalidateQueries({ queryKey: ["github", "status"] })
+    },
   })
 }
 

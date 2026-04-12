@@ -62,12 +62,6 @@ export interface ContainerLogs {
 
 // ── Box creation types ──────────────────────────────────────
 
-export interface LLMSettings {
-  provider?: string | null
-  model?: string | null
-  base_url?: string | null
-}
-
 export interface ToolConfig {
   enabled?: boolean
   [key: string]: unknown
@@ -89,8 +83,8 @@ export interface BoxCreatePayload {
   description?: string | null
   tags?: Array<string> | null
 
-  // LLM
-  llm?: LLMSettings | null
+  // LLM profile
+  llm_profile_id?: string | null
 
   // Agent behaviour
   system_prompt?: string | null
@@ -140,7 +134,8 @@ export interface FileContent {
 
 export interface GitHubStatus {
   enabled: boolean
-  app_slug: string
+  app_slug: string | null
+  webhook_url: string | null
 }
 
 export interface GitHubInstallation {
@@ -169,4 +164,58 @@ export interface AuthUser {
 export interface LoginResponse {
   token: string
   user: AuthUser
+}
+
+// ── LLM Profile types ─────────────────────────────────────────
+
+export interface LLMProfile {
+  id: string
+  name: string
+  provider: string
+  model: string
+  api_key_masked: string
+  base_url: string | null
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface LLMProfileCreate {
+  name: string
+  provider: string
+  model: string
+  api_key: string
+  base_url?: string | null
+}
+
+export interface LLMProfileUpdate {
+  name?: string | null
+  provider?: string | null
+  model?: string | null
+  api_key?: string | null
+  base_url?: string | null
+}
+
+// ── User Settings types ───────────────────────────────────────
+
+export interface UserSettings {
+  default_llm_profile_id: string | null
+  tavily_api_key_masked: string | null
+  github_app_id: string | null
+  github_private_key_masked: string | null
+  github_webhook_secret_masked: string | null
+  github_app_slug: string | null
+  github_bot_name: string | null
+  github_default_base_branch: string | null
+}
+
+export interface UserSettingsUpdate {
+  default_llm_profile_id?: string | null
+  tavily_api_key?: string | null
+  github_app_id?: string | null
+  github_private_key?: string | null
+  github_webhook_secret?: string | null
+  github_app_slug?: string | null
+  github_bot_name?: string | null
+  github_default_base_branch?: string | null
 }

@@ -16,8 +16,9 @@ from codebox_orchestrator.api.dependencies import (
     get_cancel_box,
     get_create_box,
     get_delete_box,
-    get_installation_service,
+    get_github_client_manager,
     get_list_files,
+    get_llm_profile_service,
     get_query_service,
     get_read_file,
     get_restart_box,
@@ -25,6 +26,7 @@ from codebox_orchestrator.api.dependencies import (
     get_send_exec,
     get_send_message,
     get_stop_box,
+    get_user_settings_service,
 )
 from codebox_orchestrator.api.schemas import (
     BoxCreate,
@@ -33,6 +35,7 @@ from codebox_orchestrator.api.schemas import (
     BoxMessage,
     BoxResponse,
 )
+from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user
 
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
@@ -48,10 +51,15 @@ if TYPE_CHECKING:
     from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
     from codebox_orchestrator.box.application.services.box_query import BoxQueryService
     from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
+    from codebox_orchestrator.integration.github.application.client_manager import (
+        GitHubClientManager,
+    )
     from codebox_orchestrator.integration.github.application.installation_service import (
         GitHubInstallationService,
     )
     from codebox_orchestrator.integration.github.domain.entities import GitHubInstallation
+    from codebox_orchestrator.llm_profile.service import LLMProfileService
+    from codebox_orchestrator.user_settings.service import UserSettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -87,32 +95,53 @@ async def health_check():
 @router.post("/boxes", status_code=201)
 async def create_box(
     body: BoxCreate,
+    user: UserInfo = Depends(get_current_user),
     handler: CreateBoxHandler = Depends(get_create_box),
-    github_service: GitHubInstallationService | None = Depends(get_installation_service),
+    profile_service: LLMProfileService = Depends(get_llm_profile_service),
+    settings_service: UserSettingsService = Depends(get_user_settings_service),
+    github_client_mgr: GitHubClientManager = Depends(get_github_client_manager),
 ) -> BoxResponse:
     """Create and auto-start a new box."""
+
+    # ── Resolve LLM profile ────────────────────────────────
+    profile_id = body.llm_profile_id
+    if not profile_id:
+        profile_id = await settings_service.get_default_profile_id(user.user_id)
+    if not profile_id:
+        raise HTTPException(400, "No LLM profile selected and no default profile configured")
+
+    resolved = await profile_service.resolve_profile(profile_id, user.user_id)
+    if resolved is None:
+        raise HTTPException(400, "LLM profile not found or does not belong to you")
+
+    tavily_api_key = await settings_service.get_tavily_api_key(user.user_id)
+
+    # ── Resolve GitHub (if requested) ──────────────────────
     github_installation_id: str | None = None
     github_branch: str | None = None
 
     if body.github_repo:
-        if github_service is None:
-            raise HTTPException(400, "GitHub integration is not configured")
-        installation = await _find_installation_for_repo(github_service, body.github_repo)
+        client = await github_client_mgr.get_client(user.user_id)
+        if client is None:
+            raise HTTPException(400, "GitHub integration is not configured in your settings")
+        installation_service = github_client_mgr.get_installation_service(user.user_id)
+        if installation_service is None:
+            raise HTTPException(400, "GitHub integration is not configured in your settings")
+        installation = await _find_installation_for_repo(installation_service, body.github_repo)
         if installation is None:
             raise HTTPException(400, f"No GitHub installation found for repo: {body.github_repo}")
         github_installation_id = installation.id
         github_branch = f"codebox/manual-{body.github_repo.split('/')[-1]}"
 
-    # Resolve provider/model from nested LLM settings or defaults
-    provider = body.llm.provider if body.llm and body.llm.provider else None
-    model = body.llm.model if body.llm and body.llm.model else None
-
     view = await handler.execute(
         name=body.name,
         description=body.description,
         tags=body.tags,
-        provider=provider,
-        model=model,
+        provider=resolved.provider,
+        model=resolved.model,
+        api_key=resolved.api_key,
+        base_url=resolved.base_url,
+        tavily_api_key=tavily_api_key,
         system_prompt=body.system_prompt,
         auto_start_prompt=body.auto_start_prompt,
         recursion_limit=body.recursion_limit,
@@ -121,6 +150,7 @@ async def create_box(
         github_branch=github_branch,
         github_installation_id=github_installation_id,
         init_bash_script=body.init_bash_script,
+        user_id=user.user_id,
     )
     return BoxResponse.from_view(view)
 

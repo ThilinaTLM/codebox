@@ -5,7 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 
-import type { BoxCreatePayload, GitHubRepo, Model } from "@/net/http/types"
+import type { BoxCreatePayload, GitHubRepo, LLMProfile } from "@/net/http/types"
 import { Button } from "@/components/ui/button"
 import {
   Combobox,
@@ -23,7 +23,7 @@ import {
   useCreateBox,
   useGitHubRepos,
   useGitHubStatus,
-  useModels,
+  useLLMProfiles,
 } from "@/net/query"
 
 // ── Route ───────────────────────────────────────────────────
@@ -33,11 +33,6 @@ export const Route = createFileRoute("/boxes/create")({
 })
 
 // ── Constants ───────────────────────────────────────────────
-
-const PROVIDERS = [
-  { id: "openrouter", name: "OpenRouter" },
-  { id: "openai", name: "OpenAI" },
-] as const
 
 const LABEL_CLS =
   "font-terminal text-xs tracking-wider text-ghost uppercase" as const
@@ -169,8 +164,7 @@ function CreateAgentPage() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [tags, setTags] = useState<Array<string>>([])
-  const [selectedProvider, setSelectedProvider] = useState<string>("openrouter")
-  const [selectedModel, setSelectedModel] = useState<Model | null>(null)
+  const [selectedProfile, setSelectedProfile] = useState<LLMProfile | null>(null)
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null)
   const [systemPrompt, setSystemPrompt] = useState("")
   const [autoStartPrompt, setAutoStartPrompt] = useState("")
@@ -188,16 +182,20 @@ function CreateAgentPage() {
   const [taskEnabled, setTaskEnabled] = useState(true)
 
   // ── Queries ─────────────────────────────────────────────
-  const { data: models } = useModels(selectedProvider)
+  const { data: profiles } = useLLMProfiles()
   const { data: githubStatus } = useGitHubStatus()
   const { data: repos } = useGitHubRepos()
   const githubEnabled = githubStatus?.enabled ?? false
 
   const previewName = useMemo(() => generateReadableName(), [])
 
+  // Pre-select the default profile
   useEffect(() => {
-    setSelectedModel(null)
-  }, [selectedProvider])
+    if (!selectedProfile && profiles) {
+      const defaultProfile = profiles.find((p) => p.is_default)
+      if (defaultProfile) setSelectedProfile(defaultProfile)
+    }
+  }, [profiles, selectedProfile])
 
   // ── Submit ──────────────────────────────────────────────
   const handleCreate = () => {
@@ -205,10 +203,7 @@ function CreateAgentPage() {
       name: name.trim() || undefined,
       description: description.trim() || undefined,
       tags: tags.length > 0 ? tags : undefined,
-      llm: {
-        provider: selectedProvider,
-        model: selectedModel?.id || undefined,
-      },
+      llm_profile_id: selectedProfile?.id || undefined,
       system_prompt: systemPrompt.trim() || undefined,
       auto_start_prompt: autoStartPrompt.trim() || undefined,
       recursion_limit: recursionLimit !== 150 ? recursionLimit : undefined,
@@ -314,71 +309,52 @@ function CreateAgentPage() {
             </div>
           </section>
 
-          {/* ── Model ────────────────────────────────────── */}
+          {/* ── LLM Profile ──────────────────────────────── */}
           <section>
-            <h2 className={SECTION_HEADING}>Model</h2>
+            <h2 className={SECTION_HEADING}>LLM Profile</h2>
             <div className="mt-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Provider */}
+              {profiles && profiles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No LLM profiles configured.{" "}
+                  <a href="/settings" className="underline hover:text-foreground">
+                    Create one in Settings
+                  </a>
+                </p>
+              ) : (
                 <div className="grid gap-1.5">
-                  <Label className={LABEL_CLS}>Provider</Label>
+                  <Label className={LABEL_CLS}>Profile</Label>
                   <Combobox
-                    value={selectedProvider}
-                    onValueChange={(v) =>
-                      setSelectedProvider(v ?? "openrouter")
+                    value={selectedProfile}
+                    onValueChange={setSelectedProfile}
+                    items={profiles ?? []}
+                    itemToStringLabel={(p: LLMProfile) =>
+                      `${p.name} (${p.provider} / ${p.model})`
                     }
-                    items={PROVIDERS.map((p) => p.id)}
-                    itemToStringLabel={(p) =>
-                      PROVIDERS.find((i) => i.id === p)?.name ?? p
+                    isItemEqualToValue={(a: LLMProfile, b: LLMProfile) =>
+                      a.id === b.id
                     }
                   >
                     <ComboboxInput
-                      placeholder="Select provider"
+                      placeholder="Select LLM profile"
                       className="w-full"
+                      showClear={!!selectedProfile}
                     />
                     <ComboboxContent>
                       <ComboboxList>
                         <ComboboxCollection>
-                          {(p: string) => {
-                            const opt = PROVIDERS.find((i) => i.id === p)
-                            return (
-                              <ComboboxItem key={p} value={p}>
-                                {opt?.name ?? p}
-                              </ComboboxItem>
-                            )
-                          }}
-                        </ComboboxCollection>
-                      </ComboboxList>
-                    </ComboboxContent>
-                  </Combobox>
-                </div>
-
-                {/* Model */}
-                <div className="grid gap-1.5">
-                  <Label className={LABEL_CLS}>Model</Label>
-                  <Combobox
-                    value={selectedModel}
-                    onValueChange={setSelectedModel}
-                    items={models ?? []}
-                    itemToStringLabel={(m: Model) => `${m.name} ${m.id}`}
-                    isItemEqualToValue={(a: Model, b: Model) => a.id === b.id}
-                  >
-                    <ComboboxInput
-                      placeholder="Default model"
-                      className="w-full"
-                      showClear={!!selectedModel}
-                    />
-                    <ComboboxContent>
-                      <ComboboxList>
-                        <ComboboxCollection>
-                          {(m: Model) => (
-                            <ComboboxItem key={m.id} value={m}>
+                          {(p: LLMProfile) => (
+                            <ComboboxItem key={p.id} value={p}>
                               <div className="grid">
                                 <span className="truncate text-sm">
-                                  {m.name}
+                                  {p.name}
+                                  {p.is_default && (
+                                    <span className="ml-1.5 text-xs text-muted-foreground">
+                                      (default)
+                                    </span>
+                                  )}
                                 </span>
                                 <span className="truncate text-xs text-muted-foreground">
-                                  {m.id}
+                                  {p.provider} · {p.model}
                                 </span>
                               </div>
                             </ComboboxItem>
@@ -386,13 +362,12 @@ function CreateAgentPage() {
                         </ComboboxCollection>
                       </ComboboxList>
                       <ComboboxEmpty>
-                        No models found for {selectedProvider}
+                        No profiles found
                       </ComboboxEmpty>
                     </ComboboxContent>
                   </Combobox>
                 </div>
-              </div>
-
+              )}
             </div>
           </section>
 

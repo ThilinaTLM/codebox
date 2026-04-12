@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import TYPE_CHECKING
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from codebox_orchestrator.api.schemas import ModelResponse
-from codebox_orchestrator.config import (
-    LLM_PROVIDER,
-    OPENAI_API_KEY,
-    OPENAI_BASE_URL,
-    OPENROUTER_API_KEY,
+from codebox_orchestrator.api.dependencies import (
+    get_llm_profile_service,
+    get_user_settings_service,
 )
+from codebox_orchestrator.api.schemas import ModelResponse
+from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user
+
+if TYPE_CHECKING:
+    from codebox_orchestrator.llm_profile.service import LLMProfileService
+    from codebox_orchestrator.user_settings.service import UserSettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -25,42 +29,66 @@ _cache: dict[str, list[ModelResponse]] = {}
 _cache_ts: dict[str, float] = {}
 
 
-@router.get("/models")
-async def list_models(provider: str = Query(default=LLM_PROVIDER)) -> list[ModelResponse]:
-    """Return available models for the selected provider (cached for 5 minutes)."""
+async def _resolve_profile_key(
+    user: UserInfo,
+    profile_id: str | None,
+    profile_service: LLMProfileService,
+    settings_service: UserSettingsService,
+) -> tuple[str, str, str | None]:
+    """Resolve (provider, api_key, base_url) from profile or default."""
+    pid = profile_id
+    if not pid:
+        pid = await settings_service.get_default_profile_id(user.user_id)
+    if not pid:
+        raise HTTPException(400, "No profile specified and no default profile configured")
 
+    resolved = await profile_service.resolve_profile(pid, user.user_id)
+    if resolved is None:
+        raise HTTPException(400, "LLM profile not found or does not belong to you")
+    return resolved.provider, resolved.api_key, resolved.base_url
+
+
+@router.get("/models")
+async def list_models(
+    user: UserInfo = Depends(get_current_user),
+    profile_id: str | None = Query(default=None),
+    profile_service: LLMProfileService = Depends(get_llm_profile_service),
+    settings_service: UserSettingsService = Depends(get_user_settings_service),
+) -> list[ModelResponse]:
+    """Return available models for the selected profile's provider (cached 5 min)."""
+    provider, api_key, base_url = await _resolve_profile_key(
+        user, profile_id, profile_service, settings_service
+    )
+
+    # Cache key includes user to avoid cross-user cache hits
+    cache_key = f"{user.user_id}:{provider}"
     now = time.monotonic()
-    if provider in _cache and (now - _cache_ts.get(provider, 0)) < _CACHE_TTL:
-        return _cache[provider]
+    if cache_key in _cache and (now - _cache_ts.get(cache_key, 0)) < _CACHE_TTL:
+        return _cache[cache_key]
 
     if provider == "openrouter":
-        models = await _fetch_openrouter_models()
+        models = await _fetch_openrouter_models(api_key)
     elif provider == "openai":
-        models = await _fetch_openai_models()
+        models = await _fetch_openai_models(api_key, base_url)
     else:
         raise HTTPException(400, f"Unsupported provider: {provider}")
 
-    _cache[provider] = models
-    _cache_ts[provider] = now
+    _cache[cache_key] = models
+    _cache_ts[cache_key] = now
     return models
 
 
-async def _fetch_openrouter_models() -> list[ModelResponse]:
-    if not OPENROUTER_API_KEY:
-        raise HTTPException(500, "OPENROUTER_API_KEY not configured")
-
+async def _fetch_openrouter_models(api_key: str) -> list[ModelResponse]:
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 "https://openrouter.ai/api/v1/models",
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                headers={"Authorization": f"Bearer {api_key}"},
                 timeout=15.0,
             )
             resp.raise_for_status()
     except httpx.HTTPError as exc:
         logger.warning("Failed to fetch OpenRouter models: %s", exc)
-        if "openrouter" in _cache:
-            return _cache["openrouter"]
         raise HTTPException(502, "Failed to fetch models from OpenRouter") from exc
 
     data = resp.json().get("data", [])
@@ -77,23 +105,18 @@ async def _fetch_openrouter_models() -> list[ModelResponse]:
     )
 
 
-async def _fetch_openai_models() -> list[ModelResponse]:
-    if not OPENAI_API_KEY:
-        raise HTTPException(500, "OPENAI_API_KEY not configured")
-
-    base_url = OPENAI_BASE_URL.rstrip("/") if OPENAI_BASE_URL else "https://api.openai.com/v1"
+async def _fetch_openai_models(api_key: str, base_url: str | None) -> list[ModelResponse]:
+    resolved_base = base_url.rstrip("/") if base_url else "https://api.openai.com/v1"
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                f"{base_url}/models",
-                headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+                f"{resolved_base}/models",
+                headers={"Authorization": f"Bearer {api_key}"},
                 timeout=15.0,
             )
             resp.raise_for_status()
     except httpx.HTTPError as exc:
         logger.warning("Failed to fetch OpenAI models: %s", exc)
-        if "openai" in _cache:
-            return _cache["openai"]
         raise HTTPException(502, "Failed to fetch models from OpenAI") from exc
 
     data = resp.json().get("data", [])

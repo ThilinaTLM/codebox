@@ -21,14 +21,19 @@ if TYPE_CHECKING:
     from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
     from codebox_orchestrator.box.application.services.box_query import BoxQueryService
     from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
+    from codebox_orchestrator.integration.github.application.client_manager import (
+        GitHubClientManager,
+    )
     from codebox_orchestrator.integration.github.application.installation_service import (
         GitHubInstallationService,
     )
     from codebox_orchestrator.integration.github.application.webhook_handler import (
         GitHubWebhookHandler,
     )
+    from codebox_orchestrator.llm_profile.service import LLMProfileService
     from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
     from codebox_orchestrator.shared.messaging.relay import RelayService
+    from codebox_orchestrator.user_settings.service import UserSettingsService
 
 
 def get_create_box(request: Request) -> CreateBoxHandler:
@@ -93,3 +98,15 @@ def get_global_broadcast(request: Request) -> GlobalBroadcastService:
 
 def get_auth_service(request: Request) -> AuthService:
     return request.app.state.auth_service
+
+
+def get_llm_profile_service(request: Request) -> LLMProfileService:
+    return request.app.state.llm_profile_service
+
+
+def get_user_settings_service(request: Request) -> UserSettingsService:
+    return request.app.state.user_settings_service
+
+
+def get_github_client_manager(request: Request) -> GitHubClientManager:
+    return request.app.state.github_client_manager

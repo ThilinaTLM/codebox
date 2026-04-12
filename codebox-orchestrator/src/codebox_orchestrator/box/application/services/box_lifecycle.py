@@ -16,11 +16,7 @@ from typing import TYPE_CHECKING, Any
 from codebox_orchestrator.compute.domain.entities import ContainerConfig
 from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
-    GITHUB_DEFAULT_BASE_BRANCH,
-    LLM_API_KEY,
-    LLM_BASE_URL,
     ORCHESTRATOR_GRPC_ADDRESS,
-    TAVILY_API_KEY,
     get_workspace_base_dir,
 )
 
@@ -54,8 +50,8 @@ class BoxLifecycleService:
         self._send_exec_and_wait = send_exec_and_wait_fn
         self._create_callback_token = create_callback_token_fn
         self._running: dict[str, asyncio.Task[None]] = {}
-        # Optional: set by composition root when GitHub integration is available
-        self._github_service: Any = None
+        # Optional: set by composition root for per-user GitHub integration
+        self._github_client_manager: Any = None
 
     def start_box(
         self,
@@ -66,6 +62,9 @@ class BoxLifecycleService:
         tags: list[str] | None = None,
         provider: str,
         model: str,
+        api_key: str = "",
+        base_url: str | None = None,
+        tavily_api_key: str | None = None,
         system_prompt: str | None = None,
         auto_start_prompt: str | None = None,
         recursion_limit: int | None = None,
@@ -77,6 +76,7 @@ class BoxLifecycleService:
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
         init_bash_script: str | None = None,
+        user_id: str | None = None,
     ) -> None:
         """Launch background lifecycle task for a box."""
         bg = asyncio.create_task(
@@ -87,6 +87,9 @@ class BoxLifecycleService:
                 tags=tags,
                 provider=provider,
                 model=model,
+                api_key=api_key,
+                base_url=base_url,
+                tavily_api_key=tavily_api_key,
                 system_prompt=system_prompt,
                 auto_start_prompt=auto_start_prompt,
                 recursion_limit=recursion_limit,
@@ -98,6 +101,7 @@ class BoxLifecycleService:
                 github_trigger_url=github_trigger_url,
                 github_branch=github_branch,
                 init_bash_script=init_bash_script,
+                user_id=user_id,
             )
         )
         self._running[box_id] = bg
@@ -137,6 +141,9 @@ class BoxLifecycleService:
         tags: list[str] | None = None,
         provider: str,
         model: str,
+        api_key: str = "",
+        base_url: str | None = None,
+        tavily_api_key: str | None = None,
         system_prompt: str | None = None,
         auto_start_prompt: str | None = None,
         recursion_limit: int | None = None,
@@ -148,6 +155,7 @@ class BoxLifecycleService:
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
         init_bash_script: str | None = None,
+        user_id: str | None = None,
     ) -> None:
         is_github = bool(github_repo)
 
@@ -168,24 +176,24 @@ class BoxLifecycleService:
         if auto_start_prompt:
             extra_env["INITIAL_PROMPT"] = auto_start_prompt
 
-        # ── Build CODEBOX_AGENT_CONFIG ──────────────────────────────
+        # ── Build CODEBOX_AGENT_CONFIG ───────────────────────────��──
         agent_config: dict[str, Any] = {
             "llm": {
                 "provider": provider,
                 "model": model,
-                "api_key": LLM_API_KEY,
-                "base_url": LLM_BASE_URL or None,
+                "api_key": api_key,
+                "base_url": base_url or None,
             },
             "recursion_limit": recursion_limit or (200 if is_github else 150),
         }
         if system_prompt:
             agent_config["system_prompt"] = system_prompt
 
-        # Merge tool settings from caller + inject server-side Tavily key
+        # Merge tool settings from caller + inject user's Tavily key
         tools_dict: dict[str, Any] = dict(tool_settings) if tool_settings else {}
-        if TAVILY_API_KEY:
+        if tavily_api_key:
             ws = dict(tools_dict.get("web_search") or {})
-            ws.setdefault("api_key", TAVILY_API_KEY)
+            ws.setdefault("api_key", tavily_api_key)
             tools_dict["web_search"] = ws
         if is_github:
             # GitHub boxes get a longer default execute timeout
@@ -228,18 +236,19 @@ class BoxLifecycleService:
             if github_issue_number is not None:
                 extra_env["CODEBOX_GITHUB_ISSUE_NUMBER"] = str(github_issue_number)
 
-            gh_token = await self._get_github_token(github_installation_id)
+            gh_token = await self._get_github_token(github_installation_id, user_id)
             extra_env["GH_TOKEN"] = gh_token
-            extra_env["CODEBOX_GITHUB_REF"] = GITHUB_DEFAULT_BASE_BRANCH
+            github_base_branch = await self._get_github_default_branch(user_id)
+            extra_env["CODEBOX_GITHUB_REF"] = github_base_branch
 
         config = ContainerConfig(
             image=CODEBOX_IMAGE,
             name=container_name,
             provider=provider,
             model=model,
-            api_key=LLM_API_KEY,
-            base_url=LLM_BASE_URL or None,
-            tavily_api_key=TAVILY_API_KEY,
+            api_key=api_key,
+            base_url=base_url or None,
+            tavily_api_key=tavily_api_key,
             mount_path=workspace,
             extra_env=extra_env,
             extra_labels=extra_labels,
@@ -297,17 +306,38 @@ class BoxLifecycleService:
 
         logger.info("Box %s started successfully", box_id)
 
-    async def _get_github_token(self, github_installation_id: str | None) -> str:
-        if self._github_service is None:
-            raise RuntimeError("GitHub service not available")
+    async def _get_github_token(
+        self, github_installation_id: str | None, user_id: str | None
+    ) -> str:
+        if self._github_client_manager is None:
+            raise RuntimeError("GitHub client manager not available")
         if not github_installation_id:
             raise RuntimeError("No GitHub installation ID for box")
+        if not user_id:
+            raise RuntimeError("No user_id for GitHub token retrieval")
 
-        installation = await self._github_service.get_installation(github_installation_id)
+        client = await self._github_client_manager.get_client(user_id)
+        if client is None:
+            raise RuntimeError("GitHub not configured for user")
+
+        installation_service = self._github_client_manager.get_installation_service(user_id)
+        if installation_service is None:
+            raise RuntimeError("GitHub installation service not available")
+
+        installation = await installation_service.get_installation(github_installation_id)
         if installation is None:
             raise RuntimeError(f"GitHub installation not found: {github_installation_id}")
 
-        return await self._github_service.get_token(installation.installation_id)
+        return await installation_service.get_token(installation.installation_id)
+
+    async def _get_github_default_branch(self, user_id: str | None) -> str:
+        """Return the user's configured default base branch, falling back to 'main'."""
+        if not user_id or self._github_client_manager is None:
+            return "main"
+        settings = self._github_client_manager.get_user_settings(user_id)
+        if settings and settings.github_default_base_branch:
+            return settings.github_default_base_branch
+        return "main"
 
     async def _run_github_setup(
         self,

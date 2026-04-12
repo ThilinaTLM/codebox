@@ -12,13 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from codebox_orchestrator.config import (
     CORS_ORIGINS,
     DATABASE_URL,
-    GITHUB_APP_ID,
-    GITHUB_APP_PRIVATE_KEY_PATH,
-    GITHUB_APP_SLUG,
-    GITHUB_BOT_NAME,
-    GITHUB_WEBHOOK_SECRET,
     GRPC_PORT,
-    github_enabled,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,17 +40,36 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         from codebox_orchestrator.integration.github.infrastructure.orm_models import (  # noqa: PLC0415
             Base as GitHubBase,
         )
+        from codebox_orchestrator.llm_profile.models import LLMProfileBase  # noqa: PLC0415
+        from codebox_orchestrator.user_settings.models import UserSettingsBase  # noqa: PLC0415
 
         async with engine.begin() as conn:
             await conn.run_sync(GitHubBase.metadata.create_all)
             await conn.run_sync(AuthBase.metadata.create_all)
             await conn.run_sync(AgentBase.metadata.create_all)
+            await conn.run_sync(LLMProfileBase.metadata.create_all)
+            await conn.run_sync(UserSettingsBase.metadata.create_all)
 
         # --- Auth service ---
         from codebox_orchestrator.auth.service import AuthService  # noqa: PLC0415
 
         auth_service = AuthService(async_session_factory)
         await auth_service.ensure_default_admin()
+
+        # --- LLM Profile & User Settings services ---
+        from codebox_orchestrator.llm_profile.repository import (  # noqa: PLC0415
+            LLMProfileRepository,
+        )
+        from codebox_orchestrator.llm_profile.service import LLMProfileService  # noqa: PLC0415
+        from codebox_orchestrator.user_settings.repository import (  # noqa: PLC0415
+            UserSettingsRepository,
+        )
+        from codebox_orchestrator.user_settings.service import UserSettingsService  # noqa: PLC0415
+
+        llm_profile_repo = LLMProfileRepository(async_session_factory)
+        llm_profile_service = LLMProfileService(llm_profile_repo)
+        user_settings_repo = UserSettingsRepository(async_session_factory)
+        user_settings_service = UserSettingsService(user_settings_repo)
 
         # --- Shared infrastructure ---
         from codebox_orchestrator.shared.messaging.global_broadcast import (  # noqa: PLC0415
@@ -183,35 +196,21 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         )
         cancel_box_handler = CancelBoxHandler(agent_connections)
 
-        # --- GitHub integration (optional) ---
-        webhook_handler = None
-        installation_service = None
-        if github_enabled():
-            from codebox_orchestrator.integration.github.application.installation_service import (  # noqa: PLC0415
-                GitHubInstallationService,
-            )
-            from codebox_orchestrator.integration.github.application.webhook_handler import (  # noqa: PLC0415
-                GitHubWebhookHandler,
-            )
-            from codebox_orchestrator.integration.github.infrastructure.github_api_client import (  # noqa: PLC0415
-                GitHubApiClient,
-            )
-            from codebox_orchestrator.integration.github.infrastructure.github_repository import (  # noqa: PLC0415
-                SqlAlchemyGitHubRepository,
-            )
+        # --- Per-user GitHub integration ---
+        from codebox_orchestrator.integration.github.application.client_manager import (  # noqa: PLC0415
+            GitHubClientManager,
+        )
+        from codebox_orchestrator.integration.github.infrastructure.github_repository import (  # noqa: PLC0415
+            SqlAlchemyGitHubRepository,
+        )
 
-            api_client = GitHubApiClient(
-                app_id=GITHUB_APP_ID,
-                private_key=Path(GITHUB_APP_PRIVATE_KEY_PATH).read_text(),  # noqa: ASYNC240
-                webhook_secret=GITHUB_WEBHOOK_SECRET.encode(),
-                app_slug=GITHUB_APP_SLUG,
-                bot_name=GITHUB_BOT_NAME,
-            )
-            github_repo = SqlAlchemyGitHubRepository(async_session_factory)
-            webhook_handler = GitHubWebhookHandler(api_client, github_repo)
-            installation_service = GitHubInstallationService(api_client, github_repo)
-            # Wire GitHub into lifecycle for setup commands
-            lifecycle._github_service = installation_service  # noqa: SLF001
+        github_repo = SqlAlchemyGitHubRepository(async_session_factory)
+        github_client_manager = GitHubClientManager(
+            settings_repo=user_settings_repo,
+            github_repo=github_repo,
+        )
+        # Wire GitHub client manager into lifecycle for token retrieval
+        lifecycle._github_client_manager = github_client_manager  # noqa: SLF001
 
         # --- Container runtime check ---
         try:
@@ -246,10 +245,11 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.container_runtime = container_runtime
         app.state.relay_service = relay
         app.state.global_broadcast = global_broadcast
-        app.state.webhook_handler = webhook_handler
-        app.state.installation_service = installation_service
         app.state.auth_service = auth_service
         app.state.event_repository = event_repository
+        app.state.llm_profile_service = llm_profile_service
+        app.state.user_settings_service = user_settings_service
+        app.state.github_client_manager = github_client_manager
 
         yield
 
@@ -260,7 +260,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     app = FastAPI(
         title="Codebox Orchestrator",
-        version="0.5.0",
+        version="0.6.0",
         lifespan=lifespan,
     )
 
@@ -276,8 +276,10 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         auth,
         boxes,
         github,
+        llm_profiles,
         models,
         sse,
+        user_settings,
     )
     from codebox_orchestrator.auth.dependencies import get_current_user  # noqa: PLC0415
 
@@ -285,6 +287,8 @@ def create_app() -> FastAPI:  # noqa: PLR0915
     app.include_router(boxes.router, dependencies=[Depends(get_current_user)])
     app.include_router(models.router, dependencies=[Depends(get_current_user)])
     app.include_router(sse.router, dependencies=[Depends(get_current_user)])
+    app.include_router(llm_profiles.router, dependencies=[Depends(get_current_user)])
+    app.include_router(user_settings.router, dependencies=[Depends(get_current_user)])
     app.include_router(github.router)
 
     return app

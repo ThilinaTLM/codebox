@@ -1,4 +1,4 @@
-"""SQLAlchemy repository for GitHub installations and events."""
+"""SQLAlchemy repository for GitHub installations and events (per-user scoped)."""
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ class SqlAlchemyGitHubRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._sf = session_factory
 
+    # ── Installations ───────────────────────────────────────
+
     async def get_installation(self, installation_id: str) -> domain.GitHubInstallation | None:
         async with self._sf() as db:
             inst = await db.get(orm.GitHubInstallation, installation_id)
@@ -25,32 +27,42 @@ class SqlAlchemyGitHubRepository:
             return self._to_domain_installation(inst)
 
     async def get_installation_by_github_id(
-        self, installation_id: int
+        self, installation_id: int, *, user_id: str | None = None
     ) -> domain.GitHubInstallation | None:
         async with self._sf() as db:
             stmt = select(orm.GitHubInstallation).where(
                 orm.GitHubInstallation.installation_id == installation_id
             )
+            if user_id:
+                stmt = stmt.where(orm.GitHubInstallation.user_id == user_id)
             result = await db.execute(stmt)
             inst = result.scalar_one_or_none()
             if inst is None:
                 return None
             return self._to_domain_installation(inst)
 
-    async def list_installations(self) -> list[domain.GitHubInstallation]:
+    async def list_installations(self, user_id: str) -> list[domain.GitHubInstallation]:
         async with self._sf() as db:
-            stmt = select(orm.GitHubInstallation).order_by(
-                orm.GitHubInstallation.created_at.desc()
+            stmt = (
+                select(orm.GitHubInstallation)
+                .where(orm.GitHubInstallation.user_id == user_id)
+                .order_by(orm.GitHubInstallation.created_at.desc())
             )
             result = await db.execute(stmt)
             return [self._to_domain_installation(i) for i in result.scalars().all()]
 
     async def store_installation(
-        self, installation_id: int, account_login: str, account_type: str
+        self,
+        installation_id: int,
+        account_login: str,
+        account_type: str,
+        *,
+        user_id: str,
     ) -> domain.GitHubInstallation:
         async with self._sf() as db:
             stmt = select(orm.GitHubInstallation).where(
-                orm.GitHubInstallation.installation_id == installation_id
+                orm.GitHubInstallation.installation_id == installation_id,
+                orm.GitHubInstallation.user_id == user_id,
             )
             result = await db.execute(stmt)
             existing = result.scalar_one_or_none()
@@ -62,6 +74,7 @@ class SqlAlchemyGitHubRepository:
                 return self._to_domain_installation(existing)
 
             inst = orm.GitHubInstallation(
+                user_id=user_id,
                 installation_id=installation_id,
                 account_login=account_login,
                 account_type=account_type,
@@ -71,14 +84,16 @@ class SqlAlchemyGitHubRepository:
             await db.refresh(inst)
             return self._to_domain_installation(inst)
 
-    async def delete_installation(self, installation_id: str) -> bool:
+    async def delete_installation(self, installation_id: str, *, user_id: str) -> bool:
         async with self._sf() as db:
             inst = await db.get(orm.GitHubInstallation, installation_id)
-            if inst is None:
+            if inst is None or inst.user_id != user_id:
                 return False
             await db.delete(inst)
             await db.commit()
             return True
+
+    # ── Events ──────────────────────────────────────────────
 
     async def event_exists(self, delivery_id: str) -> bool:
         async with self._sf() as db:
@@ -93,10 +108,13 @@ class SqlAlchemyGitHubRepository:
         action: str,
         repository: str,
         payload: str,
+        *,
+        user_id: str,
     ) -> str:
         """Store event and return its id."""
         async with self._sf() as db:
             event = orm.GitHubEvent(
+                user_id=user_id,
                 delivery_id=delivery_id,
                 event_type=event_type,
                 action=action,
@@ -113,6 +131,8 @@ class SqlAlchemyGitHubRepository:
             if ev:
                 ev.box_id = box_id
                 await db.commit()
+
+    # ── Mapping ─────────────────────────────────────────────
 
     @staticmethod
     def _to_domain_installation(inst: orm.GitHubInstallation) -> domain.GitHubInstallation:

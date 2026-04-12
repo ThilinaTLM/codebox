@@ -10,8 +10,13 @@ import type {
   GitHubInstallation,
   GitHubRepo,
   GitHubStatus,
+  LLMProfile,
+  LLMProfileCreate,
+  LLMProfileUpdate,
   LoginResponse,
   Model,
+  UserSettings,
+  UserSettingsUpdate,
 } from "./types"
 import { API_URL } from "@/lib/constants"
 import { useAuthStore } from "@/lib/auth"
@@ -126,10 +131,41 @@ export const api = {
     },
   },
   models: {
-    list: async (provider?: string): Promise<Array<Model>> => {
+    list: async (profileId?: string): Promise<Array<Model>> => {
       const { data } = await client.get<Array<Model>>("/api/models", {
-        params: provider ? { provider } : undefined,
+        params: profileId ? { profile_id: profileId } : undefined,
       })
+      return data
+    },
+  },
+  llmProfiles: {
+    list: async (): Promise<Array<LLMProfile>> => {
+      const { data } = await client.get<Array<LLMProfile>>("/api/llm-profiles")
+      return data
+    },
+    get: async (id: string): Promise<LLMProfile> => {
+      const { data } = await client.get<LLMProfile>(`/api/llm-profiles/${id}`)
+      return data
+    },
+    create: async (payload: LLMProfileCreate): Promise<LLMProfile> => {
+      const { data } = await client.post<LLMProfile>("/api/llm-profiles", payload)
+      return data
+    },
+    update: async (id: string, payload: LLMProfileUpdate): Promise<LLMProfile> => {
+      const { data } = await client.put<LLMProfile>(`/api/llm-profiles/${id}`, payload)
+      return data
+    },
+    delete: async (id: string): Promise<void> => {
+      await client.delete(`/api/llm-profiles/${id}`)
+    },
+  },
+  userSettings: {
+    get: async (): Promise<UserSettings> => {
+      const { data } = await client.get<UserSettings>("/api/user/settings")
+      return data
+    },
+    update: async (payload: UserSettingsUpdate): Promise<UserSettings> => {
+      const { data } = await client.patch<UserSettings>("/api/user/settings", payload)
       return data
     },
   },

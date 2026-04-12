@@ -1,4 +1,4 @@
-"""GitHub installation management service."""
+"""GitHub installation management service (per-user scoped)."""
 
 from __future__ import annotations
 
@@ -15,23 +15,32 @@ if TYPE_CHECKING:
 
 
 class GitHubInstallationService:
-    def __init__(self, api_client: GitHubApiClient, repo: SqlAlchemyGitHubRepository) -> None:
+    def __init__(
+        self,
+        api_client: GitHubApiClient,
+        repo: SqlAlchemyGitHubRepository,
+        *,
+        user_id: str,
+    ) -> None:
         self._api = api_client
         self._repo = repo
+        self._user_id = user_id
 
     async def list_installations(self) -> list[GitHubInstallation]:
-        return await self._repo.list_installations()
+        return await self._repo.list_installations(self._user_id)
 
     async def get_installation(self, installation_id: str) -> GitHubInstallation | None:
         return await self._repo.get_installation(installation_id)
 
     async def delete_installation(self, installation_id: str) -> bool:
-        return await self._repo.delete_installation(installation_id)
+        return await self._repo.delete_installation(installation_id, user_id=self._user_id)
 
     async def store_installation(
         self, installation_id: int, account_login: str, account_type: str
     ) -> GitHubInstallation:
-        return await self._repo.store_installation(installation_id, account_login, account_type)
+        return await self._repo.store_installation(
+            installation_id, account_login, account_type, user_id=self._user_id
+        )
 
     async def sync_repos(self, installation_id: int) -> list[dict]:
         return await self._api.sync_installation_repos(installation_id)
@@ -43,6 +52,7 @@ class GitHubInstallationService:
             installation_id=installation_id,
             account_login=account.get("login", ""),
             account_type=account.get("type", "User"),
+            user_id=self._user_id,
         )
 
     async def get_token(self, installation_id: int) -> str:

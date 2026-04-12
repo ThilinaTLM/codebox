@@ -8,7 +8,6 @@ import re
 import uuid
 from typing import TYPE_CHECKING
 
-from codebox_orchestrator.config import GITHUB_DEFAULT_BASE_BRANCH
 from codebox_orchestrator.integration.ports.integration_handler import BoxCreateRequest
 
 if TYPE_CHECKING:
@@ -29,9 +28,14 @@ class GitHubWebhookHandler:
         self,
         api_client: GitHubApiClient,
         repo: SqlAlchemyGitHubRepository,
+        *,
+        user_id: str,
+        default_base_branch: str = "main",
     ) -> None:
         self._api = api_client
         self._repo = repo
+        self._user_id = user_id
+        self._default_base_branch = default_base_branch
 
     def verify_signature(self, payload: bytes, signature: str) -> bool:
         return self._api.verify_webhook_signature(payload, signature)
@@ -63,6 +67,7 @@ class GitHubWebhookHandler:
             action=action,
             repository=repository,
             payload=json.dumps(payload),
+            user_id=self._user_id,
         )
 
         # Route by event type
@@ -73,6 +78,7 @@ class GitHubWebhookHandler:
                 installation_id=installation.get("id", 0),
                 account_login=account.get("login", ""),
                 account_type=account.get("type", "User"),
+                user_id=self._user_id,
             )
             return None, event_id
 
@@ -120,13 +126,16 @@ class GitHubWebhookHandler:
             logger.warning("No installation ID in webhook payload for %s", repo_full_name)
             return None
 
-        db_installation = await self._repo.get_installation_by_github_id(gh_installation_id)
+        db_installation = await self._repo.get_installation_by_github_id(
+            gh_installation_id, user_id=self._user_id
+        )
         if db_installation is None:
             account = installation.get("account", installation)
             db_installation = await self._repo.store_installation(
                 installation_id=gh_installation_id,
                 account_login=account.get("login", ""),
                 account_type=account.get("type", "User"),
+                user_id=self._user_id,
             )
 
         is_pr = "pull_request" in issue
@@ -138,7 +147,7 @@ class GitHubWebhookHandler:
         )
 
         branch = self.generate_branch_name(issue_number, issue_title)
-        base_branch = repository.get("default_branch", GITHUB_DEFAULT_BASE_BRANCH)
+        base_branch = repository.get("default_branch", self._default_base_branch)
 
         prompt = self.build_prompt(
             instruction=instruction,
@@ -203,7 +212,7 @@ class GitHubWebhookHandler:
         pr_body = pull_request.get("body", "")
         comment_url = comment.get("html_url", "")
         pr_branch = pull_request.get("head", {}).get("ref", "")
-        base_branch = pull_request.get("base", {}).get("ref", GITHUB_DEFAULT_BASE_BRANCH)
+        base_branch = pull_request.get("base", {}).get("ref", self._default_base_branch)
 
         if not instruction:
             instruction = f"Address the review comment on PR #{pr_number}"
@@ -213,13 +222,16 @@ class GitHubWebhookHandler:
         if not gh_installation_id:
             return None
 
-        db_installation = await self._repo.get_installation_by_github_id(gh_installation_id)
+        db_installation = await self._repo.get_installation_by_github_id(
+            gh_installation_id, user_id=self._user_id
+        )
         if db_installation is None:
             account = installation.get("account", installation)
             db_installation = await self._repo.store_installation(
                 installation_id=gh_installation_id,
                 account_login=account.get("login", ""),
                 account_type=account.get("type", "User"),
+                user_id=self._user_id,
             )
 
         context = await self._api.extract_issue_context(
