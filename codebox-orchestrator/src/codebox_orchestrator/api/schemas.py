@@ -164,6 +164,12 @@ class ModelResponse(BaseModel):
 # ── LLM Profile schemas ─────────────────────────────────────────
 
 
+class ModelsPreviewRequest(BaseModel):
+    provider: str
+    api_key: str
+    base_url: str | None = None
+
+
 class LLMProfileCreate(BaseModel):
     name: str
     provider: str

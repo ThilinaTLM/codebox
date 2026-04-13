@@ -60,6 +60,18 @@ async def create_profile(
     return LLMProfileResponse.model_validate(view.__dict__)
 
 
+@router.post("/llm-profiles/{profile_id}/duplicate", status_code=201)
+async def duplicate_profile(
+    profile_id: str,
+    user: UserInfo = Depends(get_current_user),
+    service: LLMProfileService = Depends(get_llm_profile_service),
+) -> LLMProfileResponse:
+    view = await service.duplicate_profile(profile_id, user.user_id)
+    if view is None:
+        raise HTTPException(404, "Profile not found")
+    return LLMProfileResponse.model_validate(view.__dict__)
+
+
 @router.get("/llm-profiles/{profile_id}")
 async def get_profile(
     profile_id: str,

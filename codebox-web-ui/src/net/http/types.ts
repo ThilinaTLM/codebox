@@ -105,6 +105,12 @@ export interface Model {
   name: string
 }
 
+export interface ModelsPreviewRequest {
+  provider: string
+  api_key: string
+  base_url?: string | null
+}
+
 // SSE stream event types from orchestrator
 export type BoxStreamEvent = CanonicalEvent
 

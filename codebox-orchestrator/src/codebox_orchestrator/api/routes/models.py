@@ -13,7 +13,7 @@ from codebox_orchestrator.api.dependencies import (
     get_llm_profile_service,
     get_user_settings_service,
 )
-from codebox_orchestrator.api.schemas import ModelResponse
+from codebox_orchestrator.api.schemas import ModelResponse, ModelsPreviewRequest
 from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user
 
 if TYPE_CHECKING:
@@ -69,6 +69,33 @@ async def list_models(
     if provider == "openrouter":
         models = await _fetch_openrouter_models(api_key)
     elif provider == "openai":
+        models = await _fetch_openai_models(api_key, base_url)
+    else:
+        raise HTTPException(400, f"Unsupported provider: {provider}")
+
+    _cache[cache_key] = models
+    _cache_ts[cache_key] = now
+    return models
+
+
+@router.post("/models/preview")
+async def preview_models(
+    body: ModelsPreviewRequest,
+    user: UserInfo = Depends(get_current_user),
+) -> list[ModelResponse]:
+    """Fetch models using raw credentials (no saved profile needed)."""
+    provider = body.provider
+    api_key = body.api_key
+    base_url = body.base_url
+
+    cache_key = f"{user.user_id}:{provider}:preview"
+    now = time.monotonic()
+    if cache_key in _cache and (now - _cache_ts.get(cache_key, 0)) < _CACHE_TTL:
+        return _cache[cache_key]
+
+    if provider == "openrouter":
+        models = await _fetch_openrouter_models(api_key)
+    elif provider in ("openai", "openai-compatible"):
         models = await _fetch_openai_models(api_key, base_url)
     else:
         raise HTTPException(400, f"Unsupported provider: {provider}")

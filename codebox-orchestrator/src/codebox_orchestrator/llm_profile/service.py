@@ -124,6 +124,36 @@ class LLMProfileService:
         updated = await self._repo.update(profile)
         return self._to_view(updated, default_profile_id=None)
 
+    async def duplicate_profile(
+        self,
+        profile_id: str,
+        user_id: str,
+    ) -> LLMProfileView | None:
+        """Create a copy of an existing profile with '- copy' name suffix."""
+        source = await self._repo.get_by_id(profile_id)
+        if source is None or source.user_id != user_id:
+            return None
+
+        # Determine unique name
+        existing = await self._repo.list_by_user(user_id)
+        existing_names = {p.name for p in existing}
+        base_name = f"{source.name} - copy"
+        new_name = base_name
+        counter = 2
+        while new_name in existing_names:
+            new_name = f"{base_name} {counter}"
+            counter += 1
+
+        profile = await self._repo.create(
+            user_id=user_id,
+            name=new_name,
+            provider=source.provider,
+            model=source.model,
+            api_key_enc=source.api_key_enc,
+            base_url=source.base_url,
+        )
+        return self._to_view(profile, default_profile_id=None)
+
     async def delete_profile(self, profile_id: str, user_id: str) -> bool:
         profile = await self._repo.get_by_id(profile_id)
         if profile is None or profile.user_id != user_id:

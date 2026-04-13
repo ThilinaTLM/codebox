@@ -3,6 +3,7 @@ import type {
   BoxCreatePayload,
   LLMProfileCreate,
   LLMProfileUpdate,
+  ModelsPreviewRequest,
   UserSettingsUpdate,
 } from "@/net/http/types"
 import { useAuthStore } from "@/lib/auth"
@@ -109,6 +110,12 @@ export function useModels(profileId?: string, options?: QueryHookOptions) {
   })
 }
 
+export function usePreviewModels() {
+  return useMutation({
+    mutationFn: (payload: ModelsPreviewRequest) => api.models.preview(payload),
+  })
+}
+
 // ── LLM Profile queries & mutations ─────────────────────────
 
 export function useLLMProfiles(options?: QueryHookOptions) {
@@ -145,6 +152,16 @@ export function useDeleteLLMProfile() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api.llmProfiles.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["llm-profiles"] })
+    },
+  })
+}
+
+export function useDuplicateLLMProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.llmProfiles.duplicate(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["llm-profiles"] })
     },

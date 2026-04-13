@@ -15,6 +15,7 @@ import type {
   LLMProfileUpdate,
   LoginResponse,
   Model,
+  ModelsPreviewRequest,
   UserSettings,
   UserSettingsUpdate,
 } from "./types"
@@ -137,6 +138,10 @@ export const api = {
       })
       return data
     },
+    preview: async (payload: ModelsPreviewRequest): Promise<Array<Model>> => {
+      const { data } = await client.post<Array<Model>>("/api/models/preview", payload)
+      return data
+    },
   },
   llmProfiles: {
     list: async (): Promise<Array<LLMProfile>> => {
@@ -157,6 +162,10 @@ export const api = {
     },
     delete: async (id: string): Promise<void> => {
       await client.delete(`/api/llm-profiles/${id}`)
+    },
+    duplicate: async (id: string): Promise<LLMProfile> => {
+      const { data } = await client.post<LLMProfile>(`/api/llm-profiles/${id}/duplicate`)
+      return data
     },
   },
   userSettings: {

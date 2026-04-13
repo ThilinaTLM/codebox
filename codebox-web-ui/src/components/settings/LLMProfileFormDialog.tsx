@@ -1,9 +1,22 @@
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import type { LLMProfile } from "@/net/http/types"
-import { useCreateLLMProfile, useModels, useUpdateLLMProfile } from "@/net/query"
+import { LockIcon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import type { LLMProfile, Model } from "@/net/http/types"
+import {
+  useCreateLLMProfile,
+  useModels,
+  usePreviewModels,
+  useUpdateLLMProfile,
+} from "@/net/query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -29,6 +42,7 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox"
+import { Spinner } from "@/components/ui/spinner"
 
 function getModelPlaceholder(provider: string) {
   switch (provider) {
@@ -48,6 +62,7 @@ interface LLMProfileFormDialogProps {
   onOpenChange: (open: boolean) => void
   mode: "create" | "edit"
   profile?: LLMProfile
+  nextProfileNumber?: number
 }
 
 export function LLMProfileFormDialog({
@@ -55,9 +70,11 @@ export function LLMProfileFormDialog({
   onOpenChange,
   mode,
   profile,
+  nextProfileNumber = 1,
 }: LLMProfileFormDialogProps) {
   const createMutation = useCreateLLMProfile()
   const updateMutation = useUpdateLLMProfile()
+  const previewModelsMutation = usePreviewModels()
   const isPending = createMutation.isPending || updateMutation.isPending
 
   const [name, setName] = useState("")
@@ -65,35 +82,87 @@ export function LLMProfileFormDialog({
   const [model, setModel] = useState("")
   const [apiKey, setApiKey] = useState("")
   const [baseUrl, setBaseUrl] = useState("")
+  const [showApiKey, setShowApiKey] = useState(false)
 
-  // Fetch models for combobox in edit mode
-  const { data: availableModels = [] } = useModels(
+  // Models fetched via preview (create mode) or profile (edit mode)
+  const [previewModels, setPreviewModels] = useState<Array<Model>>([])
+
+  // Fetch models for edit mode using saved profile
+  const { data: editModels = [] } = useModels(
     mode === "edit" ? profile?.id : undefined,
-    { enabled: mode === "edit" && !!profile?.id }
+    { enabled: mode === "edit" && !!profile?.id },
   )
 
-  // Reset form when dialog opens/closes or profile changes
-  const resetForm = () => {
+  const availableModels = mode === "edit" ? editModels : previewModels
+
+  // Debounced model preview fetch for create mode
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const fetchPreviewModels = useCallback(
+    (p: string, key: string, url: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+
+      if (!key || key.length < 8) {
+        setPreviewModels([])
+        return
+      }
+
+      debounceRef.current = setTimeout(() => {
+        const apiProvider = p === "openai-compatible" ? "openai" : p
+        previewModelsMutation.mutate(
+          {
+            provider: apiProvider,
+            api_key: key,
+            base_url: url || undefined,
+          },
+          {
+            onSuccess: (models) => setPreviewModels(models),
+            onError: () => setPreviewModels([]),
+          },
+        )
+      }, 600)
+    },
+    // biome-ignore lint/correctness/useExhaustiveDependencies: stable mutation ref
+    [],
+  )
+
+  // Trigger model fetch when provider/apiKey/baseUrl change in create mode
+  useEffect(() => {
+    if (mode === "create" && apiKey.length >= 8) {
+      fetchPreviewModels(provider, apiKey, baseUrl)
+    }
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [mode, provider, apiKey, baseUrl, fetchPreviewModels])
+
+  // Sync form state when dialog opens or the target profile changes.
+  // This runs on prop changes (open / profile.id), not on the Dialog's
+  // internal onOpenChange callback, so it works regardless of *how* the
+  // dialog becomes visible.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset only on open/profile change
+  useEffect(() => {
+    if (!open) return
     if (mode === "edit" && profile) {
       setName(profile.name)
-      setProvider(profile.provider)
+      setProvider(
+        profile.provider === "openai" && profile.base_url
+          ? "openai-compatible"
+          : profile.provider,
+      )
       setModel(profile.model)
       setApiKey("")
       setBaseUrl(profile.base_url ?? "")
     } else {
-      setName("")
+      setName(`Profile ${nextProfileNumber}`)
       setProvider("openrouter")
       setModel("")
       setApiKey("")
       setBaseUrl("")
+      setPreviewModels([])
     }
-  }
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset when dialog opens or profile changes
-  const handleOpenChange = (next: boolean) => {
-    if (next) resetForm()
-    onOpenChange(next)
-  }
+    setShowApiKey(false)
+  }, [open, mode, profile?.id, nextProfileNumber])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -117,7 +186,7 @@ export function LLMProfileFormDialog({
             onOpenChange(false)
           },
           onError: () => toast.error("Failed to create profile"),
-        }
+        },
       )
     } else if (profile) {
       const payload: Record<string, string | null> = {}
@@ -136,7 +205,7 @@ export function LLMProfileFormDialog({
             onOpenChange(false)
           },
           onError: () => toast.error("Failed to update profile"),
-        }
+        },
       )
     }
   }
@@ -144,16 +213,14 @@ export function LLMProfileFormDialog({
   const showBaseUrl = provider === "openai" || provider === "openai-compatible"
   const baseUrlRequired = provider === "openai-compatible"
   const isCreateValid =
-    name &&
-    provider &&
-    model &&
-    apiKey &&
-    (!baseUrlRequired || baseUrl)
+    name && provider && model && apiKey && (!baseUrlRequired || baseUrl)
   const isEditValid =
     name && provider && model && (!baseUrlRequired || baseUrl)
 
+  const isLoadingModels = previewModelsMutation.isPending
+
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -166,6 +233,7 @@ export function LLMProfileFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="profile-name">Name</Label>
             <Input
@@ -175,6 +243,8 @@ export function LLMProfileFormDialog({
               placeholder="e.g. My OpenRouter"
             />
           </div>
+
+          {/* Provider */}
           <div className="space-y-1.5">
             <Label>Provider</Label>
             <Select value={provider} onValueChange={(v) => v && setProvider(v)}>
@@ -190,53 +260,58 @@ export function LLMProfileFormDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="profile-model">Model</Label>
-            {mode === "edit" && availableModels.length > 0 ? (
-              <Combobox value={model} onValueChange={(v) => setModel(v ?? "")}>
-                <ComboboxInput
-                  placeholder={getModelPlaceholder(provider)}
-                  showClear={!!model}
-                />
-                <ComboboxContent>
-                  <ComboboxList>
-                    {availableModels.map((m) => (
-                      <ComboboxItem key={m.id} value={m.id}>
-                        {m.name || m.id}
-                      </ComboboxItem>
-                    ))}
-                  </ComboboxList>
-                  <ComboboxEmpty>No models found</ComboboxEmpty>
-                </ComboboxContent>
-              </Combobox>
-            ) : (
-              <Input
-                id="profile-model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder={getModelPlaceholder(provider)}
-              />
-            )}
-          </div>
+
+          {/* API Key with eye toggle */}
           <div className="space-y-1.5">
             <Label htmlFor="profile-api-key">API Key</Label>
-            <Input
-              id="profile-api-key"
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={
-                mode === "edit"
-                  ? "Leave empty to keep current key"
-                  : "sk-..."
-              }
-            />
-            {mode === "edit" && profile && (
-              <p className="font-mono text-xs text-muted-foreground">
-                Current: {profile.api_key_masked}
+            {mode === "edit" && profile && !apiKey && (
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
+                <HugeiconsIcon
+                  icon={LockIcon}
+                  size={14}
+                  strokeWidth={2}
+                  className="shrink-0 text-muted-foreground"
+                />
+                <span className="truncate font-mono text-xs text-muted-foreground">
+                  {profile.api_key_masked}
+                </span>
+              </div>
+            )}
+            <InputGroup>
+              <InputGroupInput
+                id="profile-api-key"
+                type={showApiKey ? "text" : "password"}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={
+                  mode === "edit"
+                    ? "Enter a new key to replace it"
+                    : "sk-..."
+                }
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  onClick={() => setShowApiKey((v) => !v)}
+                  aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                >
+                  <HugeiconsIcon
+                    icon={showApiKey ? ViewOffSlashIcon : ViewIcon}
+                    size={14}
+                    strokeWidth={2}
+                  />
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+            {mode === "edit" && profile && !apiKey && (
+              <p className="text-xs text-muted-foreground">
+                The stored key cannot be displayed. Enter a new key only if you
+                want to replace it.
               </p>
             )}
           </div>
+
+          {/* Base URL — conditional */}
           {showBaseUrl && (
             <div className="space-y-1.5">
               <Label htmlFor="profile-base-url">
@@ -255,6 +330,35 @@ export function LLMProfileFormDialog({
               </p>
             </div>
           )}
+
+          {/* Model — Combobox when models available, Input fallback */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="profile-model">Model</Label>
+              {isLoadingModels && <Spinner className="size-3.5" />}
+            </div>
+            {availableModels.length > 0 ? (
+              <ModelCombobox
+                models={availableModels}
+                value={model}
+                onValueChange={(v) => setModel(v ?? "")}
+                placeholder={getModelPlaceholder(provider)}
+              />
+            ) : (
+              <Input
+                id="profile-model"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder={getModelPlaceholder(provider)}
+              />
+            )}
+            {mode === "create" && !apiKey && (
+              <p className="text-xs text-muted-foreground">
+                Enter your API key above to load available models.
+              </p>
+            )}
+          </div>
+
           <DialogFooter>
             <DialogClose render={<Button variant="outline" size="sm" />}>
               Cancel
@@ -279,5 +383,54 @@ export function LLMProfileFormDialog({
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ModelCombobox({
+  models,
+  value,
+  onValueChange,
+  placeholder,
+}: {
+  models: Array<Model>
+  value: string
+  onValueChange: (value: string | null) => void
+  placeholder: string
+}) {
+  const modelIds = useMemo(() => models.map((m) => m.id), [models])
+  const modelNameById = useMemo(
+    () => new Map(models.map((m) => [m.id, m.name || m.id])),
+    [models],
+  )
+
+  const filter = useCallback(
+    (itemId: string, query: string) => {
+      const q = query.toLowerCase()
+      if (itemId.toLowerCase().includes(q)) return true
+      const name = modelNameById.get(itemId)
+      return name ? name.toLowerCase().includes(q) : false
+    },
+    [modelNameById],
+  )
+
+  return (
+    <Combobox
+      value={value}
+      onValueChange={onValueChange}
+      items={modelIds}
+      filter={filter}
+    >
+      <ComboboxInput placeholder={placeholder} showClear={!!value} />
+      <ComboboxContent>
+        <ComboboxList>
+          {(itemId: string) => (
+            <ComboboxItem key={itemId} value={itemId}>
+              {modelNameById.get(itemId) ?? itemId}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+        <ComboboxEmpty>No models found</ComboboxEmpty>
+      </ComboboxContent>
+    </Combobox>
   )
 }

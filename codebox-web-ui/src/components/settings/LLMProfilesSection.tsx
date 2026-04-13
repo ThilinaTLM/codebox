@@ -1,12 +1,19 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { MoreHorizontalCircle01Icon } from "@hugeicons/core-free-icons"
+import {
+  AiCloud01Icon,
+  AiGenerativeIcon,
+  MoreHorizontalCircle01Icon,
+  SparklesIcon,
+} from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LLMProfileFormDialog } from "./LLMProfileFormDialog"
 import { SectionSkeleton } from "./SectionSkeleton"
+import type { IconSvgElement } from "@hugeicons/react"
 import type { LLMProfile } from "@/net/http/types"
 import {
   useDeleteLLMProfile,
+  useDuplicateLLMProfile,
   useLLMProfiles,
   useUpdateUserSettings,
   useUserSettings,
@@ -30,7 +37,46 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Separator } from "@/components/ui/separator"
+
+function getProviderMeta(provider: string): {
+  label: string
+  icon: IconSvgElement
+  color: string
+  bg: string
+} {
+  switch (provider) {
+    case "openrouter":
+      return {
+        label: "OpenRouter",
+        icon: SparklesIcon,
+        color: "text-violet-600 dark:text-violet-400",
+        bg: "bg-violet-500/10",
+      }
+    case "openai":
+      return {
+        label: "OpenAI",
+        icon: AiGenerativeIcon,
+        color: "text-emerald-600 dark:text-emerald-400",
+        bg: "bg-emerald-500/10",
+      }
+    default:
+      return {
+        label: "Custom",
+        icon: AiCloud01Icon,
+        color: "text-sky-600 dark:text-sky-400",
+        bg: "bg-sky-500/10",
+      }
+  }
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+}
 
 export function LLMProfilesSection() {
   const { data: profiles = [], isLoading } = useLLMProfiles()
@@ -41,6 +87,8 @@ export function LLMProfilesSection() {
   if (isLoading) {
     return <SectionSkeleton />
   }
+
+  const nextProfileNumber = profiles.length + 1
 
   return (
     <div className="space-y-6">
@@ -78,6 +126,7 @@ export function LLMProfilesSection() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         mode="create"
+        nextProfileNumber={nextProfileNumber}
       />
 
       <LLMProfileFormDialog
@@ -128,8 +177,11 @@ function LLMProfileCard({
   onEdit: () => void
 }) {
   const deleteMutation = useDeleteLLMProfile()
+  const duplicateMutation = useDuplicateLLMProfile()
   const updateSettingsMutation = useUpdateUserSettings()
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const meta = getProviderMeta(profile.provider)
 
   const handleSetDefault = () => {
     updateSettingsMutation.mutate(
@@ -137,7 +189,7 @@ function LLMProfileCard({
       {
         onSuccess: () => toast.success(`"${profile.name}" set as default`),
         onError: () => toast.error("Failed to set default profile"),
-      }
+      },
     )
   }
 
@@ -153,37 +205,44 @@ function LLMProfileCard({
 
   return (
     <>
-      <Card className="rounded-lg border-border bg-card">
+      <Card className="group/card rounded-lg border-border bg-card transition-shadow hover:shadow-sm">
         <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-display truncate">{profile.name}</span>
-                {isDefault && (
-                  <Badge variant="default" className="shrink-0 text-xs">
-                    Default
-                  </Badge>
-                )}
+          {/* Header row: provider icon + dropdown */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div
+                className={`flex size-8 items-center justify-center rounded-lg ${meta.bg}`}
+              >
+                <HugeiconsIcon
+                  icon={meta.icon}
+                  size={16}
+                  strokeWidth={2}
+                  className={meta.color}
+                />
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {profile.provider} &middot; {profile.model}
-              </p>
-              {profile.base_url && (
-                <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                  {profile.base_url}
-                </p>
-              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-display truncate text-sm font-medium">
+                    {profile.name}
+                  </span>
+                  {isDefault && (
+                    <Badge variant="default" className="shrink-0 text-[10px]">
+                      Default
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">{meta.label}</p>
+              </div>
             </div>
-          </div>
-          <Separator className="my-3" />
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="xs" onClick={onEdit}>
-              Edit
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger
-                render={<Button variant="ghost" size="icon-xs" />}
-                className="ml-auto"
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="opacity-0 transition-opacity group-hover/card:opacity-100 data-[state=open]:opacity-100"
+                  />
+                }
               >
                 <HugeiconsIcon
                   icon={MoreHorizontalCircle01Icon}
@@ -192,6 +251,21 @@ function LLMProfileCard({
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    duplicateMutation.mutate(profile.id, {
+                      onSuccess: (newProfile) => {
+                        toast.success(`Profile "${newProfile.name}" created`)
+                      },
+                      onError: () =>
+                        toast.error("Failed to duplicate profile"),
+                    })
+                  }}
+                  disabled={duplicateMutation.isPending}
+                >
+                  Duplicate
+                </DropdownMenuItem>
                 {!isDefault && (
                   <DropdownMenuItem
                     onClick={handleSetDefault}
@@ -200,7 +274,7 @@ function LLMProfileCard({
                     Set as Default
                   </DropdownMenuItem>
                 )}
-                {!isDefault && <DropdownMenuSeparator />}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
                   onClick={() => setConfirmDelete(true)}
@@ -209,6 +283,26 @@ function LLMProfileCard({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+
+          {/* Body: model, key, base url */}
+          <div className="mt-3 space-y-1 pl-[42px]">
+            <p className="truncate font-mono text-xs">{profile.model}</p>
+            <p className="truncate font-mono text-xs text-muted-foreground">
+              {profile.api_key_masked}
+            </p>
+            {profile.base_url && (
+              <p className="truncate font-mono text-xs text-muted-foreground">
+                {profile.base_url}
+              </p>
+            )}
+          </div>
+
+          {/* Footer: date */}
+          <div className="mt-3 pl-[42px]">
+            <span className="text-[11px] text-muted-foreground">
+              Created {formatDate(profile.created_at)}
+            </span>
           </div>
         </CardContent>
       </Card>
