@@ -51,7 +51,7 @@ export function CommandPalette() {
             <CommandItem
               onSelect={() =>
                 handleSelect(() =>
-                  navigate({ to: "/settings", search: { tab: "account" } })
+                  navigate({ to: "/settings/account" })
                 )
               }
             >

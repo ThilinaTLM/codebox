@@ -317,7 +317,27 @@ export function useCreateUser() {
       username: string
       password: string
       userType: string
-    }) => api.auth.createUser(data.username, data.password, data.userType),
+      firstName?: string | null
+      lastName?: string | null
+    }) =>
+      api.auth.createUser(
+        data.username,
+        data.password,
+        data.userType,
+        data.firstName,
+        data.lastName
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] })
+    },
+  })
+}
+
+export function useUpdateProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { firstName: string | null; lastName: string | null }) =>
+      api.auth.updateProfile(data.firstName, data.lastName),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users"] })
     },

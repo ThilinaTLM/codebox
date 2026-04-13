@@ -200,12 +200,26 @@ export const api = {
     createUser: async (
       username: string,
       password: string,
-      userType: string
+      userType: string,
+      firstName?: string | null,
+      lastName?: string | null
     ): Promise<AuthUser> => {
       const { data } = await client.post<AuthUser>("/api/auth/users", {
         username,
         password,
         user_type: userType,
+        first_name: firstName ?? null,
+        last_name: lastName ?? null,
+      })
+      return data
+    },
+    updateProfile: async (
+      firstName: string | null,
+      lastName: string | null
+    ): Promise<AuthUser> => {
+      const { data } = await client.patch<AuthUser>("/api/auth/me", {
+        first_name: firstName,
+        last_name: lastName,
       })
       return data
     },

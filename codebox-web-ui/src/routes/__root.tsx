@@ -105,6 +105,12 @@ function AuthenticatedApp() {
   )
   const location = useLocation()
 
+  // Derive a stable key so nested sub-routes (e.g. /settings/*) share
+  // one identity and don't remount the layout on every tab switch.
+  const pageKey = location.pathname.startsWith('/settings/')
+    ? '/settings'
+    : location.pathname
+
   return (
     <QueryClientProvider client={queryClient}>
       <GlobalStreamProvider>
@@ -116,7 +122,7 @@ function AuthenticatedApp() {
                   <AppSidebar />
                   <div className="flex min-w-0 flex-1 flex-col">
                     <main
-                      key={location.pathname}
+                      key={pageKey}
                       className="flex-1 overflow-hidden animate-page-enter"
                     >
                       <Outlet />

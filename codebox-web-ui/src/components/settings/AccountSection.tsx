@@ -5,20 +5,45 @@ import {
   MultiplicationSignCircleIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { useChangePassword } from "@/net/query"
+import { useChangePassword, useUpdateProfile } from "@/net/query"
 import { useAuthStore } from "@/lib/auth"
+import { ConfirmActionDialog } from "@/components/ConfirmActionDialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 
+function getDisplayName(user: {
+  username: string
+  first_name?: string | null
+  last_name?: string | null
+}): string {
+  const parts = [user.first_name, user.last_name].filter(Boolean)
+  return parts.length > 0 ? parts.join(" ") : user.username
+}
+
+function getInitials(user: {
+  username: string
+  first_name?: string | null
+  last_name?: string | null
+}): string {
+  if (user.first_name && user.last_name) {
+    return (
+      user.first_name.charAt(0) + user.last_name.charAt(0)
+    ).toUpperCase()
+  }
+  if (user.first_name) {
+    return user.first_name.charAt(0).toUpperCase()
+  }
+  return user.username.charAt(0).toUpperCase()
+}
+
 export function AccountSection() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const [signOutOpen, setSignOutOpen] = useState(false)
 
-  const userInitial = user?.username
-    ? user.username.charAt(0).toUpperCase()
-    : "?"
+  if (!user) return null
 
   return (
     <div className="space-y-10">
@@ -31,31 +56,25 @@ export function AccountSection() {
         {/* User avatar + name */}
         <div className="mt-4 flex items-center gap-4">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
-            {userInitial}
+            {getInitials(user)}
           </div>
           <div>
-            <p className="font-display text-base font-medium">
-              {user?.username}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="font-display text-base font-medium">
+                {getDisplayName(user)}
+              </p>
+              <Badge variant="outline" className="text-xs">
+                {user.user_type === "admin" ? "Administrator" : "User"}
+              </Badge>
+            </div>
             <p className="text-sm text-muted-foreground">
-              {user?.user_type === "admin" ? "Administrator" : "User"}
+              @{user.username}
             </p>
-          </div>
-        </div>
-
-        <div className="mt-4 grid max-w-md gap-3">
-          <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
-            <span className="text-sm text-muted-foreground">Username</span>
-            <span className="text-sm">{user?.username}</span>
-          </div>
-          <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
-            <span className="text-sm text-muted-foreground">Role</span>
-            <Badge variant="outline" className="text-xs">
-              {user?.user_type}
-            </Badge>
           </div>
         </div>
       </section>
+
+      <EditNameSection />
 
       <ChangePasswordSection />
 
@@ -65,11 +84,95 @@ export function AccountSection() {
         <p className="mt-1 max-w-md text-sm text-muted-foreground">
           Manage your current session.
         </p>
-        <Button variant="outline" className="mt-4" onClick={logout}>
+        <Button variant="outline" className="mt-4" onClick={() => setSignOutOpen(true)}>
           Sign out
         </Button>
+
+        <ConfirmActionDialog
+          open={signOutOpen}
+          onOpenChange={setSignOutOpen}
+          title="Sign out"
+          description="Are you sure you want to sign out?"
+          confirmLabel="Sign out"
+          confirmVariant="destructive"
+          onConfirm={logout}
+        />
       </section>
     </div>
+  )
+}
+
+function EditNameSection() {
+  const user = useAuthStore((s) => s.user)
+  const updateUser = useAuthStore((s) => s.updateUser)
+  const [firstName, setFirstName] = useState(user?.first_name ?? "")
+  const [lastName, setLastName] = useState(user?.last_name ?? "")
+  const updateProfileMutation = useUpdateProfile()
+
+  const hasChanges =
+    firstName !== (user?.first_name ?? "") ||
+    lastName !== (user?.last_name ?? "")
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    updateProfileMutation.mutate(
+      {
+        firstName: firstName || null,
+        lastName: lastName || null,
+      },
+      {
+        onSuccess: (data) => {
+          toast.success("Profile updated")
+          updateUser({
+            first_name: data.first_name,
+            last_name: data.last_name,
+          })
+        },
+        onError: () => toast.error("Failed to update profile"),
+      }
+    )
+  }
+
+  return (
+    <section>
+      <h2 className="font-display text-lg">Name</h2>
+      <p className="mt-1 max-w-md text-sm text-muted-foreground">
+        Set your display name.
+      </p>
+      <form onSubmit={handleSubmit} className="mt-4 max-w-md space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="first-name">First name</Label>
+            <Input
+              id="first-name"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="First name"
+              autoComplete="given-name"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="last-name">Last name</Label>
+            <Input
+              id="last-name"
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Last name"
+              autoComplete="family-name"
+            />
+          </div>
+        </div>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={updateProfileMutation.isPending || !hasChanges}
+        >
+          {updateProfileMutation.isPending ? "Saving..." : "Save"}
+        </Button>
+      </form>
+    </section>
   )
 }
 

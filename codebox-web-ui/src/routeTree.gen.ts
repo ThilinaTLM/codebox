@@ -11,8 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SettingsRouteRouteImport } from './routes/settings/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsTavilyRouteImport } from './routes/settings/tavily'
+import { Route as SettingsLlmProfilesRouteImport } from './routes/settings/llm-profiles'
+import { Route as SettingsGithubRouteImport } from './routes/settings/github'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as SettingsAccountRouteImport } from './routes/settings/account'
 import { Route as BoxesCreateRouteImport } from './routes/boxes/create'
 import { Route as BoxesBoxIdRouteImport } from './routes/boxes/$boxId'
 
@@ -26,15 +32,45 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRouteRoute = SettingsRouteRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+const SettingsTavilyRoute = SettingsTavilyRouteImport.update({
+  id: '/tavily',
+  path: '/tavily',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+const SettingsLlmProfilesRoute = SettingsLlmProfilesRouteImport.update({
+  id: '/llm-profiles',
+  path: '/llm-profiles',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+const SettingsGithubRoute = SettingsGithubRouteImport.update({
+  id: '/github',
+  path: '/github',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
+  id: '/appearance',
+  path: '/appearance',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+const SettingsAccountRoute = SettingsAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => SettingsRouteRoute,
 } as any)
 const BoxesCreateRoute = BoxesCreateRouteImport.update({
   id: '/boxes/create',
@@ -49,10 +85,16 @@ const BoxesBoxIdRoute = BoxesBoxIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/boxes/create': typeof BoxesCreateRoute
+  '/settings/account': typeof SettingsAccountRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/github': typeof SettingsGithubRoute
+  '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
+  '/settings/tavily': typeof SettingsTavilyRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -61,25 +103,42 @@ export interface FileRoutesByTo {
   '/users': typeof UsersRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/boxes/create': typeof BoxesCreateRoute
+  '/settings/account': typeof SettingsAccountRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/github': typeof SettingsGithubRoute
+  '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
+  '/settings/tavily': typeof SettingsTavilyRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
   '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/boxes/create': typeof BoxesCreateRoute
+  '/settings/account': typeof SettingsAccountRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/github': typeof SettingsGithubRoute
+  '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
+  '/settings/tavily': typeof SettingsTavilyRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/settings'
     | '/login'
     | '/users'
     | '/boxes/$boxId'
     | '/boxes/create'
+    | '/settings/account'
+    | '/settings/appearance'
+    | '/settings/github'
+    | '/settings/llm-profiles'
+    | '/settings/tavily'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -88,24 +147,35 @@ export interface FileRouteTypes {
     | '/users'
     | '/boxes/$boxId'
     | '/boxes/create'
+    | '/settings/account'
+    | '/settings/appearance'
+    | '/settings/github'
+    | '/settings/llm-profiles'
+    | '/settings/tavily'
     | '/settings'
   id:
     | '__root__'
     | '/'
+    | '/settings'
     | '/login'
     | '/users'
     | '/boxes/$boxId'
     | '/boxes/create'
+    | '/settings/account'
+    | '/settings/appearance'
+    | '/settings/github'
+    | '/settings/llm-profiles'
+    | '/settings/tavily'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   UsersRoute: typeof UsersRoute
   BoxesBoxIdRoute: typeof BoxesBoxIdRoute
   BoxesCreateRoute: typeof BoxesCreateRoute
-  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -124,6 +194,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -133,10 +210,45 @@ declare module '@tanstack/react-router' {
     }
     '/settings/': {
       id: '/settings/'
-      path: '/settings'
+      path: '/'
       fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/settings/tavily': {
+      id: '/settings/tavily'
+      path: '/tavily'
+      fullPath: '/settings/tavily'
+      preLoaderRoute: typeof SettingsTavilyRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/settings/llm-profiles': {
+      id: '/settings/llm-profiles'
+      path: '/llm-profiles'
+      fullPath: '/settings/llm-profiles'
+      preLoaderRoute: typeof SettingsLlmProfilesRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/settings/github': {
+      id: '/settings/github'
+      path: '/github'
+      fullPath: '/settings/github'
+      preLoaderRoute: typeof SettingsGithubRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/settings/appearance': {
+      id: '/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof SettingsAppearanceRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/settings/account': {
+      id: '/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof SettingsAccountRouteImport
+      parentRoute: typeof SettingsRouteRoute
     }
     '/boxes/create': {
       id: '/boxes/create'
@@ -155,13 +267,35 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface SettingsRouteRouteChildren {
+  SettingsAccountRoute: typeof SettingsAccountRoute
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsGithubRoute: typeof SettingsGithubRoute
+  SettingsLlmProfilesRoute: typeof SettingsLlmProfilesRoute
+  SettingsTavilyRoute: typeof SettingsTavilyRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+}
+
+const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
+  SettingsAccountRoute: SettingsAccountRoute,
+  SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsGithubRoute: SettingsGithubRoute,
+  SettingsLlmProfilesRoute: SettingsLlmProfilesRoute,
+  SettingsTavilyRoute: SettingsTavilyRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
+}
+
+const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
+  SettingsRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SettingsRouteRoute: SettingsRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   UsersRoute: UsersRoute,
   BoxesBoxIdRoute: BoxesBoxIdRoute,
   BoxesCreateRoute: BoxesCreateRoute,
-  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -56,8 +56,21 @@ export const Route = createFileRoute("/users")({
 
 // ── Helpers ─────────────────────────────────────────────────
 
-function getInitials(username: string): string {
-  return username.slice(0, 2).toUpperCase()
+function getInitials(user: AuthUser): string {
+  if (user.first_name && user.last_name) {
+    return (
+      user.first_name.charAt(0) + user.last_name.charAt(0)
+    ).toUpperCase()
+  }
+  if (user.first_name) {
+    return user.first_name.charAt(0).toUpperCase()
+  }
+  return user.username.slice(0, 2).toUpperCase()
+}
+
+function getDisplayName(user: AuthUser): string {
+  const parts = [user.first_name, user.last_name].filter(Boolean)
+  return parts.length > 0 ? parts.join(" ") : user.username
 }
 
 function formatCreatedAt(dateStr: string | undefined): string {
@@ -134,6 +147,8 @@ function AddUserDialog({
 }) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [userType, setUserType] = useState<"user" | "admin">("user")
   const createMutation = useCreateUser()
 
@@ -141,6 +156,8 @@ function AddUserDialog({
     if (next) {
       setUsername("")
       setPassword("")
+      setFirstName("")
+      setLastName("")
       setUserType("user")
     }
     onOpenChange(next)
@@ -154,7 +171,13 @@ function AddUserDialog({
       return
     }
     createMutation.mutate(
-      { username, password, userType },
+      {
+        username,
+        password,
+        userType,
+        firstName: firstName || null,
+        lastName: lastName || null,
+      },
       {
         onSuccess: () => {
           toast.success(`User "${username}" created`)
@@ -176,6 +199,28 @@ function AddUserDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-first-name">First name</Label>
+              <Input
+                id="new-first-name"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="First name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-last-name">Last name</Label>
+              <Input
+                id="new-last-name"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Last name"
+              />
+            </div>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="new-username">Username</Label>
             <Input
@@ -281,12 +326,21 @@ function UserRow({ user, isSelf }: { user: AuthUser; isSelf: boolean }) {
         <TableCell>
           <div className="flex items-center gap-3">
             <Avatar size="sm">
-              <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
+              <AvatarFallback>{getInitials(user)}</AvatarFallback>
             </Avatar>
-            <span className="font-medium">{user.username}</span>
-            {isSelf && (
-              <span className="text-xs text-muted-foreground">(you)</span>
-            )}
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium">{getDisplayName(user)}</span>
+                {isSelf && (
+                  <span className="text-xs text-muted-foreground">(you)</span>
+                )}
+              </div>
+              {(user.first_name || user.last_name) && (
+                <span className="text-xs text-muted-foreground">
+                  {user.username}
+                </span>
+              )}
+            </div>
           </div>
         </TableCell>
         <TableCell>

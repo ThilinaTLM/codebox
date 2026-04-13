@@ -28,4 +28,6 @@ class User(AuthBase):
     username: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(512))
     user_type: Mapped[str] = mapped_column(String(20))  # "admin" | "user"
+    first_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+    last_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

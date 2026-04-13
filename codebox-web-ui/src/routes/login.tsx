@@ -27,6 +27,8 @@ function LoginPage() {
         id: res.user.id,
         username: res.user.username,
         user_type: res.user.user_type,
+        first_name: res.user.first_name,
+        last_name: res.user.last_name,
       })
       navigate({ to: "/" })
     },

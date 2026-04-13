@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { useAuthStore } from "@/lib/auth"
 import { cn } from "@/lib/utils"
+import { ConfirmActionDialog } from "@/components/ConfirmActionDialog"
 
 export function AppSidebar() {
   const routerState = useRouterState()
@@ -27,6 +28,7 @@ export function AppSidebar() {
 
   const isBoxPage = currentPath.startsWith("/boxes/")
   const [collapsed, setCollapsed] = useState(isBoxPage)
+  const [signOutOpen, setSignOutOpen] = useState(false)
 
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
@@ -56,9 +58,15 @@ export function AppSidebar() {
     },
   ]
 
-  const userInitial = user?.username
-    ? user.username.charAt(0).toUpperCase()
-    : "?"
+  const displayName = (() => {
+    const parts = [user?.first_name, user?.last_name].filter(Boolean)
+    return parts.length > 0 ? parts.join(" ") : user?.username ?? ""
+  })()
+
+  const userInitial = (() => {
+    if (user?.first_name) return user.first_name.charAt(0).toUpperCase()
+    return user?.username ? user.username.charAt(0).toUpperCase() : "?"
+  })()
 
   return (
     <aside
@@ -177,6 +185,7 @@ export function AppSidebar() {
             </div>
           </div>
         ) : (
+          <>
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
@@ -188,7 +197,7 @@ export function AppSidebar() {
               </div>
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-medium text-sidebar-foreground">
-                  {user?.username}
+                  {displayName}
                 </span>
                 <span className="truncate text-2xs text-muted-foreground">
                   {user?.user_type === "admin" ? "Administrator" : "User"}
@@ -196,17 +205,28 @@ export function AppSidebar() {
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" className="w-48">
-              <DropdownMenuItem render={<Link to="/settings" search={{ tab: "account" }} />}>
+              <DropdownMenuItem render={<Link to="/settings/account" />}>
                 <HugeiconsIcon icon={Settings02Icon} size={16} strokeWidth={2} />
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={logout}>
+              <DropdownMenuItem variant="destructive" onClick={() => setSignOutOpen(true)}>
                 <HugeiconsIcon icon={Logout03Icon} size={16} strokeWidth={2} />
                 Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <ConfirmActionDialog
+            open={signOutOpen}
+            onOpenChange={setSignOutOpen}
+            title="Sign out"
+            description="Are you sure you want to sign out?"
+            confirmLabel="Sign out"
+            confirmVariant="destructive"
+            onConfirm={logout}
+          />
+          </>
         )}
 
         {/* Expand toggle (collapsed only) */}

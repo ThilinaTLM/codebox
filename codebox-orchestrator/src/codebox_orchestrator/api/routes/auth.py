@@ -13,6 +13,7 @@ from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user, r
 from codebox_orchestrator.auth.service import create_auth_token
 
 if TYPE_CHECKING:
+    from codebox_orchestrator.auth.models import User
     from codebox_orchestrator.auth.service import AuthService
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,8 @@ class UserResponse(BaseModel):
     id: str
     username: str
     user_type: str
+    first_name: str | None = None
+    last_name: str | None = None
     created_at: str
 
     model_config = {"from_attributes": True}
@@ -51,9 +54,28 @@ class CreateUserRequest(BaseModel):
     username: str
     password: str
     user_type: str
+    first_name: str | None = None
+    last_name: str | None = None
+
+
+class UpdateProfileRequest(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 # ── Public routes ────────────────────────────────────────────────
+
+
+def _user_response(user: User) -> UserResponse:
+    """Build a UserResponse from a User ORM instance."""
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        user_type=user.user_type,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        created_at=user.created_at.isoformat(),
+    )
 
 
 @router.post("/login")
@@ -66,29 +88,39 @@ async def login(
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     token = create_auth_token(user)
-    return LoginResponse(
-        token=token,
-        user=UserResponse(
-            id=user.id,
-            username=user.username,
-            user_type=user.user_type,
-            created_at=user.created_at.isoformat(),
-        ),
-    )
+    return LoginResponse(token=token, user=_user_response(user))
 
 
 # ── Authenticated routes ────────────────────────────────────────
 
 
 @router.get("/me")
-async def me(current_user: UserInfo = Depends(get_current_user)) -> UserResponse:
-    """Return the current authenticated user's info."""
-    return UserResponse(
-        id=current_user.user_id,
-        username=current_user.username,
-        user_type=current_user.user_type,
-        created_at="",  # Not stored in JWT; clients can ignore
+async def me(
+    current_user: UserInfo = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> UserResponse:
+    """Return the current authenticated user's info (fetched from DB)."""
+    user = await auth_service.get_user_by_id(current_user.user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _user_response(user)
+
+
+@router.patch("/me")
+async def update_my_profile(
+    body: UpdateProfileRequest,
+    current_user: UserInfo = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> UserResponse:
+    """Update the current user's profile (first/last name)."""
+    user = await auth_service.update_profile(
+        current_user.user_id,
+        first_name=body.first_name,
+        last_name=body.last_name,
     )
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _user_response(user)
 
 
 @router.post("/change-password", response_model=None)
@@ -118,15 +150,7 @@ async def list_users(
 ) -> list[UserResponse]:
     """List all users (admin only)."""
     users = await auth_service.list_users()
-    return [
-        UserResponse(
-            id=u.id,
-            username=u.username,
-            user_type=u.user_type,
-            created_at=u.created_at.isoformat(),
-        )
-        for u in users
-    ]
+    return [_user_response(u) for u in users]
 
 
 @router.post("/users")
@@ -139,15 +163,16 @@ async def create_user(
     if len(body.password) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
     try:
-        user = await auth_service.create_user(body.username, body.password, body.user_type)
+        user = await auth_service.create_user(
+            body.username,
+            body.password,
+            body.user_type,
+            first_name=body.first_name,
+            last_name=body.last_name,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return UserResponse(
-        id=user.id,
-        username=user.username,
-        user_type=user.user_type,
-        created_at=user.created_at.isoformat(),
-    )
+    return _user_response(user)
 
 
 @router.delete("/users/{user_id}", response_model=None)

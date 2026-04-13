@@ -4,6 +4,8 @@ export interface AuthUser {
   id: string
   username: string
   user_type: "admin" | "user"
+  first_name: string | null
+  last_name: string | null
 }
 
 interface AuthState {
@@ -12,6 +14,7 @@ interface AuthState {
   isAuthenticated: boolean
   login: (token: string, user: AuthUser) => void
   logout: () => void
+  updateUser: (patch: Partial<AuthUser>) => void
 }
 
 const isBrowser = typeof window !== "undefined"
@@ -41,5 +44,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem("auth_token")
     localStorage.removeItem("auth_user")
     set({ token: null, user: null, isAuthenticated: false })
+  },
+
+  updateUser: (patch) => {
+    const current = useAuthStore.getState().user
+    if (!current) return
+    const updated = { ...current, ...patch }
+    localStorage.setItem("auth_user", JSON.stringify(updated))
+    set({ user: updated })
   },
 }))

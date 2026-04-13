@@ -136,7 +136,15 @@ class AuthService:
             await session.commit()
             return True
 
-    async def create_user(self, username: str, password: str, user_type: str) -> User:
+    async def create_user(
+        self,
+        username: str,
+        password: str,
+        user_type: str,
+        *,
+        first_name: str | None = None,
+        last_name: str | None = None,
+    ) -> User:
         """Create a new user. Raises ValueError on duplicate username."""
         if user_type not in ("admin", "user"):
             msg = f"Invalid user_type: {user_type}"
@@ -152,8 +160,35 @@ class AuthService:
                 username=username,
                 password_hash=hash_password(password),
                 user_type=user_type,
+                first_name=first_name,
+                last_name=last_name,
             )
             session.add(user)
+            await session.commit()
+            await session.refresh(user)
+            return user
+
+    async def get_user_by_id(self, user_id: str) -> User | None:
+        """Return a user by ID, or None if not found."""
+        async with self._session_factory() as session:
+            result = await session.execute(select(User).where(User.id == user_id))
+            return result.scalar_one_or_none()
+
+    async def update_profile(
+        self,
+        user_id: str,
+        *,
+        first_name: str | None = None,
+        last_name: str | None = None,
+    ) -> User | None:
+        """Update a user's profile (name fields). Returns updated User or None."""
+        async with self._session_factory() as session:
+            result = await session.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            if user is None:
+                return None
+            user.first_name = first_name
+            user.last_name = last_name
             await session.commit()
             await session.refresh(user)
             return user

@@ -158,6 +158,8 @@ export interface AuthUser {
   id: string
   username: string
   user_type: "admin" | "user"
+  first_name: string | null
+  last_name: string | null
   created_at: string
 }
 

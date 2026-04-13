@@ -41,6 +41,9 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             Base as GitHubBase,
         )
         from codebox_orchestrator.llm_profile.models import LLMProfileBase  # noqa: PLC0415
+        from codebox_orchestrator.shared.persistence.migrate import (  # noqa: PLC0415
+            apply_pending_migrations,
+        )
         from codebox_orchestrator.user_settings.models import UserSettingsBase  # noqa: PLC0415
 
         async with engine.begin() as conn:
@@ -49,6 +52,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             await conn.run_sync(AgentBase.metadata.create_all)
             await conn.run_sync(LLMProfileBase.metadata.create_all)
             await conn.run_sync(UserSettingsBase.metadata.create_all)
+            await apply_pending_migrations(conn)
 
         # --- Auth service ---
         from codebox_orchestrator.auth.service import AuthService  # noqa: PLC0415
