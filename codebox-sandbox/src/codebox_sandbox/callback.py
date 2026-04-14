@@ -162,12 +162,20 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
     """Connect to orchestrator via gRPC and run the bidirectional stream."""
     logger.info("Connecting to orchestrator gRPC at %s", grpc_address)
 
+    # Keepalive pings prevent reverse-proxy idle-timeout disconnects.
+    channel_options = [
+        ("grpc.keepalive_time_ms", 30_000),
+        ("grpc.keepalive_timeout_ms", 10_000),
+        ("grpc.keepalive_permit_without_calls", True),
+        ("grpc.http2.max_pings_without_data", 0),
+    ]
+
     if _should_use_tls(grpc_address):
         tls_creds = _load_tls_channel_credentials()
-        channel_ctx = grpc_aio.secure_channel(grpc_address, tls_creds)
+        channel_ctx = grpc_aio.secure_channel(grpc_address, tls_creds, options=channel_options)
         logger.info("Using TLS for gRPC connection to %s", grpc_address)
     else:
-        channel_ctx = grpc_aio.insecure_channel(grpc_address)
+        channel_ctx = grpc_aio.insecure_channel(grpc_address, options=channel_options)
         logger.warning("Using insecure gRPC connection to %s", grpc_address)
 
     async with channel_ctx as channel:

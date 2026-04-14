@@ -131,7 +131,17 @@ async def start_grpc_server(
     registry: CallbackRegistry,
 ) -> grpc_aio.Server:
     """Create and start the gRPC server."""
-    server = grpc_aio.server()
+    # Keepalive settings allow the server to send pings and accept client
+    # pings so that reverse-proxy idle timeouts don't kill the connection.
+    server = grpc_aio.server(
+        options=[
+            ("grpc.keepalive_time_ms", 30_000),
+            ("grpc.keepalive_timeout_ms", 10_000),
+            ("grpc.keepalive_permit_without_calls", True),
+            ("grpc.http2.max_pings_without_data", 0),
+            ("grpc.http2.min_recv_ping_interval_without_data_ms", 10_000),
+        ]
+    )
     servicer = BoxServiceServicer(
         event_handler=event_handler,
         registry=registry,
