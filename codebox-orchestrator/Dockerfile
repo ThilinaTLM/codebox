@@ -20,8 +20,9 @@ RUN groupadd -r codebox && useradd -r -g codebox -d /app -s /sbin/nologin codebo
 # Create data directory for runtime files
 RUN mkdir -p /app/data && chown -R codebox:codebox /app/data
 
-# Docker socket access: add user to docker group (host GID must match at runtime)
-RUN groupadd -g 999 docker 2>/dev/null || true && usermod -aG docker codebox
+# Docker socket access: add user to a docker group so the socket is accessible.
+# The actual GID is mapped at runtime via docker run --group-add.
+RUN groupadd -f docker && usermod -aG docker codebox
 
 USER codebox
 
