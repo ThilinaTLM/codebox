@@ -24,14 +24,26 @@ def _resolve_key() -> bytes:
             'print(Fernet.generate_key().decode())"'
         )
 
-    # Accept raw base64 URL-safe key (Fernet expects url-safe-base64 of 32 bytes)
+    # 1. Try url-safe base64 (native Fernet key format: 44 chars → 32 bytes)
     try:
-        return base64.urlsafe_b64decode(key)
-    except Exception:
-        # If the value isn't valid base64, derive a key via SHA-256
-        import hashlib  # noqa: PLC0415
+        decoded = base64.urlsafe_b64decode(key)
+        if len(decoded) == 32:
+            return decoded
+    except Exception:  # noqa: S110
+        pass
 
-        return hashlib.sha256(key.encode()).digest()
+    # 2. Try hex decoding (common format: 64 hex chars → 32 bytes)
+    try:
+        decoded = bytes.fromhex(key)
+        if len(decoded) == 32:
+            return decoded
+    except (ValueError, TypeError):
+        pass
+
+    # 3. Fallback: derive 32 bytes via SHA-256 for any arbitrary string
+    import hashlib  # noqa: PLC0415
+
+    return hashlib.sha256(key.encode()).digest()
 
 
 def get_fernet() -> Fernet:
