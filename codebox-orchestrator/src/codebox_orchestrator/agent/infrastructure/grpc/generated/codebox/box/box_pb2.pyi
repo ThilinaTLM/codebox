@@ -17,14 +17,16 @@ COMMAND_ORIGIN_AGENT_TOOL: CommandOrigin
 COMMAND_ORIGIN_USER_EXEC: CommandOrigin
 
 class BoxEvent(_message.Message):
-    __slots__ = ("register", "stream_event", "query_result")
+    __slots__ = ("register", "stream_event", "query_result", "heartbeat")
     REGISTER_FIELD_NUMBER: _ClassVar[int]
     STREAM_EVENT_FIELD_NUMBER: _ClassVar[int]
     QUERY_RESULT_FIELD_NUMBER: _ClassVar[int]
+    HEARTBEAT_FIELD_NUMBER: _ClassVar[int]
     register: RegisterEvent
     stream_event: StreamEvent
     query_result: QueryResult
-    def __init__(self, register: _Optional[_Union[RegisterEvent, _Mapping]] = ..., stream_event: _Optional[_Union[StreamEvent, _Mapping]] = ..., query_result: _Optional[_Union[QueryResult, _Mapping]] = ...) -> None: ...
+    heartbeat: Heartbeat
+    def __init__(self, register: _Optional[_Union[RegisterEvent, _Mapping]] = ..., stream_event: _Optional[_Union[StreamEvent, _Mapping]] = ..., query_result: _Optional[_Union[QueryResult, _Mapping]] = ..., heartbeat: _Optional[_Union[Heartbeat, _Mapping]] = ...) -> None: ...
 
 class RegisterEvent(_message.Message):
     __slots__ = ("session_id",)
@@ -321,16 +323,22 @@ class ExecResult(_message.Message):
     def __init__(self, exit_code: _Optional[int] = ..., stdout: _Optional[str] = ..., stderr: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
 
 class BoxCommand(_message.Message):
-    __slots__ = ("registered", "message", "cancel", "query")
+    __slots__ = ("registered", "message", "cancel", "query", "heartbeat")
     REGISTERED_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     CANCEL_FIELD_NUMBER: _ClassVar[int]
     QUERY_FIELD_NUMBER: _ClassVar[int]
+    HEARTBEAT_FIELD_NUMBER: _ClassVar[int]
     registered: RegisteredAck
     message: SendMessage
     cancel: CancelTask
     query: Query
-    def __init__(self, registered: _Optional[_Union[RegisteredAck, _Mapping]] = ..., message: _Optional[_Union[SendMessage, _Mapping]] = ..., cancel: _Optional[_Union[CancelTask, _Mapping]] = ..., query: _Optional[_Union[Query, _Mapping]] = ...) -> None: ...
+    heartbeat: Heartbeat
+    def __init__(self, registered: _Optional[_Union[RegisteredAck, _Mapping]] = ..., message: _Optional[_Union[SendMessage, _Mapping]] = ..., cancel: _Optional[_Union[CancelTask, _Mapping]] = ..., query: _Optional[_Union[Query, _Mapping]] = ..., heartbeat: _Optional[_Union[Heartbeat, _Mapping]] = ...) -> None: ...
+
+class Heartbeat(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
 
 class RegisteredAck(_message.Message):
     __slots__ = ()

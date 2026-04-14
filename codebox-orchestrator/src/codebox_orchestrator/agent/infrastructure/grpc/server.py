@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import time
 from typing import TYPE_CHECKING
 
 import grpc
@@ -33,6 +34,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_HEARTBEAT_INTERVAL_S = 20  # Send a heartbeat if no data sent for this long
+
 
 class BoxServiceServicer(box_pb2_grpc.BoxServiceServicer):
     def __init__(
@@ -43,7 +46,7 @@ class BoxServiceServicer(box_pb2_grpc.BoxServiceServicer):
         self._event_handler = event_handler
         self._registry = registry
 
-    async def Connect(  # noqa: N802
+    async def Connect(  # noqa: N802, PLR0912, PLR0915
         self,
         request_iterator: AsyncIterator[box_pb2.BoxEvent],
         context: grpc_aio.ServicerContext,
@@ -92,6 +95,7 @@ class BoxServiceServicer(box_pb2_grpc.BoxServiceServicer):
         # Concurrent event reader + command writer
         event_reader_task = asyncio.create_task(self._read_events(request_iterator, entity_id))
         try:
+            last_send = time.monotonic()
             while not context.cancelled():
                 if event_reader_task.done():
                     # Drain remaining commands
@@ -101,7 +105,11 @@ class BoxServiceServicer(box_pb2_grpc.BoxServiceServicer):
                 try:
                     cmd = await asyncio.wait_for(handle.command_queue.get(), timeout=0.5)
                     yield cmd
+                    last_send = time.monotonic()
                 except TimeoutError:
+                    if time.monotonic() - last_send >= _HEARTBEAT_INTERVAL_S:
+                        yield box_pb2.BoxCommand(heartbeat=box_pb2.Heartbeat())
+                        last_send = time.monotonic()
                     continue
         except asyncio.CancelledError:
             pass

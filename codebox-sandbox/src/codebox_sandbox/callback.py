@@ -11,6 +11,7 @@ import contextlib
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 _RECONNECT_BASE_DELAY = 1.0
 _RECONNECT_MAX_DELAY = 30.0
+_HEARTBEAT_INTERVAL_S = 20  # Send a heartbeat if no data sent for this long
 
 _WORKSPACE_ROOT = Path("/workspace")
 _CHECKPOINT_DB_PATH = "/app/codebox/checkpoints.db"
@@ -184,11 +186,19 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
 
         async def event_iterator():
             yield box_pb2.BoxEvent(register=box_pb2.RegisterEvent(session_id=session_id))
+            last_send = time.monotonic()
             while True:
-                event = await outbound.get()
+                try:
+                    event = await asyncio.wait_for(outbound.get(), timeout=1.0)
+                except TimeoutError:
+                    if time.monotonic() - last_send >= _HEARTBEAT_INTERVAL_S:
+                        yield box_pb2.BoxEvent(heartbeat=box_pb2.Heartbeat())
+                        last_send = time.monotonic()
+                    continue
                 if event is None:
                     break
                 yield event
+                last_send = time.monotonic()
 
         async def send(msg: dict[str, Any]) -> None:
             """Persist canonical events or enqueue query results."""
@@ -337,6 +347,10 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
 
                     else:
                         logger.warning("Unknown query type: %s", query_field)
+
+                elif field == "heartbeat":
+                    # Server keepalive — no action needed
+                    pass
 
                 else:
                     logger.warning("Unknown command type: %s", field)
