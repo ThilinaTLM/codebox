@@ -4,12 +4,14 @@ import {
   ArrowLeft,
   Copy,
   Ellipsis,
+  FileText,
   RotateCw,
   Square,
   Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { BoxStatusBadge } from "./BoxStatusBadge"
+import { ContainerLogsDialog } from "./ContainerLogsDialog"
 import type { AgentActivity } from "@/hooks/useAgentActivity"
 import type { Box } from "@/net/http/types"
 import { ConfirmActionDialog } from "@/components/ConfirmActionDialog"
@@ -51,6 +53,7 @@ export function BoxDetailToolbar({
 }: BoxDetailToolbarProps) {
   const [confirmStop, setConfirmStop] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
 
   const handleCopyId = () => {
     navigator.clipboard.writeText(box.id)
@@ -169,6 +172,10 @@ export function BoxDetailToolbar({
               <Copy size={14} />
               Copy ID
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setShowLogs(true)}>
+              <FileText size={14} />
+              Container Logs
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
@@ -190,6 +197,11 @@ export function BoxDetailToolbar({
           onConfirm={() => {
             onDelete()
           }}
+        />
+        <ContainerLogsDialog
+          boxId={box.id}
+          open={showLogs}
+          onOpenChange={setShowLogs}
         />
       </div>
     </div>
