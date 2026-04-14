@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react"
 import { RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useBoxLogs } from "@/net/query"
 
@@ -47,10 +49,10 @@ export function ContainerLogsDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
             <span>Container Logs</span>
             <Button
               variant="ghost"
@@ -65,8 +67,8 @@ export function ContainerLogsDialog({
                 className={isFetching ? "animate-spin" : ""}
               />
             </Button>
-          </DialogTitle>
-        </DialogHeader>
+          </AlertDialogTitle>
+        </AlertDialogHeader>
 
         <div className="max-h-[70vh] min-h-[300px]">
           {isLoading ? (
@@ -83,7 +85,11 @@ export function ContainerLogsDialog({
             </pre>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel>Close</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

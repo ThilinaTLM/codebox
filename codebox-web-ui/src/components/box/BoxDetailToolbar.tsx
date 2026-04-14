@@ -172,7 +172,7 @@ export function BoxDetailToolbar({
               <Copy size={14} />
               Copy ID
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => requestAnimationFrame(() => setShowLogs(true))}>
+            <DropdownMenuItem onSelect={() => setShowLogs(true)}>
               <FileText size={14} />
               Container Logs
             </DropdownMenuItem>
