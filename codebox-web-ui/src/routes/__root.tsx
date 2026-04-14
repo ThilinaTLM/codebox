@@ -147,7 +147,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__ENV__=${JSON.stringify({ API_URL })}`,
+            __html: `window.__ENV__=${JSON.stringify({
+              API_URL:
+                (import.meta.env.SSR
+                  ? process.env.PUBLIC_API_URL
+                  : undefined) || API_URL,
+            })}`,
           }}
         />
         <HeadContent />
