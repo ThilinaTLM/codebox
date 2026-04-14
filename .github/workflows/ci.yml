@@ -17,10 +17,30 @@ jobs:
       - run: pip install detect-secrets
       - name: Check for secrets
         run: |
+          # Scan into a temp file, then compare results (ignoring generated_at timestamp).
           detect-secrets scan --all-files \
-            --exclude-files '\.venv/|node_modules/|pnpm-lock\.yaml|uv\.lock|\.git/|grpc/generated/|\.output/|\.ruff_cache/|\.pytest_cache/|__pycache__/|\.env\.local$|\.env\.compose$' \
-            --list \
-          | diff .secrets.baseline - || {
-            echo "::error::New secrets detected! Run 'detect-secrets scan > .secrets.baseline' and audit."
+            --exclude-files '\.secrets\.baseline$|\.venv/|node_modules/|pnpm-lock\.yaml|uv\.lock|\.git/|grpc/generated/|\.output/|\.ruff_cache/|\.pytest_cache/|__pycache__/|\.env\.local$|\.env\.compose$' \
+            > /tmp/new-baseline.json
+          python3 << 'PYEOF'
+          import json, sys
+          with open(".secrets.baseline") as f:
+              old = json.load(f)
+          with open("/tmp/new-baseline.json") as f:
+              new = json.load(f)
+          old_results = old.get("results", {})
+          new_results = new.get("results", {})
+          found = False
+          for filepath, secrets in new_results.items():
+              baseline_hashes = {s["hashed_secret"] for s in old_results.get(filepath, [])}
+              for s in secrets:
+                  if s["hashed_secret"] not in baseline_hashes:
+                      print(f"New secret: {filepath}:{s['line_number']} ({s['type']})")
+                      found = True
+          if found:
+              sys.exit(1)
+          print("No new secrets detected.")
+          PYEOF
+          if [ $? -ne 0 ]; then
+            echo "::error::New secrets detected! Run 'detect-secrets scan --baseline .secrets.baseline' and commit the updated baseline."
             exit 1
-          }
+          fi
