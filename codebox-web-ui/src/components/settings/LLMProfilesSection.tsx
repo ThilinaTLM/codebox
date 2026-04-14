@@ -132,7 +132,10 @@ export function LLMProfilesSection() {
       </div>
 
       {profiles.length === 0 ? (
-        <LLMProfilesEmptyState onCreateClick={() => setCreateOpen(true)} />
+        <LLMProfilesEmptyState
+          onCreateClick={() => setCreateOpen(true)}
+          onImportClick={() => setImportOpen(true)}
+        />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {profiles.map((profile) => (
@@ -182,8 +185,10 @@ export function LLMProfilesSection() {
 
 function LLMProfilesEmptyState({
   onCreateClick,
+  onImportClick,
 }: {
   onCreateClick: () => void
+  onImportClick: () => void
 }) {
   return (
     <div className="rounded-lg border border-dashed border-border p-12 text-center">
@@ -199,9 +204,14 @@ function LLMProfilesEmptyState({
         You&apos;ll need an API key from OpenRouter, OpenAI, or a compatible
         service.
       </p>
-      <Button className="mt-6" onClick={onCreateClick}>
-        Create Your First Profile
-      </Button>
+      <div className="mt-6 flex items-center justify-center gap-3">
+        <Button variant="outline" onClick={onImportClick}>
+          Import
+        </Button>
+        <Button onClick={onCreateClick}>
+          Create Your First Profile
+        </Button>
+      </div>
     </div>
   )
 }
