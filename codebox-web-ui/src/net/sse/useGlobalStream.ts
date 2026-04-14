@@ -36,7 +36,7 @@ export function useGlobalStream() {
         ) {
           // Invalidate all box queries on reconnect to sync any missed events
           if (hadConnectionRef.current) {
-            qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
+            qcRef.current.invalidateQueries({ queryKey: ["boxes"], exact: true })
           }
           hadConnectionRef.current = true
           return
@@ -56,7 +56,7 @@ export function useGlobalStream() {
           if (!event.type) return
 
           if (event.type === "box_created") {
-            qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
+            qcRef.current.invalidateQueries({ queryKey: ["boxes"], exact: true })
           }
 
           if (event.type === "box_status_changed") {
@@ -77,14 +77,14 @@ export function useGlobalStream() {
                 return { ...old, ...updates }
               }
             )
-            qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
+            qcRef.current.invalidateQueries({ queryKey: ["boxes"], exact: true })
           }
 
           if (event.type === "box_deleted") {
             qcRef.current.removeQueries({
               queryKey: ["boxes", event.box_id],
             })
-            qcRef.current.invalidateQueries({ queryKey: ["boxes"] })
+            qcRef.current.invalidateQueries({ queryKey: ["boxes"], exact: true })
           }
         } catch {
           // ignore malformed messages

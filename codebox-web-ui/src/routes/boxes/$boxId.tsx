@@ -63,7 +63,6 @@ function BoxDetailPage() {
     if (!box) return
     setBoxPageActions({
       isActive,
-      isConnected,
       activity,
       showFiles,
       onToggleFiles: toggleFiles,
@@ -77,7 +76,6 @@ function BoxDetailPage() {
   }, [
     box,
     isActive,
-    isConnected,
     activity,
     showFiles,
     isStopped,
@@ -153,6 +151,15 @@ function BoxDetailPage() {
                 errorDetail={box.error_detail}
               />
 
+              {isActive && !isConnected && (
+                <div className="mx-4 mt-1 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+                  <span className="size-1.5 animate-pulse rounded-full bg-warning" />
+                  <span className="text-sm text-muted-foreground">
+                    Reconnecting to event stream…
+                  </span>
+                </div>
+              )}
+
               <div className="min-h-0 flex-1 overflow-hidden">
                 <ChatStream
                   blocks={blocks}
@@ -169,7 +176,7 @@ function BoxDetailPage() {
                     onSendExec={actions.sendExec}
                     onCancel={actions.cancel}
                     isWorking={activity.isWorking}
-                    disabled={!isActive || !isConnected}
+                    disabled={!isActive}
                   />
                 </div>
               </div>

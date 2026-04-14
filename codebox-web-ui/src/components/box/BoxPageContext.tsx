@@ -3,7 +3,6 @@ import type { AgentActivity } from "@/hooks/useAgentActivity"
 
 export interface BoxPageActions {
   isActive: boolean
-  isConnected: boolean
   activity?: AgentActivity
   showFiles: boolean
   onToggleFiles: () => void
