@@ -246,11 +246,13 @@ export function useStopBox() {
         queryKey: ["boxes"],
       })
       qc.setQueriesData<Array<Box>>({ queryKey: ["boxes"] }, (old) =>
-        old?.map((b) =>
-          b.id === boxId
-            ? { ...b, container_status: ContainerStatus.STOPPED, activity: null }
-            : b
-        )
+        Array.isArray(old)
+          ? old.map((b) =>
+              b.id === boxId
+                ? { ...b, container_status: ContainerStatus.STOPPED, activity: null }
+                : b
+            )
+          : old
       )
 
       return { previousBox, previousLists }
@@ -305,7 +307,7 @@ export function useDeleteBox() {
       })
 
       qc.setQueriesData<Array<Box>>({ queryKey: ["boxes"] }, (old) =>
-        old?.filter((b) => b.id !== boxId)
+        Array.isArray(old) ? old.filter((b) => b.id !== boxId) : old
       )
 
       qc.removeQueries({ queryKey: ["boxes", boxId] })
