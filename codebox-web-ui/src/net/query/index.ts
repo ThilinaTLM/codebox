@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type {
+  Box,
   BoxCreatePayload,
   LLMProfileCreate,
   LLMProfileUpdate,
   ModelsPreviewRequest,
   UserSettingsUpdate,
 } from "@/net/http/types"
+import { ContainerStatus } from "@/net/http/types"
 import { useAuthStore } from "@/lib/auth"
 import { api } from "@/net/http/api"
 
@@ -207,7 +209,42 @@ export function useStopBox() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (boxId: string) => api.boxes.stop(boxId),
-    onSuccess: (_data, boxId) => {
+    onMutate: async (boxId) => {
+      await qc.cancelQueries({ queryKey: ["boxes", boxId] })
+      await qc.cancelQueries({ queryKey: ["boxes"] })
+
+      const previousBox = qc.getQueryData<Box>(["boxes", boxId])
+      if (previousBox) {
+        qc.setQueryData<Box>(["boxes", boxId], {
+          ...previousBox,
+          container_status: ContainerStatus.STOPPED,
+          activity: null,
+        })
+      }
+
+      const previousLists = qc.getQueriesData<Array<Box>>({
+        queryKey: ["boxes"],
+      })
+      qc.setQueriesData<Array<Box>>({ queryKey: ["boxes"] }, (old) =>
+        old?.map((b) =>
+          b.id === boxId
+            ? { ...b, container_status: ContainerStatus.STOPPED, activity: null }
+            : b
+        )
+      )
+
+      return { previousBox, previousLists }
+    },
+    onError: (_err, boxId, context) => {
+      if (!context) return
+      if (context.previousBox) {
+        qc.setQueryData(["boxes", boxId], context.previousBox)
+      }
+      context.previousLists.forEach(([key, data]) => {
+        qc.setQueryData(key, data)
+      })
+    },
+    onSettled: (_data, _err, boxId) => {
       qc.invalidateQueries({ queryKey: ["boxes", boxId] })
       qc.invalidateQueries({ queryKey: ["boxes"] })
     },
@@ -240,7 +277,28 @@ export function useDeleteBox() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (boxId: string) => api.boxes.delete(boxId),
-    onSuccess: () => {
+    onMutate: async (boxId) => {
+      await qc.cancelQueries({ queryKey: ["boxes"] })
+
+      const previousLists = qc.getQueriesData<Array<Box>>({
+        queryKey: ["boxes"],
+      })
+
+      qc.setQueriesData<Array<Box>>({ queryKey: ["boxes"] }, (old) =>
+        old?.filter((b) => b.id !== boxId)
+      )
+
+      qc.removeQueries({ queryKey: ["boxes", boxId] })
+
+      return { previousLists }
+    },
+    onError: (_err, _boxId, context) => {
+      if (!context) return
+      context.previousLists.forEach(([key, data]) => {
+        qc.setQueryData(key, data)
+      })
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["boxes"] })
     },
   })

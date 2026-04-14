@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 from typing import TYPE_CHECKING
@@ -36,8 +37,9 @@ class DeleteBoxHandler:
 
         box = self._query.get_box(box_id)
         if box and box.container_name:
+            loop = asyncio.get_running_loop()
             with contextlib.suppress(Exception):
-                self._runtime.remove(box.container_name)
+                await loop.run_in_executor(None, self._runtime.remove, box.container_name)
 
         self._state_store.remove(box_id)
 

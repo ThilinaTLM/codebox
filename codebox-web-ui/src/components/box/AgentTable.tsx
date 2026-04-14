@@ -89,8 +89,8 @@ function StopButton({ box }: { box: Box }) {
           stopMutation.mutate(box.id, {
             onSuccess: () => toast.success("Agent stopped"),
             onError: () => toast.error("Failed to stop agent"),
+            onSettled: () => setOpen(false),
           })
-          setOpen(false)
         }}
       />
     </>
@@ -127,8 +127,8 @@ function DeleteButton({ box }: { box: Box }) {
           deleteMutation.mutate(box.id, {
             onSuccess: () => toast.success("Agent deleted"),
             onError: () => toast.error("Failed to delete agent"),
+            onSettled: () => setOpen(false),
           })
-          setOpen(false)
         }}
       />
     </>

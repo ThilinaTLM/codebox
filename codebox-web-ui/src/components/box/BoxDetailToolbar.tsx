@@ -33,6 +33,7 @@ interface BoxDetailToolbarProps {
   onDelete: () => void
   isStopPending: boolean
   isRestartPending: boolean
+  isDeletePending: boolean
 }
 
 export function BoxDetailToolbar({
@@ -46,8 +47,10 @@ export function BoxDetailToolbar({
   onDelete,
   isStopPending,
   isRestartPending,
+  isDeletePending,
 }: BoxDetailToolbarProps) {
   const [confirmStop, setConfirmStop] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const handleCopyId = () => {
     navigator.clipboard.writeText(box.id)
@@ -167,12 +170,27 @@ export function BoxDetailToolbar({
               Copy ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => setConfirmDelete(true)}
+            >
               <Trash2 size={14} />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <ConfirmActionDialog
+          open={confirmDelete}
+          onOpenChange={setConfirmDelete}
+          title="Delete agent?"
+          description="This will permanently delete the agent and its container. This action cannot be undone."
+          confirmLabel="Delete"
+          confirmVariant="destructive"
+          isPending={isDeletePending}
+          onConfirm={() => {
+            onDelete()
+          }}
+        />
       </div>
     </div>
   )

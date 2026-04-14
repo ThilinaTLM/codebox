@@ -142,6 +142,7 @@ function BoxDetailPage() {
                 onDelete={actions.delete}
                 isStopPending={actions.isStopPending}
                 isRestartPending={actions.isRestartPending}
+                isDeletePending={actions.isDeletePending}
               />
 
               <ActivityBar activity={activity} />

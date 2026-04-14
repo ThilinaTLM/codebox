@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 from typing import TYPE_CHECKING
@@ -36,8 +37,9 @@ class StopBoxHandler:
             return
 
         if box.container_name:
+            loop = asyncio.get_running_loop()
             with contextlib.suppress(Exception):
-                self._runtime.stop(box.container_name)
+                await loop.run_in_executor(None, self._runtime.stop, box.container_name)
 
         await self._publisher.publish_box_event(
             box_id,
