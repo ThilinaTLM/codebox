@@ -117,13 +117,38 @@ async def run_callback() -> None:
             delay = min(delay * 2, _RECONNECT_MAX_DELAY)
 
 
+def _should_use_tls(grpc_address: str) -> bool:
+    """Decide whether TLS should be used for the given address.
+
+    Returns True when:
+    - ``GRPC_TLS_CA_CERT`` is set (explicit custom CA), OR
+    - ``GRPC_USE_TLS`` env var is truthy, OR
+    - The address targets port 443 (standard TLS port).
+    """
+    if os.environ.get("GRPC_TLS_CA_CERT"):
+        return True
+    if os.environ.get("GRPC_USE_TLS", "").lower() in ("1", "true", "yes"):
+        return True
+    # Heuristic: port 443 implies TLS
+    if ":" in grpc_address:
+        port = grpc_address.rsplit(":", 1)[-1]
+        if port == "443":
+            return True
+    return False
+
+
 def _load_tls_channel_credentials() -> grpc.ChannelCredentials | None:
-    """Load CA cert for TLS channel, or return *None* for insecure mode."""
+    """Load TLS channel credentials.
+
+    Uses a custom CA cert when ``GRPC_TLS_CA_CERT`` is set and the file
+    exists; otherwise falls back to the system trust store.
+    """
     ca_cert_path = os.environ.get("GRPC_TLS_CA_CERT", "")
-    if not ca_cert_path or not Path(ca_cert_path).exists():
-        return None
-    ca_cert = Path(ca_cert_path).read_bytes()
-    return grpc.ssl_channel_credentials(root_certificates=ca_cert)
+    if ca_cert_path and Path(ca_cert_path).exists():
+        ca_cert = Path(ca_cert_path).read_bytes()
+        return grpc.ssl_channel_credentials(root_certificates=ca_cert)
+    # System trust store — works for publicly-signed certificates
+    return grpc.ssl_channel_credentials()
 
 
 async def _connect_and_run(  # noqa: PLR0912, PLR0915
@@ -137,8 +162,8 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
     """Connect to orchestrator via gRPC and run the bidirectional stream."""
     logger.info("Connecting to orchestrator gRPC at %s", grpc_address)
 
-    tls_creds = _load_tls_channel_credentials()
-    if tls_creds:
+    if _should_use_tls(grpc_address):
+        tls_creds = _load_tls_channel_credentials()
         channel_ctx = grpc_aio.secure_channel(grpc_address, tls_creds)
         logger.info("Using TLS for gRPC connection to %s", grpc_address)
     else:
