@@ -214,6 +214,12 @@ def spawn(
         if CONTAINER_RUNTIME_TYPE != "podman":
             run_kwargs["extra_hosts"] = {"host.docker.internal": "host-gateway"}
 
+    # Always pull the latest image to avoid stale cached tags.
+    try:
+        client.images.pull(image)
+    except docker.errors.APIError:
+        logger.warning("Failed to pull image %s, using local cache", image)
+
     try:
         container = client.containers.run(image, **run_kwargs)
     except docker.errors.ImageNotFound as exc:
