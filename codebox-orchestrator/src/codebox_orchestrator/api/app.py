@@ -4,16 +4,15 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from codebox_orchestrator.config import (
     CORS_ORIGINS,
-    DATABASE_URL,
     GRPC_PORT,
 )
+from codebox_orchestrator.shared.persistence.migrate import run_migrations
 
 logger = logging.getLogger(__name__)
 
@@ -22,37 +21,13 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):  # noqa: PLR0915
-        # --- Database setup ---
-        import codebox_orchestrator.integration.github.infrastructure.orm_models as _gh_orm  # noqa: F401, PLC0415
-        from codebox_orchestrator.agent.infrastructure.orm_models import (  # noqa: PLC0415
-            Base as AgentBase,
-        )
-        from codebox_orchestrator.auth.models import AuthBase  # noqa: PLC0415
+        # --- Database migrations (Alembic) ---
         from codebox_orchestrator.shared.persistence.engine import (  # noqa: PLC0415
             async_session_factory,
             engine,
         )
 
-        if DATABASE_URL.startswith("sqlite"):
-            db_path = DATABASE_URL.split("///", 1)[-1]
-            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-
-        from codebox_orchestrator.integration.github.infrastructure.orm_models import (  # noqa: PLC0415
-            Base as GitHubBase,
-        )
-        from codebox_orchestrator.llm_profile.models import LLMProfileBase  # noqa: PLC0415
-        from codebox_orchestrator.shared.persistence.migrate import (  # noqa: PLC0415
-            apply_pending_migrations,
-        )
-        from codebox_orchestrator.user_settings.models import UserSettingsBase  # noqa: PLC0415
-
-        async with engine.begin() as conn:
-            await conn.run_sync(GitHubBase.metadata.create_all)
-            await conn.run_sync(AuthBase.metadata.create_all)
-            await conn.run_sync(AgentBase.metadata.create_all)
-            await conn.run_sync(LLMProfileBase.metadata.create_all)
-            await conn.run_sync(UserSettingsBase.metadata.create_all)
-            await apply_pending_migrations(conn)
+        run_migrations()
 
         # --- Auth service ---
         from codebox_orchestrator.auth.service import AuthService  # noqa: PLC0415

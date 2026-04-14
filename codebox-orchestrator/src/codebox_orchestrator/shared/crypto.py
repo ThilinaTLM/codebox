@@ -35,13 +35,7 @@ def _resolve_key() -> bytes:
             return hashlib.sha256(ENCRYPTION_KEY.encode()).digest()
 
     # Auto-generate and persist for development
-    from codebox_orchestrator.config import DATABASE_URL  # noqa: PLC0415
-
-    if DATABASE_URL.startswith("sqlite"):
-        db_path = DATABASE_URL.split("///", 1)[-1]
-        key_file = Path(db_path).parent / ".encryption_key"
-    else:
-        key_file = Path("data/.encryption_key")
+    key_file = Path("data/.encryption_key")
 
     key_file.parent.mkdir(parents=True, exist_ok=True)
 

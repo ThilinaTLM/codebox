@@ -6,7 +6,9 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, String, Text, UniqueConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
+
+from codebox_orchestrator.shared.persistence.base import Base
 
 
 def _new_uuid() -> str:
@@ -17,11 +19,7 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-class LLMProfileBase(DeclarativeBase):
-    pass
-
-
-class LLMProfile(LLMProfileBase):
+class LLMProfile(Base):
     __tablename__ = "llm_profiles"
     __table_args__ = (UniqueConstraint("user_id", "name", name="uq_llm_profiles_user_name"),)
 
@@ -32,7 +30,9 @@ class LLMProfile(LLMProfileBase):
     model: Mapped[str] = mapped_column(String(255), nullable=False)
     api_key_enc: Mapped[str] = mapped_column(Text, nullable=False)
     base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )

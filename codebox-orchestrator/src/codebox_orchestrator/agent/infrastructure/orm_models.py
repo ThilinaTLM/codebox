@@ -6,11 +6,9 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import BigInteger, DateTime, Integer, String, Text, UniqueConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
-
-class Base(DeclarativeBase):
-    pass
+from codebox_orchestrator.shared.persistence.base import Base
 
 
 def _utcnow() -> datetime:
@@ -37,7 +35,7 @@ class BoxEventRecord(Base):
     tool_call_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     command_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     payload_json: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
 class BoxProjectionRecord(Base):
@@ -48,4 +46,6 @@ class BoxProjectionRecord(Base):
     activity: Mapped[str | None] = mapped_column(String(80), nullable=True)
     task_outcome: Mapped[str | None] = mapped_column(String(80), nullable=True)
     task_outcome_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )

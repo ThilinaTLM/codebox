@@ -6,11 +6,9 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, Integer, String, Text, UniqueConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
-
-class Base(DeclarativeBase):
-    pass
+from codebox_orchestrator.shared.persistence.base import Base
 
 
 def _utcnow() -> datetime:
@@ -33,7 +31,7 @@ class GitHubInstallation(Base):
     account_login: Mapped[str] = mapped_column(String(255))
     account_type: Mapped[str] = mapped_column(String(50))  # "Organization" or "User"
     settings: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
 class GitHubEvent(Base):
@@ -47,4 +45,4 @@ class GitHubEvent(Base):
     repository: Mapped[str] = mapped_column(String(255))  # "owner/repo"
     payload: Mapped[str] = mapped_column(Text)  # JSON
     box_id: Mapped[str | None] = mapped_column(String(36), nullable=True)  # box UUID (no FK)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

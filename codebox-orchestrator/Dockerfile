@@ -11,7 +11,8 @@ COPY src/ ./src/
 
 RUN pip install uv && uv pip install --system .
 
-RUN mkdir -p /data
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
 
 EXPOSE 9090
 

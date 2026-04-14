@@ -1,4 +1,22 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: codebox
+      POSTGRES_PASSWORD: codebox
+      POSTGRES_DB: codebox
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - codebox-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codebox"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   orchestrator:
     build:
       context: ./codebox-orchestrator
@@ -8,14 +26,17 @@ services:
       - "50051:50051"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - orchestrator-data:/data
       - /tmp/codebox-workspaces:/tmp/codebox-workspaces
     env_file:
       - ./codebox-orchestrator/.env
       - path: ./codebox-orchestrator/.env.compose
         required: false
     environment:
+      DATABASE_URL: "postgresql+asyncpg://codebox:codebox@postgres:5432/codebox"
       CORS_ORIGINS: "http://localhost:3737"
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - codebox-net
 
@@ -38,4 +59,4 @@ networks:
     driver: bridge
 
 volumes:
-  orchestrator-data:
+  postgres-data:

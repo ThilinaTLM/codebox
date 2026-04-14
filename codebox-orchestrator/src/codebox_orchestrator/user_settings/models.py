@@ -5,18 +5,16 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
+
+from codebox_orchestrator.shared.persistence.base import Base
 
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-class UserSettingsBase(DeclarativeBase):
-    pass
-
-
-class UserSettings(UserSettingsBase):
+class UserSettings(Base):
     __tablename__ = "user_settings"
 
     user_id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -36,5 +34,5 @@ class UserSettings(UserSettingsBase):
     )
 
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )

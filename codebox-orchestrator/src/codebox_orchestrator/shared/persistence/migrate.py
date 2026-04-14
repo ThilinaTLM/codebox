@@ -1,43 +1,39 @@
-"""Lightweight schema migration helpers.
-
-Since the project uses ``metadata.create_all()`` (no Alembic), new columns on
-existing tables require explicit ``ALTER TABLE`` statements.  The helpers here
-are idempotent — they inspect the live schema and only add columns that are
-missing.
-"""
+"""Run Alembic migrations programmatically at application startup."""
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from pathlib import Path
 
-from sqlalchemy import inspect, text
+from alembic import command
+from alembic.config import Config
 
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncConnection
+from codebox_orchestrator.config import DATABASE_URL
 
 logger = logging.getLogger(__name__)
 
-# (table_name, column_name, column_type_sql)
-_PENDING_COLUMNS: list[tuple[str, str, str]] = [
-    ("users", "first_name", "VARCHAR(255)"),
-    ("users", "last_name", "VARCHAR(255)"),
-]
+_ALEMBIC_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / "alembic"
 
 
-async def apply_pending_migrations(conn: AsyncConnection) -> None:
-    """Add any missing columns listed in ``_PENDING_COLUMNS``."""
+def _sync_url() -> str:
+    """Convert the async DATABASE_URL to a sync one for Alembic.
 
-    def _sync(sync_conn):  # type: ignore[no-untyped-def]
-        insp = inspect(sync_conn)
-        for table, column, col_type in _PENDING_COLUMNS:
-            if not insp.has_table(table):
-                continue
-            existing = {c["name"] for c in insp.get_columns(table)}
-            if column in existing:
-                continue
-            stmt = f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"
-            sync_conn.execute(text(stmt))
-            logger.info("Migration: added column %s.%s", table, column)
+    ``asyncpg`` → ``psycopg`` (sync driver already in dependencies).
+    """
+    return DATABASE_URL.replace("+asyncpg", "+psycopg")
 
-    await conn.run_sync(_sync)
+
+def _build_alembic_config() -> Config:
+    """Build an Alembic ``Config`` that points at the project's migration directory."""
+    cfg = Config()
+    cfg.set_main_option("script_location", str(_ALEMBIC_DIR))
+    cfg.set_main_option("sqlalchemy.url", _sync_url())
+    return cfg
+
+
+def run_migrations() -> None:
+    """Apply all pending Alembic migrations (``upgrade head``)."""
+    logger.info("Running database migrations …")
+    cfg = _build_alembic_config()
+    command.upgrade(cfg, "head")
+    logger.info("Database migrations complete.")

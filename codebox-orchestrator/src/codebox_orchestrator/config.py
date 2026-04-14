@@ -20,8 +20,10 @@ load_dotenv(_project_dir / ".env")
 load_dotenv(_project_dir / ".env.local", override=True)
 
 # ── Database ────────────────────────────────────────────────────
-_default_db = f"sqlite+aiosqlite:///{_project_dir / 'data' / 'orchestrator.db'}"
-DATABASE_URL: str = os.environ.get("DATABASE_URL", _default_db)
+DATABASE_URL: str = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+asyncpg://codebox:codebox@localhost:5432/codebox",
+)
 
 # ── Container runtime ──────────────────────────────────────────
 CODEBOX_IMAGE: str = os.environ.get("CODEBOX_IMAGE", "codebox-sandbox:latest")

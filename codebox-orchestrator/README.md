@@ -7,7 +7,7 @@ Backend API service for the Codebox platform. Manages sandbox container lifecycl
 - Spawns and manages Docker sandbox containers
 - Creates agent sessions inside sandboxes via REST
 - Streams agent events (tokens, tool calls, completions) over WebSocket
-- Persists tasks and events to SQLite
+- Persists tasks and events to PostgreSQL
 - Provides REST API for task CRUD and container management
 - Provides WebSocket endpoint for real-time bidirectional communication
 
@@ -40,10 +40,20 @@ On connect, replays persisted events from the database, then switches to live st
 
 ## Running
 
+Start PostgreSQL (via Docker Compose from the repo root):
+
+```bash
+docker compose up postgres -d
+```
+
+Then run the orchestrator:
+
 ```bash
 uv sync
 uv run python -m codebox_orchestrator
 ```
+
+Alembic migrations run automatically at startup.
 
 ## Configuration
 
@@ -51,7 +61,7 @@ Environment variables (loaded from `.env` and `.env.local`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///data/orchestrator.db` | Database connection |
+| `DATABASE_URL` | `postgresql+asyncpg://codebox:codebox@localhost:5432/codebox` | Database connection |
 | `CODEBOX_IMAGE` | `codebox-sandbox:latest` | Docker image for sandboxes |
 | `CODEBOX_PORT` | `8443` | Port inside sandbox containers |
 | `OPENROUTER_API_KEY` | — | API key for LLM |

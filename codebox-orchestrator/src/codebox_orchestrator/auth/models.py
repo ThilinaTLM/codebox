@@ -6,11 +6,9 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
-
-class AuthBase(DeclarativeBase):
-    pass
+from codebox_orchestrator.shared.persistence.base import Base
 
 
 def _utcnow() -> datetime:
@@ -21,7 +19,7 @@ def _new_uuid() -> str:
     return str(uuid.uuid4())
 
 
-class User(AuthBase):
+class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
@@ -30,4 +28,4 @@ class User(AuthBase):
     user_type: Mapped[str] = mapped_column(String(20))  # "admin" | "user"
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     last_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
