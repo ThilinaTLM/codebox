@@ -87,28 +87,7 @@ export function BoxDetailToolbar({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {box.description ? (
-              <span className="truncate text-xs text-muted-foreground">
-                {box.description}
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                {box.provider} · {box.model}
-              </span>
-            )}
-          </div>
         </div>
-        {box.tags &&
-          box.tags.length > 0 &&
-          box.tags.map((tag) => (
-            <span
-              key={tag}
-              className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-2xs"
-            >
-              {tag}
-            </span>
-          ))}
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {isStopped && (

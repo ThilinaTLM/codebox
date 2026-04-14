@@ -214,7 +214,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
         flushText()
         flushThinking()
         flushExec()
-        blocks.push({ kind: "status_change", status: "Run started" })
+        // No visual divider — keeps the chat clean
         break
 
       case "run.cancelled":
@@ -228,7 +228,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
         flushText()
         flushThinking()
         flushExec()
-        blocks.push({ kind: "done", content: String(payload.summary ?? "") })
+        // No visual divider — the assistant response is sufficient signal
         break
 
       case "run.failed":
@@ -242,11 +242,7 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
         flushText()
         flushThinking()
         flushExec()
-        blocks.push({
-          kind: "outcome_declared",
-          status: String(payload.status ?? ""),
-          message: String(payload.message ?? ""),
-        })
+        // No banner — the assistant's reply already communicates the outcome
         break
 
       case "input.requested":

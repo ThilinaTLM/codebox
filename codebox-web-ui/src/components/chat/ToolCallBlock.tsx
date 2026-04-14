@@ -15,20 +15,6 @@ function formatJson(str: string) {
   }
 }
 
-function getOutputSummary(output: string): string {
-  if (!output) return ""
-  try {
-    const parsed = JSON.parse(output)
-    if (typeof parsed === "string") return parsed.slice(0, 80)
-    if (parsed.content) return String(parsed.content).slice(0, 80)
-    if (parsed.result) return String(parsed.result).slice(0, 80)
-    if (parsed.output) return String(parsed.output).slice(0, 80)
-  } catch {
-    // Not JSON, use raw text
-  }
-  return output.length > 80 ? output.slice(0, 80) + "\u2026" : output
-}
-
 export function ToolCallBlock({
   name,
   input,
@@ -56,8 +42,6 @@ export function ToolCallBlock({
     )
   }
 
-  const outputSummary = hasOutput ? getOutputSummary(output) : ""
-
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded} className="rounded-xl border border-border/40">
       <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-accent/50">
@@ -67,11 +51,6 @@ export function ToolCallBlock({
         />
         <span className="size-1.5 shrink-0 rounded-full bg-state-completed" />
         <span className="font-terminal text-sm text-foreground/70">{name}</span>
-        {!expanded && outputSummary && (
-          <span className="font-terminal min-w-0 flex-1 truncate text-xs text-muted-foreground">
-            {outputSummary}
-          </span>
-        )}
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="px-3 pb-3 pl-7">

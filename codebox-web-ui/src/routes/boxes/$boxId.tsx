@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, createFileRoute } from "@tanstack/react-router"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 
-import { ActivityBar } from "@/components/box/ActivityBar"
 import { BoxDetailAlerts } from "@/components/box/BoxDetailAlerts"
 import { BoxDetailToolbar } from "@/components/box/BoxDetailToolbar"
 import { BoxInput } from "@/components/box/BoxInput"
@@ -143,22 +142,12 @@ function BoxDetailPage() {
                 isDeletePending={actions.isDeletePending}
               />
 
-              <ActivityBar activity={activity} />
-
               <BoxDetailAlerts
                 containerStatus={box.container_status}
                 grpcConnected={box.grpc_connected}
+                isConnected={isConnected}
                 errorDetail={box.error_detail}
               />
-
-              {isActive && !isConnected && (
-                <div className="mx-4 mt-1 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
-                  <span className="size-1.5 animate-pulse rounded-full bg-warning" />
-                  <span className="text-sm text-muted-foreground">
-                    Reconnecting to event stream…
-                  </span>
-                </div>
-              )}
 
               <div className="min-h-0 flex-1 overflow-hidden">
                 <ChatStream

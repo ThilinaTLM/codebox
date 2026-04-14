@@ -14,18 +14,11 @@ export function ThinkingBlock({
 
   if (isStreaming) {
     return (
-      <div className="rounded-xl border-l-2 border-state-thinking/40 bg-state-thinking/5 px-4 py-3">
-        <div className="flex items-center gap-1.5">
-          <Spinner className="size-3 text-state-thinking" />
-          <span className="text-sm font-medium text-state-thinking">
-            Thinking…
-          </span>
-        </div>
-        {content && (
-          <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
-            {content}
-          </p>
-        )}
+      <div className="flex items-center gap-1.5 px-1 py-1">
+        <Spinner className="size-3 text-muted-foreground" />
+        <span className="text-sm italic text-muted-foreground">
+          Thinking…
+        </span>
       </div>
     )
   }
@@ -33,29 +26,26 @@ export function ThinkingBlock({
   if (!content) return null
 
   return (
-    <div className="rounded-xl border-l-2 border-state-thinking/40 bg-state-thinking/5 px-4 py-3">
+    <div className="px-1 py-1">
       <button
         type="button"
-        className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-state-thinking"
+        className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         onClick={() => setExpanded((v) => !v)}
       >
         <ChevronRight
-          size={14}
+          size={12}
           className={cn(
             "shrink-0 transition-transform duration-150",
             expanded && "rotate-90"
           )}
         />
-        <span className="font-medium">Thinking</span>
+        <span className="italic">Thinking</span>
       </button>
-      <div
-        className={cn(
-          "mt-2 text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground",
-          !expanded && "line-clamp-3"
-        )}
-      >
-        {content}
-      </div>
+      {expanded && (
+        <p className="mt-1 pl-5 text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
+          {content}
+        </p>
+      )}
     </div>
   )
 }

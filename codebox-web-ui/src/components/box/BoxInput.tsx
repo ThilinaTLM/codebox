@@ -3,12 +3,6 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowUp01Icon } from "@hugeicons/core-free-icons"
 import { Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 const MAX_HEIGHT = 200
@@ -27,7 +21,6 @@ export function BoxInput({
   disabled?: boolean
 }) {
   const [input, setInput] = useState("")
-  const [mode, setMode] = useState<"chat" | "shell">("chat")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const adjustHeight = useCallback(() => {
@@ -50,8 +43,9 @@ export function BoxInput({
     const trimmed = input.trim()
     if (!trimmed) return
 
-    if (mode === "shell") {
-      onSendExec(trimmed)
+    // Auto-detect shell commands: "$ <command>"
+    if (trimmed.startsWith("$ ")) {
+      onSendExec(trimmed.slice(2))
     } else {
       onSendMessage(trimmed)
     }
@@ -60,11 +54,9 @@ export function BoxInput({
 
   const placeholder = disabled
     ? isWorking
-      ? "Waiting for agent..."
+      ? "Waiting for agent…"
       : "Agent is stopped"
-    : mode === "shell"
-      ? "Type a command..."
-      : "Type a message..."
+    : "Ask anything…"
 
   return (
     <div>
@@ -77,33 +69,6 @@ export function BoxInput({
         )}
       >
         <div className="flex items-end gap-2 px-3 py-2">
-          {/* Mode selector */}
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <button
-                type="button"
-                className="mb-0.5 flex shrink-0 items-center gap-1 rounded-md border border-border/50 bg-muted/30 px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {mode === "chat" ? "Chat" : "Shell"} ▾
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" side="top" sideOffset={8}>
-              <DropdownMenuItem onSelect={() => setMode("chat")}>
-                Chat
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setMode("shell")}>
-                Shell
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Shell prefix */}
-          {mode === "shell" && (
-            <span className="pointer-events-none mb-0.5 shrink-0 text-sm font-medium text-muted-foreground">
-              $
-            </span>
-          )}
-
           {/* Textarea */}
           <textarea
             ref={textareaRef}
@@ -151,7 +116,8 @@ export function BoxInput({
       </div>
       {/* Keyboard hints */}
       <p className="mt-1 text-center text-2xs text-muted-foreground">
-        Shift+Enter for newline · Enter to send
+        Enter to send · Shift+Enter for newline ·{" "}
+        <span className="font-terminal">$ command</span> for shell
       </p>
     </div>
   )
