@@ -12,7 +12,11 @@ from codebox_orchestrator.config import DATABASE_URL
 
 logger = logging.getLogger(__name__)
 
-_ALEMBIC_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / "alembic"
+# In development: alembic/ is at the project root (5 levels up from this file).
+# In Docker: alembic/ is at /app/alembic (copied by Dockerfile).
+_DEV_ALEMBIC_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / "alembic"
+_DOCKER_ALEMBIC_DIR = Path("/app/alembic")
+_ALEMBIC_DIR = _DEV_ALEMBIC_DIR if _DEV_ALEMBIC_DIR.is_dir() else _DOCKER_ALEMBIC_DIR
 
 
 def _sync_url() -> str:
