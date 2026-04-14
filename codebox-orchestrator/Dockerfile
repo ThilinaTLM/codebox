@@ -20,6 +20,9 @@ RUN groupadd -r codebox && useradd -r -g codebox -d /app -s /sbin/nologin codebo
 # Create data directory for runtime files
 RUN mkdir -p /app/data && chown -R codebox:codebox /app/data
 
+# Create default workspace directory (bind-mounted from host at runtime)
+RUN mkdir -p /workspaces && chown codebox:codebox /workspaces
+
 # Docker socket access: create the docker group with the same GID as the host
 # so the mounted /var/run/docker.sock is accessible without --group-add.
 # Override at build time with --build-arg DOCKER_GID=<host-gid> if different.
