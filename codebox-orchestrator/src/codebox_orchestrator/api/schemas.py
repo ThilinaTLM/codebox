@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel
 
@@ -196,6 +196,52 @@ class LLMProfileResponse(BaseModel):
     is_default: bool = False
     created_at: str
     updated_at: str
+
+
+# ── LLM Profile export / import schemas ──────────────────────────
+
+
+class LLMProfileExportRequest(BaseModel):
+    """Request body for ``POST /api/llm-profiles/export``."""
+
+    profile_ids: list[str] | None = None
+    key_mode: Literal["no_keys", "plaintext", "password_encrypted"] = "no_keys"
+    password: str | None = None
+
+
+class LLMProfileExportedEntry(BaseModel):
+    """Single profile inside the export file."""
+
+    name: str
+    provider: str
+    model: str
+    api_key: str | None = None
+    base_url: str | None = None
+
+
+class LLMProfileExportFile(BaseModel):
+    """Top-level export file structure."""
+
+    version: int = 1
+    exported_at: str
+    key_mode: str
+    key_params: dict[str, Any] | None = None
+    profiles: list[LLMProfileExportedEntry]
+
+
+class LLMProfileImportRequest(BaseModel):
+    """Request body for ``POST /api/llm-profiles/import``."""
+
+    file: LLMProfileExportFile
+    password: str | None = None
+
+
+class LLMProfileImportResult(BaseModel):
+    """Response from ``POST /api/llm-profiles/import``."""
+
+    imported: int
+    skipped: int
+    profiles: list[LLMProfileResponse]
 
 
 # ── User Settings schemas ───────────────────────────────────────

@@ -12,6 +12,10 @@ from codebox_orchestrator.api.dependencies import (
 )
 from codebox_orchestrator.api.schemas import (
     LLMProfileCreate,
+    LLMProfileExportFile,
+    LLMProfileExportRequest,
+    LLMProfileImportRequest,
+    LLMProfileImportResult,
     LLMProfileResponse,
     LLMProfileUpdate,
 )
@@ -41,6 +45,51 @@ async def list_profiles(
     default_id = await _default_profile_id(user, settings_service)
     views = await service.list_profiles(user.user_id, default_profile_id=default_id)
     return [LLMProfileResponse.model_validate(v.__dict__) for v in views]
+
+
+@router.post("/llm-profiles/export")
+async def export_profiles(
+    body: LLMProfileExportRequest,
+    user: UserInfo = Depends(get_current_user),
+    service: LLMProfileService = Depends(get_llm_profile_service),
+) -> LLMProfileExportFile:
+    if body.key_mode == "password_encrypted" and not body.password:
+        raise HTTPException(400, "Password is required for password-encrypted export")
+    try:
+        data = await service.export_profiles(
+            user.user_id,
+            profile_ids=body.profile_ids,
+            key_mode=body.key_mode,
+            password=body.password,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return LLMProfileExportFile.model_validate(data)
+
+
+@router.post("/llm-profiles/import", status_code=201)
+async def import_profiles(
+    body: LLMProfileImportRequest,
+    user: UserInfo = Depends(get_current_user),
+    service: LLMProfileService = Depends(get_llm_profile_service),
+) -> LLMProfileImportResult:
+    if body.file.key_mode == "password_encrypted" and not body.password:
+        raise HTTPException(400, "Password is required for password-encrypted import")
+    try:
+        created, skipped = await service.import_profiles(
+            user.user_id,
+            export_data=body.file.model_dump(),
+            password=body.password,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(422, f"Import failed: {exc}") from exc
+    return LLMProfileImportResult(
+        imported=len(created),
+        skipped=skipped,
+        profiles=[LLMProfileResponse.model_validate(v.__dict__) for v in created],
+    )
 
 
 @router.post("/llm-profiles", status_code=201)

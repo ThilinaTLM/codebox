@@ -71,10 +71,42 @@ def mask_secret(value: str, visible: int = 4) -> str:
     return f"{value[:visible]}...{value[-visible:]}"
 
 
+def encrypt_value_with_password(
+    plaintext: str,
+    password: str,
+    salt: bytes,
+    iterations: int = 600_000,
+) -> str:
+    """Encrypt a value using a password-derived Fernet key (PBKDF2-SHA256)."""
+    fernet = _fernet_from_password(password, salt, iterations)
+    return fernet.encrypt(plaintext.encode()).decode()
+
+
+def decrypt_value_with_password(
+    ciphertext: str,
+    password: str,
+    salt: bytes,
+    iterations: int = 600_000,
+) -> str:
+    """Decrypt a value encrypted with :func:`encrypt_value_with_password`."""
+    fernet = _fernet_from_password(password, salt, iterations)
+    return fernet.decrypt(ciphertext.encode()).decode()
+
+
+def _fernet_from_password(password: str, salt: bytes, iterations: int) -> Fernet:
+    """Derive a Fernet instance from a password via PBKDF2-SHA256."""
+    import hashlib  # noqa: PLC0415
+
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
+    return Fernet(base64.urlsafe_b64encode(dk))
+
+
 __all__ = [
     "InvalidToken",
     "decrypt_value",
+    "decrypt_value_with_password",
     "encrypt_value",
+    "encrypt_value_with_password",
     "get_fernet",
     "mask_secret",
 ]

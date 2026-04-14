@@ -203,6 +203,43 @@ export interface LLMProfileUpdate {
   base_url?: string | null
 }
 
+// ── LLM Profile export / import types ─────────────────────────
+
+export type LLMProfileKeyMode = "no_keys" | "plaintext" | "password_encrypted"
+
+export interface LLMProfileExportRequest {
+  profile_ids?: Array<string> | null
+  key_mode: LLMProfileKeyMode
+  password?: string | null
+}
+
+export interface LLMProfileExportedEntry {
+  name: string
+  provider: string
+  model: string
+  api_key: string | null
+  base_url: string | null
+}
+
+export interface LLMProfileExportFile {
+  version: number
+  exported_at: string
+  key_mode: LLMProfileKeyMode
+  key_params?: { salt: string; iterations: number } | null
+  profiles: Array<LLMProfileExportedEntry>
+}
+
+export interface LLMProfileImportRequest {
+  file: LLMProfileExportFile
+  password?: string | null
+}
+
+export interface LLMProfileImportResult {
+  imported: number
+  skipped: number
+  profiles: Array<LLMProfile>
+}
+
 // ── User Settings types ───────────────────────────────────────
 
 export interface UserSettings {

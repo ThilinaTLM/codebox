@@ -3,6 +3,8 @@ import type {
   Box,
   BoxCreatePayload,
   LLMProfileCreate,
+  LLMProfileExportRequest,
+  LLMProfileImportRequest,
   LLMProfileUpdate,
   ModelsPreviewRequest,
   UserSettingsUpdate,
@@ -164,6 +166,24 @@ export function useDuplicateLLMProfile() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api.llmProfiles.duplicate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["llm-profiles"] })
+    },
+  })
+}
+
+export function useExportLLMProfiles() {
+  return useMutation({
+    mutationFn: (payload: LLMProfileExportRequest) =>
+      api.llmProfiles.export(payload),
+  })
+}
+
+export function useImportLLMProfiles() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: LLMProfileImportRequest) =>
+      api.llmProfiles.import(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["llm-profiles"] })
     },

@@ -7,7 +7,9 @@ import {
   SparklesIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
+import { LLMProfileExportDialog } from "./LLMProfileExportDialog"
 import { LLMProfileFormDialog } from "./LLMProfileFormDialog"
+import { LLMProfileImportDialog } from "./LLMProfileImportDialog"
 import { SectionSkeleton } from "./SectionSkeleton"
 import type { IconSvgElement } from "@hugeicons/react"
 import type { LLMProfile } from "@/net/http/types"
@@ -83,6 +85,9 @@ export function LLMProfilesSection() {
   const { data: settings } = useUserSettings()
   const [createOpen, setCreateOpen] = useState(false)
   const [editingProfile, setEditingProfile] = useState<LLMProfile | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportProfileIds, setExportProfileIds] = useState<Array<string> | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   if (isLoading) {
     return <SectionSkeleton />
@@ -101,9 +106,28 @@ export function LLMProfilesSection() {
           </p>
         </div>
         {profiles.length > 0 && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            Create Profile
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportOpen(true)}
+            >
+              Import
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setExportProfileIds(null)
+                setExportOpen(true)
+              }}
+            >
+              Export All
+            </Button>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              Create Profile
+            </Button>
+          </div>
         )}
       </div>
 
@@ -117,6 +141,10 @@ export function LLMProfilesSection() {
               profile={profile}
               isDefault={settings?.default_llm_profile_id === profile.id}
               onEdit={() => setEditingProfile(profile)}
+              onExport={() => {
+                setExportProfileIds([profile.id])
+                setExportOpen(true)
+              }}
             />
           ))}
         </div>
@@ -136,6 +164,17 @@ export function LLMProfilesSection() {
         }}
         mode="edit"
         profile={editingProfile ?? undefined}
+      />
+
+      <LLMProfileExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        profileIds={exportProfileIds}
+      />
+
+      <LLMProfileImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
       />
     </div>
   )
@@ -171,10 +210,12 @@ function LLMProfileCard({
   profile,
   isDefault,
   onEdit,
+  onExport,
 }: {
   profile: LLMProfile
   isDefault: boolean
   onEdit: () => void
+  onExport: () => void
 }) {
   const deleteMutation = useDeleteLLMProfile()
   const duplicateMutation = useDuplicateLLMProfile()
@@ -252,6 +293,7 @@ function LLMProfileCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={onExport}>Export</DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
                     duplicateMutation.mutate(profile.id, {

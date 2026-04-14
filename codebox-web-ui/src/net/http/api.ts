@@ -12,6 +12,10 @@ import type {
   GitHubStatus,
   LLMProfile,
   LLMProfileCreate,
+  LLMProfileExportFile,
+  LLMProfileExportRequest,
+  LLMProfileImportRequest,
+  LLMProfileImportResult,
   LLMProfileUpdate,
   LoginResponse,
   Model,
@@ -157,6 +161,14 @@ export const api = {
     },
     duplicate: async (id: string): Promise<LLMProfile> => {
       const { data } = await client.post<LLMProfile>(`/api/llm-profiles/${id}/duplicate`)
+      return data
+    },
+    export: async (payload: LLMProfileExportRequest): Promise<LLMProfileExportFile> => {
+      const { data } = await client.post<LLMProfileExportFile>("/api/llm-profiles/export", payload)
+      return data
+    },
+    import: async (payload: LLMProfileImportRequest): Promise<LLMProfileImportResult> => {
+      const { data } = await client.post<LLMProfileImportResult>("/api/llm-profiles/import", payload)
       return data
     },
   },
