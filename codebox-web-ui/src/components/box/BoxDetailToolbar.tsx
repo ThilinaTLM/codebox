@@ -11,7 +11,6 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { BoxStatusBadge } from "./BoxStatusBadge"
-import { ContainerLogsDialog } from "./ContainerLogsDialog"
 import type { AgentActivity } from "@/hooks/useAgentActivity"
 import type { Box } from "@/net/http/types"
 import { ConfirmActionDialog } from "@/components/ConfirmActionDialog"
@@ -53,7 +52,6 @@ export function BoxDetailToolbar({
 }: BoxDetailToolbarProps) {
   const [confirmStop, setConfirmStop] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [showLogs, setShowLogs] = useState(false)
 
   const handleCopyId = () => {
     navigator.clipboard.writeText(box.id)
@@ -173,7 +171,12 @@ export function BoxDetailToolbar({
               Copy ID
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => setShowLogs(true)}
+              render={
+                <Link
+                  to="/boxes/$boxId/logs"
+                  params={{ boxId: box.id }}
+                />
+              }
             >
               <FileText size={14} />
               Container Logs
@@ -199,11 +202,6 @@ export function BoxDetailToolbar({
           onConfirm={() => {
             onDelete()
           }}
-        />
-        <ContainerLogsDialog
-          boxId={box.id}
-          open={showLogs}
-          onOpenChange={setShowLogs}
         />
       </div>
     </div>

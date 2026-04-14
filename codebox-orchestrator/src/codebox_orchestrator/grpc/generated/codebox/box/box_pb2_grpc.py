@@ -5,7 +5,7 @@ import warnings
 
 from . import box_pb2 as codebox_dot_box_dot_box__pb2
 
-GRPC_GENERATED_VERSION = '1.78.0'
+GRPC_GENERATED_VERSION = '1.80.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 

@@ -21,6 +21,7 @@ import { Route as SettingsAppearanceRouteImport } from './routes/settings/appear
 import { Route as SettingsAccountRouteImport } from './routes/settings/account'
 import { Route as BoxesCreateRouteImport } from './routes/boxes/create'
 import { Route as BoxesBoxIdRouteImport } from './routes/boxes/$boxId'
+import { Route as BoxesBoxIdLogsRouteImport } from './routes/boxes/$boxId_.logs'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -82,6 +83,11 @@ const BoxesBoxIdRoute = BoxesBoxIdRouteImport.update({
   path: '/boxes/$boxId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BoxesBoxIdLogsRoute = BoxesBoxIdLogsRouteImport.update({
+  id: '/boxes/$boxId_/logs',
+  path: '/boxes/$boxId/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
   '/settings/tavily': typeof SettingsTavilyRoute
   '/settings/': typeof SettingsIndexRoute
+  '/boxes/$boxId/logs': typeof BoxesBoxIdLogsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
   '/settings/tavily': typeof SettingsTavilyRoute
   '/settings': typeof SettingsIndexRoute
+  '/boxes/$boxId/logs': typeof BoxesBoxIdLogsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
   '/settings/tavily': typeof SettingsTavilyRoute
   '/settings/': typeof SettingsIndexRoute
+  '/boxes/$boxId_/logs': typeof BoxesBoxIdLogsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/settings/llm-profiles'
     | '/settings/tavily'
     | '/settings/'
+    | '/boxes/$boxId/logs'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/settings/llm-profiles'
     | '/settings/tavily'
     | '/settings'
+    | '/boxes/$boxId/logs'
   id:
     | '__root__'
     | '/'
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/settings/llm-profiles'
     | '/settings/tavily'
     | '/settings/'
+    | '/boxes/$boxId_/logs'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -176,6 +188,7 @@ export interface RootRouteChildren {
   UsersRoute: typeof UsersRoute
   BoxesBoxIdRoute: typeof BoxesBoxIdRoute
   BoxesCreateRoute: typeof BoxesCreateRoute
+  BoxesBoxIdLogsRoute: typeof BoxesBoxIdLogsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BoxesBoxIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/boxes/$boxId_/logs': {
+      id: '/boxes/$boxId_/logs'
+      path: '/boxes/$boxId/logs'
+      fullPath: '/boxes/$boxId/logs'
+      preLoaderRoute: typeof BoxesBoxIdLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -296,6 +316,7 @@ const rootRouteChildren: RootRouteChildren = {
   UsersRoute: UsersRoute,
   BoxesBoxIdRoute: BoxesBoxIdRoute,
   BoxesCreateRoute: BoxesCreateRoute,
+  BoxesBoxIdLogsRoute: BoxesBoxIdLogsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
