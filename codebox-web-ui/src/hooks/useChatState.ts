@@ -25,7 +25,7 @@ export function useChatState({
   boxId,
   enabled = true,
 }: UseChatStateOptions): UseChatStateReturn {
-  const token = useAuthStore((s) => s.token)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data } = useBoxEvents(boxId, { enabled })
   const historyEvents = data ?? []
   const [liveEvents, setLiveEvents] = useState<Array<BoxStreamEvent>>([])
@@ -36,13 +36,13 @@ export function useChatState({
     : 0
 
   useEffect(() => {
-    if (!boxId || !enabled || !token) return
+    if (!boxId || !enabled || !isAuthenticated) return
 
     const ctrl = new AbortController()
     const url = `${API_URL}/api/boxes/${boxId}/stream?after_seq=${lastHistorySeq}`
 
     fetchEventSource(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
       signal: ctrl.signal,
       // eslint-disable-next-line @typescript-eslint/require-await
       async onopen(response) {
@@ -87,7 +87,7 @@ export function useChatState({
       setIsConnected(false)
       setLiveEvents([])
     }
-  }, [boxId, enabled, token, lastHistorySeq])
+  }, [boxId, enabled, isAuthenticated, lastHistorySeq])
 
   const blocks = useMemo(() => {
     const merged = [...historyEvents, ...liveEvents]

@@ -23,7 +23,7 @@ function LoginPage() {
     mutationFn: (credentials: { username: string; password: string }) =>
       api.auth.login(credentials.username, credentials.password),
     onSuccess: (res) => {
-      login(res.token, {
+      login({
         id: res.user.id,
         username: res.user.username,
         user_type: res.user.user_type,

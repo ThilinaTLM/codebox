@@ -10,13 +10,13 @@ import { useAuthStore } from "@/lib/auth"
 
 export function useGlobalStream() {
   const qc = useQueryClient()
-  const token = useAuthStore((s) => s.token)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const qcRef = useRef(qc)
   qcRef.current = qc
   const hadConnectionRef = useRef(false)
 
   useEffect(() => {
-    if (!token) {
+    if (!isAuthenticated) {
       hadConnectionRef.current = false
       return
     }
@@ -25,7 +25,7 @@ export function useGlobalStream() {
     const url = `${API_URL}/api/stream`
 
     fetchEventSource(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
       signal: ctrl.signal,
 
       // eslint-disable-next-line @typescript-eslint/require-await
@@ -105,5 +105,5 @@ export function useGlobalStream() {
       ctrl.abort()
       hadConnectionRef.current = false
     }
-  }, [token])
+  }, [isAuthenticated])
 }

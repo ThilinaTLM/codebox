@@ -16,8 +16,8 @@ interface QueryHookOptions {
 }
 
 function useAuthQueryEnabled(enabled: boolean = true): boolean {
-  const hasToken = useAuthStore((s) => !!s.token)
-  return hasToken && enabled
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return isAuthenticated && enabled
 }
 
 // ── Box queries ──────────────────────────────────────────────

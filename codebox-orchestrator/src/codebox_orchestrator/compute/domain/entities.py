@@ -15,6 +15,7 @@ class ContainerConfig:
     mount_path: str
     extra_env: dict[str, str] = field(default_factory=dict)
     extra_labels: dict[str, str] = field(default_factory=dict)
+    cert_mounts: dict[str, dict[str, str]] = field(default_factory=dict)
     tavily_api_key: str | None = None
     network: str | None = None
     base_url: str | None = None

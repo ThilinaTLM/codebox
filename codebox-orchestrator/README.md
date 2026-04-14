@@ -72,6 +72,36 @@ Environment variables (loaded from `.env` and `.env.local`):
 | `ORCHESTRATOR_PORT` | `9090` | Bind port |
 | `CORS_ORIGINS` | `http://localhost:3737` | Allowed CORS origins (comma-separated) |
 
+### gRPC TLS
+
+By default, gRPC communication between the orchestrator and sandbox containers is unencrypted. In production, enable server-side TLS to protect callback tokens, LLM API keys, and code execution results in transit.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GRPC_TLS_CERT` | _(empty)_ | Path to server certificate PEM file |
+| `GRPC_TLS_KEY` | _(empty)_ | Path to server private key PEM file |
+| `GRPC_TLS_CA_CERT` | _(empty)_ | Path to CA certificate PEM file (auto-mounted into sandbox containers) |
+
+When `GRPC_TLS_CERT` and `GRPC_TLS_KEY` are set, the gRPC server binds with TLS. The CA certificate at `GRPC_TLS_CA_CERT` is automatically mounted into sandbox containers at `/etc/grpc-certs/ca.crt` so they can verify the server's identity.
+
+**Development setup** — generate self-signed certificates:
+
+```bash
+./scripts/generate_grpc_certs.sh
+```
+
+Then set the environment variables:
+
+```bash
+GRPC_TLS_CERT=certs/server.crt
+GRPC_TLS_KEY=certs/server.key
+GRPC_TLS_CA_CERT=certs/ca.crt
+```
+
+**Production** — use certificates from your CA (e.g. Let's Encrypt, internal PKI) and set the three environment variables to the appropriate paths.
+
+> **Note:** This is server-side TLS only. Sandbox containers authenticate to the orchestrator via JWT bearer tokens over the encrypted channel. Certificate rotation requires an orchestrator restart.
+
 ### Container runtime
 
 The orchestrator supports Docker and Podman as container runtimes, connecting via local sockets, remote TCP/TLS, or SSH.

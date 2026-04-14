@@ -6,17 +6,19 @@ import time
 
 import jwt
 
-from codebox_orchestrator.config import get_callback_secret
+from codebox_orchestrator.config import CALLBACK_TOKEN_EXPIRY_SECONDS, get_callback_secret
 
 _ALGORITHM = "HS256"
 
 
 def create_callback_token(box_id: str, entity_type: str = "box") -> str:
     """Create a signed JWT callback token for a sandbox container."""
+    now = int(time.time())
     payload = {
         "box_id": box_id,
         "entity_type": entity_type,
-        "iat": int(time.time()),
+        "iat": now,
+        "exp": now + CALLBACK_TOKEN_EXPIRY_SECONDS,
     }
     return jwt.encode(payload, get_callback_secret(), algorithm=_ALGORITHM)
 
@@ -24,7 +26,12 @@ def create_callback_token(box_id: str, entity_type: str = "box") -> str:
 def decode_callback_token(token: str) -> tuple[str, str] | None:
     """Decode and verify a callback JWT. Returns (box_id, entity_type) or None."""
     try:
-        payload = jwt.decode(token, get_callback_secret(), algorithms=[_ALGORITHM])
+        payload = jwt.decode(
+            token,
+            get_callback_secret(),
+            algorithms=[_ALGORITHM],
+            leeway=30,
+        )
     except jwt.PyJWTError:
         return None
     else:

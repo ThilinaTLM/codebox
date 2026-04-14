@@ -23,5 +23,8 @@ scripts/.github-setup-state
 .claude
 .factory
 
+# Generated TLS certificates
+certs/
+
 # Data
 data/

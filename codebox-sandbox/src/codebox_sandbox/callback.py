@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+import grpc
 from grpc import aio as grpc_aio
 
 from codebox_agent.agent_runner import (
@@ -116,6 +117,15 @@ async def run_callback() -> None:
             delay = min(delay * 2, _RECONNECT_MAX_DELAY)
 
 
+def _load_tls_channel_credentials() -> grpc.ChannelCredentials | None:
+    """Load CA cert for TLS channel, or return *None* for insecure mode."""
+    ca_cert_path = os.environ.get("GRPC_TLS_CA_CERT", "")
+    if not ca_cert_path or not Path(ca_cert_path).exists():
+        return None
+    ca_cert = Path(ca_cert_path).read_bytes()
+    return grpc.ssl_channel_credentials(root_certificates=ca_cert)
+
+
 async def _connect_and_run(  # noqa: PLR0912, PLR0915
     grpc_address: str,
     session_id: str,
@@ -127,7 +137,15 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
     """Connect to orchestrator via gRPC and run the bidirectional stream."""
     logger.info("Connecting to orchestrator gRPC at %s", grpc_address)
 
-    async with grpc_aio.insecure_channel(grpc_address) as channel:
+    tls_creds = _load_tls_channel_credentials()
+    if tls_creds:
+        channel_ctx = grpc_aio.secure_channel(grpc_address, tls_creds)
+        logger.info("Using TLS for gRPC connection to %s", grpc_address)
+    else:
+        channel_ctx = grpc_aio.insecure_channel(grpc_address)
+        logger.warning("Using insecure gRPC connection to %s", grpc_address)
+
+    async with channel_ctx as channel:
         stub = box_pb2_grpc.BoxServiceStub(channel)
         outbound: asyncio.Queue[box_pb2.BoxEvent | None] = asyncio.Queue()
 

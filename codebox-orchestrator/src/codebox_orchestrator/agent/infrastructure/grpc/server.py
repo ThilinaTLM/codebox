@@ -137,7 +137,27 @@ async def start_grpc_server(
         registry=registry,
     )
     box_pb2_grpc.add_BoxServiceServicer_to_server(servicer, server)
-    server.add_insecure_port(f"[::]:{port}")
+
+    tls = _load_tls_credentials()
+    if tls:
+        server.add_secure_port(f"[::]:{port}", tls)
+        logger.info("gRPC server listening on port %d with TLS", port)
+    else:
+        server.add_insecure_port(f"[::]:{port}")
+        logger.warning("gRPC server listening on port %d WITHOUT TLS (insecure)", port)
+
     await server.start()
-    logger.info("gRPC server started on port %d", port)
     return server
+
+
+def _load_tls_credentials() -> grpc.ServerCredentials | None:
+    """Load TLS cert/key from config paths, or return *None* for insecure mode."""
+    from codebox_orchestrator.config import GRPC_TLS_CERT, GRPC_TLS_KEY  # noqa: PLC0415
+
+    if not (GRPC_TLS_CERT and GRPC_TLS_KEY):
+        return None
+    from pathlib import Path  # noqa: PLC0415
+
+    cert_data = Path(GRPC_TLS_CERT).read_bytes()
+    key_data = Path(GRPC_TLS_KEY).read_bytes()
+    return grpc.ssl_server_credentials([(key_data, cert_data)])

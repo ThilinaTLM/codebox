@@ -2,3 +2,4 @@
 # even on Windows with core.autocrlf=true.
 *.sh text eol=lf
 Dockerfile text eol=lf
+.secrets.baseline linguist-generated

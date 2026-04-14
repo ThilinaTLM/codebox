@@ -1,4 +1,4 @@
-.PHONY: lint fix format format-check typecheck check ci
+.PHONY: lint fix format format-check typecheck check ci secrets
 
 # Lint without fixing
 lint:
@@ -23,5 +23,9 @@ typecheck:
 # Quick check (lint + typecheck)
 check: lint typecheck
 
-# Full CI check (format + lint + typecheck)
-ci: format-check lint typecheck
+# Scan for accidentally committed secrets
+secrets:
+	detect-secrets scan --baseline .secrets.baseline
+
+# Full CI check (format + lint + typecheck + secrets)
+ci: format-check lint typecheck secrets

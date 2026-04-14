@@ -119,8 +119,17 @@ def _parse_event() -> dict[str, Any]:
     return json.loads(Path(event_path).read_text())
 
 
-def _fetch_comments(repo: str, issue_number: int) -> list[dict[str, str]]:
-    """Fetch comments on an issue or PR via gh CLI."""
+def _truncate(text: str, *, max_chars: int = 8000) -> str:
+    """Truncate text to *max_chars*, appending a notice if truncated."""
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars] + "\n[... content truncated ...]"
+
+
+def _fetch_comments(
+    repo: str, issue_number: int, *, max_comments: int = 15
+) -> list[dict[str, str]]:
+    """Fetch recent comments, limited to reduce prompt injection surface."""
     raw = _gh("api", f"repos/{repo}/issues/{issue_number}/comments", "--paginate")
     if not raw:
         return []
@@ -134,7 +143,7 @@ def _fetch_comments(repo: str, issue_number: int) -> list[dict[str, str]]:
             "body": c.get("body", ""),
             "created_at": c.get("created_at", ""),
         }
-        for c in data[-30:]  # Last 30 comments
+        for c in data[-max_comments:]
     ]
 
 
@@ -201,56 +210,129 @@ def _agent_already_created_pr(repo: str, issue_number: int) -> bool:
         return False
 
 
+def _check_author_permission(repo: str, author: str) -> bool:
+    """Check if the comment author has write access to the repo."""
+    try:
+        result = _gh(
+            "api",
+            f"repos/{repo}/collaborators/{author}/permission",
+            "--jq",
+            ".permission",
+        )
+    except Exception:
+        return False
+    else:
+        permission = result.strip()
+        return permission in ("admin", "write", "maintain")
+
+
+async def _validate_agent_output(workspace: str) -> list[str]:
+    """Check for suspicious agent output patterns."""
+    warnings: list[str] = []
+
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        "diff",
+        "--name-only",
+        "--diff-filter=ACMRD",
+        cwd=workspace,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, _ = await proc.communicate()
+    changed_files = stdout.decode().strip().split("\n") if stdout and stdout.strip() else []
+
+    sensitive_patterns = [".github/workflows/", ".env", "Dockerfile", "action.yml"]
+    warnings.extend(
+        f"Agent modified sensitive file: {f}"
+        for f in changed_files
+        for pattern in sensitive_patterns
+        if pattern in f
+    )
+
+    return warnings
+
+
+def _build_context_section(issue: dict[str, Any], repo: str, is_pr: bool) -> list[str]:
+    """Build the <context> metadata block."""
+    issue_number = issue.get("number", 0)
+    lines: list[str] = [
+        "<context>",
+        f"Repository: {repo}",
+        f"Type: {'Pull Request' if is_pr else 'Issue'}",
+        f"Number: #{issue_number}",
+        f"Title: {issue.get('title', '')}",
+    ]
+    labels = [lbl.get("name", "") for lbl in issue.get("labels", []) if lbl.get("name")]
+    if labels:
+        lines.append(f"Labels: {', '.join(labels)}")
+    lines.append("</context>")
+    return lines
+
+
+def _build_conversation_section(repo: str, issue_number: int) -> list[str]:
+    """Build the <conversation> block from issue comments."""
+    if not repo or not issue_number:
+        return []
+    comments = _fetch_comments(repo, issue_number)
+    if not comments:
+        return []
+    lines: list[str] = ["", "<conversation>"]
+    for c in comments:
+        lines.append(f'<comment author="{c["user"]}" date="{c["created_at"]}">')
+        lines.append(_truncate(c["body"], max_chars=4000))
+        lines.append("</comment>")
+    lines.append("</conversation>")
+    return lines
+
+
 def _build_agent_prompt(event: dict[str, Any]) -> str:
-    """Build the prompt for the agent from the issue and comment."""
+    """Build the prompt for the agent from the issue and comment.
+
+    Uses XML-tagged sections so the LLM can distinguish trusted
+    instructions from user-supplied (untrusted) content.
+    """
     issue = event.get("issue", {})
     comment = event.get("comment", {})
     repo = os.environ.get("GITHUB_REPOSITORY", "")
 
-    issue_title = issue.get("title", "")
     issue_number = issue.get("number", 0)
     issue_body = issue.get("body", "") or ""
     comment_body = comment.get("body", "") or ""
     is_pr = "pull_request" in issue
 
-    # Strip the trigger keyword from the comment
     trigger = os.environ.get("TRIGGER_KEYWORD", "/codebox")
     task = comment_body.replace(trigger, "").strip()
 
-    parts = [f"# {'PR' if is_pr else 'Issue'}: {issue_title}"]
+    parts: list[str] = _build_context_section(issue, repo, is_pr)
 
-    # Labels
-    labels = [label.get("name", "") for label in issue.get("labels", []) if label.get("name")]
-    if labels:
-        parts.append(f"\nLabels: {', '.join(labels)}")
-
-    # Description
     if issue_body:
-        parts.append(f"\n## Description\n\n{issue_body}")
+        parts += [
+            "",
+            "<issue_description>",
+            _truncate(issue_body, max_chars=8000),
+            "</issue_description>",
+        ]
 
-    # Conversation (all prior comments)
-    if repo and issue_number:
-        comments = _fetch_comments(repo, issue_number)
-        if comments:
-            parts.append("\n## Conversation")
-            parts.extend(f"\n**{c['user']}** ({c['created_at']}):\n{c['body']}" for c in comments)
+    parts += _build_conversation_section(repo, issue_number)
 
-    # PR changed files
     if is_pr and repo and issue_number:
         pr_files = _fetch_pr_files(repo, issue_number)
         if pr_files:
-            parts.append("\n## PR Changed Files\n")
-            parts.append("\n".join(pr_files))
+            parts += ["", "<pr_changed_files>", "\n".join(pr_files[:100]), "</pr_changed_files>"]
 
-    # Repository guidelines
     if repo:
         guidelines = _fetch_guidelines(repo)
         if guidelines:
-            parts.append(f"\n## Repository Guidelines\n\n{guidelines}")
+            parts += [
+                "",
+                "<repository_guidelines>",
+                _truncate(guidelines, max_chars=4000),
+                "</repository_guidelines>",
+            ]
 
-    # Instructions from the triggering comment
     if task:
-        parts.append(f"\n## Instructions from comment\n\n{task}")
+        parts += ["", "<task>", _truncate(task, max_chars=4000), "</task>"]
 
     return "\n".join(parts)
 
@@ -269,10 +351,18 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
         logger.info("Comment does not contain trigger keyword '%s', skipping", trigger)
         return
 
+    # Verify the comment author has write access to the repo
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    comment_author = comment.get("user", {}).get("login", "")
+    if repo and comment_author and not _check_author_permission(repo, comment_author):
+        _human_print(
+            f"::warning::Ignoring trigger from {comment_author} (insufficient permissions)"
+        )
+        return
+
     issue_number = issue.get("number")
     issue_title = issue.get("title", f"Issue #{issue_number}")
     is_pr = "pull_request" in issue
-    repo = os.environ.get("GITHUB_REPOSITORY", "")
     log_mode = os.environ.get("LOG_MODE", "human").lower()
     human_mode = log_mode != "debug"
     logger.info("Triggered on %s#%s", repo, issue_number)
@@ -349,6 +439,12 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
     # Close the checkpoint DB so aiosqlite shuts down before the event loop closes
     await session.checkpointer.conn.close()
 
+    # Validate agent output for suspicious modifications
+    output_warnings = await _validate_agent_output(workspace)
+    for w in output_warnings:
+        logger.warning(w)
+        _human_print(f"::warning::{w}")
+
     # Build result comment
     result_parts = []
 
@@ -396,6 +492,9 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
             f"Automated changes by codebox agent for #{issue_number}.\n\n"
             f"{final_text[:2000] if final_text else 'See issue for details.'}"
         )
+        if output_warnings:
+            warnings_text = "\n".join(f"- ⚠️ {w}" for w in output_warnings)
+            pr_body += f"\n\n### Security Review Notes\n{warnings_text}"
         pr_url = _gh(
             "pr",
             "create",

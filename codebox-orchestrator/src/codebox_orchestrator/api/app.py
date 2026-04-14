@@ -5,12 +5,15 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from codebox_orchestrator.config import (
+    AUTH_TOKEN_EXPIRY_HOURS,
     CORS_ORIGINS,
+    ENVIRONMENT,
     GRPC_PORT,
+    validate_required_config,
 )
 from codebox_orchestrator.shared.persistence.migrate import run_migrations
 
@@ -21,6 +24,9 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):  # noqa: PLR0915
+        # --- Validate required secrets ---
+        validate_required_config()
+
         # --- Database migrations (Alembic) ---
         from codebox_orchestrator.shared.persistence.engine import (  # noqa: PLC0415
             async_session_factory,
@@ -250,6 +256,24 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def refresh_auth_cookie(request: Request, call_next):
+        """Sliding expiration: refresh the auth cookie TTL on each successful request."""
+        response = await call_next(request)
+        token = request.cookies.get("access_token")
+        if token and response.status_code < 400:
+            secure = ENVIRONMENT != "development"
+            response.set_cookie(
+                key="access_token",
+                value=token,
+                httponly=True,
+                secure=secure,
+                samesite="lax",
+                path="/",
+                max_age=int(AUTH_TOKEN_EXPIRY_HOURS * 3600),
+            )
+        return response
 
     from codebox_orchestrator.api.routes import (  # noqa: PLC0415
         auth,

@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { API_URL } from "@/lib/constants"
 
 export interface AuthUser {
   id: string
@@ -9,10 +10,9 @@ export interface AuthUser {
 }
 
 interface AuthState {
-  token: string | null
   user: AuthUser | null
   isAuthenticated: boolean
-  login: (token: string, user: AuthUser) => void
+  login: (user: AuthUser) => void
   logout: () => void
   updateUser: (patch: Partial<AuthUser>) => void
 }
@@ -30,20 +30,22 @@ function loadUser(): AuthUser | null {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  token: isBrowser ? localStorage.getItem("auth_token") : null,
   user: loadUser(),
-  isAuthenticated: isBrowser ? !!localStorage.getItem("auth_token") : false,
+  isAuthenticated: isBrowser ? localStorage.getItem("auth_user") !== null : false,
 
-  login: (token, user) => {
-    localStorage.setItem("auth_token", token)
+  login: (user) => {
     localStorage.setItem("auth_user", JSON.stringify(user))
-    set({ token, user, isAuthenticated: true })
+    set({ user, isAuthenticated: true })
   },
 
   logout: () => {
-    localStorage.removeItem("auth_token")
     localStorage.removeItem("auth_user")
-    set({ token: null, user: null, isAuthenticated: false })
+    set({ user: null, isAuthenticated: false })
+    // Fire-and-forget: clear the HttpOnly auth cookie on the server.
+    void fetch(`${API_URL}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => { /* best-effort */ })
   },
 
   updateUser: (patch) => {

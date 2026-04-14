@@ -19,6 +19,9 @@ _project_dir = Path(__file__).resolve().parent.parent.parent
 load_dotenv(_project_dir / ".env")
 load_dotenv(_project_dir / ".env.local", override=True)
 
+# ── Environment ─────────────────────────────────────────────────
+ENVIRONMENT: str = os.environ.get("ENVIRONMENT", "development")
+
 # ── Database ────────────────────────────────────────────────────
 DATABASE_URL: str = os.environ.get(
     "DATABASE_URL",
@@ -34,6 +37,12 @@ CONTAINER_TLS_VERIFY: str = os.environ.get("CONTAINER_TLS_VERIFY", "")
 CONTAINER_TLS_CERT: str = os.environ.get("CONTAINER_TLS_CERT", "")
 CONTAINER_TLS_KEY: str = os.environ.get("CONTAINER_TLS_KEY", "")
 
+# ── Sandbox resource limits ─────────────────────────────────────
+SANDBOX_MEMORY_LIMIT: str = os.environ.get("SANDBOX_MEMORY_LIMIT", "4g")
+SANDBOX_CPU_LIMIT: int = int(os.environ.get("SANDBOX_CPU_LIMIT", "2"))
+SANDBOX_PIDS_LIMIT: int = int(os.environ.get("SANDBOX_PIDS_LIMIT", "1024"))
+SANDBOX_NETWORK: str = os.environ.get("SANDBOX_NETWORK", "codebox-sandbox-net")
+
 # ── Workspace ──────────────────────────────────────────────────
 _default_workspace = str(Path(_tempfile.gettempdir()) / "codebox-workspaces")
 WORKSPACE_BASE_DIR: str = os.environ.get("WORKSPACE_BASE_DIR", _default_workspace)
@@ -45,6 +54,9 @@ PORT: int = int(os.environ.get("ORCHESTRATOR_PORT", "9090"))
 
 # ── gRPC ───────────────────────────────────────────────────────
 GRPC_PORT: int = int(os.environ.get("GRPC_PORT", "50051"))
+GRPC_TLS_CERT: str = os.environ.get("GRPC_TLS_CERT", "")  # Path to server cert PEM
+GRPC_TLS_KEY: str = os.environ.get("GRPC_TLS_KEY", "")  # Path to server key PEM
+GRPC_TLS_CA_CERT: str = os.environ.get("GRPC_TLS_CA_CERT", "")  # Path to CA cert PEM
 
 
 def _default_grpc_address() -> str:
@@ -80,44 +92,44 @@ CALLBACK_SECRET: str = os.environ.get("CALLBACK_SECRET", "")
 AUTH_SECRET: str = os.environ.get("AUTH_SECRET", "")
 AUTH_TOKEN_EXPIRY_HOURS: int = int(os.environ.get("AUTH_TOKEN_EXPIRY_HOURS", "24"))
 
-_fallback_secret: str = ""
+# ── Callback token expiry ──────────────────────────────────────
+CALLBACK_TOKEN_EXPIRY_SECONDS: int = int(os.environ.get("CALLBACK_TOKEN_EXPIRY_SECONDS", "86400"))
 
 
 def get_callback_secret() -> str:
-    """Return the callback JWT signing secret, generating an ephemeral one if not configured."""
-    global _fallback_secret  # noqa: PLW0603
-    if CALLBACK_SECRET:
-        return CALLBACK_SECRET
-    if not _fallback_secret:
-        import secrets as _secrets  # noqa: PLC0415
-
-        _fallback_secret = _secrets.token_urlsafe(64)
-        import logging as _logging  # noqa: PLC0415
-
-        _logging.getLogger(__name__).warning(
-            "CALLBACK_SECRET not set -- using ephemeral secret (tokens won't survive restart)"
+    """Return the callback JWT signing secret. Raises if not configured."""
+    if not CALLBACK_SECRET:
+        raise RuntimeError(
+            "CALLBACK_SECRET environment variable is required. "
+            'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
         )
-    return _fallback_secret
-
-
-_fallback_auth_secret: str = ""
+    return CALLBACK_SECRET
 
 
 def get_auth_secret() -> str:
-    """Return the auth JWT signing secret, generating an ephemeral one if not configured."""
-    global _fallback_auth_secret  # noqa: PLW0603
-    if AUTH_SECRET:
-        return AUTH_SECRET
-    if not _fallback_auth_secret:
-        import secrets as _secrets  # noqa: PLC0415
-
-        _fallback_auth_secret = _secrets.token_urlsafe(64)
-        import logging as _logging  # noqa: PLC0415
-
-        _logging.getLogger(__name__).warning(
-            "AUTH_SECRET not set -- using ephemeral secret (sessions won't survive restart)"
+    """Return the auth JWT signing secret. Raises if not configured."""
+    if not AUTH_SECRET:
+        raise RuntimeError(
+            "AUTH_SECRET environment variable is required. "
+            'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
         )
-    return _fallback_auth_secret
+    return AUTH_SECRET
+
+
+def validate_required_config() -> None:
+    """Validate that all required secrets are configured. Call at startup."""
+    missing: list[str] = []
+    if not AUTH_SECRET:
+        missing.append("AUTH_SECRET")
+    if not CALLBACK_SECRET:
+        missing.append("CALLBACK_SECRET")
+    if not os.environ.get("ENCRYPTION_KEY", ""):
+        missing.append("ENCRYPTION_KEY")
+    if missing:
+        raise RuntimeError(
+            f"Required environment variables not set: {', '.join(missing)}. "
+            "See codebox-orchestrator/README.md for setup instructions."
+        )
 
 
 def _workspace_fallback_dir() -> Path:

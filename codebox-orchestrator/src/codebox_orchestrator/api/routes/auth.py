@@ -5,12 +5,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from codebox_orchestrator.api.dependencies import get_auth_service
 from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user, require_admin
 from codebox_orchestrator.auth.service import create_auth_token
+from codebox_orchestrator.config import AUTH_TOKEN_EXPIRY_HOURS, ENVIRONMENT
 
 if TYPE_CHECKING:
     from codebox_orchestrator.auth.models import User
@@ -41,7 +42,6 @@ class UserResponse(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    token: str
     user: UserResponse
 
 
@@ -78,17 +78,40 @@ def _user_response(user: User) -> UserResponse:
     )
 
 
+def _set_auth_cookie(response: Response, token: str) -> None:
+    """Set the HttpOnly auth cookie on a response."""
+    secure = ENVIRONMENT != "development"
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        path="/",
+        max_age=int(AUTH_TOKEN_EXPIRY_HOURS * 3600),
+    )
+
+
 @router.post("/login")
 async def login(
     body: LoginRequest,
+    response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> LoginResponse:
-    """Authenticate with username/password and receive a JWT token."""
+    """Authenticate with username/password and set an HttpOnly auth cookie."""
     user = await auth_service.authenticate(body.username, body.password)
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     token = create_auth_token(user)
-    return LoginResponse(token=token, user=_user_response(user))
+    _set_auth_cookie(response, token)
+    return LoginResponse(user=_user_response(user))
+
+
+@router.post("/logout")
+async def logout(response: Response) -> dict[str, bool]:
+    """Clear the auth cookie."""
+    response.delete_cookie(key="access_token", path="/")
+    return {"ok": True}
 
 
 # ── Authenticated routes ────────────────────────────────────────

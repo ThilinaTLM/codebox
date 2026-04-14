@@ -1,0 +1,26 @@
+name: CI Checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install detect-secrets
+      - name: Check for secrets
+        run: |
+          detect-secrets scan --all-files \
+            --exclude-files '\.venv/|node_modules/|pnpm-lock\.yaml|uv\.lock|\.git/|grpc/generated/|\.output/|\.ruff_cache/|\.pytest_cache/|__pycache__/|\.env\.local$|\.env\.compose$' \
+            --list \
+          | diff .secrets.baseline - || {
+            echo "::error::New secrets detected! Run 'detect-secrets scan > .secrets.baseline' and audit."
+            exit 1
+          }

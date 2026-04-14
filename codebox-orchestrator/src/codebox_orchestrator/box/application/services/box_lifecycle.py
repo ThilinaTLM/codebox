@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 from codebox_orchestrator.compute.domain.entities import ContainerConfig
 from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
+    GRPC_TLS_CA_CERT,
     ORCHESTRATOR_GRPC_ADDRESS,
     get_workspace_base_dir,
 )
@@ -205,6 +206,10 @@ class BoxLifecycleService:
 
         extra_env["CODEBOX_AGENT_CONFIG"] = json.dumps(agent_config)
 
+        # Inject gRPC TLS CA cert path for sandbox-side verification
+        if GRPC_TLS_CA_CERT:
+            extra_env["GRPC_TLS_CA_CERT"] = "/etc/grpc-certs/ca.crt"
+
         # Build metadata labels
         extra_labels: dict[str, str] = {
             "codebox.box-id": box_id,
@@ -241,6 +246,11 @@ class BoxLifecycleService:
             github_base_branch = await self._get_github_default_branch(user_id)
             extra_env["CODEBOX_GITHUB_REF"] = github_base_branch
 
+        # Build certificate volume mounts for gRPC TLS
+        cert_mounts: dict[str, dict[str, str]] = {}
+        if GRPC_TLS_CA_CERT:
+            cert_mounts[GRPC_TLS_CA_CERT] = {"bind": "/etc/grpc-certs/ca.crt", "mode": "ro"}
+
         config = ContainerConfig(
             image=CODEBOX_IMAGE,
             name=container_name,
@@ -252,6 +262,7 @@ class BoxLifecycleService:
             mount_path=workspace,
             extra_env=extra_env,
             extra_labels=extra_labels,
+            cert_mounts=cert_mounts,
         )
 
         try:

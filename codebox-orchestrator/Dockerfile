@@ -14,6 +14,17 @@ RUN pip install uv && uv pip install --system .
 COPY alembic.ini ./
 COPY alembic/ ./alembic/
 
-EXPOSE 9090
+# Create non-root user
+RUN groupadd -r codebox && useradd -r -g codebox -d /app -s /sbin/nologin codebox
+
+# Create data directory for runtime files
+RUN mkdir -p /app/data && chown -R codebox:codebox /app/data
+
+# Docker socket access: add user to docker group (host GID must match at runtime)
+RUN groupadd -g 999 docker 2>/dev/null || true && usermod -aG docker codebox
+
+USER codebox
+
+EXPOSE 9090 50051
 
 CMD ["python", "-m", "codebox_orchestrator"]

@@ -9,13 +9,13 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { TooltipProvider } from "../components/ui/tooltip"
 import appCss from "../styles.css?url"
 import type { BoxPageActions } from "@/components/box/BoxPageContext"
 import { useAuthStore } from "@/lib/auth"
 import { API_URL } from "@/lib/constants"
-import { isAuthError } from "@/net/http/api"
+import { api, isAuthError } from "@/net/http/api"
 import { useGlobalStream } from "@/net/sse/useGlobalStream"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
 import { AppSidebar } from "@/components/layout/AppSidebar"
@@ -58,6 +58,15 @@ function GlobalStreamProvider({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const location = useLocation()
+
+  // Validate the auth cookie is still valid on initial load
+  useEffect(() => {
+    if (isAuthenticated) {
+      api.auth.me().catch(() => {
+        useAuthStore.getState().logout()
+      })
+    }
+  }, [isAuthenticated])
   const isLoginPage = location.pathname === "/login"
 
   // Not authenticated and not on login page → redirect to login

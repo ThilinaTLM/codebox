@@ -22,7 +22,10 @@ from codebox_orchestrator.config import (
     CONTAINER_TLS_CERT,
     CONTAINER_TLS_KEY,
     CONTAINER_TLS_VERIFY,
-    DOCKER_NETWORK,
+    SANDBOX_CPU_LIMIT,
+    SANDBOX_MEMORY_LIMIT,
+    SANDBOX_NETWORK,
+    SANDBOX_PIDS_LIMIT,
 )
 
 logger = logging.getLogger(__name__)
@@ -143,6 +146,7 @@ def spawn(
     network: str | None = None,
     extra_env: dict[str, str] | None = None,
     extra_labels: dict[str, str] | None = None,
+    cert_mounts: dict[str, dict[str, str]] | None = None,
 ) -> ContainerInfo:
     """Start a new sandbox container and return its info."""
     client = _get_client()
@@ -162,6 +166,9 @@ def spawn(
             host_path = _to_wsl_path(mount_path)
         volumes[host_path] = {"bind": "/workspace", "mode": "rw"}
 
+    if cert_mounts:
+        volumes.update(cert_mounts)
+
     # Named volume for /app so devbox cache and codebox state persist across restarts
     app_vol_name = f"{name}-app" if name else f"codebox-app-{id(client)}"
     volumes[app_vol_name] = {"bind": "/app", "mode": "rw"}
@@ -169,7 +176,22 @@ def spawn(
     labels = {CONTAINER_LABEL: "true"}
     if extra_labels:
         labels.update(extra_labels)
-    net = network or DOCKER_NETWORK
+    net = network or SANDBOX_NETWORK
+
+    # --- Security hardening ---------------------------------------------------
+    # Drop Linux capabilities the sandbox agent never needs.
+    # Keeps: CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID,
+    #        NET_BIND_SERVICE, SYS_CHROOT, KILL (Docker defaults minus drops).
+    _cap_drop = ["SYS_ADMIN", "NET_RAW", "MKNOD", "AUDIT_WRITE", "SETFCAP"]
+
+    # Resource limits — configurable via env vars (see config.py).
+    _resource_kwargs: dict[str, Any] = {
+        "mem_limit": SANDBOX_MEMORY_LIMIT,
+        "memswap_limit": SANDBOX_MEMORY_LIMIT,  # disable swap
+        "cpu_period": 100_000,
+        "cpu_quota": SANDBOX_CPU_LIMIT * 100_000,
+        "pids_limit": SANDBOX_PIDS_LIMIT,
+    }
 
     run_kwargs: dict[str, Any] = {
         "detach": True,
@@ -177,6 +199,9 @@ def spawn(
         "environment": environment,
         "volumes": volumes,
         "labels": labels,
+        "cap_drop": _cap_drop,
+        "security_opt": ["no-new-privileges:true"],
+        **_resource_kwargs,
     }
     if sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
         # Use host networking so the container shares the WSL VM's network

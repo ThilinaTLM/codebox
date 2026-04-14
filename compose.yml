@@ -24,9 +24,13 @@ services:
     ports:
       - "9090:9090"
       - "50051:50051"
+    group_add:
+      - "${DOCKER_GID:-999}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/codebox-workspaces:/tmp/codebox-workspaces
+      # Optional: mount certs for gRPC TLS (generate with scripts/generate_grpc_certs.sh)
+      # - ./certs:/etc/grpc-certs:ro
     env_file:
       - ./codebox-orchestrator/.env
       - path: ./codebox-orchestrator/.env.compose
@@ -34,11 +38,16 @@ services:
     environment:
       DATABASE_URL: "postgresql+asyncpg://codebox:codebox@postgres:5432/codebox"
       CORS_ORIGINS: "http://localhost:3737"
+      # Optional: enable gRPC TLS (uncomment with the certs volume above)
+      # GRPC_TLS_CERT: "/etc/grpc-certs/server.crt"
+      # GRPC_TLS_KEY: "/etc/grpc-certs/server.key"
+      # GRPC_TLS_CA_CERT: "/etc/grpc-certs/ca.crt"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - codebox-net
+      - codebox-sandbox-net  # Reachable by sandbox containers for gRPC callbacks
 
   web-ui:
     build:
@@ -56,6 +65,9 @@ services:
 networks:
   codebox-net:
     name: codebox-net
+    driver: bridge
+  codebox-sandbox-net:
+    name: codebox-sandbox-net
     driver: bridge
 
 volumes:

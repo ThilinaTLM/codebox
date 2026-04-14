@@ -4,18 +4,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates xz-utils bash git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Nix in single-user / no-daemon mode (no systemd in containers)
-# then install devbox
-RUN curl -fsSL https://install.determinate.systems/nix | \
-    bash -s -- install linux --init none --no-confirm \
-    && . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh \
-    && curl -fsSL https://get.jetify.com/devbox | bash -s -- -f
+# ── Supply-chain hardening: pin installer versions & verify checksums ──
+
+# Nix: single-user / no-daemon mode (no systemd in containers)
+ARG NIX_INSTALLER_VERSION=v3.17.3
+ARG NIX_INSTALLER_SHA256=1de1a9ddba23464d037aea82a16ca6cc800e1b06eda67c8007560ab6c56afdb7
+RUN curl -fsSL -o /tmp/nix-installer.sh \
+        "https://install.determinate.systems/nix/tag/${NIX_INSTALLER_VERSION}" \
+    && echo "${NIX_INSTALLER_SHA256}  /tmp/nix-installer.sh" | sha256sum -c - \
+    && bash /tmp/nix-installer.sh install linux --init none --no-confirm \
+    && rm /tmp/nix-installer.sh
+
+# Devbox: install a pinned release from GitHub
+ARG DEVBOX_VERSION=0.17.1
+ARG TARGETARCH
+RUN set -e; \
+    case "${TARGETARCH:-amd64}" in \
+        amd64) _arch=amd64 ;; \
+        arm64) _arch=arm64 ;; \
+        *)     echo "Unsupported arch: ${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/devbox.tar.gz \
+        "https://github.com/jetify-com/devbox/releases/download/${DEVBOX_VERSION}/devbox_${DEVBOX_VERSION}_linux_${_arch}.tar.gz" \
+    && tar -xzf /tmp/devbox.tar.gz -C /usr/local/bin devbox \
+    && chmod +x /usr/local/bin/devbox \
+    && rm /tmp/devbox.tar.gz
+
+ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
 
 WORKDIR /app
 
 # Copy devbox config and install packages
 COPY codebox-sandbox/devbox.json ./
-ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
 RUN devbox install
 
 # Create a wrapper so `devbox` works from any directory (agent runs from /workspace).

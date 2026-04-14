@@ -25,20 +25,12 @@ import { useAuthStore } from "@/lib/auth"
 const client = axios.create({
   baseURL: API_URL,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 })
 
 export function isAuthError(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 401
 }
-
-// Attach auth token to every request
-client.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
 
 // Clear auth state on 401 responses
 client.interceptors.response.use(
@@ -188,6 +180,9 @@ export const api = {
         password,
       })
       return data
+    },
+    logout: async (): Promise<void> => {
+      await client.post("/api/auth/logout")
     },
     me: async (): Promise<AuthUser> => {
       const { data } = await client.get<AuthUser>("/api/auth/me")

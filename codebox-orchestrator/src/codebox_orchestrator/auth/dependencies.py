@@ -19,14 +19,25 @@ class UserInfo:
 
 
 async def get_current_user(request: Request) -> UserInfo:
-    """Extract and validate Bearer token from the Authorization header.
+    """Extract and validate auth token from cookie or Authorization header.
+
+    Checks the ``access_token`` HttpOnly cookie first, then falls back to the
+    ``Authorization: Bearer <token>`` header (for API clients / backward compat).
 
     Raises HTTPException(401) on missing or invalid token.
     """
-    auth = request.headers.get("authorization", "")
-    if not auth.startswith("Bearer "):
+    # 1. Try HttpOnly cookie first
+    token = request.cookies.get("access_token")
+
+    # 2. Fall back to Authorization header (API clients, backward compat)
+    if not token:
+        auth = request.headers.get("authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth[7:]
+
+    if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    token = auth[7:]
+
     payload = decode_auth_token(token)
     if payload is None:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
