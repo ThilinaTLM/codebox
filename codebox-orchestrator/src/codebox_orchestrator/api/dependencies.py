@@ -9,10 +9,6 @@ from fastapi import Request  # noqa: TC002
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
     from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
-    from codebox_orchestrator.agent.application.queries.box_files import (
-        ListFilesHandler,
-        ReadFileHandler,
-    )
     from codebox_orchestrator.auth.service import AuthService
     from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
     from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
@@ -66,14 +62,6 @@ def get_send_message(request: Request) -> SendMessageHandler:
 
 def get_send_exec(request: Request) -> SendExecHandler:
     return request.app.state.send_exec_handler
-
-
-def get_list_files(request: Request) -> ListFilesHandler:
-    return request.app.state.list_files_handler
-
-
-def get_read_file(request: Request) -> ReadFileHandler:
-    return request.app.state.read_file_handler
 
 
 def get_runtime(request: Request) -> DockerRuntime:

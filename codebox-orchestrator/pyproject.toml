@@ -22,7 +22,12 @@ dependencies = [
     "PyJWT[crypto]>=2.8.0",
     "httpx>=0.27.0",
     "truststore>=0.10.4",
+    "python-multipart>=0.0.12",
+    "codebox-tunnel",
 ]
 
 [project.scripts]
 codebox-orchestrator = "codebox_orchestrator.__main__:main"
+
+[tool.uv.sources]
+codebox-tunnel = { path = "../codebox-tunnel" }

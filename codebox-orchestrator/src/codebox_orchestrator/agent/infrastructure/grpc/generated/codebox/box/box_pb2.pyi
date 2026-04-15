@@ -265,50 +265,12 @@ class InputRequested(_message.Message):
     def __init__(self, message: _Optional[str] = ..., questions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class QueryResult(_message.Message):
-    __slots__ = ("request_id", "list_files", "read_file", "exec")
+    __slots__ = ("request_id", "exec")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
-    LIST_FILES_FIELD_NUMBER: _ClassVar[int]
-    READ_FILE_FIELD_NUMBER: _ClassVar[int]
     EXEC_FIELD_NUMBER: _ClassVar[int]
     request_id: str
-    list_files: ListFilesResult
-    read_file: ReadFileResult
     exec: ExecResult
-    def __init__(self, request_id: _Optional[str] = ..., list_files: _Optional[_Union[ListFilesResult, _Mapping]] = ..., read_file: _Optional[_Union[ReadFileResult, _Mapping]] = ..., exec: _Optional[_Union[ExecResult, _Mapping]] = ...) -> None: ...
-
-class ListFilesResult(_message.Message):
-    __slots__ = ("entries", "error")
-    ENTRIES_FIELD_NUMBER: _ClassVar[int]
-    ERROR_FIELD_NUMBER: _ClassVar[int]
-    entries: _containers.RepeatedCompositeFieldContainer[FileEntry]
-    error: str
-    def __init__(self, entries: _Optional[_Iterable[_Union[FileEntry, _Mapping]]] = ..., error: _Optional[str] = ...) -> None: ...
-
-class FileEntry(_message.Message):
-    __slots__ = ("name", "path", "is_dir", "size", "modified")
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    PATH_FIELD_NUMBER: _ClassVar[int]
-    IS_DIR_FIELD_NUMBER: _ClassVar[int]
-    SIZE_FIELD_NUMBER: _ClassVar[int]
-    MODIFIED_FIELD_NUMBER: _ClassVar[int]
-    name: str
-    path: str
-    is_dir: bool
-    size: int
-    modified: str
-    def __init__(self, name: _Optional[str] = ..., path: _Optional[str] = ..., is_dir: bool = ..., size: _Optional[int] = ..., modified: _Optional[str] = ...) -> None: ...
-
-class ReadFileResult(_message.Message):
-    __slots__ = ("content", "encoding", "truncated", "error")
-    CONTENT_FIELD_NUMBER: _ClassVar[int]
-    ENCODING_FIELD_NUMBER: _ClassVar[int]
-    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
-    ERROR_FIELD_NUMBER: _ClassVar[int]
-    content: str
-    encoding: str
-    truncated: bool
-    error: str
-    def __init__(self, content: _Optional[str] = ..., encoding: _Optional[str] = ..., truncated: bool = ..., error: _Optional[str] = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., exec: _Optional[_Union[ExecResult, _Mapping]] = ...) -> None: ...
 
 class ExecResult(_message.Message):
     __slots__ = ("exit_code", "stdout", "stderr", "error")
@@ -359,28 +321,12 @@ class CancelTask(_message.Message):
     def __init__(self) -> None: ...
 
 class Query(_message.Message):
-    __slots__ = ("request_id", "list_files", "read_file", "exec")
+    __slots__ = ("request_id", "exec")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
-    LIST_FILES_FIELD_NUMBER: _ClassVar[int]
-    READ_FILE_FIELD_NUMBER: _ClassVar[int]
     EXEC_FIELD_NUMBER: _ClassVar[int]
     request_id: str
-    list_files: ListFilesQuery
-    read_file: ReadFileQuery
     exec: ExecQuery
-    def __init__(self, request_id: _Optional[str] = ..., list_files: _Optional[_Union[ListFilesQuery, _Mapping]] = ..., read_file: _Optional[_Union[ReadFileQuery, _Mapping]] = ..., exec: _Optional[_Union[ExecQuery, _Mapping]] = ...) -> None: ...
-
-class ListFilesQuery(_message.Message):
-    __slots__ = ("path",)
-    PATH_FIELD_NUMBER: _ClassVar[int]
-    path: str
-    def __init__(self, path: _Optional[str] = ...) -> None: ...
-
-class ReadFileQuery(_message.Message):
-    __slots__ = ("path",)
-    PATH_FIELD_NUMBER: _ClassVar[int]
-    path: str
-    def __init__(self, path: _Optional[str] = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., exec: _Optional[_Union[ExecQuery, _Mapping]] = ...) -> None: ...
 
 class ExecQuery(_message.Message):
     __slots__ = ("command", "run_id", "command_id")

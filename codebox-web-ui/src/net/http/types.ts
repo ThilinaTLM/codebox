@@ -132,8 +132,16 @@ export interface FileContent {
   content: string
   content_base64?: string
   size: number
-  truncated: boolean
   is_binary: boolean
+}
+
+export interface WriteFileResponse {
+  path: string
+  size: number
+}
+
+export interface UploadFileResponse {
+  files: Array<{ path: string; size: number }>
 }
 
 // ── GitHub types ────────────────────────────────────────────

@@ -19,8 +19,6 @@ import grpc
 from grpc import aio as grpc_aio
 
 from codebox_agent.agent_runner import (
-    handle_list_files,
-    handle_read_file,
     run_agent_stream,
     run_exec,
 )
@@ -300,25 +298,7 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                     request_id = query.request_id
                     query_field = query.WhichOneof("request")
 
-                    if query_field == "list_files":
-                        path = query.list_files.path or str(_WORKSPACE_ROOT)
-                        await handle_list_files(
-                            send,
-                            path,
-                            request_id,
-                            workspace_root=_WORKSPACE_ROOT,
-                        )
-
-                    elif query_field == "read_file":
-                        path = query.read_file.path
-                        await handle_read_file(
-                            send,
-                            path,
-                            request_id,
-                            workspace_root=_WORKSPACE_ROOT,
-                        )
-
-                    elif query_field == "exec":
+                    if query_field == "exec":
                         command_str = query.exec.command
                         logger.info(
                             "Received exec query: %s (session %s)",
@@ -543,54 +523,6 @@ def _dict_to_stream_event(  # noqa: PLR0911, PLR0912
     raise ValueError(f"Unknown canonical event kind: {kind}")
 
 
-def _build_list_files_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
-    request_id = msg.get("request_id", "")
-    error = msg.get("error", "")
-    if error:
-        result = box_pb2.ListFilesResult(error=error)
-    else:
-        data = msg.get("data", {})
-        entries = [
-            box_pb2.FileEntry(
-                name=e.get("name", ""),
-                path=e.get("path", ""),
-                is_dir=e.get("is_dir", False),
-                size=e.get("size") or 0,
-            )
-            for e in data.get("entries", [])
-        ]
-        result = box_pb2.ListFilesResult(entries=entries)
-    return box_pb2.BoxEvent(
-        query_result=box_pb2.QueryResult(request_id=request_id, list_files=result)
-    )
-
-
-def _build_read_file_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
-    request_id = msg.get("request_id", "")
-    error = msg.get("error", "")
-    if error:
-        result = box_pb2.ReadFileResult(error=error)
-    else:
-        data = msg.get("data", {})
-        content = data.get("content", "")
-        content_b64 = data.get("content_base64", "")
-        if content_b64:
-            result = box_pb2.ReadFileResult(
-                content=content_b64,
-                encoding="base64",
-                truncated=data.get("truncated", False),
-            )
-        else:
-            result = box_pb2.ReadFileResult(
-                content=content,
-                encoding="utf-8",
-                truncated=data.get("truncated", False),
-            )
-    return box_pb2.BoxEvent(
-        query_result=box_pb2.QueryResult(request_id=request_id, read_file=result)
-    )
-
-
 def _build_exec_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
     request_id = msg.get("request_id", "")
     output = msg.get("output", "")
@@ -607,8 +539,6 @@ def _build_exec_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
 
 
 _QUERY_RESULT_BUILDERS: dict[str, Any] = {
-    "list_files_result": _build_list_files_result,
-    "read_file_result": _build_read_file_result,
     "exec_done": _build_exec_result,
 }
 

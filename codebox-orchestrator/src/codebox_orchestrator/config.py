@@ -68,6 +68,17 @@ ORCHESTRATOR_GRPC_ADDRESS: str = (
     os.environ.get("ORCHESTRATOR_GRPC_ADDRESS", "") or _default_grpc_address()
 )
 
+
+def _default_tunnel_url() -> str:
+    """Derive the WebSocket tunnel URL for sandbox containers."""
+    host = _default_grpc_address().split(":")[0]  # Same host resolution as gRPC
+    return f"ws://{host}:{PORT}/ws/tunnel"
+
+
+ORCHESTRATOR_TUNNEL_URL: str = (
+    os.environ.get("ORCHESTRATOR_TUNNEL_URL", "") or _default_tunnel_url()
+)
+
 # ── CORS ───────────────────────────────────────────────────────
 CORS_ORIGINS: list[str] = [
     o.strip()

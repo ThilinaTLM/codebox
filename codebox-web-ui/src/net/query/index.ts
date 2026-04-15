@@ -87,6 +87,28 @@ export function useBoxFileContent(
   })
 }
 
+export function useWriteFile(boxId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ path, content }: { path: string; content: string }) =>
+      api.boxes.writeFile(boxId, path, content),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["boxes", boxId, "files"] })
+    },
+  })
+}
+
+export function useUploadFile(boxId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ path, file }: { path: string; file: File }) =>
+      api.boxes.uploadFile(boxId, path, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["boxes", boxId, "files"] })
+    },
+  })
+}
+
 export function useBoxLogs(
   boxId: string | null,
   tail: number = 200,

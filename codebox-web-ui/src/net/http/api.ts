@@ -20,8 +20,10 @@ import type {
   LoginResponse,
   Model,
   ModelsPreviewRequest,
+  UploadFileResponse,
   UserSettings,
   UserSettingsUpdate,
+  WriteFileResponse,
 } from "./types"
 import { API_URL } from "@/lib/constants"
 import { useAuthStore } from "@/lib/auth"
@@ -118,6 +120,38 @@ export const api = {
     getDownloadUrl: (boxId: string, path: string): string => {
       const params = new URLSearchParams({ path })
       return `${API_URL}/api/boxes/${boxId}/files/download?${params.toString()}`
+    },
+    writeFile: async (
+      boxId: string,
+      path: string,
+      content: string
+    ): Promise<WriteFileResponse> => {
+      const { data } = await client.post<WriteFileResponse>(
+        `/api/boxes/${boxId}/files/write`,
+        content,
+        {
+          params: { path },
+          headers: { "Content-Type": "application/octet-stream" },
+        }
+      )
+      return data
+    },
+    uploadFile: async (
+      boxId: string,
+      path: string,
+      file: File
+    ): Promise<UploadFileResponse> => {
+      const formData = new FormData()
+      formData.append("file", file)
+      const { data } = await client.post<UploadFileResponse>(
+        `/api/boxes/${boxId}/files/upload`,
+        formData,
+        {
+          params: { path },
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      )
+      return data
     },
     logs: async (boxId: string, tail: number = 200): Promise<ContainerLogs> => {
       const { data } = await client.get<ContainerLogs>(

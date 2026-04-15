@@ -17,6 +17,7 @@ from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
     GRPC_TLS_CA_CERT,
     ORCHESTRATOR_GRPC_ADDRESS,
+    ORCHESTRATOR_TUNNEL_URL,
 )
 
 if TYPE_CHECKING:
@@ -166,6 +167,7 @@ class BoxLifecycleService:
         container_name = f"codebox-box-{box_id[:8]}"
         extra_env: dict[str, str] = {
             "ORCHESTRATOR_GRPC_ADDRESS": ORCHESTRATOR_GRPC_ADDRESS,
+            "ORCHESTRATOR_TUNNEL_URL": ORCHESTRATOR_TUNNEL_URL,
             "CALLBACK_TOKEN": callback_token,
         }
         if auto_start_prompt:

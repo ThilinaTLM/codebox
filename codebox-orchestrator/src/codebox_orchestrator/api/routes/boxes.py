@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import base64
 import logging
-import mimetypes
-from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
 
 from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
 from codebox_orchestrator.api.dependencies import (
@@ -17,10 +13,8 @@ from codebox_orchestrator.api.dependencies import (
     get_create_box,
     get_delete_box,
     get_github_client_manager,
-    get_list_files,
     get_llm_profile_service,
     get_query_service,
-    get_read_file,
     get_restart_box,
     get_runtime,
     get_send_exec,
@@ -40,10 +34,6 @@ from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
     from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
-    from codebox_orchestrator.agent.application.queries.box_files import (
-        ListFilesHandler,
-        ReadFileHandler,
-    )
     from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
     from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
     from codebox_orchestrator.box.application.commands.delete_box import DeleteBoxHandler
@@ -293,73 +283,3 @@ async def box_logs(
     except Exception as exc:
         raise HTTPException(502, f"Failed to get logs: {exc}") from exc
     return {"logs": logs}
-
-
-@router.get("/boxes/{box_id}/files")
-async def box_list_files(
-    box_id: str,
-    path: str = "/workspace",
-    query: BoxQueryService = Depends(get_query_service),
-    handler: ListFilesHandler = Depends(get_list_files),
-):
-    """List directory contents in a box workspace."""
-    box = query.get_box(box_id)
-    if box is None:
-        raise HTTPException(404, "Box not found")
-    try:
-        return await handler.execute(box_id, path)
-    except NoActiveConnectionError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(502, f"Box file proxy error: {exc}") from exc
-
-
-@router.get("/boxes/{box_id}/files/read")
-async def box_read_file(
-    box_id: str,
-    path: str,
-    query: BoxQueryService = Depends(get_query_service),
-    handler: ReadFileHandler = Depends(get_read_file),
-):
-    """Read a file from a box workspace."""
-    box = query.get_box(box_id)
-    if box is None:
-        raise HTTPException(404, "Box not found")
-    try:
-        return await handler.execute(box_id, path)
-    except NoActiveConnectionError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(502, f"Box file proxy error: {exc}") from exc
-
-
-@router.get("/boxes/{box_id}/files/download")
-async def box_download_file(
-    box_id: str,
-    path: str,
-    query: BoxQueryService = Depends(get_query_service),
-    handler: ReadFileHandler = Depends(get_read_file),
-):
-    """Download a file from a box workspace as raw bytes."""
-    box = query.get_box(box_id)
-    if box is None:
-        raise HTTPException(404, "Box not found")
-    try:
-        data = await handler.execute(box_id, path)
-    except NoActiveConnectionError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(502, f"Box file proxy error: {exc}") from exc
-
-    if data.get("is_binary") and data.get("content_base64"):
-        content_bytes = base64.b64decode(data["content_base64"])
-    else:
-        content_bytes = (data.get("content") or "").encode("utf-8")
-
-    mime_type, _ = mimetypes.guess_type(path)
-    filename = PurePosixPath(path).name
-    return Response(
-        content=content_bytes,
-        media_type=mime_type or "application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { RotateCw } from "lucide-react"
+import { RotateCw, Upload } from "lucide-react"
 import type { TreeViewElement } from "@/components/ui/file-tree"
 import {
   countElements,
@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { File, Folder, Tree } from "@/components/ui/file-tree"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useBoxFiles } from "@/net/query"
+import { useBoxFiles, useUploadFile } from "@/net/query"
 
 export function FileExplorer({
   boxId,
@@ -28,6 +28,9 @@ export function FileExplorer({
   const loadedDirsRef = useRef<Set<string>>(new Set())
   const binaryFilesRef = useRef<Set<string>>(new Set())
   const queryClient = useQueryClient()
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const uploadMutation = useUploadFile(boxId)
 
   const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(
     boxId,
@@ -97,16 +100,41 @@ export function FileExplorer({
         <span className="text-label">
           Files{disabled ? " (stopped)" : treeElements.length > 0 ? ` (${countElements(treeElements)})` : ""}
         </span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing || disabled}
-          title="Refresh files"
-          className="text-muted-foreground/50"
-        >
-          <RotateCw size={13} className={isRefreshing ? "animate-spin" : ""} />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || uploadMutation.isPending}
+            title="Upload file"
+            className="text-muted-foreground/50"
+          >
+            <Upload size={13} />
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (file) {
+                await uploadMutation.mutateAsync({ path: "/workspace", file })
+                await handleRefresh()
+              }
+              e.target.value = ""
+            }}
+          />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || disabled}
+            title="Refresh files"
+            className="text-muted-foreground/50"
+          >
+            <RotateCw size={13} className={isRefreshing ? "animate-spin" : ""} />
+          </Button>
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
         {isLoadingFiles ? (

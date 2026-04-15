@@ -114,10 +114,6 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         from codebox_orchestrator.agent.application.commands.send_message import (  # noqa: PLC0415
             SendMessageHandler,
         )
-        from codebox_orchestrator.agent.application.queries.box_files import (  # noqa: PLC0415
-            ListFilesHandler,
-            ReadFileHandler,
-        )
 
         send_message_handler = SendMessageHandler(
             event_publisher,
@@ -134,8 +130,10 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             registry,
             event_repository,
         )
-        list_files_handler = ListFilesHandler(agent_connections)
-        read_file_handler = ReadFileHandler(agent_connections)
+        # --- Tunnel registry ---
+        from codebox_orchestrator.tunnel.registry import TunnelRegistry  # noqa: PLC0415
+
+        tunnel_registry = TunnelRegistry()
 
         # --- Box lifecycle service ---
         from codebox_orchestrator.agent.infrastructure.callback_token import (  # noqa: PLC0415
@@ -224,8 +222,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.query_service = query_service
         app.state.send_message_handler = send_message_handler
         app.state.send_exec_handler = send_exec_handler
-        app.state.list_files_handler = list_files_handler
-        app.state.read_file_handler = read_file_handler
+        app.state.tunnel_registry = tunnel_registry
         app.state.lifecycle_service = lifecycle
         app.state.container_runtime = container_runtime
         app.state.relay_service = relay
@@ -282,6 +279,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         llm_profiles,
         models,
         sse,
+        tunnel,
         user_settings,
     )
     from codebox_orchestrator.auth.dependencies import get_current_user  # noqa: PLC0415
@@ -293,5 +291,6 @@ def create_app() -> FastAPI:  # noqa: PLR0915
     app.include_router(llm_profiles.router, dependencies=[Depends(get_current_user)])
     app.include_router(user_settings.router, dependencies=[Depends(get_current_user)])
     app.include_router(github.router)
+    app.include_router(tunnel.router)  # WebSocket + file proxy
 
     return app

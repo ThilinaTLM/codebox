@@ -49,12 +49,16 @@ RUN mv /usr/local/bin/devbox /usr/local/bin/devbox-real \
 COPY codebox-agent/pyproject.toml codebox-agent/uv.lock codebox-agent/README.md /tmp/codebox-agent/
 COPY codebox-agent/src/ /tmp/codebox-agent/src/
 
+# Install codebox-tunnel (dependency of codebox-sandbox)
+COPY codebox-tunnel/pyproject.toml /tmp/codebox-tunnel/
+COPY codebox-tunnel/src/ /tmp/codebox-tunnel/src/
+
 # Install codebox-sandbox (container runner)
 COPY codebox-sandbox/pyproject.toml codebox-sandbox/uv.lock codebox-sandbox/README.md /tmp/codebox-sandbox/
 COPY codebox-sandbox/src/ /tmp/codebox-sandbox/src/
 
-RUN pip install uv && uv pip install --system /tmp/codebox-agent /tmp/codebox-sandbox \
-    && rm -rf /tmp/codebox-agent /tmp/codebox-sandbox
+RUN pip install uv && uv pip install --system /tmp/codebox-agent /tmp/codebox-tunnel /tmp/codebox-sandbox \
+    && rm -rf /tmp/codebox-agent /tmp/codebox-tunnel /tmp/codebox-sandbox
 
 RUN mkdir -p /workspace /app/codebox
 

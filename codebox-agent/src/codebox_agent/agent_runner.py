@@ -7,7 +7,6 @@ so they can be used from any transport (gRPC, direct calls, etc.).
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import logging
 import mimetypes
@@ -27,7 +26,6 @@ logger = logging.getLogger(__name__)
 SendFn = Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
 
 _MAX_TOOL_OUTPUT = 2000
-_MAX_FILE_SIZE = 1_048_576  # 1 MB
 
 
 def _extract_thinking_text(chunk: AIMessageChunk) -> str:
@@ -760,144 +758,3 @@ def _validate_workspace_path(raw_path: str, workspace_root: Path) -> Path:
     if not (resolved == workspace_root or workspace_root in resolved.parents):
         raise ValueError(f"Path must be under {workspace_root}")
     return resolved
-
-
-async def handle_list_files(
-    send: SendFn,
-    path: str,
-    request_id: str,
-    workspace_root: Path = Path("/workspace"),
-) -> None:
-    """List directory contents and send result back."""
-    logger.debug("list_files: path=%s, request_id=%s", path, request_id)
-    try:
-        dir_path = _validate_workspace_path(path, workspace_root)
-
-        if not dir_path.exists():
-            await send(
-                {
-                    "type": "list_files_result",
-                    "request_id": request_id,
-                    "error": f"Path not found: {path}",
-                }
-            )
-            return
-        if not dir_path.is_dir():
-            await send(
-                {
-                    "type": "list_files_result",
-                    "request_id": request_id,
-                    "error": f"Not a directory: {path}",
-                }
-            )
-            return
-
-        entries = []
-        for child in sorted(dir_path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
-            try:
-                stat = child.stat()
-                is_dir = child.is_dir()
-                entries.append(
-                    {
-                        "name": child.name,
-                        "path": str(child),
-                        "is_dir": is_dir,
-                        "size": stat.st_size if child.is_file() else None,
-                        "is_binary": not is_dir and _is_likely_binary_by_name(child.name),
-                    }
-                )
-            except OSError:
-                continue
-
-        await send(
-            {
-                "type": "list_files_result",
-                "request_id": request_id,
-                "data": {"path": str(dir_path), "entries": entries},
-            }
-        )
-
-    except Exception as exc:
-        await send(
-            {
-                "type": "list_files_result",
-                "request_id": request_id,
-                "error": str(exc),
-            }
-        )
-
-
-async def handle_read_file(
-    send: SendFn,
-    path: str,
-    request_id: str,
-    workspace_root: Path = Path("/workspace"),
-) -> None:
-    """Read file content and send result back."""
-    logger.debug("read_file: path=%s, request_id=%s", path, request_id)
-    try:
-        file_path = _validate_workspace_path(path, workspace_root)
-
-        if not file_path.exists():
-            await send(
-                {
-                    "type": "read_file_result",
-                    "request_id": request_id,
-                    "error": f"File not found: {path}",
-                }
-            )
-            return
-        if not file_path.is_file():
-            await send(
-                {
-                    "type": "read_file_result",
-                    "request_id": request_id,
-                    "error": f"Not a file: {path}",
-                }
-            )
-            return
-
-        size = file_path.stat().st_size
-        is_binary = _is_binary_file(file_path)
-        truncated = size > _MAX_FILE_SIZE
-
-        if is_binary:
-            raw = file_path.read_bytes()
-            if truncated:
-                raw = raw[:_MAX_FILE_SIZE]
-            data = {
-                "path": str(file_path),
-                "content": "",
-                "content_base64": base64.b64encode(raw).decode("ascii"),
-                "size": size,
-                "truncated": truncated,
-                "is_binary": True,
-            }
-        else:
-            content = file_path.read_text(errors="replace")
-            if truncated:
-                content = content[:_MAX_FILE_SIZE]
-            data = {
-                "path": str(file_path),
-                "content": content,
-                "size": size,
-                "truncated": truncated,
-                "is_binary": False,
-            }
-
-        await send(
-            {
-                "type": "read_file_result",
-                "request_id": request_id,
-                "data": data,
-            }
-        )
-
-    except Exception as exc:
-        await send(
-            {
-                "type": "read_file_result",
-                "request_id": request_id,
-                "error": str(exc),
-            }
-        )
