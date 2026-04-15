@@ -74,6 +74,8 @@ export function useGlobalStream() {
                   updates.task_outcome_message = event.task_outcome_message
                 if (event.error_detail)
                   updates.error_detail = event.error_detail
+                if (event.grpc_connected !== undefined)
+                  updates.grpc_connected = event.grpc_connected as boolean
                 return { ...old, ...updates }
               }
             )

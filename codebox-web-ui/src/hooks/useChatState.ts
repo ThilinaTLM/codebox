@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   EventStreamContentType,
   fetchEventSource,
@@ -35,11 +35,21 @@ export function useChatState({
     ? historyEvents[historyEvents.length - 1]?.seq ?? 0
     : 0
 
+  // Use a ref so the SSE connection isn't torn down every time history loads.
+  // The SSE already deduplicates by seq, and receiving a few overlapping events
+  // is harmless — tearing down + reconnecting causes a visible "Reconnecting…"
+  // flash on every history refetch.
+  const lastHistorySeqRef = useRef(lastHistorySeq)
+  lastHistorySeqRef.current = lastHistorySeq
+
   useEffect(() => {
     if (!boxId || !enabled || !isAuthenticated) return
 
     const ctrl = new AbortController()
-    const url = `${API_URL}/api/boxes/${boxId}/stream?after_seq=${lastHistorySeq}`
+    // Use the ref value at effect-creation time; subsequent changes won't
+    // tear down the SSE — we'll just get a few duplicate events that the
+    // dedup in onmessage handles.
+    const url = `${API_URL}/api/boxes/${boxId}/stream?after_seq=${lastHistorySeqRef.current}`
 
     fetchEventSource(url, {
       credentials: "include",
@@ -87,7 +97,7 @@ export function useChatState({
       setIsConnected(false)
       setLiveEvents([])
     }
-  }, [boxId, enabled, isAuthenticated, lastHistorySeq])
+  }, [boxId, enabled, isAuthenticated])
 
   const blocks = useMemo(
     () => collapseTokens(mergeEvents(historyEvents, liveEvents)),

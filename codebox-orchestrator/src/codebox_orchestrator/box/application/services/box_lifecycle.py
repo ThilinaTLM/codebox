@@ -307,6 +307,7 @@ class BoxLifecycleService:
                 "type": "box_status_changed",
                 "box_id": box_id,
                 "container_status": "running",
+                "grpc_connected": True,
             }
         )
 
