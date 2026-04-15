@@ -210,8 +210,8 @@ class AsyncYamuxSession:
         self._write_lock = asyncio.Lock()
         self._closed = False
 
-        # Queue for streams opened by the remote side
-        self._accept_queue: asyncio.Queue[AsyncYamuxStream] = asyncio.Queue()
+        # Queue for streams opened by the remote side (None sentinel = closed)
+        self._accept_queue: asyncio.Queue[AsyncYamuxStream | None] = asyncio.Queue()
 
     @property
     def is_closed(self) -> bool:
@@ -233,8 +233,16 @@ class AsyncYamuxSession:
         return stream
 
     async def accept_stream(self) -> AsyncYamuxStream:
-        """Wait for and return the next incoming stream opened by the remote side."""
-        return await self._accept_queue.get()
+        """Wait for and return the next incoming stream opened by the remote side.
+
+        Raises :class:`ConnectionError` if the session is closed while waiting.
+        """
+        if self._closed:
+            raise ConnectionError("yamux session is closed")
+        stream = await self._accept_queue.get()
+        if stream is None:
+            raise ConnectionError("yamux session is closed")
+        return stream
 
     async def run(self) -> None:
         """Main read loop — run as an ``asyncio.Task``.
@@ -254,6 +262,10 @@ class AsyncYamuxSession:
     async def close(self) -> None:
         """Close the session and all streams."""
         if self._closed:
+            # Still unblock accept_stream() waiters (may be called after
+            # _read_loop already set _closed).
+            with contextlib.suppress(Exception):
+                self._accept_queue.put_nowait(None)
             return
         self._closed = True
 
@@ -266,6 +278,10 @@ class AsyncYamuxSession:
 
         with contextlib.suppress(Exception):
             await self._conn.close()
+
+        # Unblock accept_stream() waiters so callers can detect the close.
+        with contextlib.suppress(Exception):
+            self._accept_queue.put_nowait(None)
 
     # -- Frame I/O ----------------------------------------------------------
 
@@ -313,6 +329,10 @@ class AsyncYamuxSession:
                 async with self._lock:
                     for stream in self._streams.values():
                         stream._receive_rst()
+            # Unblock accept_stream() waiters so the tunnel connector
+            # can detect the disconnect and reconnect.
+            with contextlib.suppress(Exception):
+                self._accept_queue.put_nowait(None)
 
     async def _read_exactly(self, n: int) -> bytes:
         """Read exactly *n* bytes from the transport."""

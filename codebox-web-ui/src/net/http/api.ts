@@ -121,6 +121,10 @@ export const api = {
       const params = new URLSearchParams({ path })
       return `${API_URL}/api/boxes/${boxId}/files/download?${params.toString()}`
     },
+    getInlineUrl: (boxId: string, path: string): string => {
+      const params = new URLSearchParams({ path, inline: "true" })
+      return `${API_URL}/api/boxes/${boxId}/files/download?${params.toString()}`
+    },
     writeFile: async (
       boxId: string,
       path: string,

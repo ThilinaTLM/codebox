@@ -162,6 +162,7 @@ async def read_file(
 async def download_file(
     box_id: str,
     path: str,
+    inline: bool = False,
     *,
     request: Request,
 ) -> StreamingResponse:
@@ -191,7 +192,9 @@ async def download_file(
         status_code=status,
         media_type=resp_headers.get("content-type", mime_type or "application/octet-stream"),
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": (
+                f'{"inline" if inline else "attachment"}; filename="{filename}"'
+            ),
         },
     )
 
