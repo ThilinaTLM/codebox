@@ -7,9 +7,7 @@ stored per-user in the database — see ``llm_profile`` and ``user_settings``.
 
 from __future__ import annotations
 
-import logging
 import os
-import tempfile as _tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -42,11 +40,6 @@ SANDBOX_MEMORY_LIMIT: str = os.environ.get("SANDBOX_MEMORY_LIMIT", "4g")
 SANDBOX_CPU_LIMIT: int = int(os.environ.get("SANDBOX_CPU_LIMIT", "2"))
 SANDBOX_PIDS_LIMIT: int = int(os.environ.get("SANDBOX_PIDS_LIMIT", "1024"))
 SANDBOX_NETWORK: str = os.environ.get("SANDBOX_NETWORK", "codebox-sandbox-net")
-
-# ── Workspace ──────────────────────────────────────────────────
-_default_workspace = str(Path(_tempfile.gettempdir()) / "codebox-workspaces")
-WORKSPACE_BASE_DIR: str = os.environ.get("WORKSPACE_BASE_DIR", _default_workspace)
-_workspace_dir_warning_emitted = False
 
 # ── HTTP server ────────────────────────────────────────────────
 HOST: str = os.environ.get("ORCHESTRATOR_HOST", "0.0.0.0")  # noqa: S104
@@ -130,37 +123,3 @@ def validate_required_config() -> None:
             f"Required environment variables not set: {', '.join(missing)}. "
             "See codebox-orchestrator/README.md for setup instructions."
         )
-
-
-def _workspace_fallback_dir() -> Path:
-    """Return a user-scoped writable fallback workspace directory."""
-    user_suffix = (
-        str(os.getuid())
-        if hasattr(os, "getuid")
-        else os.environ.get("USERNAME") or os.environ.get("USER") or "local"
-    )
-    return Path(_tempfile.gettempdir()) / f"codebox-workspaces-{user_suffix}"
-
-
-def get_workspace_base_dir() -> str:
-    """Return a writable workspace base directory, falling back when needed."""
-    global _workspace_dir_warning_emitted  # noqa: PLW0603
-
-    configured_dir = Path(WORKSPACE_BASE_DIR)
-    try:
-        configured_dir.mkdir(parents=True, exist_ok=True)
-        probe_dir = Path(_tempfile.mkdtemp(prefix=".workspace-probe-", dir=configured_dir))
-        probe_dir.rmdir()
-        return str(configured_dir)
-    except OSError as exc:
-        fallback_dir = _workspace_fallback_dir()
-        fallback_dir.mkdir(parents=True, exist_ok=True)
-        if not _workspace_dir_warning_emitted:
-            logging.getLogger(__name__).warning(
-                "WORKSPACE_BASE_DIR %s is not writable (%s); falling back to %s",
-                configured_dir,
-                exc,
-                fallback_dir,
-            )
-            _workspace_dir_warning_emitted = True
-        return str(fallback_dir)

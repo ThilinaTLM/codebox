@@ -50,7 +50,7 @@ Copy and edit the orchestrator environment file:
 cp codebox-orchestrator/.env codebox-orchestrator/.env.local
 ```
 
-Edit `.env.local` with your LLM credentials and workspace path. See the [orchestrator README](codebox-orchestrator/README.md) for all available settings.
+Edit `.env.local` with your credentials. See the [orchestrator README](codebox-orchestrator/README.md) for all available settings.
 
 ### 2) Build the Box image
 

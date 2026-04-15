@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import tempfile
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -18,7 +17,6 @@ from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
     GRPC_TLS_CA_CERT,
     ORCHESTRATOR_GRPC_ADDRESS,
-    get_workspace_base_dir,
 )
 
 if TYPE_CHECKING:
@@ -160,10 +158,6 @@ class BoxLifecycleService:
     ) -> None:
         is_github = bool(github_repo)
 
-        # Create workspace directory
-        workspace_base_dir = get_workspace_base_dir()
-        workspace = tempfile.mkdtemp(prefix=f"box-{box_id[:8]}-", dir=workspace_base_dir)
-
         # Generate JWT callback token
         callback_token = self._create_callback_token(box_id, "box")
         self._connections.init_connection_state(box_id)
@@ -259,7 +253,6 @@ class BoxLifecycleService:
             api_key=api_key,
             base_url=base_url or None,
             tavily_api_key=tavily_api_key,
-            mount_path=workspace,
             extra_env=extra_env,
             extra_labels=extra_labels,
             cert_mounts=cert_mounts,

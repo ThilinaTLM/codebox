@@ -24,7 +24,6 @@ class DockerRuntime:
             api_key=config.api_key,
             base_url=config.base_url,
             tavily_api_key=config.tavily_api_key,
-            mount_path=config.mount_path,
             network=config.network,
             extra_env=config.extra_env,
             extra_labels=config.extra_labels or None,
@@ -33,7 +32,6 @@ class DockerRuntime:
         return ContainerInfo(
             id=info.id,
             name=info.name,
-            mount_path=info.mount_path,
         )
 
     def stop(self, container_id_or_name: str) -> None:

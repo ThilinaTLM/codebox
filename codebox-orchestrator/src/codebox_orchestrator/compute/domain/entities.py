@@ -12,7 +12,6 @@ class ContainerConfig:
     provider: str
     model: str
     api_key: str
-    mount_path: str
     extra_env: dict[str, str] = field(default_factory=dict)
     extra_labels: dict[str, str] = field(default_factory=dict)
     cert_mounts: dict[str, dict[str, str]] = field(default_factory=dict)
@@ -25,4 +24,3 @@ class ContainerConfig:
 class ContainerInfo:
     id: str
     name: str
-    mount_path: str

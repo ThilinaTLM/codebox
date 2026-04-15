@@ -7,7 +7,6 @@ local sockets, remote TCP/TLS, and SSH.
 from __future__ import annotations
 
 import logging
-import re
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -73,7 +72,6 @@ def _build_environment(
 class ContainerInfo:
     id: str
     name: str
-    mount_path: str | None
     status: str = ""
     provider: str = ""
     model: str = ""
@@ -142,7 +140,6 @@ def spawn(
     api_key: str | None = None,
     base_url: str | None = None,
     tavily_api_key: str | None = None,
-    mount_path: str | None = None,
     network: str | None = None,
     extra_env: dict[str, str] | None = None,
     extra_labels: dict[str, str] | None = None,
@@ -160,11 +157,10 @@ def spawn(
     )
 
     volumes: dict[str, dict[str, str]] = {}
-    if mount_path:
-        host_path = mount_path
-        if sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
-            host_path = _to_wsl_path(mount_path)
-        volumes[host_path] = {"bind": "/workspace", "mode": "rw"}
+
+    # Named volume for /workspace so the container service owns storage
+    workspace_vol_name = f"{name}-workspace" if name else f"codebox-workspace-{id(client)}"
+    volumes[workspace_vol_name] = {"bind": "/workspace", "mode": "rw"}
 
     if cert_mounts:
         volumes.update(cert_mounts)
@@ -232,7 +228,6 @@ def spawn(
     return ContainerInfo(
         id=container.id,
         name=container.name,
-        mount_path=mount_path,
     )
 
 
@@ -291,7 +286,6 @@ def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
             ContainerInfo(
                 id=c.id,
                 name=c.name,
-                mount_path=None,
                 status=c.status,
                 provider=provider,
                 model=model,
@@ -349,15 +343,16 @@ def remove(container_id_or_name: str) -> None:
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Failed to remove container: {exc}") from exc
 
-    # Clean up the per-box /app named volume
+    # Clean up per-box named volumes
     if container_name:
-        try:
-            vol = client.volumes.get(f"{container_name}-app")
-            vol.remove(force=True)
-        except docker.errors.NotFound:
-            pass
-        except docker.errors.APIError:
-            pass
+        for suffix in ("-app", "-workspace"):
+            try:
+                vol = client.volumes.get(f"{container_name}{suffix}")
+                vol.remove(force=True)
+            except docker.errors.NotFound:
+                pass
+            except docker.errors.APIError:
+                pass
 
 
 def get_logs(container_id_or_name: str, tail: int = 200) -> str:
@@ -410,15 +405,6 @@ def _get_container(client: docker.DockerClient, container_id_or_name: str):
         raise DockerServiceError(f"Container not found: {container_id_or_name}") from exc
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Docker API error: {exc}") from exc
-
-
-def _to_wsl_path(win_path: str) -> str:
-    """Convert a Windows path like C:\\Users\\foo to /mnt/c/Users/foo for WSL."""
-    p = win_path.replace("\\", "/")
-    m = re.match(r"^([A-Za-z]):/(.*)$", p)
-    if m:
-        return f"/mnt/{m.group(1).lower()}/{m.group(2)}"
-    return p
 
 
 def _ensure_network(client: docker.DockerClient, network_name: str) -> None:

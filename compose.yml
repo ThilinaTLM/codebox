@@ -28,7 +28,6 @@ services:
       - "${DOCKER_GID:-999}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /tmp/codebox-workspaces:/tmp/codebox-workspaces
       # Optional: mount certs for gRPC TLS (generate with scripts/generate_grpc_certs.sh)
       # - ./certs:/etc/grpc-certs:ro
     env_file:

@@ -66,7 +66,6 @@ Environment variables (loaded from `.env` and `.env.local`):
 | `CODEBOX_PORT` | `8443` | Port inside sandbox containers |
 | `OPENROUTER_API_KEY` | — | API key for LLM |
 | `OPENROUTER_MODEL` | — | Default model |
-| `WORKSPACE_BASE_DIR` | `/tmp/codebox-workspaces` | Base directory for task workspaces |
 | `DOCKER_NETWORK` | `codebox-net` | Docker network name |
 | `ORCHESTRATOR_HOST` | `0.0.0.0` | Bind address |
 | `ORCHESTRATOR_PORT` | `9090` | Bind port |
