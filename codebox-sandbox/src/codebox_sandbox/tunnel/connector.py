@@ -15,6 +15,7 @@ import logging
 import struct
 
 import websockets
+import websockets.exceptions
 from codebox_tunnel import (
     CONNECT_HEADER_FMT,
     CONNECT_HEADER_SIZE,
@@ -79,6 +80,22 @@ async def run_tunnel(tunnel_url: str, callback_token: str) -> None:
         except asyncio.CancelledError:
             logger.info("Tunnel connector shutting down")
             return
+        except websockets.exceptions.InvalidStatus as exc:
+            logger.warning(
+                "Tunnel WebSocket rejected (HTTP %s), reconnecting in %.1fs",
+                exc.response.status_code,
+                delay,
+            )
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, _RECONNECT_MAX_DELAY)
+        except (ConnectionRefusedError, OSError) as exc:
+            logger.warning(
+                "Tunnel connection failed (%s), reconnecting in %.1fs",
+                exc,
+                delay,
+            )
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, _RECONNECT_MAX_DELAY)
         except Exception:
             logger.warning("Tunnel disconnected, reconnecting in %.1fs", delay, exc_info=True)
             await asyncio.sleep(delay)
