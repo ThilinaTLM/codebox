@@ -114,11 +114,14 @@ function AuthenticatedApp() {
   )
   const location = useLocation()
 
-  // Derive a stable key so nested sub-routes (e.g. /settings/*) share
-  // one identity and don't remount the layout on every tab switch.
+  // Derive a stable key so nested sub-routes (e.g. /settings/*, /boxes/$boxId/*)
+  // share one identity and don't remount the layout on every tab switch.
+  const boxMatch = location.pathname.match(/^\/boxes\/([^/]+)/)
   const pageKey = location.pathname.startsWith('/settings/')
     ? '/settings'
-    : location.pathname
+    : boxMatch
+      ? `/boxes/${boxMatch[1]}`
+      : location.pathname
 
   return (
     <QueryClientProvider client={queryClient}>

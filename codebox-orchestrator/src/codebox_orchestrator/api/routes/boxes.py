@@ -176,6 +176,7 @@ async def get_box(
 async def get_box_events_route(
     box_id: str,
     after_seq: int | None = None,
+    limit: int | None = None,
     query: BoxQueryService = Depends(get_query_service),
 ) -> list[BoxEventResponse]:
     """Return canonical persisted events for a box."""
@@ -183,7 +184,7 @@ async def get_box_events_route(
     if box is None:
         raise HTTPException(404, "Box not found")
     try:
-        events = await query.list_events(box_id, after_seq=after_seq)
+        events = await query.list_events(box_id, after_seq=after_seq, limit=limit)
     except NoActiveConnectionError as exc:
         raise HTTPException(503, "Container is not connected") from exc
     except Exception as exc:

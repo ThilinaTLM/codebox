@@ -4,8 +4,6 @@ import type { AgentActivity } from "@/hooks/useAgentActivity"
 export interface BoxPageActions {
   isActive: boolean
   activity?: AgentActivity
-  showFiles: boolean
-  onToggleFiles: () => void
   onStop: () => void
   onDelete: () => void
   onRestart?: () => void

@@ -92,11 +92,15 @@ export const api = {
     },
     getEvents: async (
       boxId: string,
-      afterSeq?: number
+      afterSeq?: number,
+      limit?: number,
     ): Promise<Array<CanonicalEvent>> => {
+      const params: Record<string, number> = {}
+      if (afterSeq != null) params.after_seq = afterSeq
+      if (limit != null) params.limit = limit
       const { data } = await client.get<Array<CanonicalEvent>>(
         `/api/boxes/${boxId}/events`,
-        { params: afterSeq != null ? { after_seq: afterSeq } : undefined }
+        { params: Object.keys(params).length > 0 ? params : undefined }
       )
       return data
     },

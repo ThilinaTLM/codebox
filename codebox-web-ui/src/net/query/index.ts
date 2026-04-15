@@ -48,12 +48,13 @@ export function useBox(boxId: string | undefined, options?: QueryHookOptions) {
 
 export function useBoxEvents(
   boxId: string | undefined,
-  options?: QueryHookOptions
+  options?: QueryHookOptions & { limit?: number }
 ) {
   const enabled = useAuthQueryEnabled((options?.enabled ?? true) && !!boxId)
+  const limit = options?.limit
   return useQuery({
-    queryKey: ["boxes", boxId, "events"],
-    queryFn: () => api.boxes.getEvents(boxId!),
+    queryKey: ["boxes", boxId, "events", limit ?? "all"],
+    queryFn: () => api.boxes.getEvents(boxId!, undefined, limit),
     enabled,
   })
 }

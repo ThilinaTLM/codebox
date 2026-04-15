@@ -5,7 +5,7 @@ import {
 } from "@microsoft/fetch-event-source"
 import type { BoxStreamEvent } from "@/net/http/types"
 import type { EventBlock } from "@/components/chat/types"
-import { collapseTokens } from "@/components/chat/ChatStream"
+import { collapseTokens, mergeEvents } from "@/lib/event-utils"
 import { useBoxEvents } from "@/net/query"
 import { API_URL } from "@/lib/constants"
 import { useAuthStore } from "@/lib/auth"
@@ -89,12 +89,10 @@ export function useChatState({
     }
   }, [boxId, enabled, isAuthenticated, lastHistorySeq])
 
-  const blocks = useMemo(() => {
-    const merged = [...historyEvents, ...liveEvents]
-      .sort((a, b) => a.seq - b.seq)
-      .filter((event, index, arr) => index === 0 || arr[index - 1]?.seq !== event.seq)
-    return collapseTokens(merged)
-  }, [historyEvents, liveEvents])
+  const blocks = useMemo(
+    () => collapseTokens(mergeEvents(historyEvents, liveEvents)),
+    [historyEvents, liveEvents]
+  )
 
   return { blocks, liveEvents, isConnected }
 }

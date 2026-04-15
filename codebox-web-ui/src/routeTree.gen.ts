@@ -20,8 +20,13 @@ import { Route as SettingsGithubRouteImport } from './routes/settings/github'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsAccountRouteImport } from './routes/settings/account'
 import { Route as BoxesCreateRouteImport } from './routes/boxes/create'
-import { Route as BoxesBoxIdRouteImport } from './routes/boxes/$boxId'
-import { Route as BoxesBoxIdLogsRouteImport } from './routes/boxes/$boxId_.logs'
+import { Route as BoxesBoxIdRouteRouteImport } from './routes/boxes/$boxId/route'
+import { Route as BoxesBoxIdIndexRouteImport } from './routes/boxes/$boxId/index'
+import { Route as BoxesBoxIdTerminalRouteImport } from './routes/boxes/$boxId/terminal'
+import { Route as BoxesBoxIdResourcesRouteImport } from './routes/boxes/$boxId/resources'
+import { Route as BoxesBoxIdLogsRouteImport } from './routes/boxes/$boxId/logs'
+import { Route as BoxesBoxIdFilesRouteImport } from './routes/boxes/$boxId/files'
+import { Route as BoxesBoxIdChatRouteImport } from './routes/boxes/$boxId/chat'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -78,15 +83,40 @@ const BoxesCreateRoute = BoxesCreateRouteImport.update({
   path: '/boxes/create',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BoxesBoxIdRoute = BoxesBoxIdRouteImport.update({
+const BoxesBoxIdRouteRoute = BoxesBoxIdRouteRouteImport.update({
   id: '/boxes/$boxId',
   path: '/boxes/$boxId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BoxesBoxIdIndexRoute = BoxesBoxIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BoxesBoxIdRouteRoute,
+} as any)
+const BoxesBoxIdTerminalRoute = BoxesBoxIdTerminalRouteImport.update({
+  id: '/terminal',
+  path: '/terminal',
+  getParentRoute: () => BoxesBoxIdRouteRoute,
+} as any)
+const BoxesBoxIdResourcesRoute = BoxesBoxIdResourcesRouteImport.update({
+  id: '/resources',
+  path: '/resources',
+  getParentRoute: () => BoxesBoxIdRouteRoute,
+} as any)
 const BoxesBoxIdLogsRoute = BoxesBoxIdLogsRouteImport.update({
-  id: '/boxes/$boxId_/logs',
-  path: '/boxes/$boxId/logs',
-  getParentRoute: () => rootRouteImport,
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => BoxesBoxIdRouteRoute,
+} as any)
+const BoxesBoxIdFilesRoute = BoxesBoxIdFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
+  getParentRoute: () => BoxesBoxIdRouteRoute,
+} as any)
+const BoxesBoxIdChatRoute = BoxesBoxIdChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => BoxesBoxIdRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -94,7 +124,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
-  '/boxes/$boxId': typeof BoxesBoxIdRoute
+  '/boxes/$boxId': typeof BoxesBoxIdRouteRouteWithChildren
   '/boxes/create': typeof BoxesCreateRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
@@ -102,13 +132,17 @@ export interface FileRoutesByFullPath {
   '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
   '/settings/tavily': typeof SettingsTavilyRoute
   '/settings/': typeof SettingsIndexRoute
+  '/boxes/$boxId/chat': typeof BoxesBoxIdChatRoute
+  '/boxes/$boxId/files': typeof BoxesBoxIdFilesRoute
   '/boxes/$boxId/logs': typeof BoxesBoxIdLogsRoute
+  '/boxes/$boxId/resources': typeof BoxesBoxIdResourcesRoute
+  '/boxes/$boxId/terminal': typeof BoxesBoxIdTerminalRoute
+  '/boxes/$boxId/': typeof BoxesBoxIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
-  '/boxes/$boxId': typeof BoxesBoxIdRoute
   '/boxes/create': typeof BoxesCreateRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
@@ -116,7 +150,12 @@ export interface FileRoutesByTo {
   '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
   '/settings/tavily': typeof SettingsTavilyRoute
   '/settings': typeof SettingsIndexRoute
+  '/boxes/$boxId/chat': typeof BoxesBoxIdChatRoute
+  '/boxes/$boxId/files': typeof BoxesBoxIdFilesRoute
   '/boxes/$boxId/logs': typeof BoxesBoxIdLogsRoute
+  '/boxes/$boxId/resources': typeof BoxesBoxIdResourcesRoute
+  '/boxes/$boxId/terminal': typeof BoxesBoxIdTerminalRoute
+  '/boxes/$boxId': typeof BoxesBoxIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -124,7 +163,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
-  '/boxes/$boxId': typeof BoxesBoxIdRoute
+  '/boxes/$boxId': typeof BoxesBoxIdRouteRouteWithChildren
   '/boxes/create': typeof BoxesCreateRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
@@ -132,7 +171,12 @@ export interface FileRoutesById {
   '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
   '/settings/tavily': typeof SettingsTavilyRoute
   '/settings/': typeof SettingsIndexRoute
-  '/boxes/$boxId_/logs': typeof BoxesBoxIdLogsRoute
+  '/boxes/$boxId/chat': typeof BoxesBoxIdChatRoute
+  '/boxes/$boxId/files': typeof BoxesBoxIdFilesRoute
+  '/boxes/$boxId/logs': typeof BoxesBoxIdLogsRoute
+  '/boxes/$boxId/resources': typeof BoxesBoxIdResourcesRoute
+  '/boxes/$boxId/terminal': typeof BoxesBoxIdTerminalRoute
+  '/boxes/$boxId/': typeof BoxesBoxIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -149,13 +193,17 @@ export interface FileRouteTypes {
     | '/settings/llm-profiles'
     | '/settings/tavily'
     | '/settings/'
+    | '/boxes/$boxId/chat'
+    | '/boxes/$boxId/files'
     | '/boxes/$boxId/logs'
+    | '/boxes/$boxId/resources'
+    | '/boxes/$boxId/terminal'
+    | '/boxes/$boxId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/users'
-    | '/boxes/$boxId'
     | '/boxes/create'
     | '/settings/account'
     | '/settings/appearance'
@@ -163,7 +211,12 @@ export interface FileRouteTypes {
     | '/settings/llm-profiles'
     | '/settings/tavily'
     | '/settings'
+    | '/boxes/$boxId/chat'
+    | '/boxes/$boxId/files'
     | '/boxes/$boxId/logs'
+    | '/boxes/$boxId/resources'
+    | '/boxes/$boxId/terminal'
+    | '/boxes/$boxId'
   id:
     | '__root__'
     | '/'
@@ -178,7 +231,12 @@ export interface FileRouteTypes {
     | '/settings/llm-profiles'
     | '/settings/tavily'
     | '/settings/'
-    | '/boxes/$boxId_/logs'
+    | '/boxes/$boxId/chat'
+    | '/boxes/$boxId/files'
+    | '/boxes/$boxId/logs'
+    | '/boxes/$boxId/resources'
+    | '/boxes/$boxId/terminal'
+    | '/boxes/$boxId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -186,9 +244,8 @@ export interface RootRouteChildren {
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   UsersRoute: typeof UsersRoute
-  BoxesBoxIdRoute: typeof BoxesBoxIdRoute
+  BoxesBoxIdRouteRoute: typeof BoxesBoxIdRouteRouteWithChildren
   BoxesCreateRoute: typeof BoxesCreateRoute
-  BoxesBoxIdLogsRoute: typeof BoxesBoxIdLogsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -274,15 +331,50 @@ declare module '@tanstack/react-router' {
       id: '/boxes/$boxId'
       path: '/boxes/$boxId'
       fullPath: '/boxes/$boxId'
-      preLoaderRoute: typeof BoxesBoxIdRouteImport
+      preLoaderRoute: typeof BoxesBoxIdRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/boxes/$boxId_/logs': {
-      id: '/boxes/$boxId_/logs'
-      path: '/boxes/$boxId/logs'
+    '/boxes/$boxId/': {
+      id: '/boxes/$boxId/'
+      path: '/'
+      fullPath: '/boxes/$boxId/'
+      preLoaderRoute: typeof BoxesBoxIdIndexRouteImport
+      parentRoute: typeof BoxesBoxIdRouteRoute
+    }
+    '/boxes/$boxId/terminal': {
+      id: '/boxes/$boxId/terminal'
+      path: '/terminal'
+      fullPath: '/boxes/$boxId/terminal'
+      preLoaderRoute: typeof BoxesBoxIdTerminalRouteImport
+      parentRoute: typeof BoxesBoxIdRouteRoute
+    }
+    '/boxes/$boxId/resources': {
+      id: '/boxes/$boxId/resources'
+      path: '/resources'
+      fullPath: '/boxes/$boxId/resources'
+      preLoaderRoute: typeof BoxesBoxIdResourcesRouteImport
+      parentRoute: typeof BoxesBoxIdRouteRoute
+    }
+    '/boxes/$boxId/logs': {
+      id: '/boxes/$boxId/logs'
+      path: '/logs'
       fullPath: '/boxes/$boxId/logs'
       preLoaderRoute: typeof BoxesBoxIdLogsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof BoxesBoxIdRouteRoute
+    }
+    '/boxes/$boxId/files': {
+      id: '/boxes/$boxId/files'
+      path: '/files'
+      fullPath: '/boxes/$boxId/files'
+      preLoaderRoute: typeof BoxesBoxIdFilesRouteImport
+      parentRoute: typeof BoxesBoxIdRouteRoute
+    }
+    '/boxes/$boxId/chat': {
+      id: '/boxes/$boxId/chat'
+      path: '/chat'
+      fullPath: '/boxes/$boxId/chat'
+      preLoaderRoute: typeof BoxesBoxIdChatRouteImport
+      parentRoute: typeof BoxesBoxIdRouteRoute
     }
   }
 }
@@ -309,14 +401,35 @@ const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
   SettingsRouteRouteChildren,
 )
 
+interface BoxesBoxIdRouteRouteChildren {
+  BoxesBoxIdChatRoute: typeof BoxesBoxIdChatRoute
+  BoxesBoxIdFilesRoute: typeof BoxesBoxIdFilesRoute
+  BoxesBoxIdLogsRoute: typeof BoxesBoxIdLogsRoute
+  BoxesBoxIdResourcesRoute: typeof BoxesBoxIdResourcesRoute
+  BoxesBoxIdTerminalRoute: typeof BoxesBoxIdTerminalRoute
+  BoxesBoxIdIndexRoute: typeof BoxesBoxIdIndexRoute
+}
+
+const BoxesBoxIdRouteRouteChildren: BoxesBoxIdRouteRouteChildren = {
+  BoxesBoxIdChatRoute: BoxesBoxIdChatRoute,
+  BoxesBoxIdFilesRoute: BoxesBoxIdFilesRoute,
+  BoxesBoxIdLogsRoute: BoxesBoxIdLogsRoute,
+  BoxesBoxIdResourcesRoute: BoxesBoxIdResourcesRoute,
+  BoxesBoxIdTerminalRoute: BoxesBoxIdTerminalRoute,
+  BoxesBoxIdIndexRoute: BoxesBoxIdIndexRoute,
+}
+
+const BoxesBoxIdRouteRouteWithChildren = BoxesBoxIdRouteRoute._addFileChildren(
+  BoxesBoxIdRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   UsersRoute: UsersRoute,
-  BoxesBoxIdRoute: BoxesBoxIdRoute,
+  BoxesBoxIdRouteRoute: BoxesBoxIdRouteRouteWithChildren,
   BoxesCreateRoute: BoxesCreateRoute,
-  BoxesBoxIdLogsRoute: BoxesBoxIdLogsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
