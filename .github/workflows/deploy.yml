@@ -23,6 +23,7 @@ jobs:
           filters: |
             orchestrator:
               - 'codebox-orchestrator/**'
+              - 'codebox-tunnel/**'
             web-ui:
               - 'codebox-web-ui/**'
             sandbox:
@@ -53,7 +54,7 @@ jobs:
             type=sha,prefix=
       - uses: docker/build-push-action@v7
         with:
-          context: ./codebox-orchestrator
+          context: .
           file: ./codebox-orchestrator/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}

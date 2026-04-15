@@ -4,15 +4,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy tunnel dependency first (path dep from pyproject.toml)
+COPY codebox-tunnel/ /codebox-tunnel/
+
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
-COPY src/ ./src/
+COPY codebox-orchestrator/pyproject.toml codebox-orchestrator/README.md ./
+COPY codebox-orchestrator/src/ ./src/
 
 RUN pip install uv && uv pip install --system .
 
-COPY alembic.ini ./
-COPY alembic/ ./alembic/
+COPY codebox-orchestrator/alembic.ini ./
+COPY codebox-orchestrator/alembic/ ./alembic/
 
 # Create non-root user
 RUN groupadd -r codebox && useradd -r -g codebox -d /app -s /sbin/nologin codebox
