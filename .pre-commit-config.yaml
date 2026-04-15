@@ -28,3 +28,13 @@ repos:
             pnpm-lock\.yaml$|
             .*grpc/generated/.*
           )$
+
+  - repo: local
+    hooks:
+      - id: detect-secrets-strip-timestamp
+        name: strip detect-secrets timestamp
+        entry: bash -c 'if git diff --name-only | grep -q "^\.secrets\.baseline$"; then if [ -z "$(git diff .secrets.baseline | grep "^[+-]" | grep -v "^[+-][+-][+-]" | grep -v generated_at)" ]; then git checkout .secrets.baseline; fi; fi'
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
