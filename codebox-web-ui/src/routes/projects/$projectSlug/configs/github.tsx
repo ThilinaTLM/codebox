@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { TavilySection } from "@/components/settings/TavilySection"
+import { GitHubSection } from "@/components/settings/GitHubSection"
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
 export const Route = createFileRoute(
-  "/projects/$projectSlug/settings/tavily"
+  "/projects/$projectSlug/configs/github"
 )({
-  component: TavilySettingsPage,
+  component: GitHubSettingsPage,
 })
 
-function TavilySettingsPage() {
+function GitHubSettingsPage() {
   const { projectSlug } = Route.useParams()
   const { canManageProjectSettings } = useProjectPermissions(projectSlug)
   return (
-    <TavilySection
+    <GitHubSection
       projectSlug={projectSlug}
       readOnly={!canManageProjectSettings}
     />

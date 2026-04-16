@@ -2,8 +2,9 @@ import { useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  FolderFavouriteIcon,
   FolderLibraryIcon,
+  Settings02Icon,
+  UserCircleIcon,
   UserGroupIcon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
@@ -36,6 +37,18 @@ const PLATFORM_NAV: Array<PlatformNavItem> = [
     icon: UserGroupIcon,
     matchPrefix: "/platform/users",
   },
+  {
+    to: "/platform/account",
+    label: "Account",
+    icon: UserCircleIcon,
+    matchPrefix: "/platform/account",
+  },
+  {
+    to: "/platform/settings",
+    label: "Settings",
+    icon: Settings02Icon,
+    matchPrefix: "/platform/settings",
+  },
 ]
 
 export function PlatformSidebar() {
@@ -52,18 +65,10 @@ export function PlatformSidebar() {
     >
       <SidebarLogo collapsed={collapsed} onToggleCollapsed={setCollapsed} />
 
-      {!collapsed && (
-        <div className="px-4 pb-1 pt-4">
-          <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground/60">
-            Platform
-          </span>
-        </div>
-      )}
-
       <nav
         className={cn(
           "flex flex-col gap-0.5",
-          collapsed ? "px-1.5 pt-3" : "px-2 pt-1"
+          collapsed ? "px-1.5 pt-3" : "px-2 pt-3"
         )}
       >
         {PLATFORM_NAV.map((item) => {
@@ -114,43 +119,13 @@ export function PlatformSidebar() {
         })}
       </nav>
 
-      {/* Open a project quickly from the platform shell */}
-      {!collapsed && (
-        <div className="mt-6 px-4 pb-1">
-          <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground/60">
-            Shortcuts
-          </span>
-        </div>
-      )}
-      <div
-        className={cn(
-          "flex flex-col gap-0.5",
-          collapsed ? "px-1.5 pt-3" : "px-2 pt-1"
-        )}
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          nativeButton={false}
-          render={<Link to="/projects" />}
-          className={cn(
-            "justify-start gap-2.5 rounded-lg text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-            collapsed && "justify-center px-0"
-          )}
-        >
-          <HugeiconsIcon
-            icon={FolderFavouriteIcon}
-            size={18}
-            strokeWidth={2}
-            className="shrink-0"
-          />
-          {!collapsed && <span className="text-sm">Open project</span>}
-        </Button>
-      </div>
-
       <div className="flex-1" />
 
-      <SidebarUserFooter collapsed={collapsed} />
+      <SidebarUserFooter
+        collapsed={collapsed}
+        settingsTo="/platform/settings"
+        accountTo="/platform/account"
+      />
 
       {collapsed && (
         <div className="px-2 pb-2">

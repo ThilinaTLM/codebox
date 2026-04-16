@@ -66,10 +66,17 @@ export function CommandPalette() {
             </CommandItem>
             <CommandItem
               onSelect={() =>
-                handleSelect(() => navigate({ to: "/settings/account" }))
+                handleSelect(() =>
+                  slug
+                    ? navigate({
+                        to: "/projects/$projectSlug/account",
+                        params: { projectSlug: slug },
+                      })
+                    : navigate({ to: "/projects" })
+                )
               }
             >
-              Account Settings
+              Account
             </CommandItem>
           </CommandGroup>
 

@@ -2,10 +2,11 @@ import { useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  FolderFavouriteIcon,
+  Configuration02Icon,
   GridViewIcon,
   Settings02Icon,
   Shield02Icon,
+  UserCircleIcon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 import { Button } from "@/components/ui/button"
@@ -24,7 +25,11 @@ interface ProjectNavItem {
   key: string
   label: string
   icon: IconSvgElement
-  to: "/projects/$projectSlug" | "/projects/$projectSlug/settings"
+  to:
+    | "/projects/$projectSlug"
+    | "/projects/$projectSlug/configs"
+    | "/projects/$projectSlug/account"
+    | "/projects/$projectSlug/settings"
   matchPrefix: (slug: string) => string
   exact?: boolean
 }
@@ -39,8 +44,22 @@ const PROJECT_NAV: Array<ProjectNavItem> = [
     exact: true,
   },
   {
+    key: "configs",
+    label: "Configs",
+    icon: Configuration02Icon,
+    to: "/projects/$projectSlug/configs",
+    matchPrefix: (slug) => `/projects/${slug}/configs`,
+  },
+  {
+    key: "account",
+    label: "Account",
+    icon: UserCircleIcon,
+    to: "/projects/$projectSlug/account",
+    matchPrefix: (slug) => `/projects/${slug}/account`,
+  },
+  {
     key: "settings",
-    label: "Project Settings",
+    label: "Settings",
     icon: Settings02Icon,
     to: "/projects/$projectSlug/settings",
     matchPrefix: (slug) => `/projects/${slug}/settings`,
@@ -56,7 +75,6 @@ export function ProjectSidebar() {
   const isPlatformAdmin = user?.user_type === "admin"
 
   const activeSlug = useActiveProjectSlug()
-  const onChooser = currentPath === "/projects"
 
   return (
     <aside
@@ -69,29 +87,12 @@ export function ProjectSidebar() {
 
       <ProjectSwitcher activeSlug={activeSlug} collapsed={collapsed} />
 
-      {!collapsed && (
-        <div className="px-4 pb-1 pt-5">
-          <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground/60">
-            Navigation
-          </span>
-        </div>
-      )}
-
       <nav
         className={cn(
           "flex flex-col gap-0.5",
-          collapsed ? "px-1.5 pt-3" : "px-2 pt-1"
+          collapsed ? "px-1.5 pt-3" : "px-2 pt-3"
         )}
       >
-        {/* Project chooser */}
-        <SidebarNavLink
-          collapsed={collapsed}
-          active={onChooser}
-          icon={FolderFavouriteIcon}
-          label="All projects"
-          to="/projects"
-        />
-
         {activeSlug &&
           PROJECT_NAV.map((item) => {
             const prefix = item.matchPrefix(activeSlug)
@@ -148,37 +149,20 @@ export function ProjectSidebar() {
 
             return button
           })}
-      </nav>
 
-      {isPlatformAdmin && (
-        <>
-          {!collapsed && (
-            <div className="mt-6 px-4 pb-1">
-              <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground/60">
-                Platform
-              </span>
-            </div>
-          )}
-          <div
-            className={cn(
-              "flex flex-col gap-0.5",
-              collapsed ? "px-1.5 pt-3" : "px-2 pt-1"
-            )}
-          >
-            <SidebarNavLink
-              collapsed={collapsed}
-              active={false}
-              icon={Shield02Icon}
-              label="Platform admin"
-              to="/platform/projects"
-            />
-          </div>
-        </>
-      )}
+        {isPlatformAdmin && (
+          <PlatformShortcut collapsed={collapsed} />
+        )}
+      </nav>
 
       <div className="flex-1" />
 
-      <SidebarUserFooter collapsed={collapsed} />
+      <SidebarUserFooter
+        collapsed={collapsed}
+        settingsTo="/projects/$projectSlug/settings"
+        accountTo="/projects/$projectSlug/account"
+        routeParams={activeSlug ? { projectSlug: activeSlug } : undefined}
+      />
 
       {collapsed && (
         <div className="px-2 pb-2">
@@ -189,46 +173,25 @@ export function ProjectSidebar() {
   )
 }
 
-function SidebarNavLink({
-  collapsed,
-  active,
-  icon,
-  label,
-  to,
-}: {
-  collapsed: boolean
-  active: boolean
-  icon: IconSvgElement
-  label: string
-  to: "/projects" | "/platform/projects"
-}) {
+function PlatformShortcut({ collapsed }: { collapsed: boolean }) {
   const button = (
     <Button
       variant="ghost"
       size="sm"
       nativeButton={false}
-      render={<Link to={to} />}
+      render={<Link to="/platform/projects" />}
       className={cn(
-        "group/navitem relative justify-start gap-2.5 rounded-lg transition-all duration-fast",
-        active
-          ? "bg-sidebar-accent text-sidebar-foreground shadow-2xs"
-          : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+        "group/navitem relative justify-start gap-2.5 rounded-lg text-muted-foreground transition-all duration-fast hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
         collapsed && "justify-center px-0"
       )}
     >
-      {active && (
-        <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary transition-all duration-normal" />
-      )}
       <HugeiconsIcon
-        icon={icon}
+        icon={Shield02Icon}
         size={18}
         strokeWidth={2}
-        className={cn(
-          "shrink-0 transition-colors duration-fast",
-          active && "text-primary"
-        )}
+        className="shrink-0 transition-colors duration-fast"
       />
-      {!collapsed && <span className="text-sm">{label}</span>}
+      {!collapsed && <span className="text-sm">Platform</span>}
     </Button>
   )
 
@@ -237,7 +200,7 @@ function SidebarNavLink({
       <Tooltip>
         <TooltipTrigger render={button} />
         <TooltipContent side="right" sideOffset={8}>
-          {label}
+          Platform
         </TooltipContent>
       </Tooltip>
     )

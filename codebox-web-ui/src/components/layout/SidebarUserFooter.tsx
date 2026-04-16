@@ -1,7 +1,11 @@
 import { useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Logout03Icon, Settings02Icon } from "@hugeicons/core-free-icons"
+import {
+  Logout03Icon,
+  Settings02Icon,
+  UserCircleIcon,
+} from "@hugeicons/core-free-icons"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { useAuthStore } from "@/lib/auth"
 import { cn } from "@/lib/utils"
@@ -14,11 +18,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+type SettingsTarget =
+  | "/platform/settings"
+  | "/projects/$projectSlug/settings"
+
+type AccountTarget = "/platform/account" | "/projects/$projectSlug/account"
+
 interface SidebarUserFooterProps {
   collapsed: boolean
+  settingsTo: SettingsTarget
+  accountTo: AccountTarget
+  routeParams?: { projectSlug: string }
 }
 
-export function SidebarUserFooter({ collapsed }: SidebarUserFooterProps) {
+export function SidebarUserFooter({
+  collapsed,
+  settingsTo,
+  accountTo,
+  routeParams,
+}: SidebarUserFooterProps) {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const [signOutOpen, setSignOutOpen] = useState(false)
@@ -76,7 +94,37 @@ export function SidebarUserFooter({ collapsed }: SidebarUserFooterProps) {
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" className="w-48">
-              <DropdownMenuItem render={<Link to="/settings/account" />}>
+              <DropdownMenuItem
+                render={
+                  accountTo === "/projects/$projectSlug/account" &&
+                  routeParams ? (
+                    <Link to={accountTo} params={routeParams} />
+                  ) : accountTo === "/platform/account" ? (
+                    <Link to="/platform/account" />
+                  ) : (
+                    <span />
+                  )
+                }
+              >
+                <HugeiconsIcon
+                  icon={UserCircleIcon}
+                  size={16}
+                  strokeWidth={2}
+                />
+                Account
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                render={
+                  settingsTo === "/projects/$projectSlug/settings" &&
+                  routeParams ? (
+                    <Link to={settingsTo} params={routeParams} />
+                  ) : settingsTo === "/platform/settings" ? (
+                    <Link to="/platform/settings" />
+                  ) : (
+                    <span />
+                  )
+                }
+              >
                 <HugeiconsIcon
                   icon={Settings02Icon}
                   size={16}

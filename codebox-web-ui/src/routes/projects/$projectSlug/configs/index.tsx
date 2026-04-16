@@ -1,11 +1,11 @@
 import { Navigate, createFileRoute } from "@tanstack/react-router"
 
-export const Route = createFileRoute("/projects/$projectSlug/settings/")({
+export const Route = createFileRoute("/projects/$projectSlug/configs/")({
   component: () => {
     const { projectSlug } = Route.useParams()
     return (
       <Navigate
-        to="/projects/$projectSlug/settings/appearance"
+        to="/projects/$projectSlug/configs/members"
         params={{ projectSlug }}
         replace
       />

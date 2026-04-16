@@ -1,62 +1,47 @@
-import { Link, Outlet, createFileRoute, useRouter } from "@tanstack/react-router"
+import { Link, Outlet, createFileRoute } from "@tanstack/react-router"
 import {
-  ArrowLeft02Icon,
+  InformationCircleIcon,
   PaintBoardIcon,
-  UserCircleIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
-import { Button } from "@/components/ui/button"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 const SECTIONS: Array<{
-  to: string
+  key: string
   label: string
   icon: IconSvgElement
+  to: "/platform/settings/appearance" | "/platform/settings/about"
 }> = [
-  { to: "/settings/account", label: "Account", icon: UserCircleIcon },
-  { to: "/settings/appearance", label: "Appearance", icon: PaintBoardIcon },
+  {
+    key: "appearance",
+    label: "Appearance",
+    icon: PaintBoardIcon,
+    to: "/platform/settings/appearance",
+  },
+  {
+    key: "about",
+    label: "About",
+    icon: InformationCircleIcon,
+    to: "/platform/settings/about",
+  },
 ]
 
-export const Route = createFileRoute("/settings")({
-  component: SettingsLayout,
+export const Route = createFileRoute("/platform/settings")({
+  component: PlatformSettingsLayout,
 })
 
-function SettingsLayout() {
+function PlatformSettingsLayout() {
   const isMobile = useIsMobile()
-  const router = useRouter()
-
-  const handleBack = () => {
-    if (
-      typeof window !== "undefined" &&
-      window.history.length > 1 &&
-      document.referrer !== ""
-    ) {
-      router.history.back()
-    } else {
-      void router.navigate({ to: "/" })
-    }
-  }
 
   if (isMobile) {
     return (
-      <div className="flex h-svh flex-col bg-background">
-        <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-          <Button variant="ghost" size="sm" onClick={handleBack}>
-            <HugeiconsIcon
-              icon={ArrowLeft02Icon}
-              size={16}
-              strokeWidth={2}
-            />
-            Back
-          </Button>
-          <h1 className="font-display text-base font-semibold">Settings</h1>
-        </div>
+      <div className="flex h-full flex-col">
         <div className="shrink-0 border-b border-border">
           <div className="flex gap-1 overflow-x-auto px-4 py-2">
             {SECTIONS.map((s) => (
               <Link
-                key={s.to}
+                key={s.key}
                 to={s.to}
                 activeOptions={{ exact: true }}
                 className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors text-muted-foreground hover:text-foreground"
@@ -86,29 +71,14 @@ function SettingsLayout() {
   }
 
   return (
-    <div className="flex h-svh bg-background">
-      <nav className="w-56 shrink-0 space-y-1 overflow-y-auto border-r border-border p-4">
-        <div className="mb-4 px-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            className="-ml-2 gap-1.5 text-muted-foreground"
-          >
-            <HugeiconsIcon
-              icon={ArrowLeft02Icon}
-              size={14}
-              strokeWidth={2}
-            />
-            Back
-          </Button>
-        </div>
+    <div className="flex h-full">
+      <nav className="w-52 shrink-0 space-y-1 overflow-y-auto border-r border-border p-4">
         <h1 className="mb-4 px-3 font-display text-lg font-semibold tracking-tight">
           Settings
         </h1>
         {SECTIONS.map((s) => (
           <Link
-            key={s.to}
+            key={s.key}
             to={s.to}
             activeOptions={{ exact: true }}
             className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors text-muted-foreground hover:bg-muted/30 hover:text-foreground"

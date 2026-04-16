@@ -3,7 +3,7 @@ import { ProjectMembersSection } from "@/components/projects/ProjectMembersSecti
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
 export const Route = createFileRoute(
-  "/projects/$projectSlug/settings/members"
+  "/projects/$projectSlug/configs/members"
 )({
   component: MembersSettingsPage,
 })

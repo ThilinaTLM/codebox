@@ -1,10 +1,11 @@
 import {
   HeadContent,
-  Navigate,
   Outlet,
   Scripts,
   createRootRoute,
+  redirect,
   useLocation,
+  useNavigate,
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
@@ -38,6 +39,28 @@ export const Route = createRootRoute({
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
+  beforeLoad: ({ location }) => {
+    // Auth redirects are expressed as route-level redirects instead of a
+    // <Navigate /> rendered inside the component tree.  Rendering <Navigate>
+    // from the root component leaves the server emitting a completed SSR
+    // match for the current route (with an empty match id for the index
+    // route), which then deadlocks client hydration for `/` specifically.
+    //
+    // Auth state lives in localStorage/Zustand, so it's only readable on the
+    // client.  We skip SSR here and let the client-side route load handle
+    // the redirect during hydration.
+    if (typeof window === "undefined") return
+
+    const isAuthenticated = useAuthStore.getState().isAuthenticated
+    const isLoginPage = location.pathname === "/login"
+
+    if (!isAuthenticated && !isLoginPage) {
+      throw redirect({ to: "/login" })
+    }
+    if (isAuthenticated && isLoginPage) {
+      throw redirect({ to: "/" })
+    }
+  },
   shellComponent: RootDocument,
   component: RootComponent,
 })
@@ -50,8 +73,10 @@ function GlobalStreamProvider({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const location = useLocation()
+  const navigate = useNavigate()
+  const isLoginPage = location.pathname === "/login"
 
-  // Validate the auth cookie is still valid on initial load
+  // Validate the auth cookie is still valid on initial load.
   useEffect(() => {
     if (isAuthenticated) {
       api.auth.me().catch(() => {
@@ -60,33 +85,20 @@ function RootComponent() {
     }
   }, [isAuthenticated])
 
-  const isLoginPage = location.pathname === "/login"
+  // Client-side auth redirects.  The route's `beforeLoad` handles this for
+  // soft navigations, but it can't fire on the server (auth state lives in
+  // localStorage/Zustand) — so hard reloads hit this effect during
+  // hydration.
+  useEffect(() => {
+    if (!isAuthenticated && !isLoginPage) {
+      void navigate({ to: "/login", replace: true })
+    } else if (isAuthenticated && isLoginPage) {
+      void navigate({ to: "/", replace: true })
+    }
+  }, [isAuthenticated, isLoginPage, navigate])
 
-  // Not authenticated and not on login page → redirect to login
-  if (!isAuthenticated && !isLoginPage) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <Navigate to="/login" />
-          <Toaster />
-        </ThemeProvider>
-      </QueryClientProvider>
-    )
-  }
-
-  // Authenticated and on login page → redirect to home
-  if (isAuthenticated && isLoginPage) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <Navigate to="/" />
-          <Toaster />
-        </ThemeProvider>
-      </QueryClientProvider>
-    )
-  }
-
-  // On login page (unauthenticated) → render just the outlet (no app shell)
+  // Unauthenticated (i.e. on /login) → render the outlet without the
+  // authenticated-only providers or app shell.
   if (!isAuthenticated) {
     return (
       <QueryClientProvider client={queryClient}>

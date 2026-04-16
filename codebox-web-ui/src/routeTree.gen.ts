@@ -11,25 +11,31 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as SettingsRouteRouteImport } from './routes/settings/route'
 import { Route as ProjectsRouteRouteImport } from './routes/projects/route'
 import { Route as PlatformRouteRouteImport } from './routes/platform/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
 import { Route as PlatformIndexRouteImport } from './routes/platform/index'
-import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
-import { Route as SettingsAccountRouteImport } from './routes/settings/account'
 import { Route as PlatformUsersRouteImport } from './routes/platform/users'
 import { Route as PlatformProjectsRouteImport } from './routes/platform/projects'
+import { Route as PlatformAccountRouteImport } from './routes/platform/account'
 import { Route as ProjectsProjectSlugRouteRouteImport } from './routes/projects/$projectSlug/route'
+import { Route as PlatformSettingsRouteRouteImport } from './routes/platform/settings/route'
 import { Route as ProjectsProjectSlugIndexRouteImport } from './routes/projects/$projectSlug/index'
+import { Route as PlatformSettingsIndexRouteImport } from './routes/platform/settings/index'
+import { Route as ProjectsProjectSlugAccountRouteImport } from './routes/projects/$projectSlug/account'
+import { Route as PlatformSettingsAppearanceRouteImport } from './routes/platform/settings/appearance'
+import { Route as PlatformSettingsAboutRouteImport } from './routes/platform/settings/about'
 import { Route as ProjectsProjectSlugSettingsRouteRouteImport } from './routes/projects/$projectSlug/settings/route'
+import { Route as ProjectsProjectSlugConfigsRouteRouteImport } from './routes/projects/$projectSlug/configs/route'
 import { Route as ProjectsProjectSlugSettingsIndexRouteImport } from './routes/projects/$projectSlug/settings/index'
-import { Route as ProjectsProjectSlugSettingsTavilyRouteImport } from './routes/projects/$projectSlug/settings/tavily'
-import { Route as ProjectsProjectSlugSettingsMembersRouteImport } from './routes/projects/$projectSlug/settings/members'
-import { Route as ProjectsProjectSlugSettingsLlmProfilesRouteImport } from './routes/projects/$projectSlug/settings/llm-profiles'
-import { Route as ProjectsProjectSlugSettingsGithubRouteImport } from './routes/projects/$projectSlug/settings/github'
+import { Route as ProjectsProjectSlugConfigsIndexRouteImport } from './routes/projects/$projectSlug/configs/index'
+import { Route as ProjectsProjectSlugSettingsAppearanceRouteImport } from './routes/projects/$projectSlug/settings/appearance'
+import { Route as ProjectsProjectSlugSettingsAboutRouteImport } from './routes/projects/$projectSlug/settings/about'
+import { Route as ProjectsProjectSlugConfigsTavilyRouteImport } from './routes/projects/$projectSlug/configs/tavily'
+import { Route as ProjectsProjectSlugConfigsMembersRouteImport } from './routes/projects/$projectSlug/configs/members'
+import { Route as ProjectsProjectSlugConfigsLlmProfilesRouteImport } from './routes/projects/$projectSlug/configs/llm-profiles'
+import { Route as ProjectsProjectSlugConfigsGithubRouteImport } from './routes/projects/$projectSlug/configs/github'
 import { Route as ProjectsProjectSlugBoxesCreateRouteImport } from './routes/projects/$projectSlug/boxes/create'
 import { Route as ProjectsProjectSlugBoxesBoxIdRouteRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/route'
 import { Route as ProjectsProjectSlugBoxesBoxIdIndexRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/index'
@@ -42,11 +48,6 @@ const UsersRoute = UsersRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRouteRoute = SettingsRouteRouteImport.update({
-  id: '/settings',
-  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsRouteRoute = ProjectsRouteRouteImport.update({
@@ -64,11 +65,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsIndexRoute = SettingsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => SettingsRouteRoute,
-} as any)
 const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -78,16 +74,6 @@ const PlatformIndexRoute = PlatformIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PlatformRouteRoute,
-} as any)
-const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
-  id: '/appearance',
-  path: '/appearance',
-  getParentRoute: () => SettingsRouteRoute,
-} as any)
-const SettingsAccountRoute = SettingsAccountRouteImport.update({
-  id: '/account',
-  path: '/account',
-  getParentRoute: () => SettingsRouteRoute,
 } as any)
 const PlatformUsersRoute = PlatformUsersRouteImport.update({
   id: '/users',
@@ -99,22 +85,60 @@ const PlatformProjectsRoute = PlatformProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => PlatformRouteRoute,
 } as any)
+const PlatformAccountRoute = PlatformAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => PlatformRouteRoute,
+} as any)
 const ProjectsProjectSlugRouteRoute =
   ProjectsProjectSlugRouteRouteImport.update({
     id: '/$projectSlug',
     path: '/$projectSlug',
     getParentRoute: () => ProjectsRouteRoute,
   } as any)
+const PlatformSettingsRouteRoute = PlatformSettingsRouteRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => PlatformRouteRoute,
+} as any)
 const ProjectsProjectSlugIndexRoute =
   ProjectsProjectSlugIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => ProjectsProjectSlugRouteRoute,
   } as any)
+const PlatformSettingsIndexRoute = PlatformSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlatformSettingsRouteRoute,
+} as any)
+const ProjectsProjectSlugAccountRoute =
+  ProjectsProjectSlugAccountRouteImport.update({
+    id: '/account',
+    path: '/account',
+    getParentRoute: () => ProjectsProjectSlugRouteRoute,
+  } as any)
+const PlatformSettingsAppearanceRoute =
+  PlatformSettingsAppearanceRouteImport.update({
+    id: '/appearance',
+    path: '/appearance',
+    getParentRoute: () => PlatformSettingsRouteRoute,
+  } as any)
+const PlatformSettingsAboutRoute = PlatformSettingsAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => PlatformSettingsRouteRoute,
+} as any)
 const ProjectsProjectSlugSettingsRouteRoute =
   ProjectsProjectSlugSettingsRouteRouteImport.update({
     id: '/settings',
     path: '/settings',
+    getParentRoute: () => ProjectsProjectSlugRouteRoute,
+  } as any)
+const ProjectsProjectSlugConfigsRouteRoute =
+  ProjectsProjectSlugConfigsRouteRouteImport.update({
+    id: '/configs',
+    path: '/configs',
     getParentRoute: () => ProjectsProjectSlugRouteRoute,
   } as any)
 const ProjectsProjectSlugSettingsIndexRoute =
@@ -123,29 +147,47 @@ const ProjectsProjectSlugSettingsIndexRoute =
     path: '/',
     getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
   } as any)
-const ProjectsProjectSlugSettingsTavilyRoute =
-  ProjectsProjectSlugSettingsTavilyRouteImport.update({
+const ProjectsProjectSlugConfigsIndexRoute =
+  ProjectsProjectSlugConfigsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
+  } as any)
+const ProjectsProjectSlugSettingsAppearanceRoute =
+  ProjectsProjectSlugSettingsAppearanceRouteImport.update({
+    id: '/appearance',
+    path: '/appearance',
+    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+  } as any)
+const ProjectsProjectSlugSettingsAboutRoute =
+  ProjectsProjectSlugSettingsAboutRouteImport.update({
+    id: '/about',
+    path: '/about',
+    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+  } as any)
+const ProjectsProjectSlugConfigsTavilyRoute =
+  ProjectsProjectSlugConfigsTavilyRouteImport.update({
     id: '/tavily',
     path: '/tavily',
-    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+    getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
   } as any)
-const ProjectsProjectSlugSettingsMembersRoute =
-  ProjectsProjectSlugSettingsMembersRouteImport.update({
+const ProjectsProjectSlugConfigsMembersRoute =
+  ProjectsProjectSlugConfigsMembersRouteImport.update({
     id: '/members',
     path: '/members',
-    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+    getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
   } as any)
-const ProjectsProjectSlugSettingsLlmProfilesRoute =
-  ProjectsProjectSlugSettingsLlmProfilesRouteImport.update({
+const ProjectsProjectSlugConfigsLlmProfilesRoute =
+  ProjectsProjectSlugConfigsLlmProfilesRouteImport.update({
     id: '/llm-profiles',
     path: '/llm-profiles',
-    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+    getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
   } as any)
-const ProjectsProjectSlugSettingsGithubRoute =
-  ProjectsProjectSlugSettingsGithubRouteImport.update({
+const ProjectsProjectSlugConfigsGithubRoute =
+  ProjectsProjectSlugConfigsGithubRouteImport.update({
     id: '/github',
     path: '/github',
-    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+    getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
   } as any)
 const ProjectsProjectSlugBoxesCreateRoute =
   ProjectsProjectSlugBoxesCreateRouteImport.update({
@@ -170,25 +212,31 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/platform': typeof PlatformRouteRouteWithChildren
   '/projects': typeof ProjectsRouteRouteWithChildren
-  '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
+  '/platform/settings': typeof PlatformSettingsRouteRouteWithChildren
   '/projects/$projectSlug': typeof ProjectsProjectSlugRouteRouteWithChildren
+  '/platform/account': typeof PlatformAccountRoute
   '/platform/projects': typeof PlatformProjectsRoute
   '/platform/users': typeof PlatformUsersRoute
-  '/settings/account': typeof SettingsAccountRoute
-  '/settings/appearance': typeof SettingsAppearanceRoute
   '/platform/': typeof PlatformIndexRoute
   '/projects/': typeof ProjectsIndexRoute
-  '/settings/': typeof SettingsIndexRoute
+  '/projects/$projectSlug/configs': typeof ProjectsProjectSlugConfigsRouteRouteWithChildren
   '/projects/$projectSlug/settings': typeof ProjectsProjectSlugSettingsRouteRouteWithChildren
+  '/platform/settings/about': typeof PlatformSettingsAboutRoute
+  '/platform/settings/appearance': typeof PlatformSettingsAppearanceRoute
+  '/projects/$projectSlug/account': typeof ProjectsProjectSlugAccountRoute
+  '/platform/settings/': typeof PlatformSettingsIndexRoute
   '/projects/$projectSlug/': typeof ProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren
   '/projects/$projectSlug/boxes/create': typeof ProjectsProjectSlugBoxesCreateRoute
-  '/projects/$projectSlug/settings/github': typeof ProjectsProjectSlugSettingsGithubRoute
-  '/projects/$projectSlug/settings/llm-profiles': typeof ProjectsProjectSlugSettingsLlmProfilesRoute
-  '/projects/$projectSlug/settings/members': typeof ProjectsProjectSlugSettingsMembersRoute
-  '/projects/$projectSlug/settings/tavily': typeof ProjectsProjectSlugSettingsTavilyRoute
+  '/projects/$projectSlug/configs/github': typeof ProjectsProjectSlugConfigsGithubRoute
+  '/projects/$projectSlug/configs/llm-profiles': typeof ProjectsProjectSlugConfigsLlmProfilesRoute
+  '/projects/$projectSlug/configs/members': typeof ProjectsProjectSlugConfigsMembersRoute
+  '/projects/$projectSlug/configs/tavily': typeof ProjectsProjectSlugConfigsTavilyRoute
+  '/projects/$projectSlug/settings/about': typeof ProjectsProjectSlugSettingsAboutRoute
+  '/projects/$projectSlug/settings/appearance': typeof ProjectsProjectSlugSettingsAppearanceRoute
+  '/projects/$projectSlug/configs/': typeof ProjectsProjectSlugConfigsIndexRoute
   '/projects/$projectSlug/settings/': typeof ProjectsProjectSlugSettingsIndexRoute
   '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
@@ -196,19 +244,24 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
+  '/platform/account': typeof PlatformAccountRoute
   '/platform/projects': typeof PlatformProjectsRoute
   '/platform/users': typeof PlatformUsersRoute
-  '/settings/account': typeof SettingsAccountRoute
-  '/settings/appearance': typeof SettingsAppearanceRoute
   '/platform': typeof PlatformIndexRoute
   '/projects': typeof ProjectsIndexRoute
-  '/settings': typeof SettingsIndexRoute
+  '/platform/settings/about': typeof PlatformSettingsAboutRoute
+  '/platform/settings/appearance': typeof PlatformSettingsAppearanceRoute
+  '/projects/$projectSlug/account': typeof ProjectsProjectSlugAccountRoute
+  '/platform/settings': typeof PlatformSettingsIndexRoute
   '/projects/$projectSlug': typeof ProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/boxes/create': typeof ProjectsProjectSlugBoxesCreateRoute
-  '/projects/$projectSlug/settings/github': typeof ProjectsProjectSlugSettingsGithubRoute
-  '/projects/$projectSlug/settings/llm-profiles': typeof ProjectsProjectSlugSettingsLlmProfilesRoute
-  '/projects/$projectSlug/settings/members': typeof ProjectsProjectSlugSettingsMembersRoute
-  '/projects/$projectSlug/settings/tavily': typeof ProjectsProjectSlugSettingsTavilyRoute
+  '/projects/$projectSlug/configs/github': typeof ProjectsProjectSlugConfigsGithubRoute
+  '/projects/$projectSlug/configs/llm-profiles': typeof ProjectsProjectSlugConfigsLlmProfilesRoute
+  '/projects/$projectSlug/configs/members': typeof ProjectsProjectSlugConfigsMembersRoute
+  '/projects/$projectSlug/configs/tavily': typeof ProjectsProjectSlugConfigsTavilyRoute
+  '/projects/$projectSlug/settings/about': typeof ProjectsProjectSlugSettingsAboutRoute
+  '/projects/$projectSlug/settings/appearance': typeof ProjectsProjectSlugSettingsAppearanceRoute
+  '/projects/$projectSlug/configs': typeof ProjectsProjectSlugConfigsIndexRoute
   '/projects/$projectSlug/settings': typeof ProjectsProjectSlugSettingsIndexRoute
   '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
@@ -217,25 +270,31 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/platform': typeof PlatformRouteRouteWithChildren
   '/projects': typeof ProjectsRouteRouteWithChildren
-  '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
+  '/platform/settings': typeof PlatformSettingsRouteRouteWithChildren
   '/projects/$projectSlug': typeof ProjectsProjectSlugRouteRouteWithChildren
+  '/platform/account': typeof PlatformAccountRoute
   '/platform/projects': typeof PlatformProjectsRoute
   '/platform/users': typeof PlatformUsersRoute
-  '/settings/account': typeof SettingsAccountRoute
-  '/settings/appearance': typeof SettingsAppearanceRoute
   '/platform/': typeof PlatformIndexRoute
   '/projects/': typeof ProjectsIndexRoute
-  '/settings/': typeof SettingsIndexRoute
+  '/projects/$projectSlug/configs': typeof ProjectsProjectSlugConfigsRouteRouteWithChildren
   '/projects/$projectSlug/settings': typeof ProjectsProjectSlugSettingsRouteRouteWithChildren
+  '/platform/settings/about': typeof PlatformSettingsAboutRoute
+  '/platform/settings/appearance': typeof PlatformSettingsAppearanceRoute
+  '/projects/$projectSlug/account': typeof ProjectsProjectSlugAccountRoute
+  '/platform/settings/': typeof PlatformSettingsIndexRoute
   '/projects/$projectSlug/': typeof ProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren
   '/projects/$projectSlug/boxes/create': typeof ProjectsProjectSlugBoxesCreateRoute
-  '/projects/$projectSlug/settings/github': typeof ProjectsProjectSlugSettingsGithubRoute
-  '/projects/$projectSlug/settings/llm-profiles': typeof ProjectsProjectSlugSettingsLlmProfilesRoute
-  '/projects/$projectSlug/settings/members': typeof ProjectsProjectSlugSettingsMembersRoute
-  '/projects/$projectSlug/settings/tavily': typeof ProjectsProjectSlugSettingsTavilyRoute
+  '/projects/$projectSlug/configs/github': typeof ProjectsProjectSlugConfigsGithubRoute
+  '/projects/$projectSlug/configs/llm-profiles': typeof ProjectsProjectSlugConfigsLlmProfilesRoute
+  '/projects/$projectSlug/configs/members': typeof ProjectsProjectSlugConfigsMembersRoute
+  '/projects/$projectSlug/configs/tavily': typeof ProjectsProjectSlugConfigsTavilyRoute
+  '/projects/$projectSlug/settings/about': typeof ProjectsProjectSlugSettingsAboutRoute
+  '/projects/$projectSlug/settings/appearance': typeof ProjectsProjectSlugSettingsAppearanceRoute
+  '/projects/$projectSlug/configs/': typeof ProjectsProjectSlugConfigsIndexRoute
   '/projects/$projectSlug/settings/': typeof ProjectsProjectSlugSettingsIndexRoute
   '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
@@ -245,25 +304,31 @@ export interface FileRouteTypes {
     | '/'
     | '/platform'
     | '/projects'
-    | '/settings'
     | '/login'
     | '/users'
+    | '/platform/settings'
     | '/projects/$projectSlug'
+    | '/platform/account'
     | '/platform/projects'
     | '/platform/users'
-    | '/settings/account'
-    | '/settings/appearance'
     | '/platform/'
     | '/projects/'
-    | '/settings/'
+    | '/projects/$projectSlug/configs'
     | '/projects/$projectSlug/settings'
+    | '/platform/settings/about'
+    | '/platform/settings/appearance'
+    | '/projects/$projectSlug/account'
+    | '/platform/settings/'
     | '/projects/$projectSlug/'
     | '/projects/$projectSlug/boxes/$boxId'
     | '/projects/$projectSlug/boxes/create'
-    | '/projects/$projectSlug/settings/github'
-    | '/projects/$projectSlug/settings/llm-profiles'
-    | '/projects/$projectSlug/settings/members'
-    | '/projects/$projectSlug/settings/tavily'
+    | '/projects/$projectSlug/configs/github'
+    | '/projects/$projectSlug/configs/llm-profiles'
+    | '/projects/$projectSlug/configs/members'
+    | '/projects/$projectSlug/configs/tavily'
+    | '/projects/$projectSlug/settings/about'
+    | '/projects/$projectSlug/settings/appearance'
+    | '/projects/$projectSlug/configs/'
     | '/projects/$projectSlug/settings/'
     | '/projects/$projectSlug/boxes/$boxId/'
   fileRoutesByTo: FileRoutesByTo
@@ -271,19 +336,24 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/users'
+    | '/platform/account'
     | '/platform/projects'
     | '/platform/users'
-    | '/settings/account'
-    | '/settings/appearance'
     | '/platform'
     | '/projects'
-    | '/settings'
+    | '/platform/settings/about'
+    | '/platform/settings/appearance'
+    | '/projects/$projectSlug/account'
+    | '/platform/settings'
     | '/projects/$projectSlug'
     | '/projects/$projectSlug/boxes/create'
-    | '/projects/$projectSlug/settings/github'
-    | '/projects/$projectSlug/settings/llm-profiles'
-    | '/projects/$projectSlug/settings/members'
-    | '/projects/$projectSlug/settings/tavily'
+    | '/projects/$projectSlug/configs/github'
+    | '/projects/$projectSlug/configs/llm-profiles'
+    | '/projects/$projectSlug/configs/members'
+    | '/projects/$projectSlug/configs/tavily'
+    | '/projects/$projectSlug/settings/about'
+    | '/projects/$projectSlug/settings/appearance'
+    | '/projects/$projectSlug/configs'
     | '/projects/$projectSlug/settings'
     | '/projects/$projectSlug/boxes/$boxId'
   id:
@@ -291,25 +361,31 @@ export interface FileRouteTypes {
     | '/'
     | '/platform'
     | '/projects'
-    | '/settings'
     | '/login'
     | '/users'
+    | '/platform/settings'
     | '/projects/$projectSlug'
+    | '/platform/account'
     | '/platform/projects'
     | '/platform/users'
-    | '/settings/account'
-    | '/settings/appearance'
     | '/platform/'
     | '/projects/'
-    | '/settings/'
+    | '/projects/$projectSlug/configs'
     | '/projects/$projectSlug/settings'
+    | '/platform/settings/about'
+    | '/platform/settings/appearance'
+    | '/projects/$projectSlug/account'
+    | '/platform/settings/'
     | '/projects/$projectSlug/'
     | '/projects/$projectSlug/boxes/$boxId'
     | '/projects/$projectSlug/boxes/create'
-    | '/projects/$projectSlug/settings/github'
-    | '/projects/$projectSlug/settings/llm-profiles'
-    | '/projects/$projectSlug/settings/members'
-    | '/projects/$projectSlug/settings/tavily'
+    | '/projects/$projectSlug/configs/github'
+    | '/projects/$projectSlug/configs/llm-profiles'
+    | '/projects/$projectSlug/configs/members'
+    | '/projects/$projectSlug/configs/tavily'
+    | '/projects/$projectSlug/settings/about'
+    | '/projects/$projectSlug/settings/appearance'
+    | '/projects/$projectSlug/configs/'
     | '/projects/$projectSlug/settings/'
     | '/projects/$projectSlug/boxes/$boxId/'
   fileRoutesById: FileRoutesById
@@ -318,7 +394,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PlatformRouteRoute: typeof PlatformRouteRouteWithChildren
   ProjectsRouteRoute: typeof ProjectsRouteRouteWithChildren
-  SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   UsersRoute: typeof UsersRoute
 }
@@ -337,13 +412,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -367,13 +435,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/': {
-      id: '/settings/'
-      path: '/'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof SettingsIndexRouteImport
-      parentRoute: typeof SettingsRouteRoute
-    }
     '/projects/': {
       id: '/projects/'
       path: '/'
@@ -387,20 +448,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/platform/'
       preLoaderRoute: typeof PlatformIndexRouteImport
       parentRoute: typeof PlatformRouteRoute
-    }
-    '/settings/appearance': {
-      id: '/settings/appearance'
-      path: '/appearance'
-      fullPath: '/settings/appearance'
-      preLoaderRoute: typeof SettingsAppearanceRouteImport
-      parentRoute: typeof SettingsRouteRoute
-    }
-    '/settings/account': {
-      id: '/settings/account'
-      path: '/account'
-      fullPath: '/settings/account'
-      preLoaderRoute: typeof SettingsAccountRouteImport
-      parentRoute: typeof SettingsRouteRoute
     }
     '/platform/users': {
       id: '/platform/users'
@@ -416,12 +463,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformProjectsRouteImport
       parentRoute: typeof PlatformRouteRoute
     }
+    '/platform/account': {
+      id: '/platform/account'
+      path: '/account'
+      fullPath: '/platform/account'
+      preLoaderRoute: typeof PlatformAccountRouteImport
+      parentRoute: typeof PlatformRouteRoute
+    }
     '/projects/$projectSlug': {
       id: '/projects/$projectSlug'
       path: '/$projectSlug'
       fullPath: '/projects/$projectSlug'
       preLoaderRoute: typeof ProjectsProjectSlugRouteRouteImport
       parentRoute: typeof ProjectsRouteRoute
+    }
+    '/platform/settings': {
+      id: '/platform/settings'
+      path: '/settings'
+      fullPath: '/platform/settings'
+      preLoaderRoute: typeof PlatformSettingsRouteRouteImport
+      parentRoute: typeof PlatformRouteRoute
     }
     '/projects/$projectSlug/': {
       id: '/projects/$projectSlug/'
@@ -430,11 +491,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectSlugIndexRouteImport
       parentRoute: typeof ProjectsProjectSlugRouteRoute
     }
+    '/platform/settings/': {
+      id: '/platform/settings/'
+      path: '/'
+      fullPath: '/platform/settings/'
+      preLoaderRoute: typeof PlatformSettingsIndexRouteImport
+      parentRoute: typeof PlatformSettingsRouteRoute
+    }
+    '/projects/$projectSlug/account': {
+      id: '/projects/$projectSlug/account'
+      path: '/account'
+      fullPath: '/projects/$projectSlug/account'
+      preLoaderRoute: typeof ProjectsProjectSlugAccountRouteImport
+      parentRoute: typeof ProjectsProjectSlugRouteRoute
+    }
+    '/platform/settings/appearance': {
+      id: '/platform/settings/appearance'
+      path: '/appearance'
+      fullPath: '/platform/settings/appearance'
+      preLoaderRoute: typeof PlatformSettingsAppearanceRouteImport
+      parentRoute: typeof PlatformSettingsRouteRoute
+    }
+    '/platform/settings/about': {
+      id: '/platform/settings/about'
+      path: '/about'
+      fullPath: '/platform/settings/about'
+      preLoaderRoute: typeof PlatformSettingsAboutRouteImport
+      parentRoute: typeof PlatformSettingsRouteRoute
+    }
     '/projects/$projectSlug/settings': {
       id: '/projects/$projectSlug/settings'
       path: '/settings'
       fullPath: '/projects/$projectSlug/settings'
       preLoaderRoute: typeof ProjectsProjectSlugSettingsRouteRouteImport
+      parentRoute: typeof ProjectsProjectSlugRouteRoute
+    }
+    '/projects/$projectSlug/configs': {
+      id: '/projects/$projectSlug/configs'
+      path: '/configs'
+      fullPath: '/projects/$projectSlug/configs'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsRouteRouteImport
       parentRoute: typeof ProjectsProjectSlugRouteRoute
     }
     '/projects/$projectSlug/settings/': {
@@ -444,33 +540,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectSlugSettingsIndexRouteImport
       parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
     }
-    '/projects/$projectSlug/settings/tavily': {
-      id: '/projects/$projectSlug/settings/tavily'
+    '/projects/$projectSlug/configs/': {
+      id: '/projects/$projectSlug/configs/'
+      path: '/'
+      fullPath: '/projects/$projectSlug/configs/'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsIndexRouteImport
+      parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
+    }
+    '/projects/$projectSlug/settings/appearance': {
+      id: '/projects/$projectSlug/settings/appearance'
+      path: '/appearance'
+      fullPath: '/projects/$projectSlug/settings/appearance'
+      preLoaderRoute: typeof ProjectsProjectSlugSettingsAppearanceRouteImport
+      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
+    }
+    '/projects/$projectSlug/settings/about': {
+      id: '/projects/$projectSlug/settings/about'
+      path: '/about'
+      fullPath: '/projects/$projectSlug/settings/about'
+      preLoaderRoute: typeof ProjectsProjectSlugSettingsAboutRouteImport
+      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
+    }
+    '/projects/$projectSlug/configs/tavily': {
+      id: '/projects/$projectSlug/configs/tavily'
       path: '/tavily'
-      fullPath: '/projects/$projectSlug/settings/tavily'
-      preLoaderRoute: typeof ProjectsProjectSlugSettingsTavilyRouteImport
-      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
+      fullPath: '/projects/$projectSlug/configs/tavily'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsTavilyRouteImport
+      parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
     }
-    '/projects/$projectSlug/settings/members': {
-      id: '/projects/$projectSlug/settings/members'
+    '/projects/$projectSlug/configs/members': {
+      id: '/projects/$projectSlug/configs/members'
       path: '/members'
-      fullPath: '/projects/$projectSlug/settings/members'
-      preLoaderRoute: typeof ProjectsProjectSlugSettingsMembersRouteImport
-      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
+      fullPath: '/projects/$projectSlug/configs/members'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsMembersRouteImport
+      parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
     }
-    '/projects/$projectSlug/settings/llm-profiles': {
-      id: '/projects/$projectSlug/settings/llm-profiles'
+    '/projects/$projectSlug/configs/llm-profiles': {
+      id: '/projects/$projectSlug/configs/llm-profiles'
       path: '/llm-profiles'
-      fullPath: '/projects/$projectSlug/settings/llm-profiles'
-      preLoaderRoute: typeof ProjectsProjectSlugSettingsLlmProfilesRouteImport
-      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
+      fullPath: '/projects/$projectSlug/configs/llm-profiles'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsLlmProfilesRouteImport
+      parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
     }
-    '/projects/$projectSlug/settings/github': {
-      id: '/projects/$projectSlug/settings/github'
+    '/projects/$projectSlug/configs/github': {
+      id: '/projects/$projectSlug/configs/github'
       path: '/github'
-      fullPath: '/projects/$projectSlug/settings/github'
-      preLoaderRoute: typeof ProjectsProjectSlugSettingsGithubRouteImport
-      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
+      fullPath: '/projects/$projectSlug/configs/github'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsGithubRouteImport
+      parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
     }
     '/projects/$projectSlug/boxes/create': {
       id: '/projects/$projectSlug/boxes/create'
@@ -496,13 +613,34 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface PlatformSettingsRouteRouteChildren {
+  PlatformSettingsAboutRoute: typeof PlatformSettingsAboutRoute
+  PlatformSettingsAppearanceRoute: typeof PlatformSettingsAppearanceRoute
+  PlatformSettingsIndexRoute: typeof PlatformSettingsIndexRoute
+}
+
+const PlatformSettingsRouteRouteChildren: PlatformSettingsRouteRouteChildren = {
+  PlatformSettingsAboutRoute: PlatformSettingsAboutRoute,
+  PlatformSettingsAppearanceRoute: PlatformSettingsAppearanceRoute,
+  PlatformSettingsIndexRoute: PlatformSettingsIndexRoute,
+}
+
+const PlatformSettingsRouteRouteWithChildren =
+  PlatformSettingsRouteRoute._addFileChildren(
+    PlatformSettingsRouteRouteChildren,
+  )
+
 interface PlatformRouteRouteChildren {
+  PlatformSettingsRouteRoute: typeof PlatformSettingsRouteRouteWithChildren
+  PlatformAccountRoute: typeof PlatformAccountRoute
   PlatformProjectsRoute: typeof PlatformProjectsRoute
   PlatformUsersRoute: typeof PlatformUsersRoute
   PlatformIndexRoute: typeof PlatformIndexRoute
 }
 
 const PlatformRouteRouteChildren: PlatformRouteRouteChildren = {
+  PlatformSettingsRouteRoute: PlatformSettingsRouteRouteWithChildren,
+  PlatformAccountRoute: PlatformAccountRoute,
   PlatformProjectsRoute: PlatformProjectsRoute,
   PlatformUsersRoute: PlatformUsersRoute,
   PlatformIndexRoute: PlatformIndexRoute,
@@ -512,24 +650,44 @@ const PlatformRouteRouteWithChildren = PlatformRouteRoute._addFileChildren(
   PlatformRouteRouteChildren,
 )
 
+interface ProjectsProjectSlugConfigsRouteRouteChildren {
+  ProjectsProjectSlugConfigsGithubRoute: typeof ProjectsProjectSlugConfigsGithubRoute
+  ProjectsProjectSlugConfigsLlmProfilesRoute: typeof ProjectsProjectSlugConfigsLlmProfilesRoute
+  ProjectsProjectSlugConfigsMembersRoute: typeof ProjectsProjectSlugConfigsMembersRoute
+  ProjectsProjectSlugConfigsTavilyRoute: typeof ProjectsProjectSlugConfigsTavilyRoute
+  ProjectsProjectSlugConfigsIndexRoute: typeof ProjectsProjectSlugConfigsIndexRoute
+}
+
+const ProjectsProjectSlugConfigsRouteRouteChildren: ProjectsProjectSlugConfigsRouteRouteChildren =
+  {
+    ProjectsProjectSlugConfigsGithubRoute:
+      ProjectsProjectSlugConfigsGithubRoute,
+    ProjectsProjectSlugConfigsLlmProfilesRoute:
+      ProjectsProjectSlugConfigsLlmProfilesRoute,
+    ProjectsProjectSlugConfigsMembersRoute:
+      ProjectsProjectSlugConfigsMembersRoute,
+    ProjectsProjectSlugConfigsTavilyRoute:
+      ProjectsProjectSlugConfigsTavilyRoute,
+    ProjectsProjectSlugConfigsIndexRoute: ProjectsProjectSlugConfigsIndexRoute,
+  }
+
+const ProjectsProjectSlugConfigsRouteRouteWithChildren =
+  ProjectsProjectSlugConfigsRouteRoute._addFileChildren(
+    ProjectsProjectSlugConfigsRouteRouteChildren,
+  )
+
 interface ProjectsProjectSlugSettingsRouteRouteChildren {
-  ProjectsProjectSlugSettingsGithubRoute: typeof ProjectsProjectSlugSettingsGithubRoute
-  ProjectsProjectSlugSettingsLlmProfilesRoute: typeof ProjectsProjectSlugSettingsLlmProfilesRoute
-  ProjectsProjectSlugSettingsMembersRoute: typeof ProjectsProjectSlugSettingsMembersRoute
-  ProjectsProjectSlugSettingsTavilyRoute: typeof ProjectsProjectSlugSettingsTavilyRoute
+  ProjectsProjectSlugSettingsAboutRoute: typeof ProjectsProjectSlugSettingsAboutRoute
+  ProjectsProjectSlugSettingsAppearanceRoute: typeof ProjectsProjectSlugSettingsAppearanceRoute
   ProjectsProjectSlugSettingsIndexRoute: typeof ProjectsProjectSlugSettingsIndexRoute
 }
 
 const ProjectsProjectSlugSettingsRouteRouteChildren: ProjectsProjectSlugSettingsRouteRouteChildren =
   {
-    ProjectsProjectSlugSettingsGithubRoute:
-      ProjectsProjectSlugSettingsGithubRoute,
-    ProjectsProjectSlugSettingsLlmProfilesRoute:
-      ProjectsProjectSlugSettingsLlmProfilesRoute,
-    ProjectsProjectSlugSettingsMembersRoute:
-      ProjectsProjectSlugSettingsMembersRoute,
-    ProjectsProjectSlugSettingsTavilyRoute:
-      ProjectsProjectSlugSettingsTavilyRoute,
+    ProjectsProjectSlugSettingsAboutRoute:
+      ProjectsProjectSlugSettingsAboutRoute,
+    ProjectsProjectSlugSettingsAppearanceRoute:
+      ProjectsProjectSlugSettingsAppearanceRoute,
     ProjectsProjectSlugSettingsIndexRoute:
       ProjectsProjectSlugSettingsIndexRoute,
   }
@@ -555,7 +713,9 @@ const ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren =
   )
 
 interface ProjectsProjectSlugRouteRouteChildren {
+  ProjectsProjectSlugConfigsRouteRoute: typeof ProjectsProjectSlugConfigsRouteRouteWithChildren
   ProjectsProjectSlugSettingsRouteRoute: typeof ProjectsProjectSlugSettingsRouteRouteWithChildren
+  ProjectsProjectSlugAccountRoute: typeof ProjectsProjectSlugAccountRoute
   ProjectsProjectSlugIndexRoute: typeof ProjectsProjectSlugIndexRoute
   ProjectsProjectSlugBoxesBoxIdRouteRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren
   ProjectsProjectSlugBoxesCreateRoute: typeof ProjectsProjectSlugBoxesCreateRoute
@@ -563,8 +723,11 @@ interface ProjectsProjectSlugRouteRouteChildren {
 
 const ProjectsProjectSlugRouteRouteChildren: ProjectsProjectSlugRouteRouteChildren =
   {
+    ProjectsProjectSlugConfigsRouteRoute:
+      ProjectsProjectSlugConfigsRouteRouteWithChildren,
     ProjectsProjectSlugSettingsRouteRoute:
       ProjectsProjectSlugSettingsRouteRouteWithChildren,
+    ProjectsProjectSlugAccountRoute: ProjectsProjectSlugAccountRoute,
     ProjectsProjectSlugIndexRoute: ProjectsProjectSlugIndexRoute,
     ProjectsProjectSlugBoxesBoxIdRouteRoute:
       ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren,
@@ -590,27 +753,10 @@ const ProjectsRouteRouteWithChildren = ProjectsRouteRoute._addFileChildren(
   ProjectsRouteRouteChildren,
 )
 
-interface SettingsRouteRouteChildren {
-  SettingsAccountRoute: typeof SettingsAccountRoute
-  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
-  SettingsIndexRoute: typeof SettingsIndexRoute
-}
-
-const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
-  SettingsAccountRoute: SettingsAccountRoute,
-  SettingsAppearanceRoute: SettingsAppearanceRoute,
-  SettingsIndexRoute: SettingsIndexRoute,
-}
-
-const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
-  SettingsRouteRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PlatformRouteRoute: PlatformRouteRouteWithChildren,
   ProjectsRouteRoute: ProjectsRouteRouteWithChildren,
-  SettingsRouteRoute: SettingsRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   UsersRoute: UsersRoute,
 }

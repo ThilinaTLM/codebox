@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { LLMProfilesSection } from "@/components/settings/LLMProfilesSection"
+import { TavilySection } from "@/components/settings/TavilySection"
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
 export const Route = createFileRoute(
-  "/projects/$projectSlug/settings/llm-profiles"
+  "/projects/$projectSlug/configs/tavily"
 )({
-  component: LLMProfilesPage,
+  component: TavilySettingsPage,
 })
 
-function LLMProfilesPage() {
+function TavilySettingsPage() {
   const { projectSlug } = Route.useParams()
   const { canManageProjectSettings } = useProjectPermissions(projectSlug)
   return (
-    <LLMProfilesSection
+    <TavilySection
       projectSlug={projectSlug}
       readOnly={!canManageProjectSettings}
     />

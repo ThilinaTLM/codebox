@@ -25,14 +25,19 @@ function ProjectsLayout() {
   )
   const slugMatch = location.pathname.match(/^\/projects\/([^/]+)/)
   const slugKey = slugMatch ? slugMatch[1] : "none"
-  const settingsMatch = location.pathname.startsWith(
+  const configsMatch = location.pathname.startsWith(
+    `/projects/${slugKey}/configs`
+  )
+  const userSettingsMatch = location.pathname.startsWith(
     `/projects/${slugKey}/settings`
   )
-  const pageKey = settingsMatch
-    ? `/projects/${slugKey}/settings`
-    : boxMatch
-      ? `/projects/${slugKey}/boxes/${boxMatch[1]}`
-      : location.pathname
+  const pageKey = configsMatch
+    ? `/projects/${slugKey}/configs`
+    : userSettingsMatch
+      ? `/projects/${slugKey}/settings`
+      : boxMatch
+        ? `/projects/${slugKey}/boxes/${boxMatch[1]}`
+        : location.pathname
 
   return (
     <BoxPageSetterContext value={setBoxPageActions}>

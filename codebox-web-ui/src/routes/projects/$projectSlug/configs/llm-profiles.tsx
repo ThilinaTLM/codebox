@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { GitHubSection } from "@/components/settings/GitHubSection"
+import { LLMProfilesSection } from "@/components/settings/LLMProfilesSection"
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
 export const Route = createFileRoute(
-  "/projects/$projectSlug/settings/github"
+  "/projects/$projectSlug/configs/llm-profiles"
 )({
-  component: GitHubSettingsPage,
+  component: LLMProfilesPage,
 })
 
-function GitHubSettingsPage() {
+function LLMProfilesPage() {
   const { projectSlug } = Route.useParams()
   const { canManageProjectSettings } = useProjectPermissions(projectSlug)
   return (
-    <GitHubSection
+    <LLMProfilesSection
       projectSlug={projectSlug}
       readOnly={!canManageProjectSettings}
     />

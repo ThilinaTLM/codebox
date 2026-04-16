@@ -1,7 +1,9 @@
 import { Link, Outlet, createFileRoute } from "@tanstack/react-router"
 import {
-  InformationCircleIcon,
-  PaintBoardIcon,
+  AiBrain01Icon,
+  Github01Icon,
+  InternetIcon,
+  UserGroupIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
@@ -12,28 +14,42 @@ const SECTIONS: Array<{
   label: string
   icon: IconSvgElement
   to:
-    | "/projects/$projectSlug/settings/appearance"
-    | "/projects/$projectSlug/settings/about"
+    | "/projects/$projectSlug/configs/members"
+    | "/projects/$projectSlug/configs/llm-profiles"
+    | "/projects/$projectSlug/configs/github"
+    | "/projects/$projectSlug/configs/tavily"
 }> = [
   {
-    key: "appearance",
-    label: "Appearance",
-    icon: PaintBoardIcon,
-    to: "/projects/$projectSlug/settings/appearance",
+    key: "members",
+    label: "Members",
+    icon: UserGroupIcon,
+    to: "/projects/$projectSlug/configs/members",
   },
   {
-    key: "about",
-    label: "About",
-    icon: InformationCircleIcon,
-    to: "/projects/$projectSlug/settings/about",
+    key: "llm-profiles",
+    label: "LLM Profiles",
+    icon: AiBrain01Icon,
+    to: "/projects/$projectSlug/configs/llm-profiles",
+  },
+  {
+    key: "github",
+    label: "GitHub",
+    icon: Github01Icon,
+    to: "/projects/$projectSlug/configs/github",
+  },
+  {
+    key: "tavily",
+    label: "Tavily",
+    icon: InternetIcon,
+    to: "/projects/$projectSlug/configs/tavily",
   },
 ]
 
-export const Route = createFileRoute("/projects/$projectSlug/settings")({
-  component: ProjectUserSettingsLayout,
+export const Route = createFileRoute("/projects/$projectSlug/configs")({
+  component: ProjectConfigsLayout,
 })
 
-function ProjectUserSettingsLayout() {
+function ProjectConfigsLayout() {
   const { projectSlug } = Route.useParams()
   const isMobile = useIsMobile()
 
@@ -78,7 +94,7 @@ function ProjectUserSettingsLayout() {
     <div className="flex h-[calc(100svh-24px)]">
       <nav className="w-52 shrink-0 space-y-1 overflow-y-auto border-r border-border p-4">
         <h1 className="mb-4 px-3 font-display text-lg font-semibold tracking-tight">
-          Settings
+          Configs
         </h1>
         {SECTIONS.map((s) => (
           <Link
@@ -104,7 +120,7 @@ function ProjectUserSettingsLayout() {
       </nav>
 
       <main className="flex-1 overflow-y-auto p-6">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-4xl">
           <Outlet />
         </div>
       </main>
