@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, func, or_, select
 
+from codebox_orchestrator.auth.models import User, UserStatus
 from codebox_orchestrator.project.models import Project, ProjectMember, ProjectStatus
 
 if TYPE_CHECKING:
@@ -167,6 +168,124 @@ class ProjectRepository:
                 .order_by(ProjectMember.created_at)
             )
             return list(result.scalars().all())
+
+    async def list_members_with_users(self, project_id: str) -> list[tuple[ProjectMember, User]]:
+        """Return members joined with their user rows, ordered by membership creation."""
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(ProjectMember, User)
+                .join(User, User.id == ProjectMember.user_id)
+                .where(ProjectMember.project_id == project_id)
+                .order_by(ProjectMember.created_at)
+            )
+            return [(m, u) for m, u in result.all()]
+
+    async def get_member_with_user(
+        self, project_id: str, user_id: str
+    ) -> tuple[ProjectMember, User] | None:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(ProjectMember, User)
+                .join(User, User.id == ProjectMember.user_id)
+                .where(
+                    ProjectMember.project_id == project_id,
+                    ProjectMember.user_id == user_id,
+                )
+            )
+            row = result.first()
+            if row is None:
+                return None
+            return row[0], row[1]
+
+    async def count_members_by_role(self, project_id: str, role: str) -> int:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(func.count(ProjectMember.id)).where(
+                    ProjectMember.project_id == project_id,
+                    ProjectMember.role == role,
+                )
+            )
+            return int(result.scalar() or 0)
+
+    async def get_active_user(self, user_id: str) -> User | None:
+        """Return the user if active; return ``None`` if missing, disabled, or deleted."""
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(User).where(
+                    User.id == user_id,
+                    User.status == UserStatus.ACTIVE,
+                )
+            )
+            return result.scalar_one_or_none()
+
+    async def search_member_candidates(
+        self,
+        project_id: str,
+        *,
+        query: str | None = None,
+        limit: int = 20,
+    ) -> list[User]:
+        """Search active users that are not already members of ``project_id``.
+
+        Matches ``query`` against username, first name, and last name using a
+        case-insensitive substring match. Empty or ``None`` query returns the
+        first ``limit`` candidates ordered by username.
+        """
+        async with self._session_factory() as session:
+            existing = select(ProjectMember.user_id).where(ProjectMember.project_id == project_id)
+            stmt = (
+                select(User)
+                .where(
+                    User.status == UserStatus.ACTIVE,
+                    User.id.not_in(existing),
+                )
+                .order_by(User.username)
+                .limit(limit)
+            )
+            trimmed = (query or "").strip()
+            if trimmed:
+                pattern = f"%{trimmed.lower()}%"
+                stmt = stmt.where(
+                    or_(
+                        func.lower(User.username).like(pattern),
+                        and_(
+                            User.first_name.is_not(None),
+                            func.lower(User.first_name).like(pattern),
+                        ),
+                        and_(
+                            User.last_name.is_not(None),
+                            func.lower(User.last_name).like(pattern),
+                        ),
+                    )
+                )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
+
+    async def find_project_by_name(
+        self, name: str, *, exclude_id: str | None = None
+    ) -> Project | None:
+        async with self._session_factory() as session:
+            stmt = select(Project).where(
+                func.lower(Project.name) == name.lower(),
+                Project.status != ProjectStatus.DELETED,
+            )
+            if exclude_id is not None:
+                stmt = stmt.where(Project.id != exclude_id)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
+
+    async def find_project_by_slug(
+        self, slug: str, *, exclude_id: str | None = None
+    ) -> Project | None:
+        async with self._session_factory() as session:
+            stmt = select(Project).where(
+                Project.slug == slug,
+                Project.status != ProjectStatus.DELETED,
+            )
+            if exclude_id is not None:
+                stmt = stmt.where(Project.id != exclude_id)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
 
     async def add_member(
         self, project_id: str, user_id: str, role: str = "contributor"

@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { GitHubSection } from "@/components/settings/GitHubSection"
+import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
 export const Route = createFileRoute(
   "/projects/$projectSlug/settings/github"
@@ -8,5 +10,11 @@ export const Route = createFileRoute(
 
 function GitHubSettingsPage() {
   const { projectSlug } = Route.useParams()
-  return <div>GitHub settings for project: {projectSlug} (migrating...)</div>
+  const { canManageProjectSettings } = useProjectPermissions(projectSlug)
+  return (
+    <GitHubSection
+      projectSlug={projectSlug}
+      readOnly={!canManageProjectSettings}
+    />
+  )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { useBoxes } from "@/net/query"
-import { useProjectStore } from "@/lib/project"
+import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
 import {
   Command,
   CommandDialog,
@@ -15,9 +15,8 @@ import {
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
-  const currentProject = useProjectStore((s) => s.currentProject)
-  const slug = currentProject?.slug
-  const { data: boxes } = useBoxes(slug)
+  const slug = useActiveProjectSlug()
+  const { data: boxes } = useBoxes(slug ?? undefined)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -48,7 +47,10 @@ export function CommandPalette() {
               onSelect={() =>
                 handleSelect(() =>
                   slug
-                    ? navigate({ to: "/projects/$projectSlug/boxes/create", params: { projectSlug: slug } })
+                    ? navigate({
+                        to: "/projects/$projectSlug/boxes/create",
+                        params: { projectSlug: slug },
+                      })
                     : navigate({ to: "/projects" })
                 )
               }
@@ -57,16 +59,21 @@ export function CommandPalette() {
             </CommandItem>
             <CommandItem
               onSelect={() =>
-                handleSelect(() =>
-                  navigate({ to: "/settings/account" })
-                )
+                handleSelect(() => navigate({ to: "/projects" }))
               }
             >
-              Settings
+              Switch Project
+            </CommandItem>
+            <CommandItem
+              onSelect={() =>
+                handleSelect(() => navigate({ to: "/settings/account" }))
+              }
+            >
+              Account Settings
             </CommandItem>
           </CommandGroup>
 
-          {boxes && boxes.length > 0 && (
+          {slug && boxes && boxes.length > 0 && (
             <>
               <CommandSeparator />
               <CommandGroup heading="Agents">
@@ -75,12 +82,10 @@ export function CommandPalette() {
                     key={box.id}
                     onSelect={() =>
                       handleSelect(() =>
-                        slug
-                          ? navigate({
-                              to: "/projects/$projectSlug/boxes/$boxId",
-                              params: { projectSlug: slug, boxId: box.id },
-                            })
-                          : undefined
+                        navigate({
+                          to: "/projects/$projectSlug/boxes/$boxId",
+                          params: { projectSlug: slug, boxId: box.id },
+                        })
                       )
                     }
                   >

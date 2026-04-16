@@ -95,6 +95,12 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         from codebox_orchestrator.box.infrastructure.event_publisher import (  # noqa: PLC0415
             EventPublisherAdapter,
         )
+        from codebox_orchestrator.compute.application.commands import (  # noqa: PLC0415
+            ProvisionContainerHandler,
+            RemoveContainerHandler,
+            RestartContainerHandler,
+            StopContainerHandler,
+        )
         from codebox_orchestrator.compute.docker.docker_adapter import (  # noqa: PLC0415
             DockerRuntime,
         )
@@ -105,6 +111,11 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         agent_connections = AgentConnectionAdapter(registry)
         event_repository = SqlAlchemyBoxEventRepository(async_session_factory)
         box_repository = BoxRepository(async_session_factory)
+
+        provision_container = ProvisionContainerHandler(container_runtime)
+        stop_container = StopContainerHandler(container_runtime)
+        restart_container = RestartContainerHandler(container_runtime)
+        remove_container = RemoveContainerHandler(container_runtime)
 
         # --- Box state store (in-memory lifecycle tracking) ---
         from codebox_orchestrator.box.infrastructure.box_state_store import (  # noqa: PLC0415
@@ -167,7 +178,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         )
 
         lifecycle = BoxLifecycleService(
-            runtime=container_runtime,
+            provision_container=provision_container,
             connections=agent_connections,
             publisher=event_publisher,
             state_store=box_state_store,
@@ -199,11 +210,18 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             box_repository,
         )
         stop_box_handler = StopBoxHandler(
-            container_runtime, agent_connections, event_publisher, query_service
+            stop_container,
+            agent_connections,
+            event_publisher,
+            query_service,
         )
-        restart_box_handler = RestartBoxHandler(container_runtime, event_publisher, query_service)
+        restart_box_handler = RestartBoxHandler(
+            restart_container,
+            event_publisher,
+            query_service,
+        )
         delete_box_handler = DeleteBoxHandler(
-            container_runtime,
+            remove_container,
             event_publisher,
             stop_box_handler,
             query_service,
@@ -211,6 +229,18 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             box_repository,
         )
         cancel_box_handler = CancelBoxHandler(agent_connections)
+
+        from codebox_orchestrator.project.service import (  # noqa: PLC0415
+            ProjectLifecycleService,
+        )
+
+        project_lifecycle_service = ProjectLifecycleService(
+            project_repo,
+            box_repository,
+            llm_profile_repo,
+            delete_box_handler,
+            event_publisher,
+        )
 
         # --- Per-project GitHub integration ---
         from codebox_orchestrator.integration.github.application.client_manager import (  # noqa: PLC0415
@@ -267,6 +297,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.github_client_manager = github_client_manager
         app.state.github_repository = github_repo
         app.state.project_service = project_service
+        app.state.project_lifecycle_service = project_lifecycle_service
         app.state.box_repository = box_repository
 
         yield

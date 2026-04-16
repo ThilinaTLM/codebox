@@ -5,7 +5,6 @@ import { LabelWithTooltip } from "./LabelWithTooltip"
 import { SectionSkeleton } from "./SectionSkeleton"
 import { StepHeader } from "./StepHeader"
 import { useProjectSettings, useUpdateProjectSettings } from "@/net/query"
-import { useProjectStore } from "@/lib/project"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,13 +13,17 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 interface GitHubAppConfigFormProps {
+  projectSlug: string
   statusLoading: boolean
+  readOnly?: boolean
 }
 
 export function GitHubAppConfigForm({
+  projectSlug,
   statusLoading,
+  readOnly = false,
 }: GitHubAppConfigFormProps) {
-  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const slug = projectSlug
   const { data: settings } = useProjectSettings(slug || undefined)
   const updateMutation = useUpdateProjectSettings(slug)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -119,6 +122,7 @@ export function GitHubAppConfigForm({
       </Alert>
 
       <form onSubmit={handleSave} className="max-w-xl space-y-4">
+        <fieldset disabled={readOnly} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="gh-app-id">App ID</Label>
           <Input
@@ -244,16 +248,19 @@ export function GitHubAppConfigForm({
           />
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button type="submit" size="sm" disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? "Saving..." : "Save Configuration"}
-          </Button>
-          {formDirty && (
-            <Badge variant="outline" className="text-xs text-amber-500">
-              Unsaved changes
-            </Badge>
-          )}
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-3">
+            <Button type="submit" size="sm" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Saving..." : "Save Configuration"}
+            </Button>
+            {formDirty && (
+              <Badge variant="outline" className="text-xs text-amber-500">
+                Unsaved changes
+              </Badge>
+            )}
+          </div>
+        )}
+        </fieldset>
       </form>
     </section>
   )

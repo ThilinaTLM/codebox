@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { ProjectMembersSection } from "@/components/projects/ProjectMembersSection"
+import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
 export const Route = createFileRoute(
   "/projects/$projectSlug/settings/members"
@@ -8,5 +10,11 @@ export const Route = createFileRoute(
 
 function MembersSettingsPage() {
   const { projectSlug } = Route.useParams()
-  return <div>Members for project: {projectSlug} (migrating...)</div>
+  const { canManageMembers } = useProjectPermissions(projectSlug)
+  return (
+    <ProjectMembersSection
+      projectSlug={projectSlug}
+      readOnly={!canManageMembers}
+    />
+  )
 }

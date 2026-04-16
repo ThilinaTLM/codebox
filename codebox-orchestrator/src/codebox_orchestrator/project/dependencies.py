@@ -15,6 +15,7 @@ class ProjectContext:
 
     project_id: str
     project_slug: str
+    project_status: str  # "active" | "archived" | "deleted"
     user_id: str
     user_type: str  # platform role: "admin" | "user"
     project_role: str  # project role: "admin" | "contributor"
@@ -27,6 +28,10 @@ class ProjectContext:
     def is_platform_admin(self) -> bool:
         return self.user_type == "admin"
 
+    @property
+    def is_archived(self) -> bool:
+        return self.project_status == "archived"
+
 
 async def get_project_context(
     slug: str,
@@ -36,6 +41,7 @@ async def get_project_context(
     """Validate user is a member of the project identified by *slug*.
 
     Platform admins are always granted access with a synthetic 'admin' project role.
+    Non-platform users cannot open archived projects — they see 403.
     """
     from codebox_orchestrator.project.service import ProjectService  # noqa: PLC0415, TC001
 
@@ -44,11 +50,18 @@ async def get_project_context(
     if project is None:
         raise HTTPException(404, "Project not found")
 
-    # Platform admins always have access
-    if user.user_type == "admin":
+    is_platform_admin = user.user_type == "admin"
+
+    # Non-platform users cannot access archived projects.
+    if project.status == "archived" and not is_platform_admin:
+        raise HTTPException(403, "This project is archived")
+
+    # Platform admins always have access (even to archived projects).
+    if is_platform_admin:
         return ProjectContext(
             project_id=project.id,
             project_slug=project.slug,
+            project_status=project.status,
             user_id=user.user_id,
             user_type=user.user_type,
             project_role="admin",
@@ -61,6 +74,7 @@ async def get_project_context(
     return ProjectContext(
         project_id=project.id,
         project_slug=project.slug,
+        project_status=project.status,
         user_id=user.user_id,
         user_type=user.user_type,
         project_role=member.role,

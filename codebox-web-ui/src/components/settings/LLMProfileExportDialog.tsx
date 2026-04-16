@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import type { LLMProfileKeyMode } from "@/net/http/types"
-import { useProjectStore } from "@/lib/project"
 import { useExportLLMProfiles } from "@/net/query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 
 interface LLMProfileExportDialogProps {
+  projectSlug: string
   open: boolean
   onOpenChange: (open: boolean) => void
   /** When set, export only these profiles. `null` = export all. */
@@ -25,11 +25,12 @@ interface LLMProfileExportDialogProps {
 }
 
 export function LLMProfileExportDialog({
+  projectSlug,
   open,
   onOpenChange,
   profileIds = null,
 }: LLMProfileExportDialogProps) {
-  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const slug = projectSlug
   const exportMutation = useExportLLMProfiles(slug)
 
   const [keyMode, setKeyMode] = useState<LLMProfileKeyMode>("no_keys")

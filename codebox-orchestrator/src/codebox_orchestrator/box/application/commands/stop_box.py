@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import logging
 from typing import TYPE_CHECKING
@@ -10,8 +9,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from codebox_orchestrator.box.application.services.box_query import BoxQueryService
     from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
-    from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
     from codebox_orchestrator.box.ports.event_publisher import EventPublisher
+    from codebox_orchestrator.compute.application.commands import StopContainerHandler
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +18,12 @@ logger = logging.getLogger(__name__)
 class StopBoxHandler:
     def __init__(
         self,
-        runtime: ContainerRuntime,
+        stop_container: StopContainerHandler,
         connections: AgentConnectionManager,
         publisher: EventPublisher,
         query_service: BoxQueryService,
     ) -> None:
-        self._runtime = runtime
+        self._stop_container = stop_container
         self._connections = connections
         self._publisher = publisher
         self._query = query_service
@@ -37,9 +36,8 @@ class StopBoxHandler:
             return
 
         if box.container_name:
-            loop = asyncio.get_running_loop()
             with contextlib.suppress(Exception):
-                await loop.run_in_executor(None, self._runtime.stop, box.container_name)
+                await self._stop_container.execute(box.container_name)
 
         await self._publisher.publish_box_event(
             box_id,

@@ -1,13 +1,17 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { useProjectSettings, useUpdateProjectSettings } from "@/net/query"
-import { useProjectStore } from "@/lib/project"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 
-export function TavilySection() {
+interface TavilySectionProps {
+  projectSlug: string
+  readOnly?: boolean
+}
+
+export function TavilySection({ projectSlug, readOnly = false }: TavilySectionProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -26,13 +30,19 @@ export function TavilySection() {
           available.
         </p>
       </div>
-      <TavilyKeyForm />
+      <TavilyKeyForm projectSlug={projectSlug} readOnly={readOnly} />
     </div>
   )
 }
 
-function TavilyKeyForm() {
-  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+function TavilyKeyForm({
+  projectSlug,
+  readOnly,
+}: {
+  projectSlug: string
+  readOnly: boolean
+}) {
+  const slug = projectSlug
   const { data: settings } = useProjectSettings(slug || undefined)
   const updateMutation = useUpdateProjectSettings(slug)
   const [tavilyKey, setTavilyKey] = useState("")
@@ -84,54 +94,59 @@ function TavilyKeyForm() {
             </div>
           )}
         </div>
-        <div className="flex items-end gap-2">
-          <div className="flex-1 space-y-1.5">
-            <Label htmlFor="tavily-key-input">
-              {settings?.tavily_api_key_masked
-                ? "Replace key"
-                : "Enter API key"}
-            </Label>
-            <Input
-              id="tavily-key-input"
-              type="password"
-              value={tavilyKey}
-              onChange={(e) => setTavilyKey(e.target.value)}
-              placeholder="tvly-..."
-            />
-          </div>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={updateMutation.isPending || !tavilyKey}
-          >
-            {updateMutation.isPending ? "Saving..." : "Save"}
-          </Button>
-        </div>
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            Get a key at{" "}
-            <a
-              href="https://tavily.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-foreground"
-            >
-              tavily.com
-            </a>
-          </p>
-          {settings?.tavily_api_key_masked && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              className="text-destructive hover:text-destructive"
-              onClick={handleRemove}
-              disabled={updateMutation.isPending}
-            >
-              Remove key
-            </Button>
-          )}
-        </div>
+
+        {!readOnly && (
+          <>
+            <div className="flex items-end gap-2">
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="tavily-key-input">
+                  {settings?.tavily_api_key_masked
+                    ? "Replace key"
+                    : "Enter API key"}
+                </Label>
+                <Input
+                  id="tavily-key-input"
+                  type="password"
+                  value={tavilyKey}
+                  onChange={(e) => setTavilyKey(e.target.value)}
+                  placeholder="tvly-..."
+                />
+              </div>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={updateMutation.isPending || !tavilyKey}
+              >
+                {updateMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Get a key at{" "}
+                <a
+                  href="https://tavily.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  tavily.com
+                </a>
+              </p>
+              {settings?.tavily_api_key_masked && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="text-destructive hover:text-destructive"
+                  onClick={handleRemove}
+                  disabled={updateMutation.isPending}
+                >
+                  Remove key
+                </Button>
+              )}
+            </div>
+          </>
+        )}
       </form>
     </section>
   )

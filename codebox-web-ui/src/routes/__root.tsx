@@ -9,23 +9,15 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { TooltipProvider } from "../components/ui/tooltip"
 import appCss from "../styles.css?url"
-import type { BoxPageActions } from "@/components/box/BoxPageContext"
 import { useAuthStore } from "@/lib/auth"
 import { API_URL } from "@/lib/constants"
 import { api, isAuthError } from "@/net/http/api"
 import { useGlobalStream } from "@/net/sse/useGlobalStream"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
-import { AppSidebar } from "@/components/layout/AppSidebar"
-import { StatusBar } from "@/components/layout/StatusBar"
 import { Toaster } from "@/components/ui/sonner"
-import { CommandPalette } from "@/components/CommandPalette"
-import {
-  BoxPageActionsContext,
-  BoxPageSetterContext,
-} from "@/components/box/BoxPageContext"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +59,7 @@ function RootComponent() {
       })
     }
   }, [isAuthenticated])
+
   const isLoginPage = location.pathname === "/login"
 
   // Not authenticated and not on login page → redirect to login
@@ -105,47 +98,14 @@ function RootComponent() {
     )
   }
 
-  return <AuthenticatedApp />
-}
-
-function AuthenticatedApp() {
-  const [boxPageActions, setBoxPageActions] = useState<BoxPageActions | null>(
-    null
-  )
-  const location = useLocation()
-
-  // Derive a stable key so nested sub-routes (e.g. /settings/*, /boxes/$boxId/*)
-  // share one identity and don't remount the layout on every tab switch.
-  const boxMatch = location.pathname.match(/^\/boxes\/([^/]+)/)
-  const pageKey = location.pathname.startsWith('/settings/')
-    ? '/settings'
-    : boxMatch
-      ? `/boxes/${boxMatch[1]}`
-      : location.pathname
-
+  // Authenticated: providers only; layout routes render their own shells.
   return (
     <QueryClientProvider client={queryClient}>
       <GlobalStreamProvider>
         <ThemeProvider>
           <TooltipProvider>
-            <BoxPageSetterContext value={setBoxPageActions}>
-              <BoxPageActionsContext value={boxPageActions}>
-                <div className="flex h-svh overflow-hidden">
-                  <AppSidebar />
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <main
-                      key={pageKey}
-                      className="flex-1 overflow-hidden animate-page-enter"
-                    >
-                      <Outlet />
-                    </main>
-                    <StatusBar />
-                  </div>
-                </div>
-                <CommandPalette />
-                <Toaster />
-              </BoxPageActionsContext>
-            </BoxPageSetterContext>
+            <Outlet />
+            <Toaster />
           </TooltipProvider>
         </ThemeProvider>
       </GlobalStreamProvider>

@@ -8,6 +8,7 @@ import type {
   LLMProfileUpdate,
   ModelsPreviewRequest,
   ProjectSettingsUpdate,
+  ProjectUpdatePayload,
 } from "@/net/http/types"
 import { ContainerStatus } from "@/net/http/types"
 import { useAuthStore } from "@/lib/auth"
@@ -59,6 +60,66 @@ export function useCreateProject() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["projects"] })
     },
+  })
+}
+
+export function useUpdateProject(slug: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: ProjectUpdatePayload) =>
+      api.projects.update(slug, payload),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ["projects"] })
+      qc.setQueryData(["projects", updated.slug], updated)
+    },
+  })
+}
+
+export function useArchiveProject(slug: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.projects.archive(slug),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ["projects"] })
+      qc.setQueryData(["projects", updated.slug], updated)
+    },
+  })
+}
+
+export function useRestoreProject(slug: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.projects.restore(slug),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ["projects"] })
+      qc.setQueryData(["projects", updated.slug], updated)
+    },
+  })
+}
+
+export function useDeleteProject(slug: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.projects.delete(slug),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects"] })
+      qc.removeQueries({ queryKey: ["projects", slug] })
+    },
+  })
+}
+
+export function useProjectMemberCandidates(
+  slug: string | undefined,
+  query: string,
+  limit: number = 20,
+  options?: QueryHookOptions
+) {
+  const enabled = useAuthQueryEnabled((options?.enabled ?? true) && !!slug)
+  return useQuery({
+    queryKey: ["projects", slug, "member-candidates", query, limit],
+    queryFn: () => api.projects.searchMemberCandidates(slug!, query, limit),
+    enabled,
+    staleTime: 10_000,
   })
 }
 

@@ -3,7 +3,6 @@ import { toast } from "sonner"
 import { LockIcon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { LLMProfile, Model } from "@/net/http/types"
-import { useProjectStore } from "@/lib/project"
 import {
   useCreateLLMProfile,
   useModels,
@@ -59,6 +58,7 @@ function getModelPlaceholder(provider: string) {
 }
 
 interface LLMProfileFormDialogProps {
+  projectSlug: string
   open: boolean
   onOpenChange: (open: boolean) => void
   mode: "create" | "edit"
@@ -67,13 +67,14 @@ interface LLMProfileFormDialogProps {
 }
 
 export function LLMProfileFormDialog({
+  projectSlug,
   open,
   onOpenChange,
   mode,
   profile,
   nextProfileNumber = 1,
 }: LLMProfileFormDialogProps) {
-  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const slug = projectSlug
   const createMutation = useCreateLLMProfile(slug)
   const updateMutation = useUpdateLLMProfile(slug)
   const previewModelsMutation = usePreviewModels(slug)

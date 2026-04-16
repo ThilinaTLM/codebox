@@ -9,7 +9,7 @@ import { PdfPreview } from "./previews/PdfPreview"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/net/http/api"
 import { useBoxFileContent } from "@/net/query"
-import { useProjectStore } from "@/lib/project"
+import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
 
 // ---------------------------------------------------------------------------
 // File type classification (shared with FilePreview)
@@ -54,7 +54,7 @@ interface FileViewerProps {
 }
 
 export function FileViewer({ boxId, filePath }: FileViewerProps) {
-  const slug = useProjectStore((s) => s.currentProject?.slug)
+  const slug = useActiveProjectSlug() ?? undefined
   const { data: fileContent, isLoading } = useBoxFileContent(slug, boxId, filePath)
 
   if (!filePath) {

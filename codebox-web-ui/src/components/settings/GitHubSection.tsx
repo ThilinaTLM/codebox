@@ -2,12 +2,21 @@ import { GitHubAppConfigForm } from "./GitHubAppConfigForm"
 import { GitHubInstallSection } from "./GitHubInstallSection"
 import { GitHubInstallationsList } from "./GitHubInstallationsList"
 import { useGitHubInstallations, useGitHubStatus } from "@/net/query"
-import { useProjectStore } from "@/lib/project"
 import { Separator } from "@/components/ui/separator"
 
-export function GitHubSection() {
-  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
-  const { data: status, isLoading: statusLoading } = useGitHubStatus(slug || undefined)
+interface GitHubSectionProps {
+  projectSlug: string
+  readOnly?: boolean
+}
+
+export function GitHubSection({
+  projectSlug,
+  readOnly = false,
+}: GitHubSectionProps) {
+  const slug = projectSlug
+  const { data: status, isLoading: statusLoading } = useGitHubStatus(
+    slug || undefined
+  )
   const { data: installations, isLoading: installationsLoading } =
     useGitHubInstallations(slug || undefined)
 
@@ -20,14 +29,24 @@ export function GitHubSection() {
         </p>
       </div>
 
-      <GitHubAppConfigForm statusLoading={statusLoading} />
+      <GitHubAppConfigForm
+        projectSlug={slug}
+        statusLoading={statusLoading}
+        readOnly={readOnly}
+      />
       {status?.enabled && (
         <>
           <Separator />
-          <GitHubInstallSection appSlug={status.app_slug} />
+          <GitHubInstallSection
+            projectSlug={slug}
+            appSlug={status.app_slug}
+            readOnly={readOnly}
+          />
           <GitHubInstallationsList
+            projectSlug={slug}
             installations={installations ?? []}
             isLoading={installationsLoading}
+            readOnly={readOnly}
           />
         </>
       )}

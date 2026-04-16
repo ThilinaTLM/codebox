@@ -13,7 +13,6 @@ import { LLMProfileImportDialog } from "./LLMProfileImportDialog"
 import { SectionSkeleton } from "./SectionSkeleton"
 import type { IconSvgElement } from "@hugeicons/react"
 import type { LLMProfile } from "@/net/http/types"
-import { useProjectStore } from "@/lib/project"
 import {
   useDeleteLLMProfile,
   useDuplicateLLMProfile,
@@ -81,8 +80,16 @@ function formatDate(iso: string): string {
   })
 }
 
-export function LLMProfilesSection() {
-  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+interface LLMProfilesSectionProps {
+  projectSlug: string
+  readOnly?: boolean
+}
+
+export function LLMProfilesSection({
+  projectSlug,
+  readOnly = false,
+}: LLMProfilesSectionProps) {
+  const slug = projectSlug
   const { data: profiles = [], isLoading } = useLLMProfiles(slug || undefined)
   const { data: settings } = useProjectSettings(slug || undefined)
   const [createOpen, setCreateOpen] = useState(false)
@@ -107,7 +114,7 @@ export function LLMProfilesSection() {
             provider, model, and API key.
           </p>
         </div>
-        {profiles.length > 0 && (
+        {!readOnly && profiles.length > 0 && (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -135,6 +142,7 @@ export function LLMProfilesSection() {
 
       {profiles.length === 0 ? (
         <LLMProfilesEmptyState
+          readOnly={readOnly}
           onCreateClick={() => setCreateOpen(true)}
           onImportClick={() => setImportOpen(true)}
         />
@@ -143,7 +151,9 @@ export function LLMProfilesSection() {
           {profiles.map((profile) => (
             <LLMProfileCard
               key={profile.id}
+              projectSlug={slug}
               profile={profile}
+              readOnly={readOnly}
               isDefault={settings?.default_llm_profile_id === profile.id}
               onEdit={() => setEditingProfile(profile)}
               onExport={() => {
@@ -155,40 +165,50 @@ export function LLMProfilesSection() {
         </div>
       )}
 
-      <LLMProfileFormDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        mode="create"
-        nextProfileNumber={nextProfileNumber}
-      />
+      {!readOnly && (
+        <>
+          <LLMProfileFormDialog
+            projectSlug={slug}
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            mode="create"
+            nextProfileNumber={nextProfileNumber}
+          />
 
-      <LLMProfileFormDialog
-        open={editingProfile !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditingProfile(null)
-        }}
-        mode="edit"
-        profile={editingProfile ?? undefined}
-      />
+          <LLMProfileFormDialog
+            projectSlug={slug}
+            open={editingProfile !== null}
+            onOpenChange={(open) => {
+              if (!open) setEditingProfile(null)
+            }}
+            mode="edit"
+            profile={editingProfile ?? undefined}
+          />
 
-      <LLMProfileExportDialog
-        open={exportOpen}
-        onOpenChange={setExportOpen}
-        profileIds={exportProfileIds}
-      />
+          <LLMProfileExportDialog
+            projectSlug={slug}
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            profileIds={exportProfileIds}
+          />
 
-      <LLMProfileImportDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-      />
+          <LLMProfileImportDialog
+            projectSlug={slug}
+            open={importOpen}
+            onOpenChange={setImportOpen}
+          />
+        </>
+      )}
     </div>
   )
 }
 
 function LLMProfilesEmptyState({
+  readOnly,
   onCreateClick,
   onImportClick,
 }: {
+  readOnly: boolean
   onCreateClick: () => void
   onImportClick: () => void
 }) {
@@ -198,38 +218,46 @@ function LLMProfilesEmptyState({
         No LLM profiles configured yet
       </h3>
       <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-        LLM profiles tell Codebox which AI model to use when working on your
-        issues. You can create multiple profiles for different providers and
-        switch between them.
+        {readOnly
+          ? "A project admin can configure LLM profiles for this project."
+          : "LLM profiles tell Codebox which AI model to use when working on your issues. You can create multiple profiles for different providers and switch between them."}
       </p>
-      <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-        You&apos;ll need an API key from OpenRouter, OpenAI, or a compatible
-        service.
-      </p>
-      <div className="mt-6 flex items-center justify-center gap-3">
-        <Button variant="outline" onClick={onImportClick}>
-          Import
-        </Button>
-        <Button onClick={onCreateClick}>
-          Create Your First Profile
-        </Button>
-      </div>
+      {!readOnly && (
+        <>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            You&apos;ll need an API key from OpenRouter, OpenAI, or a compatible
+            service.
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <Button variant="outline" onClick={onImportClick}>
+              Import
+            </Button>
+            <Button onClick={onCreateClick}>
+              Create Your First Profile
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
 function LLMProfileCard({
+  projectSlug,
   profile,
   isDefault,
+  readOnly,
   onEdit,
   onExport,
 }: {
+  projectSlug: string
   profile: LLMProfile
   isDefault: boolean
+  readOnly: boolean
   onEdit: () => void
   onExport: () => void
 }) {
-  const slug2 = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const slug2 = projectSlug
   const deleteMutation = useDeleteLLMProfile(slug2)
   const duplicateMutation = useDuplicateLLMProfile(slug2)
   const updateSettingsMutation = useUpdateProjectSettings(slug2)
@@ -288,56 +316,58 @@ function LLMProfileCard({
                 <p className="text-xs text-muted-foreground">{meta.label}</p>
               </div>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="opacity-0 transition-opacity group-hover/card:opacity-100 data-[state=open]:opacity-100"
+            {!readOnly && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="opacity-0 transition-opacity group-hover/card:opacity-100 data-[state=open]:opacity-100"
+                    />
+                  }
+                >
+                  <HugeiconsIcon
+                    icon={MoreHorizontalCircle01Icon}
+                    size={16}
+                    strokeWidth={2}
                   />
-                }
-              >
-                <HugeiconsIcon
-                  icon={MoreHorizontalCircle01Icon}
-                  size={16}
-                  strokeWidth={2}
-                />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
-                <DropdownMenuItem onClick={onExport}>Export</DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    duplicateMutation.mutate(profile.id, {
-                      onSuccess: (newProfile) => {
-                        toast.success(`Profile "${newProfile.name}" created`)
-                      },
-                      onError: () =>
-                        toast.error("Failed to duplicate profile"),
-                    })
-                  }}
-                  disabled={duplicateMutation.isPending}
-                >
-                  Duplicate
-                </DropdownMenuItem>
-                {!isDefault && (
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+                  <DropdownMenuItem onClick={onExport}>Export</DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={handleSetDefault}
-                    disabled={updateSettingsMutation.isPending}
+                    onClick={() => {
+                      duplicateMutation.mutate(profile.id, {
+                        onSuccess: (newProfile) => {
+                          toast.success(`Profile "${newProfile.name}" created`)
+                        },
+                        onError: () =>
+                          toast.error("Failed to duplicate profile"),
+                      })
+                    }}
+                    disabled={duplicateMutation.isPending}
                   >
-                    Set as Default
+                    Duplicate
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {!isDefault && (
+                    <DropdownMenuItem
+                      onClick={handleSetDefault}
+                      disabled={updateSettingsMutation.isPending}
+                    >
+                      Set as Default
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {/* Body: model, key, base url */}

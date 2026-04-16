@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/net/http/api"
 import { useBoxFileContent } from "@/net/query"
-import { useProjectStore } from "@/lib/project"
+import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
 
 // ---------------------------------------------------------------------------
 // File type classification
@@ -70,7 +70,7 @@ interface FilePreviewProps {
 }
 
 export function FilePreview({ boxId, filePath, onClose }: FilePreviewProps) {
-  const slug = useProjectStore((s) => s.currentProject?.slug)
+  const slug = useActiveProjectSlug() ?? undefined
   const { data: fileContent, isLoading } = useBoxFileContent(slug, boxId, filePath)
 
   const downloadUrl = filePath && slug ? api.boxes.getDownloadUrl(slug, boxId, filePath) : ""

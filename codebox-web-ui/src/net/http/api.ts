@@ -22,8 +22,10 @@ import type {
   ModelsPreviewRequest,
   Project,
   ProjectMember,
+  ProjectMemberCandidate,
   ProjectSettings,
   ProjectSettingsUpdate,
+  ProjectUpdatePayload,
   UploadFileResponse,
   WriteFileResponse,
 } from "./types"
@@ -72,8 +74,40 @@ export const api = {
       })
       return data
     },
+    update: async (
+      slug: string,
+      payload: ProjectUpdatePayload
+    ): Promise<Project> => {
+      const { data } = await client.patch<Project>(`${p(slug)}`, payload)
+      return data
+    },
+    archive: async (slug: string): Promise<Project> => {
+      const { data } = await client.post<Project>(`${p(slug)}/archive`)
+      return data
+    },
+    restore: async (slug: string): Promise<Project> => {
+      const { data } = await client.post<Project>(`${p(slug)}/restore`)
+      return data
+    },
+    delete: async (slug: string): Promise<void> => {
+      await client.delete(`${p(slug)}`)
+    },
     listMembers: async (slug: string): Promise<Array<ProjectMember>> => {
       const { data } = await client.get<Array<ProjectMember>>(`${p(slug)}/members`)
+      return data
+    },
+    searchMemberCandidates: async (
+      slug: string,
+      query?: string,
+      limit?: number
+    ): Promise<Array<ProjectMemberCandidate>> => {
+      const params: Record<string, string | number> = {}
+      if (query) params.q = query
+      if (limit != null) params.limit = limit
+      const { data } = await client.get<Array<ProjectMemberCandidate>>(
+        `${p(slug)}/member-candidates`,
+        { params: Object.keys(params).length > 0 ? params : undefined }
+      )
       return data
     },
     addMember: async (

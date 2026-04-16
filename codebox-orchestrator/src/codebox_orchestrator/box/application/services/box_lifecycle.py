@@ -23,8 +23,10 @@ from codebox_orchestrator.config import (
 if TYPE_CHECKING:
     from codebox_orchestrator.box.infrastructure.box_state_store import BoxStateStore
     from codebox_orchestrator.box.ports.agent_connection import AgentConnectionManager
-    from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
     from codebox_orchestrator.box.ports.event_publisher import EventPublisher
+    from codebox_orchestrator.compute.application.commands import (
+        ProvisionContainerHandler,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -36,14 +38,14 @@ class BoxLifecycleService:
 
     def __init__(
         self,
-        runtime: ContainerRuntime,
+        provision_container: ProvisionContainerHandler,
         connections: AgentConnectionManager,
         publisher: EventPublisher,
         state_store: BoxStateStore,
         send_exec_and_wait_fn,  # async callable(box_id, command, timeout) — injected
         create_callback_token_fn=None,  # callable(box_id, entity_type) -> str — injected
     ) -> None:
-        self._runtime = runtime
+        self._provision_container = provision_container
         self._connections = connections
         self._publisher = publisher
         self._state_store = state_store
@@ -263,7 +265,7 @@ class BoxLifecycleService:
         )
 
         try:
-            self._runtime.spawn(config)
+            await self._provision_container.execute(config)
         except Exception as exc:
             await self._broadcast_error(box_id, f"Failed to spawn container: {exc}")
             return

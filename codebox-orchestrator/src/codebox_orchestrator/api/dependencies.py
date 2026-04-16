@@ -29,7 +29,10 @@ if TYPE_CHECKING:
         SqlAlchemyGitHubRepository,
     )
     from codebox_orchestrator.llm_profile.service import LLMProfileService
-    from codebox_orchestrator.project.service import ProjectService
+    from codebox_orchestrator.project.service import (
+        ProjectLifecycleService,
+        ProjectService,
+    )
     from codebox_orchestrator.project_settings.service import ProjectSettingsService
     from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
     from codebox_orchestrator.shared.messaging.relay import RelayService
@@ -105,3 +108,7 @@ def get_box_repository(request: Request) -> BoxRepository:
 
 def get_github_repository(request: Request) -> SqlAlchemyGitHubRepository:
     return request.app.state.github_repository
+
+
+def get_project_lifecycle_service(request: Request) -> ProjectLifecycleService:
+    return request.app.state.project_lifecycle_service

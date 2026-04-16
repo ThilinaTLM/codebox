@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from codebox_orchestrator.api.dependencies import get_project_lifecycle_service
 from codebox_orchestrator.api.schemas import (
     ProjectCreate,
     ProjectMemberCreate,
@@ -13,6 +14,7 @@ from codebox_orchestrator.api.schemas import (
     ProjectMemberUpdate,
     ProjectResponse,
     ProjectUpdate,
+    ProjectUserSummary,
 )
 from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user, require_admin
 from codebox_orchestrator.project.dependencies import (
@@ -22,13 +24,39 @@ from codebox_orchestrator.project.dependencies import (
 )
 
 if TYPE_CHECKING:
-    from codebox_orchestrator.project.service import ProjectService
+    from codebox_orchestrator.project.service import (
+        ProjectLifecycleService,
+        ProjectMemberView,
+        ProjectService,
+        ProjectUserSummaryView,
+    )
 
 router = APIRouter(prefix="/api/projects", tags=["Projects"])
 
 
 def _get_project_service(request: Request) -> ProjectService:
     return request.app.state.project_service
+
+
+def _summary_to_response(summary: ProjectUserSummaryView) -> ProjectUserSummary:
+    return ProjectUserSummary(
+        id=summary.id,
+        username=summary.username,
+        first_name=summary.first_name,
+        last_name=summary.last_name,
+        status=summary.status,
+    )
+
+
+def _member_to_response(member: ProjectMemberView) -> ProjectMemberResponse:
+    return ProjectMemberResponse(
+        id=member.id,
+        project_id=member.project_id,
+        user_id=member.user_id,
+        role=member.role,
+        created_at=member.created_at,
+        user=_summary_to_response(member.user),
+    )
 
 
 @router.post("", status_code=201, summary="Create project", operation_id="create_project")
@@ -67,13 +95,15 @@ async def get_project(
 
 @router.patch("/{slug}", summary="Update project", operation_id="update_project")
 async def update_project(
+    slug: str,
     body: ProjectUpdate,
-    ctx: ProjectContext = Depends(require_project_admin),
+    _user: UserInfo = Depends(require_admin),
     service: ProjectService = Depends(_get_project_service),
 ) -> ProjectResponse:
-    view = await service.update_project(
-        ctx.project_id, name=body.name, description=body.description
-    )
+    current = await service.get_project_by_slug(slug)
+    if current is None:
+        raise HTTPException(404, "Project not found")
+    view = await service.update_project(current.id, name=body.name, description=body.description)
     if view is None:
         raise HTTPException(404, "Project not found")
     return ProjectResponse(**view.__dict__)
@@ -81,10 +111,15 @@ async def update_project(
 
 @router.post("/{slug}/archive", summary="Archive project", operation_id="archive_project")
 async def archive_project(
-    ctx: ProjectContext = Depends(require_project_admin),
+    slug: str,
+    _user: UserInfo = Depends(require_admin),
     service: ProjectService = Depends(_get_project_service),
+    lifecycle: ProjectLifecycleService = Depends(get_project_lifecycle_service),
 ) -> ProjectResponse:
-    view = await service.archive_project(ctx.project_id)
+    current = await service.get_project_by_slug(slug)
+    if current is None:
+        raise HTTPException(404, "Project not found")
+    view = await lifecycle.archive(current.id)
     if view is None:
         raise HTTPException(404, "Project not found")
     return ProjectResponse(**view.__dict__)
@@ -92,10 +127,15 @@ async def archive_project(
 
 @router.post("/{slug}/restore", summary="Restore project", operation_id="restore_project")
 async def restore_project(
-    ctx: ProjectContext = Depends(require_project_admin),
+    slug: str,
+    _user: UserInfo = Depends(require_admin),
     service: ProjectService = Depends(_get_project_service),
+    lifecycle: ProjectLifecycleService = Depends(get_project_lifecycle_service),
 ) -> ProjectResponse:
-    view = await service.restore_project(ctx.project_id)
+    current = await service.get_project_by_slug(slug)
+    if current is None:
+        raise HTTPException(404, "Project not found")
+    view = await lifecycle.restore(current.id)
     if view is None:
         raise HTTPException(404, "Project not found")
     return ProjectResponse(**view.__dict__)
@@ -103,11 +143,16 @@ async def restore_project(
 
 @router.delete("/{slug}", summary="Delete project", operation_id="delete_project")
 async def delete_project(
-    ctx: ProjectContext = Depends(require_project_admin),
+    slug: str,
+    _user: UserInfo = Depends(require_admin),
     service: ProjectService = Depends(_get_project_service),
+    lifecycle: ProjectLifecycleService = Depends(get_project_lifecycle_service),
 ) -> dict[str, str]:
-    deleted = await service.delete_project(ctx.project_id)
-    if not deleted:
+    current = await service.get_project_by_slug(slug)
+    if current is None:
+        raise HTTPException(404, "Project not found")
+    deleted = await lifecycle.delete(current.id)
+    if deleted is None:
         raise HTTPException(404, "Project not found")
     return {"status": "deleted"}
 
@@ -118,7 +163,22 @@ async def list_members(
     service: ProjectService = Depends(_get_project_service),
 ) -> list[ProjectMemberResponse]:
     members = await service.list_members(ctx.project_id)
-    return [ProjectMemberResponse(**m.__dict__) for m in members]
+    return [_member_to_response(m) for m in members]
+
+
+@router.get(
+    "/{slug}/member-candidates",
+    summary="Search users eligible to be added as project members",
+    operation_id="search_project_member_candidates",
+)
+async def search_member_candidates(
+    q: str | None = Query(default=None, description="Search query"),
+    limit: int = Query(default=20, ge=1, le=50),
+    ctx: ProjectContext = Depends(require_project_admin),
+    service: ProjectService = Depends(_get_project_service),
+) -> list[ProjectUserSummary]:
+    candidates = await service.search_member_candidates(ctx.project_id, query=q, limit=limit)
+    return [_summary_to_response(c) for c in candidates]
 
 
 @router.post(
@@ -133,7 +193,7 @@ async def add_member(
     service: ProjectService = Depends(_get_project_service),
 ) -> ProjectMemberResponse:
     member = await service.add_member(ctx.project_id, body.user_id, body.role)
-    return ProjectMemberResponse(**member.__dict__)
+    return _member_to_response(member)
 
 
 @router.patch(
@@ -150,7 +210,7 @@ async def update_member_role(
     member = await service.update_member_role(ctx.project_id, user_id, body.role)
     if member is None:
         raise HTTPException(404, "Member not found")
-    return ProjectMemberResponse(**member.__dict__)
+    return _member_to_response(member)
 
 
 @router.delete(

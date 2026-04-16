@@ -1,16 +1,13 @@
-import { Link, Outlet, createFileRoute } from "@tanstack/react-router"
+import { Link, Outlet, createFileRoute, useRouter } from "@tanstack/react-router"
 import {
-  AiBrain01Icon,
-  Github01Icon,
-  InternetIcon,
+  ArrowLeft02Icon,
   PaintBoardIcon,
   UserCircleIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
+import { Button } from "@/components/ui/button"
 import { useIsMobile } from "@/hooks/use-mobile"
-
-// ── Route ───────────────────────────────────────────────────
 
 const SECTIONS: Array<{
   to: string
@@ -19,24 +16,42 @@ const SECTIONS: Array<{
 }> = [
   { to: "/settings/account", label: "Account", icon: UserCircleIcon },
   { to: "/settings/appearance", label: "Appearance", icon: PaintBoardIcon },
-  { to: "/settings/llm-profiles", label: "LLM Profiles", icon: AiBrain01Icon },
-  { to: "/settings/github", label: "GitHub", icon: Github01Icon },
-  { to: "/settings/tavily", label: "Tavily", icon: InternetIcon },
 ]
 
 export const Route = createFileRoute("/settings")({
   component: SettingsLayout,
 })
 
-// ── Layout ──────────────────────────────────────────────────
-
 function SettingsLayout() {
   const isMobile = useIsMobile()
+  const router = useRouter()
+
+  const handleBack = () => {
+    if (
+      typeof window !== "undefined" &&
+      window.history.length > 1 &&
+      document.referrer !== ""
+    ) {
+      router.history.back()
+    } else {
+      void router.navigate({ to: "/" })
+    }
+  }
 
   if (isMobile) {
     return (
-      <div className="flex h-[calc(100svh-24px)] flex-col">
-        {/* Top tab bar on mobile */}
+      <div className="flex h-svh flex-col bg-background">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+          <Button variant="ghost" size="sm" onClick={handleBack}>
+            <HugeiconsIcon
+              icon={ArrowLeft02Icon}
+              size={16}
+              strokeWidth={2}
+            />
+            Back
+          </Button>
+          <h1 className="font-display text-base font-semibold">Settings</h1>
+        </div>
         <div className="shrink-0 border-b border-border">
           <div className="flex gap-1 overflow-x-auto px-4 py-2">
             {SECTIONS.map((s) => (
@@ -61,7 +76,6 @@ function SettingsLayout() {
             ))}
           </div>
         </div>
-
         <main className="flex-1 overflow-y-auto p-4">
           <div className="mx-auto max-w-3xl">
             <Outlet />
@@ -72,9 +86,23 @@ function SettingsLayout() {
   }
 
   return (
-    <div className="flex h-[calc(100svh-24px)]">
-      {/* Left nav */}
-      <nav className="w-48 shrink-0 space-y-1 overflow-y-auto border-r border-border p-4">
+    <div className="flex h-svh bg-background">
+      <nav className="w-56 shrink-0 space-y-1 overflow-y-auto border-r border-border p-4">
+        <div className="mb-4 px-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBack}
+            className="-ml-2 gap-1.5 text-muted-foreground"
+          >
+            <HugeiconsIcon
+              icon={ArrowLeft02Icon}
+              size={14}
+              strokeWidth={2}
+            />
+            Back
+          </Button>
+        </div>
         <h1 className="mb-4 px-3 font-display text-lg font-semibold tracking-tight">
           Settings
         </h1>
@@ -100,7 +128,6 @@ function SettingsLayout() {
         ))}
       </nav>
 
-      {/* Right content */}
       <main className="flex-1 overflow-y-auto p-6">
         <div className="mx-auto max-w-3xl">
           <Outlet />

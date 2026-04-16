@@ -2,7 +2,6 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { ChevronRight } from "lucide-react"
 import { StepHeader } from "./StepHeader"
-import { useProjectStore } from "@/lib/project"
 import { useAddGitHubInstallation } from "@/net/query"
 import { API_URL } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
@@ -14,10 +13,16 @@ import {
 import { Input } from "@/components/ui/input"
 
 interface GitHubInstallSectionProps {
+  projectSlug: string
   appSlug: string | null
+  readOnly?: boolean
 }
 
-export function GitHubInstallSection({ appSlug }: GitHubInstallSectionProps) {
+export function GitHubInstallSection({
+  projectSlug,
+  appSlug,
+  readOnly = false,
+}: GitHubInstallSectionProps) {
   const webhookUrl = `${API_URL}/api/github/webhook`
   const installUrl = `https://github.com/apps/${appSlug}/installations/new`
 
@@ -53,23 +58,25 @@ export function GitHubInstallSection({ appSlug }: GitHubInstallSectionProps) {
         </p>
       </div>
 
-      <Button
-        nativeButton={false}
-        render={
-          <a href={installUrl} target="_blank" rel="noopener noreferrer" />
-        }
-      >
-        Install GitHub App
-      </Button>
+      {!readOnly && (
+        <Button
+          nativeButton={false}
+          render={
+            <a href={installUrl} target="_blank" rel="noopener noreferrer" />
+          }
+        >
+          Install GitHub App
+        </Button>
+      )}
 
-      <ManualInstallSection />
+      {!readOnly && <ManualInstallSection projectSlug={projectSlug} />}
     </section>
   )
 }
 
-function ManualInstallSection() {
+function ManualInstallSection({ projectSlug }: { projectSlug: string }) {
   const [installationId, setInstallationId] = useState("")
-  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const slug = projectSlug
   const addMutation = useAddGitHubInstallation(slug)
 
   const handleSubmit = (e: React.FormEvent) => {

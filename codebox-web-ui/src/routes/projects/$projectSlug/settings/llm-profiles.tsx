@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { LLMProfilesSection } from "@/components/settings/LLMProfilesSection"
+import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
 export const Route = createFileRoute(
   "/projects/$projectSlug/settings/llm-profiles"
@@ -8,5 +10,11 @@ export const Route = createFileRoute(
 
 function LLMProfilesPage() {
   const { projectSlug } = Route.useParams()
-  return <div>LLM Profiles for project: {projectSlug} (migrating...)</div>
+  const { canManageProjectSettings } = useProjectPermissions(projectSlug)
+  return (
+    <LLMProfilesSection
+      projectSlug={projectSlug}
+      readOnly={!canManageProjectSettings}
+    />
+  )
 }

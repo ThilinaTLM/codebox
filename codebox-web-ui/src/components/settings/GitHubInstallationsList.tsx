@@ -2,7 +2,6 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { StepHeader } from "./StepHeader"
 import type { GitHubInstallation, GitHubRepo } from "@/net/http/types"
-import { useProjectStore } from "@/lib/project"
 import {
   useRemoveGitHubInstallation,
   useSyncGitHubInstallation,
@@ -22,13 +21,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface GitHubInstallationsListProps {
+  projectSlug: string
   installations: Array<GitHubInstallation>
   isLoading: boolean
+  readOnly?: boolean
 }
 
 export function GitHubInstallationsList({
+  projectSlug,
   installations,
   isLoading,
+  readOnly = false,
 }: GitHubInstallationsListProps) {
   if (isLoading) {
     return (
@@ -60,7 +63,12 @@ export function GitHubInstallationsList({
       ) : (
         <div className="space-y-3">
           {installations.map((inst) => (
-            <InstallationCard key={inst.id} installation={inst} />
+            <InstallationCard
+              key={inst.id}
+              projectSlug={projectSlug}
+              installation={inst}
+              readOnly={readOnly}
+            />
           ))}
         </div>
       )}
@@ -69,11 +77,15 @@ export function GitHubInstallationsList({
 }
 
 function InstallationCard({
+  projectSlug,
   installation,
+  readOnly,
 }: {
+  projectSlug: string
   installation: GitHubInstallation
+  readOnly: boolean
 }) {
-  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const slug = projectSlug
   const syncMutation = useSyncGitHubInstallation(slug)
   const removeMutation = useRemoveGitHubInstallation(slug)
   const [repos, setRepos] = useState<Array<GitHubRepo> | null>(null)
@@ -121,15 +133,17 @@ function InstallationCard({
               >
                 {syncMutation.isPending ? "Syncing..." : "Sync Repos"}
               </Button>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => setConfirmRemove(true)}
-                disabled={removeMutation.isPending}
-                className="text-destructive hover:text-destructive"
-              >
-                Remove
-              </Button>
+              {!readOnly && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setConfirmRemove(true)}
+                  disabled={removeMutation.isPending}
+                  className="text-destructive hover:text-destructive"
+                >
+                  Remove
+                </Button>
+              )}
             </div>
           </div>
           {repos && repos.length > 0 && (

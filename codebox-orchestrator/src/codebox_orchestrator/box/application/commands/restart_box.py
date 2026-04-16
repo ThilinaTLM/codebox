@@ -12,18 +12,18 @@ from codebox_orchestrator.box.domain.exceptions import (
 if TYPE_CHECKING:
     from codebox_orchestrator.box.application.services.box_query import BoxQueryService
     from codebox_orchestrator.box.domain.views import BoxView
-    from codebox_orchestrator.box.ports.container_runtime import ContainerRuntime
     from codebox_orchestrator.box.ports.event_publisher import EventPublisher
+    from codebox_orchestrator.compute.application.commands import RestartContainerHandler
 
 
 class RestartBoxHandler:
     def __init__(
         self,
-        runtime: ContainerRuntime,
+        restart_container: RestartContainerHandler,
         publisher: EventPublisher,
         query_service: BoxQueryService,
     ) -> None:
-        self._runtime = runtime
+        self._restart_container = restart_container
         self._publisher = publisher
         self._query = query_service
 
@@ -34,7 +34,7 @@ class RestartBoxHandler:
         if box.container_status != "stopped":
             raise InvalidStatusTransitionError(box.container_status, "starting")
 
-        self._runtime.start(box.container_name)
+        await self._restart_container.execute(box.container_name)
 
         await self._publisher.publish_box_event(
             box_id, {"type": "status_change", "container_status": "starting"}

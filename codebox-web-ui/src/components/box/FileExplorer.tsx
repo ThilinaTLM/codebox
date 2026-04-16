@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { File, Folder, Tree } from "@/components/ui/file-tree"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useBoxFiles, useUploadFile } from "@/net/query"
-import { useProjectStore } from "@/lib/project"
+import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
 
 export function FileExplorer({
   boxId,
@@ -30,7 +30,7 @@ export function FileExplorer({
   const binaryFilesRef = useRef<Set<string>>(new Set())
   const queryClient = useQueryClient()
 
-  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const slug = useActiveProjectSlug() ?? ""
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadMutation = useUploadFile(slug, boxId)
 

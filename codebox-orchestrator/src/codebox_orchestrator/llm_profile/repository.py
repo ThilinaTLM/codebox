@@ -84,3 +84,19 @@ class LLMProfileRepository:
             profile.updated_at = datetime.now(UTC)
             await session.commit()
             return True
+
+    async def soft_delete_by_project(self, project_id: str) -> int:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(LLMProfile).where(
+                    LLMProfile.project_id == project_id,
+                    LLMProfile.deleted_at.is_(None),
+                )
+            )
+            profiles = list(result.scalars().all())
+            now = datetime.now(UTC)
+            for profile in profiles:
+                profile.deleted_at = now
+                profile.updated_at = now
+            await session.commit()
+            return len(profiles)

@@ -4,7 +4,7 @@ import { useBoxPageActions } from "@/components/box/BoxPageContext"
 import { useBoxes } from "@/net/query"
 import { ContainerStatus } from "@/net/http/types"
 import { STATE_DOT_COLORS } from "@/lib/state-colors"
-import { useProjectStore } from "@/lib/project"
+import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
 
 export function StatusBar() {
   const routerState = useRouterState()
@@ -12,8 +12,8 @@ export function StatusBar() {
   const isBoxPage = currentPath.includes("/boxes/")
 
   const boxPageActions = useBoxPageActions()
-  const currentProject = useProjectStore((s) => s.currentProject)
-  const { data: boxes } = useBoxes(currentProject?.slug)
+  const activeSlug = useActiveProjectSlug()
+  const { data: boxes } = useBoxes(activeSlug ?? undefined)
 
   const activeCount = (boxes ?? []).filter(
     (b) =>
@@ -45,9 +45,11 @@ export function StatusBar() {
           </>
         ) : (
           <span className="text-muted-foreground">
-            {activeCount > 0
-              ? `${activeCount} active agent${activeCount !== 1 ? "s" : ""}`
-              : "No active agents"}
+            {activeSlug
+              ? activeCount > 0
+                ? `${activeCount} active agent${activeCount !== 1 ? "s" : ""}`
+                : "No active agents"
+              : ""}
           </span>
         )}
       </div>

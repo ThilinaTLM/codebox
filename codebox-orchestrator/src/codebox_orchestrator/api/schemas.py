@@ -304,12 +304,23 @@ class ProjectMemberUpdate(BaseModel):
     role: str
 
 
+class ProjectUserSummary(BaseModel):
+    """Lightweight user identity used for member rows and member-candidate search."""
+
+    id: str
+    username: str
+    first_name: str | None = None
+    last_name: str | None = None
+    status: str
+
+
 class ProjectMemberResponse(BaseModel):
     id: str
     project_id: str
     user_id: str
     role: str
     created_at: str
+    user: ProjectUserSummary
 
 
 # ── Project Settings schemas ────────────────────────────────────

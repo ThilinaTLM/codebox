@@ -240,12 +240,28 @@ export interface Project {
   updated_at: string
 }
 
+export interface ProjectUserSummary {
+  id: string
+  username: string
+  first_name: string | null
+  last_name: string | null
+  status: "active" | "disabled" | "deleted"
+}
+
 export interface ProjectMember {
   id: string
   project_id: string
   user_id: string
   role: "admin" | "contributor"
   created_at: string
+  user: ProjectUserSummary
+}
+
+export type ProjectMemberCandidate = ProjectUserSummary
+
+export interface ProjectUpdatePayload {
+  name?: string | null
+  description?: string | null
 }
 
 export interface ProjectSettings {

@@ -12,11 +12,16 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteRouteImport } from './routes/settings/route'
+import { Route as ProjectsRouteRouteImport } from './routes/projects/route'
+import { Route as PlatformRouteRouteImport } from './routes/platform/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
+import { Route as PlatformIndexRouteImport } from './routes/platform/index'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsAccountRouteImport } from './routes/settings/account'
+import { Route as PlatformUsersRouteImport } from './routes/platform/users'
+import { Route as PlatformProjectsRouteImport } from './routes/platform/projects'
 import { Route as ProjectsProjectSlugRouteRouteImport } from './routes/projects/$projectSlug/route'
 import { Route as ProjectsProjectSlugIndexRouteImport } from './routes/projects/$projectSlug/index'
 import { Route as ProjectsProjectSlugSettingsRouteRouteImport } from './routes/projects/$projectSlug/settings/route'
@@ -44,6 +49,16 @@ const SettingsRouteRoute = SettingsRouteRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsRouteRoute = ProjectsRouteRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformRouteRoute = PlatformRouteRouteImport.update({
+  id: '/platform',
+  path: '/platform',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -55,9 +70,14 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   getParentRoute: () => SettingsRouteRoute,
 } as any)
 const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
-  id: '/projects/',
-  path: '/projects/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProjectsRouteRoute,
+} as any)
+const PlatformIndexRoute = PlatformIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlatformRouteRoute,
 } as any)
 const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   id: '/appearance',
@@ -69,11 +89,21 @@ const SettingsAccountRoute = SettingsAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
+const PlatformUsersRoute = PlatformUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => PlatformRouteRoute,
+} as any)
+const PlatformProjectsRoute = PlatformProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => PlatformRouteRoute,
+} as any)
 const ProjectsProjectSlugRouteRoute =
   ProjectsProjectSlugRouteRouteImport.update({
-    id: '/projects/$projectSlug',
-    path: '/projects/$projectSlug',
-    getParentRoute: () => rootRouteImport,
+    id: '/$projectSlug',
+    path: '/$projectSlug',
+    getParentRoute: () => ProjectsRouteRoute,
   } as any)
 const ProjectsProjectSlugIndexRoute =
   ProjectsProjectSlugIndexRouteImport.update({
@@ -138,12 +168,17 @@ const ProjectsProjectSlugBoxesBoxIdIndexRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/platform': typeof PlatformRouteRouteWithChildren
+  '/projects': typeof ProjectsRouteRouteWithChildren
   '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
   '/projects/$projectSlug': typeof ProjectsProjectSlugRouteRouteWithChildren
+  '/platform/projects': typeof PlatformProjectsRoute
+  '/platform/users': typeof PlatformUsersRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/platform/': typeof PlatformIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/projects/$projectSlug/settings': typeof ProjectsProjectSlugSettingsRouteRouteWithChildren
@@ -161,8 +196,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
+  '/platform/projects': typeof PlatformProjectsRoute
+  '/platform/users': typeof PlatformUsersRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/platform': typeof PlatformIndexRoute
   '/projects': typeof ProjectsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/projects/$projectSlug': typeof ProjectsProjectSlugIndexRoute
@@ -177,12 +215,17 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/platform': typeof PlatformRouteRouteWithChildren
+  '/projects': typeof ProjectsRouteRouteWithChildren
   '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
   '/projects/$projectSlug': typeof ProjectsProjectSlugRouteRouteWithChildren
+  '/platform/projects': typeof PlatformProjectsRoute
+  '/platform/users': typeof PlatformUsersRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/platform/': typeof PlatformIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/projects/$projectSlug/settings': typeof ProjectsProjectSlugSettingsRouteRouteWithChildren
@@ -200,12 +243,17 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/platform'
+    | '/projects'
     | '/settings'
     | '/login'
     | '/users'
     | '/projects/$projectSlug'
+    | '/platform/projects'
+    | '/platform/users'
     | '/settings/account'
     | '/settings/appearance'
+    | '/platform/'
     | '/projects/'
     | '/settings/'
     | '/projects/$projectSlug/settings'
@@ -223,8 +271,11 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/users'
+    | '/platform/projects'
+    | '/platform/users'
     | '/settings/account'
     | '/settings/appearance'
+    | '/platform'
     | '/projects'
     | '/settings'
     | '/projects/$projectSlug'
@@ -238,12 +289,17 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/platform'
+    | '/projects'
     | '/settings'
     | '/login'
     | '/users'
     | '/projects/$projectSlug'
+    | '/platform/projects'
+    | '/platform/users'
     | '/settings/account'
     | '/settings/appearance'
+    | '/platform/'
     | '/projects/'
     | '/settings/'
     | '/projects/$projectSlug/settings'
@@ -260,11 +316,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PlatformRouteRoute: typeof PlatformRouteRouteWithChildren
+  ProjectsRouteRoute: typeof ProjectsRouteRouteWithChildren
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   UsersRoute: typeof UsersRoute
-  ProjectsProjectSlugRouteRoute: typeof ProjectsProjectSlugRouteRouteWithChildren
-  ProjectsIndexRoute: typeof ProjectsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -290,6 +346,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform': {
+      id: '/platform'
+      path: '/platform'
+      fullPath: '/platform'
+      preLoaderRoute: typeof PlatformRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -306,10 +376,17 @@ declare module '@tanstack/react-router' {
     }
     '/projects/': {
       id: '/projects/'
-      path: '/projects'
+      path: '/'
       fullPath: '/projects/'
       preLoaderRoute: typeof ProjectsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ProjectsRouteRoute
+    }
+    '/platform/': {
+      id: '/platform/'
+      path: '/'
+      fullPath: '/platform/'
+      preLoaderRoute: typeof PlatformIndexRouteImport
+      parentRoute: typeof PlatformRouteRoute
     }
     '/settings/appearance': {
       id: '/settings/appearance'
@@ -325,12 +402,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAccountRouteImport
       parentRoute: typeof SettingsRouteRoute
     }
+    '/platform/users': {
+      id: '/platform/users'
+      path: '/users'
+      fullPath: '/platform/users'
+      preLoaderRoute: typeof PlatformUsersRouteImport
+      parentRoute: typeof PlatformRouteRoute
+    }
+    '/platform/projects': {
+      id: '/platform/projects'
+      path: '/projects'
+      fullPath: '/platform/projects'
+      preLoaderRoute: typeof PlatformProjectsRouteImport
+      parentRoute: typeof PlatformRouteRoute
+    }
     '/projects/$projectSlug': {
       id: '/projects/$projectSlug'
-      path: '/projects/$projectSlug'
+      path: '/$projectSlug'
       fullPath: '/projects/$projectSlug'
       preLoaderRoute: typeof ProjectsProjectSlugRouteRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ProjectsRouteRoute
     }
     '/projects/$projectSlug/': {
       id: '/projects/$projectSlug/'
@@ -405,20 +496,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface SettingsRouteRouteChildren {
-  SettingsAccountRoute: typeof SettingsAccountRoute
-  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
-  SettingsIndexRoute: typeof SettingsIndexRoute
+interface PlatformRouteRouteChildren {
+  PlatformProjectsRoute: typeof PlatformProjectsRoute
+  PlatformUsersRoute: typeof PlatformUsersRoute
+  PlatformIndexRoute: typeof PlatformIndexRoute
 }
 
-const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
-  SettingsAccountRoute: SettingsAccountRoute,
-  SettingsAppearanceRoute: SettingsAppearanceRoute,
-  SettingsIndexRoute: SettingsIndexRoute,
+const PlatformRouteRouteChildren: PlatformRouteRouteChildren = {
+  PlatformProjectsRoute: PlatformProjectsRoute,
+  PlatformUsersRoute: PlatformUsersRoute,
+  PlatformIndexRoute: PlatformIndexRoute,
 }
 
-const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
-  SettingsRouteRouteChildren,
+const PlatformRouteRouteWithChildren = PlatformRouteRoute._addFileChildren(
+  PlatformRouteRouteChildren,
 )
 
 interface ProjectsProjectSlugSettingsRouteRouteChildren {
@@ -485,13 +576,43 @@ const ProjectsProjectSlugRouteRouteWithChildren =
     ProjectsProjectSlugRouteRouteChildren,
   )
 
+interface ProjectsRouteRouteChildren {
+  ProjectsProjectSlugRouteRoute: typeof ProjectsProjectSlugRouteRouteWithChildren
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
+}
+
+const ProjectsRouteRouteChildren: ProjectsRouteRouteChildren = {
+  ProjectsProjectSlugRouteRoute: ProjectsProjectSlugRouteRouteWithChildren,
+  ProjectsIndexRoute: ProjectsIndexRoute,
+}
+
+const ProjectsRouteRouteWithChildren = ProjectsRouteRoute._addFileChildren(
+  ProjectsRouteRouteChildren,
+)
+
+interface SettingsRouteRouteChildren {
+  SettingsAccountRoute: typeof SettingsAccountRoute
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+}
+
+const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
+  SettingsAccountRoute: SettingsAccountRoute,
+  SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
+}
+
+const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
+  SettingsRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PlatformRouteRoute: PlatformRouteRouteWithChildren,
+  ProjectsRouteRoute: ProjectsRouteRouteWithChildren,
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   UsersRoute: UsersRoute,
-  ProjectsProjectSlugRouteRoute: ProjectsProjectSlugRouteRouteWithChildren,
-  ProjectsIndexRoute: ProjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
