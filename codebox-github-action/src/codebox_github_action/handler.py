@@ -301,7 +301,7 @@ def _build_agent_prompt(event: dict[str, Any]) -> str:
     comment_body = comment.get("body", "") or ""
     is_pr = "pull_request" in issue
 
-    trigger = os.environ.get("TRIGGER_KEYWORD", "/codebox")
+    trigger = os.environ.get("CODEBOX_TRIGGER_KEYWORD", "/codebox")
     task = comment_body.replace(trigger, "").strip()
 
     parts: list[str] = _build_context_section(issue, repo, is_pr)
@@ -344,7 +344,7 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
     comment = event.get("comment", {})
     issue = event.get("issue", {})
 
-    trigger = os.environ.get("TRIGGER_KEYWORD", "/codebox")
+    trigger = os.environ.get("CODEBOX_TRIGGER_KEYWORD", "/codebox")
     comment_body = comment.get("body", "") or ""
 
     if trigger not in comment_body:
@@ -363,7 +363,7 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
     issue_number = issue.get("number")
     issue_title = issue.get("title", f"Issue #{issue_number}")
     is_pr = "pull_request" in issue
-    log_mode = os.environ.get("LOG_MODE", "human").lower()
+    log_mode = os.environ.get("CODEBOX_LOG_MODE", "human").lower()
     human_mode = log_mode != "debug"
     logger.info("Triggered on %s#%s", repo, issue_number)
 
@@ -393,12 +393,14 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
 
     # Build config from the same env vars that already exist.
     agent_config = AgentConfig.from_env()
-    # Override recursion_limit for GitHub Action context (deeper tasks).
-    agent_config = agent_config.model_copy(update={"recursion_limit": 300})
+    # GitHub Action context gets a deeper default recursion budget when the
+    # caller hasn't set CODEBOX_AGENT_RECURSION_LIMIT explicitly.
+    if "CODEBOX_AGENT_RECURSION_LIMIT" not in os.environ:
+        agent_config = agent_config.model_copy(update={"recursion_limit": 300})
 
-    dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
-    if dynamic_system_prompt:
-        agent_config = agent_config.model_copy(update={"system_prompt": dynamic_system_prompt})
+    system_prompt = os.environ.get("CODEBOX_AGENT_SYSTEM_PROMPT")
+    if system_prompt:
+        agent_config = agent_config.model_copy(update={"system_prompt": system_prompt})
 
     manager = SessionManager(checkpoint_db_path="/tmp/codebox-checkpoints.db")  # noqa: S108
     session = await manager.create_from_config(

@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from codebox_orchestrator.api.dependencies import get_auth_service
 from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user, require_admin
 from codebox_orchestrator.auth.service import create_auth_token
-from codebox_orchestrator.config import AUTH_TOKEN_EXPIRY_HOURS, ENVIRONMENT
+from codebox_orchestrator.config import settings
 
 if TYPE_CHECKING:
     from codebox_orchestrator.auth.models import User
@@ -74,7 +74,7 @@ def _user_response(user: User) -> UserResponse:
 
 
 def _set_auth_cookie(response: Response, token: str) -> None:
-    secure = ENVIRONMENT != "development"
+    secure = settings.environment != "development"
     response.set_cookie(
         key="access_token",
         value=token,
@@ -82,7 +82,7 @@ def _set_auth_cookie(response: Response, token: str) -> None:
         secure=secure,
         samesite="lax",
         path="/",
-        max_age=int(AUTH_TOKEN_EXPIRY_HOURS * 3600),
+        max_age=int(settings.auth.token_expiry_hours * 3600),
     )
 
 

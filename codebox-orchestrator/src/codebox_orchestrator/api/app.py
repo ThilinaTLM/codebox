@@ -8,13 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from codebox_orchestrator.config import (
-    AUTH_TOKEN_EXPIRY_HOURS,
-    CORS_ORIGINS,
-    ENVIRONMENT,
-    GRPC_PORT,
-    validate_required_config,
-)
+from codebox_orchestrator.config import settings
 from codebox_orchestrator.shared.persistence.migrate import run_migrations
 
 logger = logging.getLogger(__name__)
@@ -24,8 +18,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):  # noqa: PLR0915
-        # --- Validate required secrets ---
-        validate_required_config()
+        # Secret/config validation happens at Settings() construction in config.py.
 
         # --- Database migrations (Alembic) ---
         from codebox_orchestrator.shared.persistence.engine import (  # noqa: PLC0415
@@ -270,7 +263,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         )
 
         grpc_server = await start_grpc_server(
-            port=GRPC_PORT,
+            port=settings.grpc.port,
             event_handler=event_handler,
             registry=registry,
         )
@@ -314,7 +307,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=CORS_ORIGINS,
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -326,7 +319,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         response = await call_next(request)
         token = request.cookies.get("access_token")
         if token and response.status_code < 400:
-            secure = ENVIRONMENT != "development"
+            secure = settings.environment != "development"
             response.set_cookie(
                 key="access_token",
                 value=token,
@@ -334,7 +327,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
                 secure=secure,
                 samesite="lax",
                 path="/",
-                max_age=int(AUTH_TOKEN_EXPIRY_HOURS * 3600),
+                max_age=int(settings.auth.token_expiry_hours * 3600),
             )
         return response
 

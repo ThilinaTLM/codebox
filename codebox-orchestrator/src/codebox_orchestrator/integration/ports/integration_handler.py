@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Protocol
 
 
@@ -12,7 +12,7 @@ class BoxCreateRequest:
 
     name: str
     initial_prompt: str
-    dynamic_system_prompt: str | None = None
+    system_prompt: str | None = None
     provider: str | None = None
     model: str | None = None
     trigger: str | None = None
@@ -21,7 +21,6 @@ class BoxCreateRequest:
     repo: str | None = None
     branch: str | None = None
     issue_number: int | None = None
-    extra_env: dict[str, str] = field(default_factory=dict)
 
 
 class IntegrationHandler(Protocol):

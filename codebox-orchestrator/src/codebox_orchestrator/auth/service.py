@@ -14,12 +14,7 @@ import jwt
 from sqlalchemy import func, select
 
 from codebox_orchestrator.auth.models import User, UserStatus
-from codebox_orchestrator.config import (
-    AUTH_TOKEN_EXPIRY_HOURS,
-    INITIAL_ADMIN_PASSWORD,
-    INITIAL_ADMIN_USERNAME,
-    get_auth_secret,
-)
+from codebox_orchestrator.config import settings
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -59,15 +54,15 @@ def create_auth_token(user: User) -> str:
         "username": user.username,
         "user_type": user.user_type,
         "iat": now,
-        "exp": now + AUTH_TOKEN_EXPIRY_HOURS * 3600,
+        "exp": now + settings.auth.token_expiry_hours * 3600,
     }
-    return jwt.encode(payload, get_auth_secret(), algorithm=_ALGORITHM)
+    return jwt.encode(payload, settings.auth_secret(), algorithm=_ALGORITHM)
 
 
 def decode_auth_token(token: str) -> dict | None:
     """Decode and verify an auth JWT. Returns payload dict or None."""
     try:
-        return jwt.decode(token, get_auth_secret(), algorithms=[_ALGORITHM])
+        return jwt.decode(token, settings.auth_secret(), algorithms=[_ALGORITHM])
     except jwt.PyJWTError:
         return None
 
@@ -95,9 +90,11 @@ class AuthService:
             if count > 0:
                 return
 
-            username = INITIAL_ADMIN_USERNAME or "admin"
-            password_from_env = bool(INITIAL_ADMIN_PASSWORD)
-            password = INITIAL_ADMIN_PASSWORD if password_from_env else secrets.token_urlsafe(12)
+            admin_username = settings.admin.username
+            admin_password = settings.admin.password.get_secret_value()
+            username = admin_username or "admin"
+            password_from_env = bool(admin_password)
+            password = admin_password if password_from_env else secrets.token_urlsafe(12)
 
             user = User(
                 username=username,

@@ -30,9 +30,9 @@ config = context.config
 
 # If no URL was set via set_main_option (CLI path), use the app config.
 if not config.get_main_option("sqlalchemy.url"):
-    from codebox_orchestrator.config import DATABASE_URL
+    from codebox_orchestrator.config import settings
 
-    config.set_main_option("sqlalchemy.url", DATABASE_URL)
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

@@ -13,13 +13,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from codebox_orchestrator.compute.domain.entities import ContainerConfig
-from codebox_orchestrator.config import (
-    CODEBOX_IMAGE,
-    GRPC_TLS_CA_CERT,
-    ORCHESTRATOR_GRPC_PUBLIC_URL,
-    ORCHESTRATOR_WS_PUBLIC_URL,
-)
-from codebox_orchestrator.shared.urls import compose_tunnel_url, normalize_grpc_url
+from codebox_orchestrator.config import settings
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.infrastructure.box_state_store import BoxStateStore
@@ -169,12 +163,12 @@ class BoxLifecycleService:
         # Build container env vars
         container_name = f"codebox-box-{box_id[:8]}"
         extra_env: dict[str, str] = {
-            "ORCHESTRATOR_GRPC_ADDRESS": normalize_grpc_url(ORCHESTRATOR_GRPC_PUBLIC_URL),
-            "ORCHESTRATOR_TUNNEL_URL": compose_tunnel_url(ORCHESTRATOR_WS_PUBLIC_URL),
-            "CALLBACK_TOKEN": callback_token,
+            "CODEBOX_ORCHESTRATOR_URL": settings.urls.url,
+            "CODEBOX_ORCHESTRATOR_GRPC_URL": settings.urls.grpc_url,
+            "CODEBOX_CALLBACK_TOKEN": callback_token,
         }
         if auto_start_prompt:
-            extra_env["INITIAL_PROMPT"] = auto_start_prompt
+            extra_env["CODEBOX_INITIAL_PROMPT"] = auto_start_prompt
 
         # ── Build CODEBOX_AGENT_CONFIG ───────────────────────────��──
         agent_config: dict[str, Any] = {
@@ -206,8 +200,8 @@ class BoxLifecycleService:
         extra_env["CODEBOX_AGENT_CONFIG"] = json.dumps(agent_config)
 
         # Inject gRPC TLS CA cert path for sandbox-side verification
-        if GRPC_TLS_CA_CERT:
-            extra_env["GRPC_TLS_CA_CERT"] = "/etc/grpc-certs/ca.crt"
+        if settings.grpc.tls_ca_cert:
+            extra_env["CODEBOX_GRPC_TLS_CA_CERT"] = "/etc/grpc-certs/ca.crt"
 
         # Build metadata labels
         extra_labels: dict[str, str] = {
@@ -233,33 +227,23 @@ class BoxLifecycleService:
         if github_trigger_url:
             extra_labels["codebox.github-trigger-url"] = github_trigger_url
 
-        # For GitHub boxes, get installation token and inject env vars
+        # For GitHub boxes, get the installation token so git push / gh CLI work.
         gh_token: str | None = None
         if is_github:
-            extra_env["CODEBOX_GITHUB_REPO"] = github_repo or ""
-            if github_branch:
-                extra_env["CODEBOX_BRANCH"] = github_branch
-            if github_issue_number is not None:
-                extra_env["CODEBOX_GITHUB_ISSUE_NUMBER"] = str(github_issue_number)
-
             gh_token = await self._get_github_token(github_installation_id, project_id)
             extra_env["GH_TOKEN"] = gh_token
-            github_base_branch = await self._get_github_default_branch(project_id)
-            extra_env["CODEBOX_GITHUB_REF"] = github_base_branch
 
         # Build certificate volume mounts for gRPC TLS
         cert_mounts: dict[str, dict[str, str]] = {}
-        if GRPC_TLS_CA_CERT:
-            cert_mounts[GRPC_TLS_CA_CERT] = {"bind": "/etc/grpc-certs/ca.crt", "mode": "ro"}
+        if settings.grpc.tls_ca_cert:
+            cert_mounts[settings.grpc.tls_ca_cert] = {
+                "bind": "/etc/grpc-certs/ca.crt",
+                "mode": "ro",
+            }
 
         config = ContainerConfig(
-            image=CODEBOX_IMAGE,
+            image=settings.box.image,
             name=container_name,
-            provider=provider,
-            model=model,
-            api_key=api_key,
-            base_url=base_url or None,
-            tavily_api_key=tavily_api_key,
             extra_env=extra_env,
             extra_labels=extra_labels,
             cert_mounts=cert_mounts,
@@ -339,15 +323,6 @@ class BoxLifecycleService:
             raise RuntimeError(f"GitHub installation not found: {github_installation_id}")
 
         return await installation_service.get_token(installation.installation_id)
-
-    async def _get_github_default_branch(self, project_id: str) -> str:
-        """Return the project's configured default base branch, falling back to 'main'."""
-        if not project_id or self._github_client_manager is None:
-            return "main"
-        settings = self._github_client_manager.get_project_settings(project_id)
-        if settings and settings.github_default_base_branch:
-            return settings.github_default_base_branch
-        return "main"
 
     async def _run_github_setup(
         self,

@@ -1,115 +1,305 @@
-"""Environment-based configuration for the orchestrator.
+"""Typed configuration for the orchestrator.
 
-Only **server infrastructure** settings are loaded from environment variables.
-All user-facing credentials (LLM API keys, Tavily, GitHub App config) are
-stored per-project in the database — see ``llm_profile`` and ``project_settings``.
+All settings load from environment variables (and optionally ``.env``) via
+``pydantic-settings``.  The ``CODEBOX_`` prefix is used for everything owned
+by this project; well-known externals such as ``DATABASE_URL``,
+``POSTGRES_*``, and ``GITHUB_TOKEN`` are read without a prefix.
+
+Access settings via the module-level ``settings`` singleton::
+
+    from codebox_orchestrator.config import settings
+
+    print(settings.http.port)
+    print(settings.box.image)
+    print(settings.auth.secret.get_secret_value())
+
+Only **server infrastructure** is loaded here.  User-facing credentials
+(LLM API keys, Tavily, GitHub App config) live per-project in the database.
 """
 
 from __future__ import annotations
 
-import os
+import sys
+from functools import lru_cache
 from pathlib import Path
+from typing import Annotated, Self
 
-from dotenv import load_dotenv
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-# Load .env from the project directory
-_project_dir = Path(__file__).resolve().parent.parent.parent
-load_dotenv(_project_dir / ".env")
-load_dotenv(_project_dir / ".env.local", override=True)
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-# ── Environment ─────────────────────────────────────────────────
-ENVIRONMENT: str = os.environ.get("ENVIRONMENT", "development")
-
-# ── Database ────────────────────────────────────────────────────
-DATABASE_URL: str = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://codebox:codebox@localhost:5432/codebox",
-)
-
-# ── Container runtime ──────────────────────────────────────────
-CODEBOX_IMAGE: str = os.environ.get("CODEBOX_IMAGE", "codebox-sandbox:latest")
-DOCKER_NETWORK: str = os.environ.get("DOCKER_NETWORK", "codebox-net")
-CONTAINER_RUNTIME_URL: str = os.environ.get("CONTAINER_RUNTIME_URL", "")
-CONTAINER_RUNTIME_TYPE: str = os.environ.get("CONTAINER_RUNTIME_TYPE", "docker")
-CONTAINER_TLS_VERIFY: str = os.environ.get("CONTAINER_TLS_VERIFY", "")
-CONTAINER_TLS_CERT: str = os.environ.get("CONTAINER_TLS_CERT", "")
-CONTAINER_TLS_KEY: str = os.environ.get("CONTAINER_TLS_KEY", "")
-
-# ── Sandbox resource limits ─────────────────────────────────────
-SANDBOX_MEMORY_LIMIT: str = os.environ.get("SANDBOX_MEMORY_LIMIT", "4g")
-SANDBOX_CPU_LIMIT: int = int(os.environ.get("SANDBOX_CPU_LIMIT", "2"))
-SANDBOX_PIDS_LIMIT: int = int(os.environ.get("SANDBOX_PIDS_LIMIT", "1024"))
-SANDBOX_NETWORK: str = os.environ.get("SANDBOX_NETWORK", "codebox-sandbox-net")
-
-# ── HTTP server ────────────────────────────────────────────────
-HOST: str = os.environ.get("ORCHESTRATOR_HOST", "0.0.0.0")  # noqa: S104
-PORT: int = int(os.environ.get("ORCHESTRATOR_PORT", "9090"))
-
-# ── gRPC ───────────────────────────────────────────────────────
-GRPC_PORT: int = int(os.environ.get("GRPC_PORT", "50051"))
-GRPC_TLS_CERT: str = os.environ.get("GRPC_TLS_CERT", "")  # Path to server cert PEM
-GRPC_TLS_KEY: str = os.environ.get("GRPC_TLS_KEY", "")  # Path to server key PEM
-GRPC_TLS_CA_CERT: str = os.environ.get("GRPC_TLS_CA_CERT", "")  # Path to CA cert PEM
+_PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
+_ENV_FILE = str(_PROJECT_DIR / ".env")
 
 
-def _default_public_host() -> str:
-    import sys as _sys  # noqa: PLC0415
-
-    if _sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
+def _default_public_host(container_runtime: str) -> str:
+    """Host that a sandbox container uses to reach the orchestrator in local dev."""
+    if sys.platform == "win32" and container_runtime == "podman":
         return "localhost"
-    if CONTAINER_RUNTIME_TYPE == "podman":
+    if container_runtime == "podman":
         return "host.containers.internal"
     return "host.docker.internal"
 
 
-ORCHESTRATOR_WS_PUBLIC_URL: str = os.environ.get(
-    "ORCHESTRATOR_WS_PUBLIC_URL",
-    f"ws://{_default_public_host()}:{PORT}",
-)
-ORCHESTRATOR_GRPC_PUBLIC_URL: str = os.environ.get(
-    "ORCHESTRATOR_GRPC_PUBLIC_URL",
-    f"grpc://{_default_public_host()}:{GRPC_PORT}",
-)
-
-# ── Auth / sessions ────────────────────────────────────────────
-AUTH_SECRET: str = os.environ.get("AUTH_SECRET", "")
-AUTH_TOKEN_EXPIRY_HOURS: int = int(os.environ.get("AUTH_TOKEN_EXPIRY_HOURS", "168"))
-CALLBACK_SECRET: str = os.environ.get("CALLBACK_SECRET", "")
-CALLBACK_TOKEN_EXPIRY_SECONDS: int = int(os.environ.get("CALLBACK_TOKEN_EXPIRY_SECONDS", "3600"))
-
-# ── Initial admin (first-time bootstrap only) ─────────────────
-# Consulted only when the users table is empty. Once any user exists,
-# these values are ignored and the admin manages their password from the
-# account page (POST /api/auth/change-password).
-INITIAL_ADMIN_USERNAME: str = os.environ.get("CODEBOX_ADMIN_USERNAME", "").strip()
-INITIAL_ADMIN_PASSWORD: str = os.environ.get("CODEBOX_ADMIN_PASSWORD", "")
-
-# ── CORS ───────────────────────────────────────────────────────
-CORS_ORIGINS: list[str] = [
-    origin.strip()
-    for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3737").split(",")
-    if origin.strip()
-]
+# ---------------------------------------------------------------------------
+# Sub-settings (each loads env vars with its own prefix)
+# ---------------------------------------------------------------------------
 
 
-def get_auth_secret() -> str:
-    if AUTH_SECRET:
-        return AUTH_SECRET
-    if ENVIRONMENT == "development":
-        return "dev-secret-change-me"
-    raise RuntimeError("AUTH_SECRET must be set in non-development environments")
+class HttpServerSettings(BaseSettings):
+    """Orchestrator HTTP/REST server bind settings."""
+
+    host: str = "0.0.0.0"  # noqa: S104
+    port: int = 9090
+
+    model_config = SettingsConfigDict(
+        env_prefix="CODEBOX_ORCHESTRATOR_HTTP_",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
-def get_callback_secret() -> str:
-    if CALLBACK_SECRET:
-        return CALLBACK_SECRET
-    if ENVIRONMENT == "development":
-        return "dev-callback-secret-change-me"
-    raise RuntimeError("CALLBACK_SECRET must be set in non-development environments")
+class GrpcServerSettings(BaseSettings):
+    """gRPC server port and TLS settings."""
+
+    port: int = Field(default=50051, validation_alias="CODEBOX_ORCHESTRATOR_GRPC_PORT")
+    tls_enabled: bool = False
+    tls_cert: str = ""
+    tls_key: str = ""
+    tls_ca_cert: str = ""
+
+    model_config = SettingsConfigDict(
+        env_prefix="CODEBOX_GRPC_",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
-def validate_required_config() -> None:
-    if ENVIRONMENT != "development" and not AUTH_SECRET:
-        raise RuntimeError("AUTH_SECRET is required in production")
-    if ENVIRONMENT != "development" and not CALLBACK_SECRET:
-        raise RuntimeError("CALLBACK_SECRET is required in production")
+class OrchestratorUrlsSettings(BaseSettings):
+    """Public URLs that sandbox containers use to reach the orchestrator.
+
+    ``url`` is the HTTP base URL (``http://host:port`` or ``https://host``);
+    the sandbox derives the WebSocket tunnel URL from it.
+
+    ``grpc_url`` is the gRPC endpoint (``grpc://host:port`` or
+    ``grpcs://host:port``).
+
+    Both default to ``host.docker.internal`` / ``host.containers.internal`` so
+    that local dev works without any override.  Defaults are computed in
+    :meth:`Settings._fill_url_defaults` because they depend on the HTTP/gRPC
+    port settings.
+    """
+
+    url: str = ""
+    grpc_url: str = ""
+
+    model_config = SettingsConfigDict(
+        env_prefix="CODEBOX_ORCHESTRATOR_",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class BoxRuntimeSettings(BaseSettings):
+    """Resource limits and image for Box (sandbox) containers."""
+
+    image: str = "codebox-sandbox:latest"
+    network: str = "codebox-sandbox-net"
+    memory_limit: str = "4g"
+    cpu_limit: int = 2
+    pids_limit: int = 1024
+
+    model_config = SettingsConfigDict(
+        env_prefix="CODEBOX_BOX_",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class ContainerRuntimeSettings(BaseSettings):
+    """Docker / Podman daemon connection settings."""
+
+    runtime: str = "docker"  # "docker" | "podman"
+    runtime_url: str = ""
+    tls_verify: str = ""
+    tls_cert: str = ""
+    tls_key: str = ""
+
+    model_config = SettingsConfigDict(
+        env_prefix="CODEBOX_CONTAINER_",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class AuthSettings(BaseSettings):
+    """User-session auth (JWT)."""
+
+    secret: SecretStr = SecretStr("")
+    token_expiry_hours: int = 168
+
+    model_config = SettingsConfigDict(
+        env_prefix="CODEBOX_AUTH_",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class CallbackSettings(BaseSettings):
+    """Sandbox callback JWT settings (sandbox → orchestrator)."""
+
+    secret: SecretStr = SecretStr("")
+    token_expiry_seconds: int = 3600
+
+    model_config = SettingsConfigDict(
+        env_prefix="CODEBOX_CALLBACK_",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class AdminBootstrapSettings(BaseSettings):
+    """First-time admin bootstrap.
+
+    Consulted only when the users table is empty.  After an admin exists,
+    these values are ignored.
+    """
+
+    username: str = ""
+    password: SecretStr = SecretStr("")
+
+    model_config = SettingsConfigDict(
+        env_prefix="CODEBOX_ADMIN_",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Top-level settings
+# ---------------------------------------------------------------------------
+
+
+class Settings(BaseSettings):
+    """Complete orchestrator configuration."""
+
+    environment: str = Field(default="development", validation_alias="CODEBOX_ENVIRONMENT")
+    database_url: str = Field(
+        default="postgresql+asyncpg://codebox:codebox@localhost:5432/codebox",
+        validation_alias="DATABASE_URL",
+    )
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default=["http://localhost:3737"],
+        validation_alias=AliasChoices("CODEBOX_CORS_ORIGINS"),
+    )
+    encryption_key: SecretStr = Field(
+        default=SecretStr(""), validation_alias="CODEBOX_ENCRYPTION_KEY"
+    )
+
+    http: HttpServerSettings = Field(default_factory=HttpServerSettings)
+    grpc: GrpcServerSettings = Field(default_factory=GrpcServerSettings)
+    urls: OrchestratorUrlsSettings = Field(default_factory=OrchestratorUrlsSettings)
+    box: BoxRuntimeSettings = Field(default_factory=BoxRuntimeSettings)
+    container: ContainerRuntimeSettings = Field(default_factory=ContainerRuntimeSettings)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
+    callback: CallbackSettings = Field(default_factory=CallbackSettings)
+    admin: AdminBootstrapSettings = Field(default_factory=AdminBootstrapSettings)
+
+    model_config = SettingsConfigDict(
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # -- parsers -------------------------------------------------------------
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, value: object) -> object:
+        """Accept a comma-separated string or a JSON list for ``CORS_ORIGINS``."""
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return []
+            # JSON-list form
+            if stripped.startswith("["):
+                return value
+            # comma-separated form
+            return [item.strip() for item in stripped.split(",") if item.strip()]
+        return value
+
+    # -- post-init validation ------------------------------------------------
+
+    @model_validator(mode="after")
+    def _fill_url_defaults(self) -> Self:
+        """Compute local-dev defaults for orchestrator public URLs."""
+        if not self.urls.url:
+            host = _default_public_host(self.container.runtime)
+            self.urls.url = f"http://{host}:{self.http.port}"
+        if not self.urls.grpc_url:
+            host = _default_public_host(self.container.runtime)
+            self.urls.grpc_url = f"grpc://{host}:{self.grpc.port}"
+        return self
+
+    @model_validator(mode="after")
+    def _require_secrets_in_production(self) -> Self:
+        if self.environment == "development":
+            return self
+        missing: list[str] = []
+        if not self.auth.secret.get_secret_value():
+            missing.append("CODEBOX_AUTH_SECRET")
+        if not self.callback.secret.get_secret_value():
+            missing.append("CODEBOX_CALLBACK_SECRET")
+        if not self.encryption_key.get_secret_value():
+            missing.append("CODEBOX_ENCRYPTION_KEY")
+        if missing:
+            names = ", ".join(missing)
+            msg = f"Required secrets are not set for non-development environment: {names}"
+            raise ValueError(msg)
+        return self
+
+    # -- helpers -------------------------------------------------------------
+
+    def auth_secret(self) -> str:
+        """Return the auth JWT secret, falling back to a dev placeholder."""
+        value = self.auth.secret.get_secret_value()
+        if value:
+            return value
+        if self.environment == "development":
+            return "dev-secret-change-me"
+        msg = "CODEBOX_AUTH_SECRET must be set in non-development environments"
+        raise RuntimeError(msg)
+
+    def callback_secret(self) -> str:
+        """Return the sandbox-callback JWT secret, falling back to a dev placeholder."""
+        value = self.callback.secret.get_secret_value()
+        if value:
+            return value
+        if self.environment == "development":
+            return "dev-callback-secret-change-me"
+        msg = "CODEBOX_CALLBACK_SECRET must be set in non-development environments"
+        raise RuntimeError(msg)
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
+
+
+@lru_cache(maxsize=1)
+def _load_settings() -> Settings:
+    return Settings()
+
+
+settings: Settings = _load_settings()

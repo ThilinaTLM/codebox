@@ -47,10 +47,10 @@ codebox-github-action ──> codebox-agent
 Copy and edit the orchestrator environment file:
 
 ```bash
-cp codebox-orchestrator/.env codebox-orchestrator/.env.local
+cp codebox-orchestrator/.env.example codebox-orchestrator/.env
 ```
 
-Edit `.env.local` with your credentials. See the [orchestrator README](codebox-orchestrator/README.md) for all available settings.
+Edit `.env` with your credentials. See the [orchestrator README](codebox-orchestrator/README.md) for all available settings.
 
 ### 2) Build the Box image
 

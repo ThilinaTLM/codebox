@@ -1,25 +1,27 @@
 """Symmetric encryption for secrets stored in the database.
 
 Uses Fernet (AES-128-CBC + HMAC-SHA256) from the ``cryptography`` library.
-The encryption key is loaded from the ``ENCRYPTION_KEY`` environment variable.
+The encryption key is loaded from ``settings.encryption_key`` (env var
+``CODEBOX_ENCRYPTION_KEY``).
 """
 
 from __future__ import annotations
 
 import base64
-import os
 
 from cryptography.fernet import Fernet, InvalidToken
+
+from codebox_orchestrator.config import settings
 
 _fernet: Fernet | None = None
 
 
 def _resolve_key() -> bytes:
-    """Resolve the 32-byte Fernet key from the ENCRYPTION_KEY env var."""
-    key = os.environ.get("ENCRYPTION_KEY", "")
+    """Resolve the 32-byte Fernet key from ``CODEBOX_ENCRYPTION_KEY``."""
+    key = settings.encryption_key.get_secret_value()
     if not key:
         raise RuntimeError(
-            "ENCRYPTION_KEY environment variable is required. "
+            "CODEBOX_ENCRYPTION_KEY environment variable is required. "
             'Generate one with: python -c "from cryptography.fernet import Fernet; '
             'print(Fernet.generate_key().decode())"'
         )

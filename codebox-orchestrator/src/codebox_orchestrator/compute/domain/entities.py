@@ -9,15 +9,10 @@ from dataclasses import dataclass, field
 class ContainerConfig:
     image: str
     name: str
-    provider: str
-    model: str
-    api_key: str
     extra_env: dict[str, str] = field(default_factory=dict)
     extra_labels: dict[str, str] = field(default_factory=dict)
     cert_mounts: dict[str, dict[str, str]] = field(default_factory=dict)
-    tavily_api_key: str | None = None
     network: str | None = None
-    base_url: str | None = None
 
 
 @dataclass

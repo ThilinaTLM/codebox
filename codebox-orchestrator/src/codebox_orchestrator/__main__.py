@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import uvicorn
 
-from codebox_orchestrator.config import HOST, PORT
+from codebox_orchestrator.config import settings
 
 
 def main() -> None:
     uvicorn.run(
         "codebox_orchestrator.api.app:create_app",
         factory=True,
-        host=HOST,
-        port=PORT,
+        host=settings.http.host,
+        port=settings.http.port,
         log_level="info",
     )
 

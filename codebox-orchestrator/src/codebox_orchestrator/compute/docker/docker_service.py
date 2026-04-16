@@ -15,17 +15,7 @@ import docker
 import docker.errors
 import docker.tls
 
-from codebox_orchestrator.config import (
-    CONTAINER_RUNTIME_TYPE,
-    CONTAINER_RUNTIME_URL,
-    CONTAINER_TLS_CERT,
-    CONTAINER_TLS_KEY,
-    CONTAINER_TLS_VERIFY,
-    SANDBOX_CPU_LIMIT,
-    SANDBOX_MEMORY_LIMIT,
-    SANDBOX_NETWORK,
-    SANDBOX_PIDS_LIMIT,
-)
+from codebox_orchestrator.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,36 +26,6 @@ _client: docker.DockerClient | None = None
 
 class DockerServiceError(Exception):
     """Raised when a container runtime operation fails."""
-
-
-def _build_environment(
-    provider: str | None,
-    model: str | None,
-    api_key: str | None,
-    base_url: str | None,
-    tavily_api_key: str | None,
-    extra_env: dict[str, str] | None,
-) -> dict[str, str]:
-    environment: dict[str, str] = {}
-    if provider:
-        environment["LLM_PROVIDER"] = provider
-    if provider == "openrouter":
-        if api_key:
-            environment["OPENROUTER_API_KEY"] = api_key
-        if model:
-            environment["OPENROUTER_MODEL"] = model
-    elif provider == "openai":
-        if api_key:
-            environment["OPENAI_API_KEY"] = api_key
-        if model:
-            environment["OPENAI_MODEL"] = model
-        if base_url:
-            environment["OPENAI_BASE_URL"] = base_url
-    if tavily_api_key:
-        environment["TAVILY_API_KEY"] = tavily_api_key
-    if extra_env:
-        environment.update(extra_env)
-    return environment
 
 
 @dataclass
@@ -94,18 +54,18 @@ def _get_client() -> docker.DockerClient:
     global _client  # noqa: PLW0603
     if _client is not None:
         return _client
+    container = settings.container
     try:
-        if not CONTAINER_RUNTIME_URL:
+        if not container.runtime_url:
             _client = docker.from_env()
         else:
-            kwargs: dict[str, Any] = {"base_url": CONTAINER_RUNTIME_URL}
-            if CONTAINER_TLS_CERT and CONTAINER_TLS_KEY:
+            kwargs: dict[str, Any] = {"base_url": container.runtime_url}
+            if container.tls_cert and container.tls_key:
+                tls_verify = container.tls_verify
                 tls_config = docker.tls.TLSConfig(
-                    client_cert=(CONTAINER_TLS_CERT, CONTAINER_TLS_KEY),
-                    ca_cert=CONTAINER_TLS_VERIFY
-                    if CONTAINER_TLS_VERIFY not in ("", "true", "false")
-                    else None,
-                    verify=CONTAINER_TLS_VERIFY != "false",
+                    client_cert=(container.tls_cert, container.tls_key),
+                    ca_cert=tls_verify if tls_verify not in ("", "true", "false") else None,
+                    verify=tls_verify != "false",
                 )
                 kwargs["tls"] = tls_config
             _client = docker.DockerClient(**kwargs)
@@ -136,26 +96,19 @@ def check_connection() -> dict[str, str]:
 def spawn(
     image: str,
     name: str | None = None,
-    provider: str | None = None,
-    model: str | None = None,
-    api_key: str | None = None,
-    base_url: str | None = None,
-    tavily_api_key: str | None = None,
     network: str | None = None,
     extra_env: dict[str, str] | None = None,
     extra_labels: dict[str, str] | None = None,
     cert_mounts: dict[str, dict[str, str]] | None = None,
 ) -> ContainerInfo:
-    """Start a new sandbox container and return its info."""
+    """Start a new sandbox container and return its info.
+
+    All agent/LLM configuration is passed via ``extra_env`` (notably the
+    ``CODEBOX_AGENT_CONFIG`` JSON env var) — this function is deliberately
+    agnostic to the agent protocol.
+    """
     client = _get_client()
-    environment = _build_environment(
-        provider=provider,
-        model=model,
-        api_key=api_key,
-        base_url=base_url,
-        tavily_api_key=tavily_api_key,
-        extra_env=extra_env,
-    )
+    environment: dict[str, str] = dict(extra_env) if extra_env else {}
 
     volumes: dict[str, dict[str, str]] = {}
 
@@ -173,7 +126,7 @@ def spawn(
     labels = {CONTAINER_LABEL: "true"}
     if extra_labels:
         labels.update(extra_labels)
-    net = network or SANDBOX_NETWORK
+    net = network or settings.box.network
 
     # --- Security hardening ---------------------------------------------------
     # Drop Linux capabilities the sandbox agent never needs.
@@ -183,11 +136,11 @@ def spawn(
 
     # Resource limits — configurable via env vars (see config.py).
     _resource_kwargs: dict[str, Any] = {
-        "mem_limit": SANDBOX_MEMORY_LIMIT,
-        "memswap_limit": SANDBOX_MEMORY_LIMIT,  # disable swap
+        "mem_limit": settings.box.memory_limit,
+        "memswap_limit": settings.box.memory_limit,  # disable swap
         "cpu_period": 100_000,
-        "cpu_quota": SANDBOX_CPU_LIMIT * 100_000,
-        "pids_limit": SANDBOX_PIDS_LIMIT,
+        "cpu_quota": settings.box.cpu_limit * 100_000,
+        "pids_limit": settings.box.pids_limit,
     }
 
     run_kwargs: dict[str, Any] = {
@@ -200,7 +153,7 @@ def spawn(
         "security_opt": ["no-new-privileges:true"],
         **_resource_kwargs,
     }
-    if sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
+    if sys.platform == "win32" and settings.container.runtime == "podman":
         # Use host networking so the container shares the WSL VM's network
         # stack, which with mirrored networking can reach the Windows host.
         run_kwargs["network_mode"] = "host"
@@ -208,7 +161,7 @@ def spawn(
         run_kwargs["network"] = net
         # Ensure the network exists
         _ensure_network(client, net)
-        if CONTAINER_RUNTIME_TYPE != "podman":
+        if settings.container.runtime != "podman":
             run_kwargs["extra_hosts"] = {"host.docker.internal": "host-gateway"}
 
     # Always pull the latest image to avoid stale cached tags.
@@ -262,18 +215,11 @@ def list_containers(all: bool = True, project_id: str | None = None) -> list[Con
         config = c.attrs.get("Config", {})
         labels = config.get("Labels", {})
 
-        # Prefer label-based metadata, fall back to env vars
+        # Provider / model are stored as labels by the lifecycle service.
+        # We no longer fall back to reading raw env vars — agent config lives
+        # in the opaque CODEBOX_AGENT_CONFIG JSON blob.
         provider = labels.get("codebox.provider", "")
         model = labels.get("codebox.model", "")
-        if not provider or not model:
-            env_list = config.get("Env", [])
-            for e in env_list:
-                if not provider and e.startswith("LLM_PROVIDER="):
-                    provider = e.split("=", 1)[1]
-                if not model and e.startswith("OPENROUTER_MODEL="):
-                    model = e.split("=", 1)[1]
-                if not model and e.startswith("OPENAI_MODEL="):
-                    model = e.split("=", 1)[1]
 
         image = c.image.tags[0] if c.image.tags else c.image.short_id
 

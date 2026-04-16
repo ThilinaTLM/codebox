@@ -39,11 +39,11 @@ def _make_web_search_fn(
         effective_max = max_results if max_results != 5 else default_max_results
 
         logger.info("web_search: query=%r, max_results=%d", query, effective_max)
-        key = api_key or os.environ.get("TAVILY_API_KEY", "")
+        key = api_key or os.environ.get("CODEBOX_TAVILY_API_KEY", "")
         if not key:
-            logger.warning("web_search: TAVILY_API_KEY not set")
+            logger.warning("web_search: CODEBOX_TAVILY_API_KEY not set")
             return (
-                "Error: TAVILY_API_KEY is not set. "
+                "Error: CODEBOX_TAVILY_API_KEY is not set. "
                 "Web search is unavailable. You can still use the web_fetch tool "
                 "if you have a specific URL."
             )

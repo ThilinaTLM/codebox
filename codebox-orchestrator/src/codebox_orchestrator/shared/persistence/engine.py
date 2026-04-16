@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from codebox_orchestrator.config import DATABASE_URL
+from codebox_orchestrator.config import settings
 
 engine = create_async_engine(
-    DATABASE_URL,
+    settings.database_url,
     echo=False,
     pool_size=5,
     max_overflow=10,

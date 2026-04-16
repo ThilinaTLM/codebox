@@ -19,11 +19,6 @@ class DockerRuntime:
         info = docker_service.spawn(
             image=config.image,
             name=config.name,
-            provider=config.provider,
-            model=config.model,
-            api_key=config.api_key,
-            base_url=config.base_url,
-            tavily_api_key=config.tavily_api_key,
             network=config.network,
             extra_env=config.extra_env,
             extra_labels=config.extra_labels or None,

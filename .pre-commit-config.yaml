@@ -33,8 +33,11 @@ repos:
     hooks:
       - id: detect-secrets-strip-timestamp
         name: strip detect-secrets timestamp
-        entry: python3 -c "import json, sys; f='.secrets.baseline'; d=json.load(open(f)); changed=d.pop('generated_at',None) is not None; open(f,'w').write(json.dumps(d,indent=2)+'\n') if changed else None"
+        # If .secrets.baseline is staged with a `generated_at` field (left over
+        # from `make secrets` / `detect-secrets scan`), strip it and re-stage
+        # so the commit goes through clean instead of failing.
+        entry: bash -c 'f=.secrets.baseline; python3 -c "import json,sys; p=sys.argv[1]; d=json.load(open(p)); changed=d.pop(\"generated_at\",None) is not None; open(p,\"w\").write(json.dumps(d,indent=2)+chr(10)) if changed else None; sys.exit(0 if not changed else 1)" "$f" || git add "$f"'
         language: system
-        always_run: true
+        files: ^\.secrets\.baseline$
         pass_filenames: false
         stages: [pre-commit]

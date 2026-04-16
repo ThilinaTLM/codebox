@@ -10,6 +10,11 @@ from codebox_tunnel.protocol import (
     STATUS_PORT_NOT_ALLOWED,
     STATUS_UNSUPPORTED_VERSION,
 )
+from codebox_tunnel.urls import (
+    compose_tunnel_url,
+    http_to_ws_url,
+    normalize_grpc_url,
+)
 from codebox_tunnel.ws_adapter import AsyncWSAdapter
 from codebox_tunnel.yamux import AsyncYamuxSession, AsyncYamuxStream
 
@@ -25,4 +30,7 @@ __all__ = [
     "AsyncWSAdapter",
     "AsyncYamuxSession",
     "AsyncYamuxStream",
+    "compose_tunnel_url",
+    "http_to_ws_url",
+    "normalize_grpc_url",
 ]

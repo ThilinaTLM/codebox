@@ -8,7 +8,7 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 
-from codebox_orchestrator.config import DATABASE_URL
+from codebox_orchestrator.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,11 @@ _ALEMBIC_DIR = _DEV_ALEMBIC_DIR if _DEV_ALEMBIC_DIR.is_dir() else _DOCKER_ALEMBI
 
 
 def _sync_url() -> str:
-    """Convert the async DATABASE_URL to a sync one for Alembic.
+    """Convert the async ``database_url`` to a sync one for Alembic.
 
     ``asyncpg`` → ``psycopg`` (sync driver already in dependencies).
     """
-    return DATABASE_URL.replace("+asyncpg", "+psycopg")
+    return settings.database_url.replace("+asyncpg", "+psycopg")
 
 
 def _build_alembic_config() -> Config:

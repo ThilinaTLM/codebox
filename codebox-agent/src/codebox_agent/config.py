@@ -15,7 +15,6 @@ Or build from legacy environment variables::
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from typing import Self
@@ -60,7 +59,8 @@ class WebSearchToolConfig(BaseModel):
 
     enabled: bool = True
     api_key: str | None = Field(
-        default=None, description="Tavily API key; falls back to TAVILY_API_KEY env var"
+        default=None,
+        description="Tavily API key; falls back to CODEBOX_TAVILY_API_KEY env var",
     )
     max_results: int = Field(default=5, ge=1, le=20)
 
@@ -174,7 +174,7 @@ class AgentConfig(BaseModel):
         # Warn (don't fail) if web_search is enabled but has no API key.
         # Matches existing graceful-degradation behaviour.
         ws = self.tools.web_search
-        if ws.enabled and not ws.api_key and not os.environ.get("TAVILY_API_KEY"):
+        if ws.enabled and not ws.api_key and not os.environ.get("CODEBOX_TAVILY_API_KEY"):
             logger.warning(
                 "tools.web_search is enabled but no API key is configured. "
                 "The tool will return an error at call time."
@@ -195,33 +195,27 @@ class AgentConfig(BaseModel):
 
     @classmethod
     def from_env(cls) -> AgentConfig:
-        """Build a config from environment variables (backward compatibility).
+        """Build a config from environment variables.
 
-        Reads the same env vars that the legacy code path uses:
-        ``LLM_PROVIDER``, ``OPENROUTER_MODEL``, ``OPENAI_MODEL``,
-        ``OPENROUTER_API_KEY``, ``OPENAI_API_KEY``, ``OPENAI_BASE_URL``,
-        ``TAVILY_API_KEY``, ``CODEBOX_SANDBOX_CONFIG``.
+        Reads:
+            ``CODEBOX_LLM_PROVIDER``  (default: "openai")
+            ``CODEBOX_LLM_MODEL``
+            ``CODEBOX_LLM_API_KEY``
+            ``CODEBOX_LLM_BASE_URL``        (optional, OpenAI-compatible endpoints)
+            ``CODEBOX_TAVILY_API_KEY``      (optional)
+            ``CODEBOX_AGENT_RECURSION_LIMIT``  (default: 150)
+            ``CODEBOX_AGENT_EXECUTE_TIMEOUT``  (default: 120, seconds)
+
+        This entry point is used by the GitHub Action; the sandbox always
+        receives the full config as the ``CODEBOX_AGENT_CONFIG`` JSON blob.
         """
-        provider = os.environ.get("LLM_PROVIDER", "") or (
-            "openrouter" if os.environ.get("OPENROUTER_MODEL") else "openai"
-        )
-        model = (
-            os.environ.get("OPENROUTER_MODEL", "")
-            if provider == "openrouter"
-            else os.environ.get("OPENAI_MODEL", "")
-        )
-        api_key = (
-            os.environ.get("OPENROUTER_API_KEY", "")
-            if provider == "openrouter"
-            else os.environ.get("OPENAI_API_KEY", "")
-        )
-        base_url = os.environ.get("OPENAI_BASE_URL") if provider == "openai" else None
-        tavily_key = os.environ.get("TAVILY_API_KEY")
-
-        sandbox_cfg: dict = {}
-        raw = os.environ.get("CODEBOX_SANDBOX_CONFIG")
-        if raw:
-            sandbox_cfg = json.loads(raw)
+        provider = os.environ.get("CODEBOX_LLM_PROVIDER", "openai") or "openai"
+        model = os.environ.get("CODEBOX_LLM_MODEL", "")
+        api_key = os.environ.get("CODEBOX_LLM_API_KEY", "")
+        base_url = os.environ.get("CODEBOX_LLM_BASE_URL") or None
+        tavily_key = os.environ.get("CODEBOX_TAVILY_API_KEY")
+        recursion_limit = int(os.environ.get("CODEBOX_AGENT_RECURSION_LIMIT", "150") or "150")
+        execute_timeout = int(os.environ.get("CODEBOX_AGENT_EXECUTE_TIMEOUT", "120") or "120")
 
         return cls(
             llm=LLMConfig(
@@ -230,13 +224,9 @@ class AgentConfig(BaseModel):
                 api_key=api_key,
                 base_url=base_url,
             ),
-            recursion_limit=int(sandbox_cfg.get("recursion_limit", 150)),
+            recursion_limit=recursion_limit,
             tools=ToolsConfig(
-                execute=ExecuteToolConfig(
-                    timeout=int(sandbox_cfg.get("timeout", 120)),
-                ),
-                web_search=WebSearchToolConfig(
-                    api_key=tavily_key,
-                ),
+                execute=ExecuteToolConfig(timeout=execute_timeout),
+                web_search=WebSearchToolConfig(api_key=tavily_key),
             ),
         )

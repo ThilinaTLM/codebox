@@ -163,7 +163,7 @@ class GitHubWebhookHandler:
             review_comments=context.get("review_comments"),
         )
 
-        dynamic_system_prompt = self._default_dynamic_system_prompt()
+        system_prompt = self._default_system_prompt()
 
         # Post reaction
         try:
@@ -176,7 +176,7 @@ class GitHubWebhookHandler:
         return BoxCreateRequest(
             name=f"[GitHub] #{issue_number}: {issue_title[:100]}",
             initial_prompt=prompt,
-            dynamic_system_prompt=dynamic_system_prompt,
+            system_prompt=system_prompt,
             trigger="github_issue",
             trigger_url=comment_url,
             integration_id=db_installation.id,
@@ -255,12 +255,12 @@ class GitHubWebhookHandler:
             review_comments=context.get("review_comments"),
         )
 
-        dynamic_system_prompt = self._default_dynamic_system_prompt()
+        system_prompt = self._default_system_prompt()
 
         return BoxCreateRequest(
             name=f"[GitHub PR] #{pr_number}: {pr_title[:100]}",
             initial_prompt=prompt,
-            dynamic_system_prompt=dynamic_system_prompt,
+            system_prompt=system_prompt,
             trigger="github_pr",
             trigger_url=comment_url,
             integration_id=db_installation.id,
@@ -368,7 +368,7 @@ class GitHubWebhookHandler:
         return f"codebox/{uuid.uuid4().hex[:8]}"
 
     @staticmethod
-    def _default_dynamic_system_prompt() -> str:
+    def _default_system_prompt() -> str:
         return (
             "GH_TOKEN is set — use it for GitHub API access via git push and gh CLI.\n"
             "Commit your changes to a new branch and create a pull request using gh pr create."

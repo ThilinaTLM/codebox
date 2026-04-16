@@ -6,7 +6,7 @@ import time
 
 import jwt
 
-from codebox_orchestrator.config import CALLBACK_TOKEN_EXPIRY_SECONDS, get_callback_secret
+from codebox_orchestrator.config import settings
 
 _ALGORITHM = "HS256"
 
@@ -18,9 +18,9 @@ def create_callback_token(box_id: str, entity_type: str = "box") -> str:
         "box_id": box_id,
         "entity_type": entity_type,
         "iat": now,
-        "exp": now + CALLBACK_TOKEN_EXPIRY_SECONDS,
+        "exp": now + settings.callback.token_expiry_seconds,
     }
-    return jwt.encode(payload, get_callback_secret(), algorithm=_ALGORITHM)
+    return jwt.encode(payload, settings.callback_secret(), algorithm=_ALGORITHM)
 
 
 def decode_callback_token(token: str) -> tuple[str, str] | None:
@@ -28,7 +28,7 @@ def decode_callback_token(token: str) -> tuple[str, str] | None:
     try:
         payload = jwt.decode(
             token,
-            get_callback_secret(),
+            settings.callback_secret(),
             algorithms=[_ALGORITHM],
             leeway=30,
         )

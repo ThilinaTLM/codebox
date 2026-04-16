@@ -161,73 +161,73 @@ class TestValidation:
 # ---------------------------------------------------------------------------
 
 
+_LLM_ENV_VARS = (
+    "CODEBOX_LLM_PROVIDER",
+    "CODEBOX_LLM_MODEL",
+    "CODEBOX_LLM_API_KEY",
+    "CODEBOX_LLM_BASE_URL",
+    "CODEBOX_TAVILY_API_KEY",
+    "CODEBOX_AGENT_RECURSION_LIMIT",
+    "CODEBOX_AGENT_EXECUTE_TIMEOUT",
+)
+
+
+@pytest.fixture(autouse=True)
+def _clear_llm_env(monkeypatch):
+    for name in _LLM_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+
+
 class TestFromEnv:
-    def test_openrouter_detection(self, monkeypatch):
-        monkeypatch.setenv("OPENROUTER_MODEL", "anthropic/claude-sonnet-4")
-        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
-        monkeypatch.delenv("LLM_PROVIDER", raising=False)
-        monkeypatch.delenv("OPENAI_MODEL", raising=False)
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    def test_default_provider_is_openai(self, monkeypatch):
+        monkeypatch.setenv("CODEBOX_LLM_MODEL", "gpt-4o")
+        monkeypatch.setenv("CODEBOX_LLM_API_KEY", "sk-test")
+
+        cfg = AgentConfig.from_env()
+        assert cfg.llm.provider == "openai"
+        assert cfg.llm.model == "gpt-4o"
+        assert cfg.llm.api_key == "sk-test"
+
+    def test_openrouter_provider(self, monkeypatch):
+        monkeypatch.setenv("CODEBOX_LLM_PROVIDER", "openrouter")
+        monkeypatch.setenv("CODEBOX_LLM_MODEL", "anthropic/claude-sonnet-4")
+        monkeypatch.setenv("CODEBOX_LLM_API_KEY", "sk-or-test")
 
         cfg = AgentConfig.from_env()
         assert cfg.llm.provider == "openrouter"
         assert cfg.llm.model == "anthropic/claude-sonnet-4"
         assert cfg.llm.api_key == "sk-or-test"
 
-    def test_openai_detection(self, monkeypatch):
-        monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        monkeypatch.delenv("OPENROUTER_MODEL", raising=False)
-        monkeypatch.delenv("LLM_PROVIDER", raising=False)
-
-        cfg = AgentConfig.from_env()
-        assert cfg.llm.provider == "openai"
-        assert cfg.llm.model == "gpt-4o"
-
-    def test_explicit_provider(self, monkeypatch):
-        monkeypatch.setenv("LLM_PROVIDER", "openai")
-        monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    def test_explicit_openai_provider(self, monkeypatch):
+        monkeypatch.setenv("CODEBOX_LLM_PROVIDER", "openai")
+        monkeypatch.setenv("CODEBOX_LLM_MODEL", "gpt-4o")
+        monkeypatch.setenv("CODEBOX_LLM_API_KEY", "sk-test")
 
         cfg = AgentConfig.from_env()
         assert cfg.llm.provider == "openai"
 
-    def test_sandbox_config_applied(self, monkeypatch):
-        monkeypatch.setenv("LLM_PROVIDER", "openai")
-        monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        monkeypatch.setenv(
-            "CODEBOX_SANDBOX_CONFIG",
-            json.dumps({"timeout": 300, "recursion_limit": 200}),
-        )
+    def test_recursion_and_execute_timeout(self, monkeypatch):
+        monkeypatch.setenv("CODEBOX_LLM_MODEL", "gpt-4o")
+        monkeypatch.setenv("CODEBOX_LLM_API_KEY", "sk-test")
+        monkeypatch.setenv("CODEBOX_AGENT_RECURSION_LIMIT", "200")
+        monkeypatch.setenv("CODEBOX_AGENT_EXECUTE_TIMEOUT", "300")
 
         cfg = AgentConfig.from_env()
-        assert cfg.tools.execute.timeout == 300
         assert cfg.recursion_limit == 200
+        assert cfg.tools.execute.timeout == 300
 
     def test_tavily_key(self, monkeypatch):
-        monkeypatch.setenv("LLM_PROVIDER", "openai")
-        monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        monkeypatch.setenv("TAVILY_API_KEY", "tvly-test")
+        monkeypatch.setenv("CODEBOX_LLM_MODEL", "gpt-4o")
+        monkeypatch.setenv("CODEBOX_LLM_API_KEY", "sk-test")
+        monkeypatch.setenv("CODEBOX_TAVILY_API_KEY", "tvly-test")
 
         cfg = AgentConfig.from_env()
         assert cfg.tools.web_search.api_key == "tvly-test"
 
-    def test_base_url_openai(self, monkeypatch):
-        monkeypatch.setenv("LLM_PROVIDER", "openai")
-        monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        monkeypatch.setenv("OPENAI_BASE_URL", "https://custom.endpoint")
+    def test_base_url(self, monkeypatch):
+        monkeypatch.setenv("CODEBOX_LLM_MODEL", "gpt-4o")
+        monkeypatch.setenv("CODEBOX_LLM_API_KEY", "sk-test")
+        monkeypatch.setenv("CODEBOX_LLM_BASE_URL", "https://custom.endpoint")
 
         cfg = AgentConfig.from_env()
         assert cfg.llm.base_url == "https://custom.endpoint"
-
-    def test_base_url_ignored_for_openrouter(self, monkeypatch):
-        monkeypatch.setenv("LLM_PROVIDER", "openrouter")
-        monkeypatch.setenv("OPENROUTER_MODEL", "anthropic/claude-sonnet-4")
-        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
-        monkeypatch.setenv("OPENAI_BASE_URL", "https://should-be-ignored")
-
-        cfg = AgentConfig.from_env()
-        assert cfg.llm.base_url is None

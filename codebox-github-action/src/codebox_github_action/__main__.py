@@ -8,7 +8,7 @@ from codebox_github_action.handler import run
 
 
 def main() -> None:
-    log_mode = os.environ.get("LOG_MODE", "human").lower()
+    log_mode = os.environ.get("CODEBOX_LOG_MODE", "human").lower()
 
     if log_mode == "debug":
         logging.basicConfig(

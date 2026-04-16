@@ -6,33 +6,33 @@ inputs:
     description: 'GitHub token for API access'
     required: true
   llm-provider:
-    description: 'LLM provider identifier'
+    description: 'LLM provider identifier ("openai" or "openrouter")'
     required: false
     default: 'openrouter'
-  openrouter-api-key:
-    description: 'OpenRouter API key'
+  llm-model:
+    description: 'LLM model identifier (e.g. "gpt-4o", "anthropic/claude-sonnet-4")'
     required: false
-  openrouter-model:
-    description: 'OpenRouter model identifier'
+  llm-api-key:
+    description: 'API key for the selected LLM provider'
     required: false
-  openai-api-key:
-    description: 'OpenAI API key'
+  llm-base-url:
+    description: 'Custom base URL for OpenAI-compatible providers (optional)'
     required: false
-  openai-model:
-    description: 'OpenAI model identifier'
-    required: false
-  openai-base-url:
-    description: 'OpenAI base URL override'
+  tavily-api-key:
+    description: 'Tavily API key for web search (optional)'
     required: false
   trigger-keyword:
     description: 'Comment keyword that triggers the agent'
     required: false
     default: '/codebox'
-  tavily-api-key:
-    description: 'Tavily API key for web search (optional)'
-    required: false
-  dynamic-system-prompt:
+  agent-system-prompt:
     description: 'Additional system prompt appended after the core and environment prompts (optional)'
+    required: false
+  agent-recursion-limit:
+    description: 'Maximum agent graph recursion (optional; default 300 in GitHub Action context)'
+    required: false
+  agent-execute-timeout:
+    description: 'Default per-command timeout for the execute tool, seconds (optional)'
     required: false
   log-mode:
     description: 'Logging mode: "human" for clean readable output (default), "debug" for verbose technical logs'
@@ -58,14 +58,14 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        LLM_PROVIDER: ${{ inputs.llm-provider }}
-        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
-        OPENROUTER_MODEL: ${{ inputs.openrouter-model }}
-        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
-        OPENAI_MODEL: ${{ inputs.openai-model }}
-        OPENAI_BASE_URL: ${{ inputs.openai-base-url }}
-        TRIGGER_KEYWORD: ${{ inputs.trigger-keyword }}
-        TAVILY_API_KEY: ${{ inputs.tavily-api-key }}
-        DYNAMIC_SYSTEM_PROMPT: ${{ inputs.dynamic-system-prompt }}
-        LOG_MODE: ${{ inputs.log-mode }}
+        CODEBOX_LLM_PROVIDER: ${{ inputs.llm-provider }}
+        CODEBOX_LLM_MODEL: ${{ inputs.llm-model }}
+        CODEBOX_LLM_API_KEY: ${{ inputs.llm-api-key }}
+        CODEBOX_LLM_BASE_URL: ${{ inputs.llm-base-url }}
+        CODEBOX_TAVILY_API_KEY: ${{ inputs.tavily-api-key }}
+        CODEBOX_TRIGGER_KEYWORD: ${{ inputs.trigger-keyword }}
+        CODEBOX_AGENT_SYSTEM_PROMPT: ${{ inputs.agent-system-prompt }}
+        CODEBOX_AGENT_RECURSION_LIMIT: ${{ inputs.agent-recursion-limit }}
+        CODEBOX_AGENT_EXECUTE_TIMEOUT: ${{ inputs.agent-execute-timeout }}
+        CODEBOX_LOG_MODE: ${{ inputs.log-mode }}
       run: python -m codebox_github_action

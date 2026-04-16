@@ -23,17 +23,25 @@ jobs:
       - uses: your-org/codebox-swe-agents/codebox-github-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
-          openrouter-model: 'anthropic/claude-sonnet-4'
+          llm-provider: openrouter
+          llm-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          llm-model: anthropic/claude-sonnet-4
 ```
 
 ## Inputs
 
-| Input                   | Required | Default                     | Description                                                          |
-| ----------------------- | -------- | --------------------------- | -------------------------------------------------------------------- |
-| `github-token`          | Yes      | -                           | GitHub token for API access                                          |
-| `openrouter-api-key`    | Yes      | -                           | OpenRouter API key                                                   |
-| `openrouter-model`      | Yes      | -                           | Model identifier (e.g. `anthropic/claude-sonnet-4`)                  |
-| `trigger-keyword`       | No       | `/codebox`                  | Comment keyword that triggers the agent                              |
-| `tavily-api-key`        | No       | -                           | Tavily API key for web search                                        |
-| `dynamic-system-prompt` | No       | -                           | Additional system prompt appended after core and environment prompts |
+| Input                    | Required | Default     | Description                                                                 |
+| ------------------------ | -------- | ----------- | --------------------------------------------------------------------------- |
+| `github-token`           | Yes      | –           | GitHub token for API access                                                 |
+| `llm-provider`           | No       | `openrouter`| LLM provider (`openai` or `openrouter`)                                     |
+| `llm-model`              | Yes*     | –           | Model identifier (e.g. `anthropic/claude-sonnet-4`, `gpt-4o`)               |
+| `llm-api-key`            | Yes*     | –           | API key for the selected provider                                           |
+| `llm-base-url`           | No       | –           | Custom base URL for OpenAI-compatible providers                             |
+| `tavily-api-key`         | No       | –           | Tavily API key for web search                                               |
+| `trigger-keyword`        | No       | `/codebox`  | Comment keyword that triggers the agent                                     |
+| `agent-system-prompt`    | No       | –           | Additional system prompt appended after core and environment prompts       |
+| `agent-recursion-limit`  | No       | `300`       | Maximum agent graph recursion                                              |
+| `agent-execute-timeout`  | No       | `120`       | Default per-command timeout for the execute tool, seconds                  |
+| `log-mode`               | No       | `human`     | `human` for clean output, `debug` for verbose technical logs               |
+
+\* Required unless the agent is supposed to run without an LLM (no realistic use case today).

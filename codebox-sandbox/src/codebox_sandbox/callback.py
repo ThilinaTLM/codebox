@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import grpc
+from codebox_tunnel import normalize_grpc_url
 from grpc import aio as grpc_aio
 
 from codebox_agent.agent_runner import (
@@ -41,30 +42,24 @@ _CHECKPOINT_DB_PATH = "/app/codebox/checkpoints.db"
 
 async def run_callback() -> None:
     """Main entry point for callback mode."""
-    grpc_address = os.environ.get("ORCHESTRATOR_GRPC_ADDRESS", "")
-    callback_token = os.environ.get("CALLBACK_TOKEN", "")
+    orchestrator_grpc_url = os.environ.get("CODEBOX_ORCHESTRATOR_GRPC_URL", "")
+    callback_token = os.environ.get("CODEBOX_CALLBACK_TOKEN", "")
 
-    if not grpc_address:
-        raise RuntimeError("ORCHESTRATOR_GRPC_ADDRESS is required")
+    if not orchestrator_grpc_url:
+        raise RuntimeError("CODEBOX_ORCHESTRATOR_GRPC_URL is required")
     if not callback_token:
-        raise RuntimeError("CALLBACK_TOKEN is required")
+        raise RuntimeError("CODEBOX_CALLBACK_TOKEN is required")
 
     # --- Build agent config -------------------------------------------------
-    # Prefer the structured CODEBOX_AGENT_CONFIG env var (JSON) when the
-    # orchestrator provides one.  Fall back to the legacy per-variable path
-    # via AgentConfig.from_env().
+    # The orchestrator always supplies the full configuration as
+    # ``CODEBOX_AGENT_CONFIG`` (JSON).  We no longer fall back to the
+    # per-variable env var path here — that path only exists for the
+    # GitHub Action entry point (codebox_github_action.handler).
     agent_config_raw = os.environ.get("CODEBOX_AGENT_CONFIG")
-    if agent_config_raw:
-        agent_config = AgentConfig.from_dict(json.loads(agent_config_raw))
-        logger.info("Loaded AgentConfig from CODEBOX_AGENT_CONFIG env var")
-    else:
-        agent_config = AgentConfig.from_env()
-        logger.info("Built AgentConfig from legacy environment variables")
-
-    # Apply dynamic system prompt override if present.
-    dynamic_system_prompt = os.environ.get("DYNAMIC_SYSTEM_PROMPT")
-    if dynamic_system_prompt and not agent_config.system_prompt:
-        agent_config = agent_config.model_copy(update={"system_prompt": dynamic_system_prompt})
+    if not agent_config_raw:
+        raise RuntimeError("CODEBOX_AGENT_CONFIG is required")
+    agent_config = AgentConfig.from_dict(json.loads(agent_config_raw))
+    logger.info("Loaded AgentConfig from CODEBOX_AGENT_CONFIG env var")
 
     # Create session manager and session
     manager = SessionManager(checkpoint_db_path=_CHECKPOINT_DB_PATH)
@@ -85,13 +80,18 @@ async def run_callback() -> None:
     await event_store.setup()
 
     # Send initial prompt if set via env var
-    initial_prompt = os.environ.get("INITIAL_PROMPT")
+    initial_prompt = os.environ.get("CODEBOX_INITIAL_PROMPT")
 
     delay = _RECONNECT_BASE_DELAY
     while True:
         try:
             await _connect_and_run(
-                grpc_address, session_id, manager, callback_token, event_store, initial_prompt
+                orchestrator_grpc_url,
+                session_id,
+                manager,
+                callback_token,
+                event_store,
+                initial_prompt,
             )
             # Clean exit
             break
@@ -117,33 +117,28 @@ async def run_callback() -> None:
             delay = min(delay * 2, _RECONNECT_MAX_DELAY)
 
 
-def _should_use_tls(grpc_address: str) -> bool:
-    """Decide whether TLS should be used for the given address.
+def _should_use_tls(orchestrator_grpc_url: str) -> bool:
+    """Decide whether TLS should be used for the orchestrator gRPC connection.
 
     Returns True when:
-    - ``GRPC_TLS_CA_CERT`` is set (explicit custom CA), OR
-    - ``GRPC_USE_TLS`` env var is truthy, OR
-    - The address targets port 443 (standard TLS port).
+    - the URL uses the ``grpcs://`` scheme, OR
+    - ``CODEBOX_GRPC_TLS_CA_CERT`` is set (explicit custom CA), OR
+    - ``CODEBOX_GRPC_TLS_ENABLED`` env var is truthy.
     """
-    if os.environ.get("GRPC_TLS_CA_CERT"):
+    if orchestrator_grpc_url.strip().startswith("grpcs://"):
         return True
-    if os.environ.get("GRPC_USE_TLS", "").lower() in ("1", "true", "yes"):
+    if os.environ.get("CODEBOX_GRPC_TLS_CA_CERT"):
         return True
-    # Heuristic: port 443 implies TLS
-    if ":" in grpc_address:
-        port = grpc_address.rsplit(":", 1)[-1]
-        if port == "443":
-            return True
-    return False
+    return os.environ.get("CODEBOX_GRPC_TLS_ENABLED", "").lower() in ("1", "true", "yes")
 
 
 def _load_tls_channel_credentials() -> grpc.ChannelCredentials | None:
     """Load TLS channel credentials.
 
-    Uses a custom CA cert when ``GRPC_TLS_CA_CERT`` is set and the file
-    exists; otherwise falls back to the system trust store.
+    Uses a custom CA cert when ``CODEBOX_GRPC_TLS_CA_CERT`` is set and the
+    file exists; otherwise falls back to the system trust store.
     """
-    ca_cert_path = os.environ.get("GRPC_TLS_CA_CERT", "")
+    ca_cert_path = os.environ.get("CODEBOX_GRPC_TLS_CA_CERT", "")
     if ca_cert_path and Path(ca_cert_path).exists():
         ca_cert = Path(ca_cert_path).read_bytes()
         return grpc.ssl_channel_credentials(root_certificates=ca_cert)
@@ -152,7 +147,7 @@ def _load_tls_channel_credentials() -> grpc.ChannelCredentials | None:
 
 
 async def _connect_and_run(  # noqa: PLR0912, PLR0915
-    grpc_address: str,
+    orchestrator_grpc_url: str,
     session_id: str,
     manager: SessionManager,
     callback_token: str,
@@ -160,6 +155,7 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
     initial_prompt: str | None,
 ) -> None:
     """Connect to orchestrator via gRPC and run the bidirectional stream."""
+    grpc_address = normalize_grpc_url(orchestrator_grpc_url)
     logger.info("Connecting to orchestrator gRPC at %s", grpc_address)
 
     # Keepalive pings prevent reverse-proxy idle-timeout disconnects.
@@ -170,7 +166,7 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
         ("grpc.http2.max_pings_without_data", 0),
     ]
 
-    if _should_use_tls(grpc_address):
+    if _should_use_tls(orchestrator_grpc_url):
         tls_creds = _load_tls_channel_credentials()
         channel_ctx = grpc_aio.secure_channel(grpc_address, tls_creds, options=channel_options)
         logger.info("Using TLS for gRPC connection to %s", grpc_address)

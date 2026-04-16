@@ -9,8 +9,8 @@ wheels/
 # Virtual environments
 .venv/
 
-# Environment variables (actual values)
-.env.local
+# Environment variables (actual values). `.env.example` is committed.
+.env
 
 # Setup wizard state
 scripts/.github-setup-state

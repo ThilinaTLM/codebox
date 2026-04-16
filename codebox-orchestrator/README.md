@@ -128,36 +128,39 @@ uv run python scripts/dump_openapi.py
 
 ## Configuration
 
-Environment variables are loaded from `.env` and `.env.local`.
+Environment variables are loaded from `.env` at the orchestrator root. See `.env.example` for a commented template; copy it to `.env` for local development. Everything owned by Codebox uses the `CODEBOX_` prefix; well-known externals (`DATABASE_URL`, `POSTGRES_*`, `GITHUB_TOKEN`) stay bare.
 
 | Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | `postgresql+asyncpg://codebox:codebox@localhost:5432/codebox` | Database connection |
-| `CODEBOX_IMAGE` | `codebox-sandbox:latest` | Sandbox image |
-| `ORCHESTRATOR_HOST` | `0.0.0.0` | HTTP bind host |
-| `ORCHESTRATOR_PORT` | `9090` | HTTP bind port |
-| `GRPC_PORT` | `50051` | gRPC bind port |
-| `ORCHESTRATOR_WS_PUBLIC_URL` | `ws://host.docker.internal:${ORCHESTRATOR_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | Base WebSocket URL sandboxes use to dial the orchestrator tunnel. Must use `ws://` or `wss://`; path is appended automatically. |
-| `ORCHESTRATOR_GRPC_PUBLIC_URL` | `grpc://host.docker.internal:${GRPC_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | gRPC endpoint sandboxes use for callbacks. Accepts `grpc://host:port`, `grpcs://host:port`, or bare `host:port`. |
-| `CORS_ORIGINS` | `http://localhost:3737` | Allowed CORS origins |
-| `AUTH_SECRET` | development fallback | Auth JWT signing secret |
-| `CALLBACK_SECRET` | development fallback | Sandbox callback JWT signing secret |
-| `AUTH_TOKEN_EXPIRY_HOURS` | `168` | Auth cookie/session TTL |
-| `CALLBACK_TOKEN_EXPIRY_SECONDS` | `3600` | Sandbox callback token TTL |
+| `CODEBOX_ENVIRONMENT` | `development` | `development` disables secret validation. Anything else is treated as a non-development environment and requires the three secrets below. |
+| `DATABASE_URL` | `postgresql+asyncpg://codebox:codebox@localhost:5432/codebox` | Database connection (SQLAlchemy URL with async driver) |
+| `CODEBOX_BOX_IMAGE` | `codebox-sandbox:latest` | Container image used for Boxes |
+| `CODEBOX_BOX_NETWORK` | `codebox-sandbox-net` | Docker/Podman network used by Boxes |
+| `CODEBOX_BOX_MEMORY_LIMIT` | `4g` | Per-Box memory limit |
+| `CODEBOX_BOX_CPU_LIMIT` | `2` | Per-Box CPU quota (cores) |
+| `CODEBOX_BOX_PIDS_LIMIT` | `1024` | Per-Box PID limit |
+| `CODEBOX_ORCHESTRATOR_HTTP_HOST` | `0.0.0.0` | HTTP bind host |
+| `CODEBOX_ORCHESTRATOR_HTTP_PORT` | `9090` | HTTP bind port |
+| `CODEBOX_ORCHESTRATOR_GRPC_PORT` | `50051` | gRPC bind port |
+| `CODEBOX_ORCHESTRATOR_URL` | `http://host.docker.internal:${CODEBOX_ORCHESTRATOR_HTTP_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | Public HTTP base URL. Sandboxes derive the WebSocket tunnel URL from it by switching the scheme and appending `/ws/tunnel`. |
+| `CODEBOX_ORCHESTRATOR_GRPC_URL` | `grpc://host.docker.internal:${CODEBOX_ORCHESTRATOR_GRPC_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | Public gRPC endpoint sandboxes use for callbacks. Accepts `grpc://`, `grpcs://`, or bare `host:port`. |
+| `CODEBOX_GRPC_TLS_CERT` | empty | gRPC server certificate PEM |
+| `CODEBOX_GRPC_TLS_KEY` | empty | gRPC server private key PEM |
+| `CODEBOX_GRPC_TLS_CA_CERT` | empty | CA cert mounted into sandboxes for client-side verification |
+| `CODEBOX_GRPC_TLS_ENABLED` | `false` | Force the sandbox to use TLS even without a CA cert (for publicly-signed certs) |
+| `CODEBOX_CONTAINER_RUNTIME` | `docker` | `docker` or `podman` |
+| `CODEBOX_CONTAINER_RUNTIME_URL` | empty | Explicit Docker/Podman connection URL |
+| `CODEBOX_CONTAINER_TLS_VERIFY` | empty | Runtime CA path or `true` / `false` |
+| `CODEBOX_CONTAINER_TLS_CERT` | empty | Runtime client cert |
+| `CODEBOX_CONTAINER_TLS_KEY` | empty | Runtime client key |
+| `CODEBOX_AUTH_SECRET` | development fallback | Auth JWT signing secret |
+| `CODEBOX_AUTH_TOKEN_EXPIRY_HOURS` | `168` | Auth cookie/session TTL |
+| `CODEBOX_CALLBACK_SECRET` | development fallback | Sandbox callback JWT signing secret |
+| `CODEBOX_CALLBACK_TOKEN_EXPIRY_SECONDS` | `3600` | Sandbox callback token TTL |
+| `CODEBOX_ENCRYPTION_KEY` | required outside dev | Fernet master key for DB-at-rest encryption |
+| `CODEBOX_CORS_ORIGINS` | `http://localhost:3737` | Allowed CORS origins (comma-separated) |
 | `CODEBOX_ADMIN_USERNAME` | `admin` | Username for the first-boot Super Admin seed (ignored after any user exists) |
 | `CODEBOX_ADMIN_PASSWORD` | random (logged) | Password for the first-boot Super Admin seed (ignored after any user exists) |
-| `CONTAINER_RUNTIME_URL` | empty | Explicit Docker/Podman connection URL |
-| `CONTAINER_RUNTIME_TYPE` | `docker` | `docker` or `podman` |
-| `CONTAINER_TLS_VERIFY` | empty | Runtime CA path or `true` / `false` |
-| `CONTAINER_TLS_CERT` | empty | Runtime client cert |
-| `CONTAINER_TLS_KEY` | empty | Runtime client key |
-| `SANDBOX_MEMORY_LIMIT` | `4g` | Per-Box memory limit |
-| `SANDBOX_CPU_LIMIT` | `2` | Per-Box CPU quota |
-| `SANDBOX_PIDS_LIMIT` | `1024` | Per-Box PID limit |
-| `SANDBOX_NETWORK` | `codebox-sandbox-net` | Runtime network |
-| `GRPC_TLS_CERT` | empty | Server certificate PEM |
-| `GRPC_TLS_KEY` | empty | Server private key PEM |
-| `GRPC_TLS_CA_CERT` | empty | CA cert mounted into sandboxes |
 
 ### gRPC TLS
 
@@ -167,9 +170,9 @@ Development setup:
 
 ```bash
 ./scripts/generate_grpc_certs.sh
-GRPC_TLS_CERT=certs/server.crt
-GRPC_TLS_KEY=certs/server.key
-GRPC_TLS_CA_CERT=certs/ca.crt
+CODEBOX_GRPC_TLS_CERT=certs/server.crt
+CODEBOX_GRPC_TLS_KEY=certs/server.key
+CODEBOX_GRPC_TLS_CA_CERT=certs/ca.crt
 ```
 
 ### Container runtime
@@ -183,12 +186,12 @@ Examples:
 # uses /var/run/docker.sock
 
 # Rootless Podman
-CONTAINER_RUNTIME_URL=unix:///run/user/1000/podman/podman.sock
-CONTAINER_RUNTIME_TYPE=podman
+CODEBOX_CONTAINER_RUNTIME=podman
+CODEBOX_CONTAINER_RUNTIME_URL=unix:///run/user/1000/podman/podman.sock
 
 # Remote Docker over TLS
-CONTAINER_RUNTIME_URL=tcp://docker-host:2376
-CONTAINER_TLS_VERIFY=/path/to/ca.pem
-CONTAINER_TLS_CERT=/path/to/cert.pem
-CONTAINER_TLS_KEY=/path/to/key.pem
+CODEBOX_CONTAINER_RUNTIME_URL=tcp://docker-host:2376
+CODEBOX_CONTAINER_TLS_VERIFY=/path/to/ca.pem
+CODEBOX_CONTAINER_TLS_CERT=/path/to/cert.pem
+CODEBOX_CONTAINER_TLS_KEY=/path/to/key.pem
 ```

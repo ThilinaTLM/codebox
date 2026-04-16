@@ -57,7 +57,7 @@ class TestBothDisabled:
 class TestWebSearchConfigInjection:
     def test_api_key_injected(self, monkeypatch):
         """Config API key is used instead of env var."""
-        monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+        monkeypatch.delenv("CODEBOX_TAVILY_API_KEY", raising=False)
         config = ToolsConfig(
             web_search=WebSearchToolConfig(enabled=True, api_key="tvly-from-config")
         )
@@ -67,8 +67,8 @@ class TestWebSearchConfigInjection:
         # missing API key (it will fail on the actual Tavily call, but the key
         # resolution happens first).
         result = search_tool.invoke({"query": "test", "max_results": 1})
-        # Should NOT say "TAVILY_API_KEY is not set"
-        assert "TAVILY_API_KEY is not set" not in result
+        # Should NOT say "CODEBOX_TAVILY_API_KEY is not set"
+        assert "CODEBOX_TAVILY_API_KEY is not set" not in result
 
     def test_max_results_default_from_config(self):
         config = ToolsConfig(web_search=WebSearchToolConfig(enabled=True, max_results=3))

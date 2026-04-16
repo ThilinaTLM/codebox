@@ -132,9 +132,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `window.__ENV__=${JSON.stringify({
-              API_URL:
+              CODEBOX_API_URL:
                 (import.meta.env.SSR
-                  ? process.env.PUBLIC_API_URL
+                  ? process.env.CODEBOX_API_URL
                   : undefined) || API_URL,
             })}`,
           }}

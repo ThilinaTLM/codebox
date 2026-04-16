@@ -34,17 +34,17 @@ services:
       # ── Database ───────────────────────────────────────────────
       DATABASE_URL: "postgresql+asyncpg://codebox:codebox@postgres:5432/codebox"
 
-      # ── Sandbox image ──────────────────────────────────────────
+      # ── Box image ──────────────────────────────────────────────
       # Build with: docker build -t codebox-sandbox:latest ./codebox-sandbox
-      CODEBOX_IMAGE: "codebox-sandbox:latest"
+      CODEBOX_BOX_IMAGE: "codebox-sandbox:latest"
 
       # ── URLs sandboxes use to reach this orchestrator ─────────
       # Compose-internal service names; override only if renaming services.
-      ORCHESTRATOR_GRPC_PUBLIC_URL: "grpc://codebox-orchestrator:50051"
-      ORCHESTRATOR_WS_PUBLIC_URL: "ws://codebox-orchestrator:9090"
+      CODEBOX_ORCHESTRATOR_URL: "http://codebox-orchestrator:9090"
+      CODEBOX_ORCHESTRATOR_GRPC_URL: "grpc://codebox-orchestrator:50051"
 
       # ── Web UI CORS ────────────────────────────────────────────
-      CORS_ORIGINS: "http://localhost:3737"
+      CODEBOX_CORS_ORIGINS: "http://localhost:3737"
 
       # ── Initial admin (first-time bootstrap only) ──
       # Only consulted when the users table is empty. After that the admin
@@ -54,18 +54,18 @@ services:
 
       # ── Required secrets ──────────────────────────────────────
       # Set via shell env or a repo-root .env file. Examples:
-      #   ENCRYPTION_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-      #   AUTH_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(64))")
-      #   CALLBACK_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(64))")
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set}
-      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set}
-      CALLBACK_SECRET: ${CALLBACK_SECRET:?CALLBACK_SECRET must be set}
+      #   CODEBOX_ENCRYPTION_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+      #   CODEBOX_AUTH_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(64))")
+      #   CODEBOX_CALLBACK_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(64))")
+      CODEBOX_ENCRYPTION_KEY: ${CODEBOX_ENCRYPTION_KEY:?CODEBOX_ENCRYPTION_KEY must be set}
+      CODEBOX_AUTH_SECRET: ${CODEBOX_AUTH_SECRET:?CODEBOX_AUTH_SECRET must be set}
+      CODEBOX_CALLBACK_SECRET: ${CODEBOX_CALLBACK_SECRET:?CODEBOX_CALLBACK_SECRET must be set}
 
       # ── Optional: gRPC TLS ─────────────────────────────────────
       # Uncomment together with the certs volume above.
-      # GRPC_TLS_CERT: "/etc/grpc-certs/server.crt"
-      # GRPC_TLS_KEY: "/etc/grpc-certs/server.key"
-      # GRPC_TLS_CA_CERT: "/etc/grpc-certs/ca.crt"
+      # CODEBOX_GRPC_TLS_CERT: "/etc/grpc-certs/server.crt"
+      # CODEBOX_GRPC_TLS_KEY: "/etc/grpc-certs/server.key"
+      # CODEBOX_GRPC_TLS_CA_CERT: "/etc/grpc-certs/ca.crt"
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,7 +80,7 @@ services:
     ports:
       - "3737:3737"
     environment:
-      API_URL: "http://localhost:9090"
+      CODEBOX_API_URL: "http://localhost:9090"
     depends_on:
       - orchestrator
     networks:

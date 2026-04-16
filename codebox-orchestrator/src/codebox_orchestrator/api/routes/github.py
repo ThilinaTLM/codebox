@@ -271,7 +271,7 @@ async def _process_webhook_safe(
                 api_key=resolved.api_key,
                 base_url=resolved.base_url,
                 tavily_api_key=tavily_key,
-                system_prompt=box_req.dynamic_system_prompt,
+                system_prompt=box_req.system_prompt,
                 auto_start_prompt=box_req.initial_prompt,
                 trigger=box_req.trigger,
                 github_installation_id=box_req.integration_id,

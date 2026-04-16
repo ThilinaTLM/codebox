@@ -170,12 +170,14 @@ async def start_grpc_server(
 
 def _load_tls_credentials() -> grpc.ServerCredentials | None:
     """Load TLS cert/key from config paths, or return *None* for insecure mode."""
-    from codebox_orchestrator.config import GRPC_TLS_CERT, GRPC_TLS_KEY  # noqa: PLC0415
+    from codebox_orchestrator.config import settings  # noqa: PLC0415
 
-    if not (GRPC_TLS_CERT and GRPC_TLS_KEY):
+    cert_path = settings.grpc.tls_cert
+    key_path = settings.grpc.tls_key
+    if not (cert_path and key_path):
         return None
     from pathlib import Path  # noqa: PLC0415
 
-    cert_data = Path(GRPC_TLS_CERT).read_bytes()
-    key_data = Path(GRPC_TLS_KEY).read_bytes()
+    cert_data = Path(cert_path).read_bytes()
+    key_data = Path(key_path).read_bytes()
     return grpc.ssl_server_credentials([(key_data, cert_data)])
