@@ -125,9 +125,7 @@ jobs:
 
   deploy:
     needs: [changes, build-orchestrator, build-web-ui, build-sandbox]
-    # TODO: re-enable after the CODEBOX_ env var migration has landed on
-    # Coolify. Set back to `if: always() && !failure() && !cancelled()`.
-    if: false
+    if: always() && !failure() && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - name: Deploy orchestrator
