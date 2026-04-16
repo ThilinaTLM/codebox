@@ -565,6 +565,15 @@ export function useRemoveGitHubInstallation(slug: string) {
   })
 }
 
+export function usePrepareGitHubManifest(slug: string) {
+  return useMutation({
+    mutationFn: (body: {
+      owner_type: "user" | "organization"
+      owner_name?: string | null
+    }) => api.github.prepareManifest(slug, body),
+  })
+}
+
 // ── Auth queries & mutations (global, not project-scoped) ───
 
 export function useUsers(options?: QueryHookOptions) {

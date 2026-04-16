@@ -144,6 +144,7 @@ Environment variables are loaded from `.env` at the orchestrator root. See `.env
 | `CODEBOX_ORCHESTRATOR_GRPC_PORT` | `50051` | gRPC bind port |
 | `CODEBOX_ORCHESTRATOR_URL` | `http://host.docker.internal:${CODEBOX_ORCHESTRATOR_HTTP_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | Public HTTP base URL. Sandboxes derive the WebSocket tunnel URL from it by switching the scheme and appending `/ws/tunnel`. |
 | `CODEBOX_ORCHESTRATOR_GRPC_URL` | `grpc://host.docker.internal:${CODEBOX_ORCHESTRATOR_GRPC_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | Public gRPC endpoint sandboxes use for callbacks. Accepts `grpc://`, `grpcs://`, or bare `host:port`. |
+| `CODEBOX_ORCHESTRATOR_PUBLIC_URL` | empty | Publicly reachable HTTP base URL used by **external callers** (GitHub, webhooks, browser redirects from github.com). Unlike `CODEBOX_ORCHESTRATOR_URL` (which is for sandbox → orchestrator traffic), this is the URL you'd paste into a GitHub App's webhook configuration. Required for the one-click GitHub App manifest flow. For local dev, point this at your smee.io channel. |
 | `CODEBOX_GRPC_TLS_CERT` | empty | gRPC server certificate PEM |
 | `CODEBOX_GRPC_TLS_KEY` | empty | gRPC server private key PEM |
 | `CODEBOX_GRPC_TLS_CA_CERT` | empty | CA cert mounted into sandboxes for client-side verification |
@@ -174,6 +175,23 @@ CODEBOX_GRPC_TLS_CERT=certs/server.crt
 CODEBOX_GRPC_TLS_KEY=certs/server.key
 CODEBOX_GRPC_TLS_CA_CERT=certs/ca.crt
 ```
+
+### Local GitHub integration
+
+For the GitHub App manifest flow (one-click App registration from the project config page), the orchestrator needs a publicly reachable URL for GitHub to deliver webhooks to and to redirect back from the manifest handshake. In local development, use [smee.io](https://smee.io) to forward webhooks to your laptop:
+
+1. Create a channel at [smee.io](https://smee.io) and copy the channel URL.
+2. Set `CODEBOX_ORCHESTRATOR_PUBLIC_URL=https://smee.io/<your-channel>` and start the orchestrator.
+3. In a separate terminal, run the smee client to forward webhooks to your orchestrator. The target URL is per-project — replace `<slug>` with your project slug:
+
+   ```bash
+   pnpm dlx smee-client -u https://smee.io/<your-channel> \
+     --target http://localhost:9090/api/projects/<slug>/github/webhook
+   ```
+
+4. Open the project's GitHub settings page in the web UI and click **Create GitHub App**.
+
+If `CODEBOX_ORCHESTRATOR_PUBLIC_URL` is left unset, the manual paste-credentials fallback in the UI still works, but the one-click flow is disabled.
 
 ### Container runtime
 

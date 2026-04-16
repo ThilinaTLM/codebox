@@ -288,6 +288,10 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.project_settings_service = project_settings_service
         app.state.github_client_manager = github_client_manager
         app.state.github_repository = github_repo
+        # In-memory CSRF tokens for the GitHub App manifest flow:
+        # project_id -> (state_token, expires_at_epoch).
+        # Single-instance only; move to Postgres if we ever run replicas.
+        app.state.github_manifest_states = {}
         app.state.project_service = project_service
         app.state.project_lifecycle_service = project_lifecycle_service
         app.state.box_repository = box_repository

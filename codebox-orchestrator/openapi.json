@@ -652,6 +652,54 @@
         "title": "GitHubInstallationResponse",
         "type": "object"
       },
+      "GitHubManifestPrepareRequest": {
+        "properties": {
+          "owner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Name"
+          },
+          "owner_type": {
+            "title": "Owner Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner_type"
+        ],
+        "title": "GitHubManifestPrepareRequest",
+        "type": "object"
+      },
+      "GitHubManifestPrepareResponse": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "manifest",
+          "state"
+        ],
+        "title": "GitHubManifestPrepareResponse",
+        "type": "object"
+      },
       "GitHubRepoResponse": {
         "properties": {
           "default_branch": {
@@ -691,6 +739,22 @@
           "enabled": {
             "title": "Enabled",
             "type": "boolean"
+          },
+          "manifest_supported": {
+            "default": false,
+            "title": "Manifest Supported",
+            "type": "boolean"
+          },
+          "public_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Url"
           },
           "webhook_url": {
             "anyOf": [
@@ -1207,6 +1271,9 @@
             "title": "Role",
             "type": "string"
           },
+          "user": {
+            "$ref": "#/components/schemas/ProjectUserSummary"
+          },
           "user_id": {
             "title": "User Id",
             "type": "string"
@@ -1217,7 +1284,8 @@
           "project_id",
           "user_id",
           "role",
-          "created_at"
+          "created_at",
+          "user"
         ],
         "title": "ProjectMemberResponse",
         "type": "object"
@@ -1503,6 +1571,52 @@
           }
         },
         "title": "ProjectUpdate",
+        "type": "object"
+      },
+      "ProjectUserSummary": {
+        "description": "Lightweight user identity used for member rows and member-candidate search.",
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "status"
+        ],
+        "title": "ProjectUserSummary",
         "type": "object"
       },
       "ToolSettings": {
@@ -3810,6 +3924,100 @@
         ]
       }
     },
+    "/api/projects/{slug}/github/manifest/callback": {
+      "get": {
+        "description": "Handle GitHub's redirect after the user creates a GitHub App from our manifest.\n\nExchanges the temporary ``code`` for the App's credentials and stores\nthem in ``project_settings``.",
+        "operationId": "github_manifest_callback_api_projects__slug__github_manifest_callback_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Github Manifest Callback",
+        "tags": [
+          "GitHub"
+        ]
+      }
+    },
+    "/api/projects/{slug}/github/manifest/prepare": {
+      "post": {
+        "description": "Prepare a GitHub App manifest for the UI to POST to github.com.\n\nThe UI must submit a real top-level HTML form POST \u2014 GitHub only\naccepts this flow as a browser navigation, not an XHR.",
+        "operationId": "prepare_github_manifest_api_projects__slug__github_manifest_prepare_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubManifestPrepareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubManifestPrepareResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Github Manifest",
+        "tags": [
+          "GitHub"
+        ]
+      }
+    },
     "/api/projects/{slug}/github/repos": {
       "get": {
         "description": "List repos across all of the project's installations.",
@@ -4360,6 +4568,82 @@
         "summary": "Duplicate LLM profile",
         "tags": [
           "LLM Profiles"
+        ]
+      }
+    },
+    "/api/projects/{slug}/member-candidates": {
+      "get": {
+        "operationId": "search_project_member_candidates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search query",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search query",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectUserSummary"
+                  },
+                  "title": "Response Search Project Member Candidates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search users eligible to be added as project members",
+        "tags": [
+          "Projects"
         ]
       }
     },

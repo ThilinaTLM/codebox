@@ -8,6 +8,8 @@ import type {
   FileContent,
   FileListResponse,
   GitHubInstallation,
+  GitHubManifestPrepareRequest,
+  GitHubManifestPrepareResponse,
   GitHubRepo,
   GitHubStatus,
   LLMProfile,
@@ -431,6 +433,16 @@ export const api = {
     },
     listRepos: async (slug: string): Promise<Array<GitHubRepo>> => {
       const { data } = await client.get<Array<GitHubRepo>>(`${p(slug)}/github/repos`)
+      return data
+    },
+    prepareManifest: async (
+      slug: string,
+      body: GitHubManifestPrepareRequest
+    ): Promise<GitHubManifestPrepareResponse> => {
+      const { data } = await client.post<GitHubManifestPrepareResponse>(
+        `${p(slug)}/github/manifest/prepare`,
+        body
+      )
       return data
     },
   },

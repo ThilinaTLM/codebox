@@ -136,6 +136,19 @@ export interface GitHubStatus {
   enabled: boolean
   app_slug: string | null
   webhook_url: string | null
+  public_url?: string | null
+  manifest_supported?: boolean
+}
+
+export interface GitHubManifestPrepareRequest {
+  owner_type: "user" | "organization"
+  owner_name?: string | null
+}
+
+export interface GitHubManifestPrepareResponse {
+  action: string
+  manifest: Record<string, unknown>
+  state: string
 }
 
 export interface GitHubInstallation {

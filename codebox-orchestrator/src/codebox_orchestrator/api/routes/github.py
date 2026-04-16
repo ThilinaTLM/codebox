@@ -11,11 +11,14 @@ import base64
 import hashlib
 import hmac
 import logging
+import secrets
+import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel
 
 from codebox_orchestrator.api.dependencies import (
     get_create_box,
@@ -31,6 +34,14 @@ from codebox_orchestrator.api.schemas import (
     GitHubInstallationResponse,
     GitHubRepoResponse,
     GitHubStatusResponse,
+)
+from codebox_orchestrator.integration.github.application.manifest import (
+    build_manifest,
+    default_app_name,
+    manifest_post_url,
+)
+from codebox_orchestrator.integration.github.infrastructure.github_api_client import (
+    GitHubApiClient,
 )
 from codebox_orchestrator.project.dependencies import (
     ProjectContext,
@@ -83,11 +94,25 @@ async def github_status(
     settings_service: ProjectSettingsService = Depends(get_project_settings_service),
 ) -> GitHubStatusResponse:
     """Return whether GitHub integration is configured for this project."""
+    from codebox_orchestrator.config import settings as app_settings  # noqa: PLC0415
+
     settings = await settings_service.get_raw(ctx.project_id)
     enabled = settings_service.github_configured(settings)
     app_slug = settings.github_app_slug if settings else None
-    webhook_url = f"/api/projects/{ctx.project_slug}/github/webhook" if enabled else None
-    return GitHubStatusResponse(enabled=enabled, app_slug=app_slug, webhook_url=webhook_url)
+    public_url = app_settings.urls.public_url or None
+    if public_url and enabled:
+        webhook_url = f"{public_url.rstrip('/')}/api/projects/{ctx.project_slug}/github/webhook"
+    elif enabled:
+        webhook_url = f"/api/projects/{ctx.project_slug}/github/webhook"
+    else:
+        webhook_url = None
+    return GitHubStatusResponse(
+        enabled=enabled,
+        app_slug=app_slug,
+        webhook_url=webhook_url,
+        public_url=public_url,
+        manifest_supported=bool(public_url),
+    )
 
 
 @router.get("/events", summary="List GitHub webhook events", operation_id="list_github_events")
@@ -287,6 +312,127 @@ async def _process_webhook_safe(
         logger.exception("Error processing webhook %s (delivery %s)", event_type, delivery_id)
 
 
+# ── Manifest flow ────────────────────────────────────────────────
+
+
+_MANIFEST_STATE_TTL_SECONDS = 60 * 60  # GitHub gives us 1 hour to exchange the code
+
+
+class GitHubManifestPrepareRequest(BaseModel):
+    owner_type: str  # "user" | "organization"
+    owner_name: str | None = None
+
+
+class GitHubManifestPrepareResponse(BaseModel):
+    action: str
+    manifest: dict
+    state: str
+
+
+def _prune_manifest_states(store: dict[str, tuple[str, float]]) -> None:
+    now = time.time()
+    expired = [k for k, (_, exp) in store.items() if exp < now]
+    for key in expired:
+        store.pop(key, None)
+
+
+@router.post("/manifest/prepare", response_model=GitHubManifestPrepareResponse)
+async def prepare_github_manifest(
+    body: GitHubManifestPrepareRequest,
+    request: Request,
+    ctx: ProjectContext = Depends(require_project_admin),
+) -> GitHubManifestPrepareResponse:
+    """Prepare a GitHub App manifest for the UI to POST to github.com.
+
+    The UI must submit a real top-level HTML form POST — GitHub only
+    accepts this flow as a browser navigation, not an XHR.
+    """
+    from codebox_orchestrator.config import settings as app_settings  # noqa: PLC0415
+
+    public_url = app_settings.urls.public_url
+    if not public_url:
+        raise HTTPException(
+            400,
+            "CODEBOX_ORCHESTRATOR_PUBLIC_URL is not set on the orchestrator. "
+            "Set it to a publicly reachable URL and restart the orchestrator, "
+            "or use the manual credentials form instead.",
+        )
+
+    try:
+        action = manifest_post_url(body.owner_type, body.owner_name)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    manifest = build_manifest(
+        public_url=public_url,
+        project_slug=ctx.project_slug,
+        app_name=default_app_name(ctx.project_slug),
+    )
+
+    state_token = secrets.token_urlsafe(32)
+    store: dict[str, tuple[str, float]] = request.app.state.github_manifest_states
+    _prune_manifest_states(store)
+    store[ctx.project_id] = (state_token, time.time() + _MANIFEST_STATE_TTL_SECONDS)
+
+    return GitHubManifestPrepareResponse(
+        action=action,
+        manifest=manifest,
+        state=state_token,
+    )
+
+
+@router.get("/manifest/callback", response_model=None)
+async def github_manifest_callback(
+    request: Request,
+    ctx: ProjectContext = Depends(require_project_admin),
+    github_mgr: GitHubClientManager = Depends(get_github_client_manager),
+    settings_service: ProjectSettingsService = Depends(get_project_settings_service),
+) -> RedirectResponse:
+    """Handle GitHub's redirect after the user creates a GitHub App from our manifest.
+
+    Exchanges the temporary ``code`` for the App's credentials and stores
+    them in ``project_settings``.
+    """
+    code = request.query_params.get("code", "")
+    state = request.query_params.get("state", "")
+    redirect_base = f"/projects/{ctx.project_slug}/configs/github"
+
+    if not code or not state:
+        return RedirectResponse(f"{redirect_base}?manifest=error&reason=missing_params")
+
+    store: dict[str, tuple[str, float]] = request.app.state.github_manifest_states
+    _prune_manifest_states(store)
+    saved = store.pop(ctx.project_id, None)
+    if saved is None or saved[0] != state:
+        return RedirectResponse(f"{redirect_base}?manifest=error&reason=invalid_state")
+
+    try:
+        data = await GitHubApiClient.convert_manifest_code(code)
+    except Exception:
+        logger.exception("Failed to convert manifest code for project %s", ctx.project_slug)
+        return RedirectResponse(f"{redirect_base}?manifest=error&reason=exchange_failed")
+
+    app_id = data.get("id")
+    app_slug = data.get("slug") or ""
+    pem = data.get("pem") or ""
+    webhook_secret = data.get("webhook_secret") or ""
+    if not app_id or not pem or not webhook_secret:
+        logger.error("Manifest conversion returned incomplete data for %s", ctx.project_slug)
+        return RedirectResponse(f"{redirect_base}?manifest=error&reason=incomplete_response")
+
+    await settings_service.update_settings(
+        ctx.project_id,
+        github_app_id=str(app_id),
+        github_app_slug=app_slug,
+        github_bot_name=app_slug,
+        github_private_key=pem,
+        github_webhook_secret=webhook_secret,
+    )
+    github_mgr.invalidate(ctx.project_id)
+
+    return RedirectResponse(f"{redirect_base}?manifest=ok")
+
+
 # ── Callback ─────────────────────────────────────────────────────
 
 
@@ -298,11 +444,10 @@ async def github_callback(
 ) -> RedirectResponse:
     """Handle GitHub App installation callback redirect."""
     installation_id_str = request.query_params.get("installation_id", "")
+    redirect_base = f"/projects/{ctx.project_slug}/configs/github"
 
     if not installation_id_str:
-        return RedirectResponse(
-            f"/projects/{ctx.project_slug}/settings/github?error=missing_installation_id"
-        )
+        return RedirectResponse(f"{redirect_base}?error=missing_installation_id")
 
     installation_id = int(installation_id_str)
 
@@ -312,13 +457,9 @@ async def github_callback(
             await service.fetch_and_store(installation_id)
         except Exception:
             logger.exception("Failed to store installation %d from callback", installation_id)
-            return RedirectResponse(
-                f"/projects/{ctx.project_slug}/settings/github?error=failed_to_store"
-            )
+            return RedirectResponse(f"{redirect_base}?error=failed_to_store")
 
-    return RedirectResponse(
-        f"/projects/{ctx.project_slug}/settings/github?installation_id={installation_id}"
-    )
+    return RedirectResponse(f"{redirect_base}?installation_id={installation_id}")
 
 
 # ── Installations ────────────────────────────────────────────────

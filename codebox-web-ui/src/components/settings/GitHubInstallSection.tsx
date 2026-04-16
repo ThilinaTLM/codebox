@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react"
 import { StepHeader } from "./StepHeader"
 import { useAddGitHubInstallation } from "@/net/query"
 import { API_URL } from "@/lib/constants"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Collapsible,
@@ -15,16 +16,25 @@ import { Input } from "@/components/ui/input"
 interface GitHubInstallSectionProps {
   projectSlug: string
   appSlug: string | null
+  publicUrl?: string | null
   readOnly?: boolean
 }
 
 export function GitHubInstallSection({
   projectSlug,
   appSlug,
+  publicUrl,
   readOnly = false,
 }: GitHubInstallSectionProps) {
-  const webhookUrl = `${API_URL}/api/github/webhook`
+  const webhookBase = publicUrl?.replace(/\/$/, "") ?? API_URL
+  const webhookUrl = `${webhookBase}/api/projects/${projectSlug}/github/webhook`
   const installUrl = `https://github.com/apps/${appSlug}/installations/new`
+  const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1")
+  const showSmeeHint = !publicUrl && isLocalhost
+  const smeeCommand = `pnpm dlx smee-client -u https://smee.io/<your-channel> --target http://localhost:9090/api/projects/${projectSlug}/github/webhook`
 
   return (
     <section className="space-y-6">
@@ -57,6 +67,48 @@ export function GitHubInstallSection({
           Configure this URL in your GitHub App&apos;s webhook settings.
         </p>
       </div>
+
+      {showSmeeHint && (
+        <Alert className="max-w-xl">
+          <AlertTitle>Running locally?</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>
+              GitHub can&apos;t reach <code>localhost</code> directly. Forward
+              webhooks with{" "}
+              <a
+                href="https://smee.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2"
+              >
+                smee.io
+              </a>
+              :
+            </p>
+            <div className="flex items-start gap-2">
+              <code className="flex-1 break-all rounded bg-muted px-2 py-1 font-mono text-xs">
+                {smeeCommand}
+              </code>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  navigator.clipboard.writeText(smeeCommand)
+                  toast.success("Command copied")
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Replace <code>&lt;your-channel&gt;</code> with a channel from
+              smee.io, then set{" "}
+              <code>CODEBOX_ORCHESTRATOR_PUBLIC_URL</code> to the same smee URL
+              and restart the orchestrator to enable the one-click flow.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {!readOnly && (
         <Button

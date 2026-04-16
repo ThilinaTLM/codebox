@@ -99,6 +99,30 @@ class GitHubApiClient:
         return token
 
     # ------------------------------------------------------------------
+    # Manifest conversion (no app auth — staticmethod)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    async def convert_manifest_code(code: str) -> dict:
+        """Exchange a manifest ``code`` for GitHub App credentials.
+
+        Calls ``POST /app-manifests/{code}/conversions``. The ``code`` is
+        single-use and expires 1 hour after issuance. The response contains
+        ``id``, ``slug``, ``name``, ``client_id``, ``client_secret``,
+        ``webhook_secret``, ``pem``, ``html_url``, and more.
+        """
+        async with httpx.AsyncClient(verify=_ssl_ctx) as client:
+            resp = await client.post(
+                f"{GITHUB_API_BASE}/app-manifests/{code}/conversions",
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+    # ------------------------------------------------------------------
     # Webhook verification
     # ------------------------------------------------------------------
 

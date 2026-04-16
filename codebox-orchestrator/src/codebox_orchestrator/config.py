@@ -93,10 +93,17 @@ class OrchestratorUrlsSettings(BaseSettings):
     that local dev works without any override.  Defaults are computed in
     :meth:`Settings._fill_url_defaults` because they depend on the HTTP/gRPC
     port settings.
+
+    ``public_url`` is the URL external callers (GitHub, browsers outside this
+    host) use to reach the orchestrator. It is *not* auto-filled: when unset,
+    flows that need a publicly reachable URL (e.g. the GitHub App manifest
+    flow) will surface a clear error in the UI. Example production value:
+    ``https://api.codebox.example.com``.
     """
 
     url: str = ""
     grpc_url: str = ""
+    public_url: str = ""
 
     model_config = SettingsConfigDict(
         env_prefix="CODEBOX_ORCHESTRATOR_",

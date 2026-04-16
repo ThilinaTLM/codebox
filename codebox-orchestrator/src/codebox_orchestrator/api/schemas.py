@@ -145,6 +145,8 @@ class GitHubStatusResponse(BaseModel):
     enabled: bool
     app_slug: str | None = None
     webhook_url: str | None = None
+    public_url: str | None = None
+    manifest_supported: bool = False
 
 
 class GitHubInstallationCreate(BaseModel):
