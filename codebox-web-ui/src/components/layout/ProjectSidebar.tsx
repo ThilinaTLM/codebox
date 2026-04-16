@@ -34,7 +34,7 @@ interface ProjectNavItem {
   exact?: boolean
 }
 
-const PROJECT_NAV: Array<ProjectNavItem> = [
+const PROJECT_SCOPED_NAV: Array<ProjectNavItem> = [
   {
     key: "agents",
     label: "Agents",
@@ -50,6 +50,9 @@ const PROJECT_NAV: Array<ProjectNavItem> = [
     to: "/projects/$projectSlug/configs",
     matchPrefix: (slug) => `/projects/${slug}/configs`,
   },
+]
+
+const USER_SCOPED_NAV: Array<ProjectNavItem> = [
   {
     key: "account",
     label: "Account",
@@ -94,68 +97,40 @@ export function ProjectSidebar() {
         )}
       >
         {activeSlug &&
-          PROJECT_NAV.map((item) => {
-            const prefix = item.matchPrefix(activeSlug)
-            const active = item.exact
-              ? currentPath === prefix
-              : currentPath.startsWith(prefix)
+          PROJECT_SCOPED_NAV.map((item) => (
+            <ProjectNavButton
+              key={item.key}
+              item={item}
+              slug={activeSlug}
+              currentPath={currentPath}
+              collapsed={collapsed}
+            />
+          ))}
 
-            const button = (
-              <Button
-                key={item.key}
-                variant="ghost"
-                size="sm"
-                nativeButton={false}
-                render={
-                  <Link
-                    to={item.to}
-                    params={{ projectSlug: activeSlug }}
-                  />
-                }
-                className={cn(
-                  "group/navitem relative justify-start gap-2.5 rounded-lg transition-all duration-fast",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-foreground shadow-2xs"
-                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                  collapsed && "justify-center px-0"
-                )}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary transition-all duration-normal" />
-                )}
-                <HugeiconsIcon
-                  icon={item.icon}
-                  size={18}
-                  strokeWidth={2}
-                  className={cn(
-                    "shrink-0 transition-colors duration-fast",
-                    active && "text-primary"
-                  )}
-                />
-                {!collapsed && <span className="text-sm">{item.label}</span>}
-              </Button>
-            )
+        <div
+          role="separator"
+          className="mx-2 my-1.5 h-px bg-sidebar-border/60"
+        />
 
-            if (collapsed) {
-              return (
-                <Tooltip key={item.key}>
-                  <TooltipTrigger render={button} />
-                  <TooltipContent side="right" sideOffset={8}>
-                    {item.label}
-                  </TooltipContent>
-                </Tooltip>
-              )
-            }
-
-            return button
-          })}
-
-        {isPlatformAdmin && (
-          <PlatformShortcut collapsed={collapsed} />
-        )}
+        {activeSlug &&
+          USER_SCOPED_NAV.map((item) => (
+            <ProjectNavButton
+              key={item.key}
+              item={item}
+              slug={activeSlug}
+              currentPath={currentPath}
+              collapsed={collapsed}
+            />
+          ))}
       </nav>
 
       <div className="flex-1" />
+
+      {isPlatformAdmin && (
+        <div className={cn("px-2 pb-0", collapsed && "px-1.5")}>
+          <BackToPlatformButton collapsed={collapsed} />
+        </div>
+      )}
 
       <SidebarUserFooter
         collapsed={collapsed}
@@ -173,7 +148,67 @@ export function ProjectSidebar() {
   )
 }
 
-function PlatformShortcut({ collapsed }: { collapsed: boolean }) {
+function ProjectNavButton({
+  item,
+  slug,
+  currentPath,
+  collapsed,
+}: {
+  item: ProjectNavItem
+  slug: string
+  currentPath: string
+  collapsed: boolean
+}) {
+  const prefix = item.matchPrefix(slug)
+  const active = item.exact
+    ? currentPath === prefix
+    : currentPath.startsWith(prefix)
+
+  const button = (
+    <Button
+      variant="ghost"
+      size="sm"
+      nativeButton={false}
+      render={<Link to={item.to} params={{ projectSlug: slug }} />}
+      className={cn(
+        "group/navitem relative justify-start gap-2.5 rounded-lg transition-all duration-fast",
+        active
+          ? "bg-sidebar-accent text-sidebar-foreground shadow-2xs"
+          : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+        collapsed && "justify-center px-0"
+      )}
+    >
+      {active && (
+        <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary transition-all duration-normal" />
+      )}
+      <HugeiconsIcon
+        icon={item.icon}
+        size={18}
+        strokeWidth={2}
+        className={cn(
+          "shrink-0 transition-colors duration-fast",
+          active && "text-primary"
+        )}
+      />
+      {!collapsed && <span className="text-sm">{item.label}</span>}
+    </Button>
+  )
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger render={button} />
+        <TooltipContent side="right" sideOffset={8}>
+          {item.label}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return button
+}
+
+function BackToPlatformButton({ collapsed }: { collapsed: boolean }) {
   const button = (
     <Button
       variant="ghost"
@@ -191,7 +226,7 @@ function PlatformShortcut({ collapsed }: { collapsed: boolean }) {
         strokeWidth={2}
         className="shrink-0 transition-colors duration-fast"
       />
-      {!collapsed && <span className="text-sm">Platform</span>}
+      {!collapsed && <span className="text-sm">Back to Platform</span>}
     </Button>
   )
 
@@ -200,7 +235,7 @@ function PlatformShortcut({ collapsed }: { collapsed: boolean }) {
       <Tooltip>
         <TooltipTrigger render={button} />
         <TooltipContent side="right" sideOffset={8}>
-          Platform
+          Back to Platform
         </TooltipContent>
       </Tooltip>
     )
