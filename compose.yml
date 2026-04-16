@@ -30,14 +30,33 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # Optional: mount certs for gRPC TLS (generate with scripts/generate_grpc_certs.sh)
       # - ./certs:/etc/grpc-certs:ro
-    env_file:
-      - ./codebox-orchestrator/.env
-      - path: ./codebox-orchestrator/.env.compose
-        required: false
     environment:
+      # ── Database ───────────────────────────────────────────────
       DATABASE_URL: "postgresql+asyncpg://codebox:codebox@postgres:5432/codebox"
+
+      # ── Sandbox image ──────────────────────────────────────────
+      # Build with: docker build -t codebox-sandbox:latest ./codebox-sandbox
+      CODEBOX_IMAGE: "codebox-sandbox:latest"
+
+      # ── URLs sandboxes use to reach this orchestrator ─────────
+      # Compose-internal service names; override only if renaming services.
+      ORCHESTRATOR_GRPC_PUBLIC_URL: "grpc://codebox-orchestrator:50051"
+      ORCHESTRATOR_WS_PUBLIC_URL: "ws://codebox-orchestrator:9090"
+
+      # ── Web UI CORS ────────────────────────────────────────────
       CORS_ORIGINS: "http://localhost:3737"
-      # Optional: enable gRPC TLS (uncomment with the certs volume above)
+
+      # ── Required secrets ──────────────────────────────────────
+      # Set via shell env or a repo-root .env file. Examples:
+      #   ENCRYPTION_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+      #   AUTH_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(64))")
+      #   CALLBACK_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(64))")
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set}
+      CALLBACK_SECRET: ${CALLBACK_SECRET:?CALLBACK_SECRET must be set}
+
+      # ── Optional: gRPC TLS ─────────────────────────────────────
+      # Uncomment together with the certs volume above.
       # GRPC_TLS_CERT: "/etc/grpc-certs/server.crt"
       # GRPC_TLS_KEY: "/etc/grpc-certs/server.key"
       # GRPC_TLS_CA_CERT: "/etc/grpc-certs/ca.crt"

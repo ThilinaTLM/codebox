@@ -52,25 +52,23 @@ GRPC_TLS_KEY: str = os.environ.get("GRPC_TLS_KEY", "")  # Path to server key PEM
 GRPC_TLS_CA_CERT: str = os.environ.get("GRPC_TLS_CA_CERT", "")  # Path to CA cert PEM
 
 
-def _default_grpc_address() -> str:
+def _default_public_host() -> str:
     import sys as _sys  # noqa: PLC0415
 
     if _sys.platform == "win32" and CONTAINER_RUNTIME_TYPE == "podman":
-        host = "localhost"
-    elif CONTAINER_RUNTIME_TYPE == "podman":
-        host = "host.containers.internal"
-    else:
-        host = "host.docker.internal"
-
-    return f"{host}:{GRPC_PORT}"
+        return "localhost"
+    if CONTAINER_RUNTIME_TYPE == "podman":
+        return "host.containers.internal"
+    return "host.docker.internal"
 
 
-ORCHESTRATOR_GRPC_ADDRESS: str = os.environ.get(
-    "ORCHESTRATOR_GRPC_ADDRESS", _default_grpc_address()
+ORCHESTRATOR_WS_PUBLIC_URL: str = os.environ.get(
+    "ORCHESTRATOR_WS_PUBLIC_URL",
+    f"ws://{_default_public_host()}:{PORT}",
 )
-ORCHESTRATOR_TUNNEL_URL: str = os.environ.get(
-    "ORCHESTRATOR_TUNNEL_URL",
-    f"ws://localhost:{PORT}/api/projects/default/ws/tunnel",
+ORCHESTRATOR_GRPC_PUBLIC_URL: str = os.environ.get(
+    "ORCHESTRATOR_GRPC_PUBLIC_URL",
+    f"grpc://{_default_public_host()}:{GRPC_PORT}",
 )
 
 # ── Auth / sessions ────────────────────────────────────────────

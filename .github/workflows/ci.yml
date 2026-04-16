@@ -19,7 +19,7 @@ jobs:
         run: |
           # Scan into a temp file, then compare results (ignoring generated_at timestamp).
           detect-secrets scan --all-files \
-            --exclude-files '\.secrets\.baseline$|\.venv/|node_modules/|pnpm-lock\.yaml|uv\.lock|\.git/|grpc/generated/|\.output/|\.ruff_cache/|\.pytest_cache/|__pycache__/|\.env\.local$|\.env\.compose$' \
+            --exclude-files '\.secrets\.baseline$|\.venv/|node_modules/|pnpm-lock\.yaml|uv\.lock|\.git/|grpc/generated/|\.output/|\.ruff_cache/|\.pytest_cache/|__pycache__/|\.env\.local$' \
             > /tmp/new-baseline.json
           python3 << 'PYEOF'
           import json, sys

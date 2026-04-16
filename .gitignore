@@ -11,7 +11,6 @@ wheels/
 
 # Environment variables (actual values)
 .env.local
-.env.compose
 
 # Setup wizard state
 scripts/.github-setup-state

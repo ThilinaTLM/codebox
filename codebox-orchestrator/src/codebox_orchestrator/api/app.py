@@ -49,9 +49,8 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         project_repo = ProjectRepository(async_session_factory)
         project_service = ProjectService(project_repo)
 
-        # Ensure default admin + default project
+        # Ensure default admin
         await auth_service.ensure_default_admin()
-        await _ensure_default_project(auth_service, project_service)
 
         # --- LLM Profile & Project Settings services ---
         from codebox_orchestrator.llm_profile.repository import (  # noqa: PLC0415
@@ -373,24 +372,3 @@ def create_app() -> FastAPI:  # noqa: PLR0915
     app.include_router(tunnel.router)  # WebSocket + file proxy
 
     return app
-
-
-async def _ensure_default_project(auth_service, project_service) -> None:
-    """Create a default project if none exist, owned by the first admin user."""
-
-    projects = await project_service.list_projects("", is_platform_admin=True)
-    if projects:
-        return  # Projects already exist
-
-    # Find the first admin user
-    users = await auth_service.list_users()
-    admin = next((u for u in users if u.user_type == "admin"), None)
-    if admin is None:
-        return
-
-    await project_service.create_project(
-        name="Default",
-        description="Default project",
-        creator_user_id=admin.id,
-    )
-    logger.info("Created default project 'Default'")

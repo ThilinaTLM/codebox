@@ -133,6 +133,8 @@ Environment variables are loaded from `.env` and `.env.local`.
 | `ORCHESTRATOR_HOST` | `0.0.0.0` | HTTP bind host |
 | `ORCHESTRATOR_PORT` | `9090` | HTTP bind port |
 | `GRPC_PORT` | `50051` | gRPC bind port |
+| `ORCHESTRATOR_WS_PUBLIC_URL` | `ws://host.docker.internal:${ORCHESTRATOR_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | Base WebSocket URL sandboxes use to dial the orchestrator tunnel. Must use `ws://` or `wss://`; path is appended automatically. |
+| `ORCHESTRATOR_GRPC_PUBLIC_URL` | `grpc://host.docker.internal:${GRPC_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | gRPC endpoint sandboxes use for callbacks. Accepts `grpc://host:port`, `grpcs://host:port`, or bare `host:port`. |
 | `CORS_ORIGINS` | `http://localhost:3737` | Allowed CORS origins |
 | `AUTH_SECRET` | development fallback | Auth JWT signing secret |
 | `CALLBACK_SECRET` | development fallback | Sandbox callback JWT signing secret |

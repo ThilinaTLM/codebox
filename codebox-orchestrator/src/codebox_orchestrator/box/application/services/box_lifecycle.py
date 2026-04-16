@@ -16,9 +16,10 @@ from codebox_orchestrator.compute.domain.entities import ContainerConfig
 from codebox_orchestrator.config import (
     CODEBOX_IMAGE,
     GRPC_TLS_CA_CERT,
-    ORCHESTRATOR_GRPC_ADDRESS,
-    ORCHESTRATOR_TUNNEL_URL,
+    ORCHESTRATOR_GRPC_PUBLIC_URL,
+    ORCHESTRATOR_WS_PUBLIC_URL,
 )
+from codebox_orchestrator.shared.urls import compose_tunnel_url, normalize_grpc_url
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.infrastructure.box_state_store import BoxStateStore
@@ -168,8 +169,8 @@ class BoxLifecycleService:
         # Build container env vars
         container_name = f"codebox-box-{box_id[:8]}"
         extra_env: dict[str, str] = {
-            "ORCHESTRATOR_GRPC_ADDRESS": ORCHESTRATOR_GRPC_ADDRESS,
-            "ORCHESTRATOR_TUNNEL_URL": ORCHESTRATOR_TUNNEL_URL,
+            "ORCHESTRATOR_GRPC_ADDRESS": normalize_grpc_url(ORCHESTRATOR_GRPC_PUBLIC_URL),
+            "ORCHESTRATOR_TUNNEL_URL": compose_tunnel_url(ORCHESTRATOR_WS_PUBLIC_URL),
             "CALLBACK_TOKEN": callback_token,
         }
         if auto_start_prompt:
