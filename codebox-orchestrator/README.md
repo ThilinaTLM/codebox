@@ -116,6 +116,10 @@ uv run python -m codebox_orchestrator
 
 Alembic migrations run automatically at startup.
 
+### First-run admin
+
+On first boot the orchestrator seeds a **Super Admin** user when the users table is empty. Set `CODEBOX_ADMIN_USERNAME` and/or `CODEBOX_ADMIN_PASSWORD` to control the initial credentials; otherwise the username is `admin` and a random password is printed in the logs. These values are only consulted on first boot — after that, admins manage their own password from the account page (`POST /api/auth/change-password`).
+
 Generate the OpenAPI snapshot:
 
 ```bash
@@ -140,6 +144,8 @@ Environment variables are loaded from `.env` and `.env.local`.
 | `CALLBACK_SECRET` | development fallback | Sandbox callback JWT signing secret |
 | `AUTH_TOKEN_EXPIRY_HOURS` | `168` | Auth cookie/session TTL |
 | `CALLBACK_TOKEN_EXPIRY_SECONDS` | `3600` | Sandbox callback token TTL |
+| `CODEBOX_ADMIN_USERNAME` | `admin` | Username for the first-boot Super Admin seed (ignored after any user exists) |
+| `CODEBOX_ADMIN_PASSWORD` | random (logged) | Password for the first-boot Super Admin seed (ignored after any user exists) |
 | `CONTAINER_RUNTIME_URL` | empty | Explicit Docker/Podman connection URL |
 | `CONTAINER_RUNTIME_TYPE` | `docker` | `docker` or `podman` |
 | `CONTAINER_TLS_VERIFY` | empty | Runtime CA path or `true` / `false` |

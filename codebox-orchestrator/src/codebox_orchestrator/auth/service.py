@@ -14,7 +14,12 @@ import jwt
 from sqlalchemy import func, select
 
 from codebox_orchestrator.auth.models import User, UserStatus
-from codebox_orchestrator.config import AUTH_TOKEN_EXPIRY_HOURS, get_auth_secret
+from codebox_orchestrator.config import (
+    AUTH_TOKEN_EXPIRY_HOURS,
+    INITIAL_ADMIN_PASSWORD,
+    INITIAL_ADMIN_USERNAME,
+    get_auth_secret,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -74,7 +79,14 @@ class AuthService:
         self._session_factory = session_factory
 
     async def ensure_default_admin(self) -> None:
-        """Create a default admin user if no users exist. Logs credentials."""
+        """Create a default admin user if no users exist.
+
+        Username and password can be pre-seeded via ``CODEBOX_ADMIN_USERNAME``
+        and ``CODEBOX_ADMIN_PASSWORD``. When either is unset we fall back to
+        ``admin`` / a random password (which is logged on first boot). These
+        env values are only consulted when the users table is empty; after
+        that the admin resets their password from the account page.
+        """
         async with self._session_factory() as session:
             result = await session.execute(
                 select(func.count(User.id)).where(User.status != UserStatus.DELETED)
@@ -83,24 +95,38 @@ class AuthService:
             if count > 0:
                 return
 
-            password = secrets.token_urlsafe(12)
+            username = INITIAL_ADMIN_USERNAME or "admin"
+            password_from_env = bool(INITIAL_ADMIN_PASSWORD)
+            password = INITIAL_ADMIN_PASSWORD if password_from_env else secrets.token_urlsafe(12)
+
             user = User(
-                username="admin",
+                username=username,
                 password_hash=hash_password(password),
                 user_type="admin",
                 status=UserStatus.ACTIVE,
+                first_name="Super",
+                last_name="Admin",
             )
             session.add(user)
             await session.commit()
 
-            banner = (
-                "\n"
-                "══════════════════════════════════════════════════\n"
-                "  Default admin credentials (first-time setup):\n"
-                f"  Username: admin\n"
-                f"  Password: {password}\n"
-                "══════════════════════════════════════════════════"
-            )
+            divider = "═" * 50
+            if password_from_env:
+                banner = (
+                    f"\n{divider}\n"
+                    "  Default admin seeded from environment (first-time setup):\n"
+                    f"  Username: {username}\n"
+                    "  Password: (supplied via CODEBOX_ADMIN_PASSWORD)\n"
+                    f"{divider}"
+                )
+            else:
+                banner = (
+                    f"\n{divider}\n"
+                    "  Default admin credentials (first-time setup):\n"
+                    f"  Username: {username}\n"
+                    f"  Password: {password}\n"
+                    f"{divider}"
+                )
             logger.warning(banner)
 
     async def authenticate(self, username: str, password: str) -> User | None:

@@ -46,6 +46,12 @@ services:
       # ── Web UI CORS ────────────────────────────────────────────
       CORS_ORIGINS: "http://localhost:3737"
 
+      # ── Initial admin (first-time bootstrap only) ──
+      # Only consulted when the users table is empty. After that the admin
+      # manages their own password from the account page.
+      CODEBOX_ADMIN_USERNAME: ${CODEBOX_ADMIN_USERNAME:-}
+      CODEBOX_ADMIN_PASSWORD: ${CODEBOX_ADMIN_PASSWORD:-}
+
       # ── Required secrets ──────────────────────────────────────
       # Set via shell env or a repo-root .env file. Examples:
       #   ENCRYPTION_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")

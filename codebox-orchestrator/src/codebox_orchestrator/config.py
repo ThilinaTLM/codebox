@@ -77,6 +77,13 @@ AUTH_TOKEN_EXPIRY_HOURS: int = int(os.environ.get("AUTH_TOKEN_EXPIRY_HOURS", "16
 CALLBACK_SECRET: str = os.environ.get("CALLBACK_SECRET", "")
 CALLBACK_TOKEN_EXPIRY_SECONDS: int = int(os.environ.get("CALLBACK_TOKEN_EXPIRY_SECONDS", "3600"))
 
+# ── Initial admin (first-time bootstrap only) ─────────────────
+# Consulted only when the users table is empty. Once any user exists,
+# these values are ignored and the admin manages their password from the
+# account page (POST /api/auth/change-password).
+INITIAL_ADMIN_USERNAME: str = os.environ.get("CODEBOX_ADMIN_USERNAME", "").strip()
+INITIAL_ADMIN_PASSWORD: str = os.environ.get("CODEBOX_ADMIN_PASSWORD", "")
+
 # ── CORS ───────────────────────────────────────────────────────
 CORS_ORIGINS: list[str] = [
     origin.strip()
