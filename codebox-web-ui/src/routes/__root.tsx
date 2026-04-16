@@ -132,9 +132,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `window.__ENV__=${JSON.stringify({
+              // Browser value: prefer the public URL; fall back to the
+              // internal value when no public URL is configured (local dev).
               CODEBOX_API_URL:
                 (import.meta.env.SSR
-                  ? process.env.CODEBOX_API_URL
+                  ? (process.env.CODEBOX_PUBLIC_API_URL ??
+                    process.env.CODEBOX_API_URL)
                   : undefined) || API_URL,
             })}`,
           }}
