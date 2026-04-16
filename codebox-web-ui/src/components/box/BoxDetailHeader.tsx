@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 
 interface BoxDetailHeaderProps {
   box: Box
+  projectSlug: string
   activity: AgentActivity
   elapsed: string | null
   tabs: React.ReactNode
@@ -14,6 +15,7 @@ interface BoxDetailHeaderProps {
 
 export function BoxDetailHeader({
   box,
+  projectSlug,
   activity,
   elapsed,
   tabs,
@@ -25,7 +27,12 @@ export function BoxDetailHeader({
           variant="ghost"
           size="icon-xs"
           nativeButton={false}
-          render={<Link to="/" />}
+          render={
+            <Link
+              to="/projects/$projectSlug"
+              params={{ projectSlug }}
+            />
+          }
           className="shrink-0 text-muted-foreground"
         >
           <ArrowLeft size={16} />

@@ -32,6 +32,7 @@ function autoName(task: string): string {
 }
 
 interface CreateBoxStepOneProps {
+  projectSlug: string
   name: string
   onNameChange: (v: string) => void
   autoStartPrompt: string
@@ -49,6 +50,7 @@ interface CreateBoxStepOneProps {
 }
 
 export function CreateBoxStepOne({
+  projectSlug,
   name,
   onNameChange,
   autoStartPrompt,
@@ -79,7 +81,12 @@ export function CreateBoxStepOne({
             variant="ghost"
             size="icon-sm"
             nativeButton={false}
-            render={<Link to="/" />}
+            render={
+              <Link
+                to="/projects/$projectSlug"
+                params={{ projectSlug }}
+              />
+            }
           >
             <ArrowLeft size={16} />
           </Button>
@@ -131,7 +138,8 @@ export function CreateBoxStepOne({
               <p className="text-sm text-muted-foreground">
                 No LLM profiles configured.{" "}
                 <Link
-                  to="/projects"
+                  to="/projects/$projectSlug/configs/llm-profiles"
+                  params={{ projectSlug }}
                   className="underline hover:text-foreground"
                 >
                   Set up a profile →

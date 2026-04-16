@@ -238,7 +238,6 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
 interface AgentTableProps {
   boxes: Array<Box>
   projectSlug: string
-  isLoading?: boolean
 }
 
 export function AgentTable({ boxes, projectSlug }: AgentTableProps) {

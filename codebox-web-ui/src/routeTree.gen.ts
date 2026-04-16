@@ -39,6 +39,11 @@ import { Route as ProjectsProjectSlugConfigsGithubRouteImport } from './routes/p
 import { Route as ProjectsProjectSlugBoxesCreateRouteImport } from './routes/projects/$projectSlug/boxes/create'
 import { Route as ProjectsProjectSlugBoxesBoxIdRouteRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/route'
 import { Route as ProjectsProjectSlugBoxesBoxIdIndexRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/index'
+import { Route as ProjectsProjectSlugBoxesBoxIdTerminalRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/terminal'
+import { Route as ProjectsProjectSlugBoxesBoxIdResourcesRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/resources'
+import { Route as ProjectsProjectSlugBoxesBoxIdLogsRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/logs'
+import { Route as ProjectsProjectSlugBoxesBoxIdFilesRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/files'
+import { Route as ProjectsProjectSlugBoxesBoxIdChatRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/chat'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -207,6 +212,36 @@ const ProjectsProjectSlugBoxesBoxIdIndexRoute =
     path: '/',
     getParentRoute: () => ProjectsProjectSlugBoxesBoxIdRouteRoute,
   } as any)
+const ProjectsProjectSlugBoxesBoxIdTerminalRoute =
+  ProjectsProjectSlugBoxesBoxIdTerminalRouteImport.update({
+    id: '/terminal',
+    path: '/terminal',
+    getParentRoute: () => ProjectsProjectSlugBoxesBoxIdRouteRoute,
+  } as any)
+const ProjectsProjectSlugBoxesBoxIdResourcesRoute =
+  ProjectsProjectSlugBoxesBoxIdResourcesRouteImport.update({
+    id: '/resources',
+    path: '/resources',
+    getParentRoute: () => ProjectsProjectSlugBoxesBoxIdRouteRoute,
+  } as any)
+const ProjectsProjectSlugBoxesBoxIdLogsRoute =
+  ProjectsProjectSlugBoxesBoxIdLogsRouteImport.update({
+    id: '/logs',
+    path: '/logs',
+    getParentRoute: () => ProjectsProjectSlugBoxesBoxIdRouteRoute,
+  } as any)
+const ProjectsProjectSlugBoxesBoxIdFilesRoute =
+  ProjectsProjectSlugBoxesBoxIdFilesRouteImport.update({
+    id: '/files',
+    path: '/files',
+    getParentRoute: () => ProjectsProjectSlugBoxesBoxIdRouteRoute,
+  } as any)
+const ProjectsProjectSlugBoxesBoxIdChatRoute =
+  ProjectsProjectSlugBoxesBoxIdChatRouteImport.update({
+    id: '/chat',
+    path: '/chat',
+    getParentRoute: () => ProjectsProjectSlugBoxesBoxIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -238,6 +273,11 @@ export interface FileRoutesByFullPath {
   '/projects/$projectSlug/settings/appearance': typeof ProjectsProjectSlugSettingsAppearanceRoute
   '/projects/$projectSlug/configs/': typeof ProjectsProjectSlugConfigsIndexRoute
   '/projects/$projectSlug/settings/': typeof ProjectsProjectSlugSettingsIndexRoute
+  '/projects/$projectSlug/boxes/$boxId/chat': typeof ProjectsProjectSlugBoxesBoxIdChatRoute
+  '/projects/$projectSlug/boxes/$boxId/files': typeof ProjectsProjectSlugBoxesBoxIdFilesRoute
+  '/projects/$projectSlug/boxes/$boxId/logs': typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
+  '/projects/$projectSlug/boxes/$boxId/resources': typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
+  '/projects/$projectSlug/boxes/$boxId/terminal': typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
   '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -263,6 +303,11 @@ export interface FileRoutesByTo {
   '/projects/$projectSlug/settings/appearance': typeof ProjectsProjectSlugSettingsAppearanceRoute
   '/projects/$projectSlug/configs': typeof ProjectsProjectSlugConfigsIndexRoute
   '/projects/$projectSlug/settings': typeof ProjectsProjectSlugSettingsIndexRoute
+  '/projects/$projectSlug/boxes/$boxId/chat': typeof ProjectsProjectSlugBoxesBoxIdChatRoute
+  '/projects/$projectSlug/boxes/$boxId/files': typeof ProjectsProjectSlugBoxesBoxIdFilesRoute
+  '/projects/$projectSlug/boxes/$boxId/logs': typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
+  '/projects/$projectSlug/boxes/$boxId/resources': typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
+  '/projects/$projectSlug/boxes/$boxId/terminal': typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
   '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 export interface FileRoutesById {
@@ -296,6 +341,11 @@ export interface FileRoutesById {
   '/projects/$projectSlug/settings/appearance': typeof ProjectsProjectSlugSettingsAppearanceRoute
   '/projects/$projectSlug/configs/': typeof ProjectsProjectSlugConfigsIndexRoute
   '/projects/$projectSlug/settings/': typeof ProjectsProjectSlugSettingsIndexRoute
+  '/projects/$projectSlug/boxes/$boxId/chat': typeof ProjectsProjectSlugBoxesBoxIdChatRoute
+  '/projects/$projectSlug/boxes/$boxId/files': typeof ProjectsProjectSlugBoxesBoxIdFilesRoute
+  '/projects/$projectSlug/boxes/$boxId/logs': typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
+  '/projects/$projectSlug/boxes/$boxId/resources': typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
+  '/projects/$projectSlug/boxes/$boxId/terminal': typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
   '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -330,6 +380,11 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/settings/appearance'
     | '/projects/$projectSlug/configs/'
     | '/projects/$projectSlug/settings/'
+    | '/projects/$projectSlug/boxes/$boxId/chat'
+    | '/projects/$projectSlug/boxes/$boxId/files'
+    | '/projects/$projectSlug/boxes/$boxId/logs'
+    | '/projects/$projectSlug/boxes/$boxId/resources'
+    | '/projects/$projectSlug/boxes/$boxId/terminal'
     | '/projects/$projectSlug/boxes/$boxId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -355,6 +410,11 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/settings/appearance'
     | '/projects/$projectSlug/configs'
     | '/projects/$projectSlug/settings'
+    | '/projects/$projectSlug/boxes/$boxId/chat'
+    | '/projects/$projectSlug/boxes/$boxId/files'
+    | '/projects/$projectSlug/boxes/$boxId/logs'
+    | '/projects/$projectSlug/boxes/$boxId/resources'
+    | '/projects/$projectSlug/boxes/$boxId/terminal'
     | '/projects/$projectSlug/boxes/$boxId'
   id:
     | '__root__'
@@ -387,6 +447,11 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/settings/appearance'
     | '/projects/$projectSlug/configs/'
     | '/projects/$projectSlug/settings/'
+    | '/projects/$projectSlug/boxes/$boxId/chat'
+    | '/projects/$projectSlug/boxes/$boxId/files'
+    | '/projects/$projectSlug/boxes/$boxId/logs'
+    | '/projects/$projectSlug/boxes/$boxId/resources'
+    | '/projects/$projectSlug/boxes/$boxId/terminal'
     | '/projects/$projectSlug/boxes/$boxId/'
   fileRoutesById: FileRoutesById
 }
@@ -610,6 +675,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdIndexRouteImport
       parentRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRoute
     }
+    '/projects/$projectSlug/boxes/$boxId/terminal': {
+      id: '/projects/$projectSlug/boxes/$boxId/terminal'
+      path: '/terminal'
+      fullPath: '/projects/$projectSlug/boxes/$boxId/terminal'
+      preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdTerminalRouteImport
+      parentRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRoute
+    }
+    '/projects/$projectSlug/boxes/$boxId/resources': {
+      id: '/projects/$projectSlug/boxes/$boxId/resources'
+      path: '/resources'
+      fullPath: '/projects/$projectSlug/boxes/$boxId/resources'
+      preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdResourcesRouteImport
+      parentRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRoute
+    }
+    '/projects/$projectSlug/boxes/$boxId/logs': {
+      id: '/projects/$projectSlug/boxes/$boxId/logs'
+      path: '/logs'
+      fullPath: '/projects/$projectSlug/boxes/$boxId/logs'
+      preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdLogsRouteImport
+      parentRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRoute
+    }
+    '/projects/$projectSlug/boxes/$boxId/files': {
+      id: '/projects/$projectSlug/boxes/$boxId/files'
+      path: '/files'
+      fullPath: '/projects/$projectSlug/boxes/$boxId/files'
+      preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdFilesRouteImport
+      parentRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRoute
+    }
+    '/projects/$projectSlug/boxes/$boxId/chat': {
+      id: '/projects/$projectSlug/boxes/$boxId/chat'
+      path: '/chat'
+      fullPath: '/projects/$projectSlug/boxes/$boxId/chat'
+      preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdChatRouteImport
+      parentRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRoute
+    }
   }
 }
 
@@ -698,11 +798,26 @@ const ProjectsProjectSlugSettingsRouteRouteWithChildren =
   )
 
 interface ProjectsProjectSlugBoxesBoxIdRouteRouteChildren {
+  ProjectsProjectSlugBoxesBoxIdChatRoute: typeof ProjectsProjectSlugBoxesBoxIdChatRoute
+  ProjectsProjectSlugBoxesBoxIdFilesRoute: typeof ProjectsProjectSlugBoxesBoxIdFilesRoute
+  ProjectsProjectSlugBoxesBoxIdLogsRoute: typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
+  ProjectsProjectSlugBoxesBoxIdResourcesRoute: typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
+  ProjectsProjectSlugBoxesBoxIdTerminalRoute: typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
   ProjectsProjectSlugBoxesBoxIdIndexRoute: typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 
 const ProjectsProjectSlugBoxesBoxIdRouteRouteChildren: ProjectsProjectSlugBoxesBoxIdRouteRouteChildren =
   {
+    ProjectsProjectSlugBoxesBoxIdChatRoute:
+      ProjectsProjectSlugBoxesBoxIdChatRoute,
+    ProjectsProjectSlugBoxesBoxIdFilesRoute:
+      ProjectsProjectSlugBoxesBoxIdFilesRoute,
+    ProjectsProjectSlugBoxesBoxIdLogsRoute:
+      ProjectsProjectSlugBoxesBoxIdLogsRoute,
+    ProjectsProjectSlugBoxesBoxIdResourcesRoute:
+      ProjectsProjectSlugBoxesBoxIdResourcesRoute,
+    ProjectsProjectSlugBoxesBoxIdTerminalRoute:
+      ProjectsProjectSlugBoxesBoxIdTerminalRoute,
     ProjectsProjectSlugBoxesBoxIdIndexRoute:
       ProjectsProjectSlugBoxesBoxIdIndexRoute,
   }
