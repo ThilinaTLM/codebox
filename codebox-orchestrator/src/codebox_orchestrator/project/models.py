@@ -62,7 +62,12 @@ class Project(Base):
         String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     status: Mapped[ProjectStatus] = mapped_column(
-        SqlEnum(ProjectStatus, name="project_status", create_constraint=True),
+        SqlEnum(
+            ProjectStatus,
+            name="project_status",
+            create_constraint=True,
+            values_callable=lambda enum: [member.value for member in enum],
+        ),
         default=ProjectStatus.ACTIVE,
         nullable=False,
     )

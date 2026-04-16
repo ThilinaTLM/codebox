@@ -43,7 +43,12 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(512), nullable=False)
     user_type: Mapped[str] = mapped_column(String(20))  # "admin" | "user"
     status: Mapped[UserStatus] = mapped_column(
-        SqlEnum(UserStatus, name="user_status", create_constraint=True),
+        SqlEnum(
+            UserStatus,
+            name="user_status",
+            create_constraint=True,
+            values_callable=lambda enum: [member.value for member in enum],
+        ),
         default=UserStatus.ACTIVE,
         nullable=False,
     )
