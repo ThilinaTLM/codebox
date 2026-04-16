@@ -1,5 +1,5 @@
 import type { AgentActivity } from "@/hooks/useAgentActivity"
-import { Activity, ContainerStatus, TaskOutcome } from "@/net/http/types"
+import { Activity, BoxOutcome, ContainerStatus } from "@/net/http/types"
 import { STATE_DOT_COLORS } from "@/lib/state-colors"
 import { StatusDot } from "@/components/ui/status-dot"
 
@@ -38,36 +38,35 @@ const activityDotColors: Record<Activity, string> = {
   [Activity.EXEC_SHELL]: "bg-state-thinking",
 }
 
-const outcomeLabels: Record<TaskOutcome, string> = {
-  [TaskOutcome.IN_PROGRESS]: "In progress",
-  [TaskOutcome.COMPLETED]: "Completed",
-  [TaskOutcome.NEED_CLARIFICATION]: "Needs clarification",
-  [TaskOutcome.UNABLE_TO_PROCEED]: "Unable to proceed",
-  [TaskOutcome.NOT_ENOUGH_CONTEXT]: "Not enough context",
+const outcomeLabels: Record<BoxOutcome, string> = {
+  [BoxOutcome.IN_PROGRESS]: "In progress",
+  [BoxOutcome.COMPLETED]: "Completed",
+  [BoxOutcome.NEED_CLARIFICATION]: "Needs clarification",
+  [BoxOutcome.UNABLE_TO_PROCEED]: "Unable to proceed",
+  [BoxOutcome.NOT_ENOUGH_CONTEXT]: "Not enough context",
 }
 
-const outcomeDotColors: Record<TaskOutcome, string> = {
-  [TaskOutcome.IN_PROGRESS]: "bg-state-writing",
-  [TaskOutcome.COMPLETED]: "bg-state-completed",
-  [TaskOutcome.NEED_CLARIFICATION]: "bg-state-thinking",
-  [TaskOutcome.UNABLE_TO_PROCEED]: "bg-state-error",
-  [TaskOutcome.NOT_ENOUGH_CONTEXT]: "bg-state-error",
+const outcomeDotColors: Record<BoxOutcome, string> = {
+  [BoxOutcome.IN_PROGRESS]: "bg-state-writing",
+  [BoxOutcome.COMPLETED]: "bg-state-completed",
+  [BoxOutcome.NEED_CLARIFICATION]: "bg-state-thinking",
+  [BoxOutcome.UNABLE_TO_PROCEED]: "bg-state-error",
+  [BoxOutcome.NOT_ENOUGH_CONTEXT]: "bg-state-error",
 }
 
 interface BoxStatusBadgeProps {
   containerStatus: ContainerStatus
   boxActivity?: Activity
-  taskOutcome?: TaskOutcome | null
+  boxOutcome?: BoxOutcome | null
   activity?: AgentActivity
 }
 
 export function BoxStatusBadge({
   containerStatus,
   boxActivity,
-  taskOutcome,
+  boxOutcome,
   activity,
 }: BoxStatusBadgeProps) {
-  // If we have a live activity override, use it
   if (activity) {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -79,7 +78,6 @@ export function BoxStatusBadge({
 
   const config = containerConfig[containerStatus]
 
-  // For running containers, show activity as the label
   if (
     containerStatus === ContainerStatus.RUNNING &&
     boxActivity &&
@@ -93,10 +91,9 @@ export function BoxStatusBadge({
     )
   }
 
-  // For stopped containers with completed outcome, show that
   if (
     containerStatus === ContainerStatus.STOPPED &&
-    taskOutcome === TaskOutcome.COMPLETED
+    boxOutcome === BoxOutcome.COMPLETED
   ) {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -114,7 +111,7 @@ export function BoxStatusBadge({
   )
 }
 
-export function TaskOutcomeBadge({ status }: { status: TaskOutcome }) {
+export function BoxOutcomeBadge({ status }: { status: BoxOutcome }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <StatusDot color={outcomeDotColors[status]} />
@@ -122,5 +119,3 @@ export function TaskOutcomeBadge({ status }: { status: TaskOutcome }) {
     </span>
   )
 }
-
-

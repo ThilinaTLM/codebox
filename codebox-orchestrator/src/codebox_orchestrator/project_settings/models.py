@@ -1,10 +1,10 @@
-"""SQLAlchemy ORM model for per-user settings."""
+"""SQLAlchemy ORM model for per-project settings."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from codebox_orchestrator.shared.persistence.base import Base
@@ -14,11 +14,15 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-class UserSettings(Base):
-    __tablename__ = "user_settings"
+class ProjectSettings(Base):
+    __tablename__ = "project_settings"
 
-    user_id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    default_llm_profile_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    default_llm_profile_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("llm_profiles.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Tavily
     tavily_api_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)

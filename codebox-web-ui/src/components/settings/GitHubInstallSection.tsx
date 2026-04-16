@@ -2,6 +2,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { ChevronRight } from "lucide-react"
 import { StepHeader } from "./StepHeader"
+import { useProjectStore } from "@/lib/project"
 import { useAddGitHubInstallation } from "@/net/query"
 import { API_URL } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
@@ -68,7 +69,8 @@ export function GitHubInstallSection({ appSlug }: GitHubInstallSectionProps) {
 
 function ManualInstallSection() {
   const [installationId, setInstallationId] = useState("")
-  const addMutation = useAddGitHubInstallation()
+  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const addMutation = useAddGitHubInstallation(slug)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

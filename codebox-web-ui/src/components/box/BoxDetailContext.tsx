@@ -6,6 +6,7 @@ import type { useBoxActions } from "@/hooks/useBoxActions"
 export interface BoxDetailContextValue {
   box: Box
   boxId: string
+  projectSlug: string
   isActive: boolean
   isStopped: boolean
   activity: AgentActivity

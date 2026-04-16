@@ -9,6 +9,7 @@ import { PdfPreview } from "./previews/PdfPreview"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/net/http/api"
 import { useBoxFileContent } from "@/net/query"
+import { useProjectStore } from "@/lib/project"
 
 // ---------------------------------------------------------------------------
 // File type classification (shared with FilePreview)
@@ -53,7 +54,8 @@ interface FileViewerProps {
 }
 
 export function FileViewer({ boxId, filePath }: FileViewerProps) {
-  const { data: fileContent, isLoading } = useBoxFileContent(boxId, filePath)
+  const slug = useProjectStore((s) => s.currentProject?.slug)
+  const { data: fileContent, isLoading } = useBoxFileContent(slug, boxId, filePath)
 
   if (!filePath) {
     return (
@@ -63,8 +65,8 @@ export function FileViewer({ boxId, filePath }: FileViewerProps) {
     )
   }
 
-  const downloadUrl = api.boxes.getDownloadUrl(boxId, filePath)
-  const inlineUrl = api.boxes.getInlineUrl(boxId, filePath)
+  const downloadUrl = slug ? api.boxes.getDownloadUrl(slug, boxId, filePath) : ""
+  const inlineUrl = slug ? api.boxes.getInlineUrl(slug, boxId, filePath) : ""
   const fileName = filePath.split("/").pop() ?? ""
   const displayPath = filePath.replace("/workspace/", "")
 

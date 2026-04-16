@@ -4,14 +4,16 @@ import { useBoxPageActions } from "@/components/box/BoxPageContext"
 import { useBoxes } from "@/net/query"
 import { ContainerStatus } from "@/net/http/types"
 import { STATE_DOT_COLORS } from "@/lib/state-colors"
+import { useProjectStore } from "@/lib/project"
 
 export function StatusBar() {
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
-  const isBoxPage = currentPath.startsWith("/boxes/")
+  const isBoxPage = currentPath.includes("/boxes/")
 
   const boxPageActions = useBoxPageActions()
-  const { data: boxes } = useBoxes()
+  const currentProject = useProjectStore((s) => s.currentProject)
+  const { data: boxes } = useBoxes(currentProject?.slug)
 
   const activeCount = (boxes ?? []).filter(
     (b) =>

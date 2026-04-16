@@ -11,16 +11,16 @@ import {
   useStopBox,
 } from "@/net/query"
 
-export function useBoxActions(boxId: string) {
-  const { refetch } = useBox(boxId)
+export function useBoxActions(slug: string, boxId: string) {
+  const { refetch } = useBox(slug, boxId)
   const navigate = useNavigate()
 
-  const stopMutation = useStopBox()
-  const deleteMutation = useDeleteBox()
-  const restartMutation = useRestartBox()
-  const sendMessageMutation = useSendMessage()
-  const sendExecMutation = useSendExec()
-  const cancelMutation = useCancelBox()
+  const stopMutation = useStopBox(slug)
+  const deleteMutation = useDeleteBox(slug)
+  const restartMutation = useRestartBox(slug)
+  const sendMessageMutation = useSendMessage(slug)
+  const sendExecMutation = useSendExec(slug)
+  const cancelMutation = useCancelBox(slug)
 
   const handleStop = useCallback(() => {
     stopMutation.mutate(boxId, {
@@ -43,11 +43,11 @@ export function useBoxActions(boxId: string) {
     deleteMutation.mutate(boxId, {
       onSuccess: () => {
         toast.success("Agent deleted")
-        navigate({ to: "/" })
+        navigate({ to: `/projects/${slug}` })
       },
       onError: () => toast.error("Failed to delete"),
     })
-  }, [deleteMutation, boxId, navigate])
+  }, [deleteMutation, boxId, navigate, slug])
 
   const handleSendMessage = useCallback(
     (content: string) => {

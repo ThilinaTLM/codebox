@@ -19,10 +19,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-
-# ── Schemas ──────────────────────────────────────────────────────
+router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
 class LoginRequest(BaseModel):
@@ -34,6 +31,7 @@ class UserResponse(BaseModel):
     id: str
     username: str
     user_type: str
+    status: str
     first_name: str | None = None
     last_name: str | None = None
     created_at: str
@@ -63,15 +61,12 @@ class UpdateProfileRequest(BaseModel):
     last_name: str | None = None
 
 
-# ── Public routes ────────────────────────────────────────────────
-
-
 def _user_response(user: User) -> UserResponse:
-    """Build a UserResponse from a User ORM instance."""
     return UserResponse(
         id=user.id,
         username=user.username,
         user_type=user.user_type,
+        status=user.status.value if hasattr(user.status, "value") else str(user.status),
         first_name=user.first_name,
         last_name=user.last_name,
         created_at=user.created_at.isoformat(),
@@ -79,7 +74,6 @@ def _user_response(user: User) -> UserResponse:
 
 
 def _set_auth_cookie(response: Response, token: str) -> None:
-    """Set the HttpOnly auth cookie on a response."""
     secure = ENVIRONMENT != "development"
     response.set_cookie(
         key="access_token",
@@ -92,13 +86,12 @@ def _set_auth_cookie(response: Response, token: str) -> None:
     )
 
 
-@router.post("/login")
+@router.post("/login", summary="Login", operation_id="login")
 async def login(
     body: LoginRequest,
     response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> LoginResponse:
-    """Authenticate with username/password and set an HttpOnly auth cookie."""
     user = await auth_service.authenticate(body.username, body.password)
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -107,35 +100,29 @@ async def login(
     return LoginResponse(user=_user_response(user))
 
 
-@router.post("/logout")
+@router.post("/logout", summary="Logout", operation_id="logout")
 async def logout(response: Response) -> dict[str, bool]:
-    """Clear the auth cookie."""
     response.delete_cookie(key="access_token", path="/")
     return {"ok": True}
 
 
-# ── Authenticated routes ────────────────────────────────────────
-
-
-@router.get("/me")
+@router.get("/me", summary="Get current user", operation_id="get_current_user")
 async def me(
     current_user: UserInfo = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
-    """Return the current authenticated user's info (fetched from DB)."""
     user = await auth_service.get_user_by_id(current_user.user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return _user_response(user)
 
 
-@router.patch("/me")
+@router.patch("/me", summary="Update current user", operation_id="update_current_user")
 async def update_my_profile(
     body: UpdateProfileRequest,
     current_user: UserInfo = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
-    """Update the current user's profile (first/last name)."""
     user = await auth_service.update_profile(
         current_user.user_id,
         first_name=body.first_name,
@@ -146,13 +133,12 @@ async def update_my_profile(
     return _user_response(user)
 
 
-@router.post("/change-password", response_model=None)
+@router.post("/change-password", summary="Change password", operation_id="change_password")
 async def change_password(
     body: ChangePasswordRequest,
     current_user: UserInfo = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> dict[str, str]:
-    """Change the current user's password."""
     if len(body.new_password) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
     success = await auth_service.change_password(
@@ -163,26 +149,21 @@ async def change_password(
     return {"status": "password_changed"}
 
 
-# ── Admin routes ─────────────────────────────────────────────────
-
-
-@router.get("/users")
+@router.get("/users", summary="List users", operation_id="list_users")
 async def list_users(
     _: UserInfo = Depends(require_admin),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> list[UserResponse]:
-    """List all users (admin only)."""
-    users = await auth_service.list_users()
+    users = await auth_service.list_users(include_disabled=True, include_deleted=False)
     return [_user_response(u) for u in users]
 
 
-@router.post("/users")
+@router.post("/users", status_code=201, summary="Create user", operation_id="create_user")
 async def create_user(
     body: CreateUserRequest,
     _: UserInfo = Depends(require_admin),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
-    """Create a new user (admin only)."""
     if len(body.password) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
     try:
@@ -198,13 +179,39 @@ async def create_user(
     return _user_response(user)
 
 
-@router.delete("/users/{user_id}", response_model=None)
+@router.post("/users/{user_id}/disable", summary="Disable user", operation_id="disable_user")
+async def disable_user(
+    user_id: str,
+    current_user: UserInfo = Depends(require_admin),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> dict[str, str]:
+    try:
+        disabled = await auth_service.disable_user(user_id, current_user.user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not disabled:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"status": "disabled"}
+
+
+@router.post("/users/{user_id}/enable", summary="Enable user", operation_id="enable_user")
+async def enable_user(
+    user_id: str,
+    _: UserInfo = Depends(require_admin),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> dict[str, str]:
+    enabled = await auth_service.enable_user(user_id)
+    if not enabled:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"status": "enabled"}
+
+
+@router.delete("/users/{user_id}", summary="Delete user", operation_id="delete_user")
 async def delete_user(
     user_id: str,
     current_user: UserInfo = Depends(require_admin),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> dict[str, str]:
-    """Delete a user (admin only). Cannot delete yourself."""
     try:
         deleted = await auth_service.delete_user(user_id, current_user.user_id)
     except ValueError as exc:

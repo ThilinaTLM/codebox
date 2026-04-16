@@ -14,19 +14,20 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteRouteImport } from './routes/settings/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
-import { Route as SettingsTavilyRouteImport } from './routes/settings/tavily'
-import { Route as SettingsLlmProfilesRouteImport } from './routes/settings/llm-profiles'
-import { Route as SettingsGithubRouteImport } from './routes/settings/github'
+import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsAccountRouteImport } from './routes/settings/account'
-import { Route as BoxesCreateRouteImport } from './routes/boxes/create'
-import { Route as BoxesBoxIdRouteRouteImport } from './routes/boxes/$boxId/route'
-import { Route as BoxesBoxIdIndexRouteImport } from './routes/boxes/$boxId/index'
-import { Route as BoxesBoxIdTerminalRouteImport } from './routes/boxes/$boxId/terminal'
-import { Route as BoxesBoxIdResourcesRouteImport } from './routes/boxes/$boxId/resources'
-import { Route as BoxesBoxIdLogsRouteImport } from './routes/boxes/$boxId/logs'
-import { Route as BoxesBoxIdFilesRouteImport } from './routes/boxes/$boxId/files'
-import { Route as BoxesBoxIdChatRouteImport } from './routes/boxes/$boxId/chat'
+import { Route as ProjectsProjectSlugRouteRouteImport } from './routes/projects/$projectSlug/route'
+import { Route as ProjectsProjectSlugIndexRouteImport } from './routes/projects/$projectSlug/index'
+import { Route as ProjectsProjectSlugSettingsRouteRouteImport } from './routes/projects/$projectSlug/settings/route'
+import { Route as ProjectsProjectSlugSettingsIndexRouteImport } from './routes/projects/$projectSlug/settings/index'
+import { Route as ProjectsProjectSlugSettingsTavilyRouteImport } from './routes/projects/$projectSlug/settings/tavily'
+import { Route as ProjectsProjectSlugSettingsMembersRouteImport } from './routes/projects/$projectSlug/settings/members'
+import { Route as ProjectsProjectSlugSettingsLlmProfilesRouteImport } from './routes/projects/$projectSlug/settings/llm-profiles'
+import { Route as ProjectsProjectSlugSettingsGithubRouteImport } from './routes/projects/$projectSlug/settings/github'
+import { Route as ProjectsProjectSlugBoxesCreateRouteImport } from './routes/projects/$projectSlug/boxes/create'
+import { Route as ProjectsProjectSlugBoxesBoxIdRouteRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/route'
+import { Route as ProjectsProjectSlugBoxesBoxIdIndexRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/index'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -53,20 +54,10 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
-const SettingsTavilyRoute = SettingsTavilyRouteImport.update({
-  id: '/tavily',
-  path: '/tavily',
-  getParentRoute: () => SettingsRouteRoute,
-} as any)
-const SettingsLlmProfilesRoute = SettingsLlmProfilesRouteImport.update({
-  id: '/llm-profiles',
-  path: '/llm-profiles',
-  getParentRoute: () => SettingsRouteRoute,
-} as any)
-const SettingsGithubRoute = SettingsGithubRouteImport.update({
-  id: '/github',
-  path: '/github',
-  getParentRoute: () => SettingsRouteRoute,
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   id: '/appearance',
@@ -78,84 +69,110 @@ const SettingsAccountRoute = SettingsAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
-const BoxesCreateRoute = BoxesCreateRouteImport.update({
-  id: '/boxes/create',
-  path: '/boxes/create',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BoxesBoxIdRouteRoute = BoxesBoxIdRouteRouteImport.update({
-  id: '/boxes/$boxId',
-  path: '/boxes/$boxId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BoxesBoxIdIndexRoute = BoxesBoxIdIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => BoxesBoxIdRouteRoute,
-} as any)
-const BoxesBoxIdTerminalRoute = BoxesBoxIdTerminalRouteImport.update({
-  id: '/terminal',
-  path: '/terminal',
-  getParentRoute: () => BoxesBoxIdRouteRoute,
-} as any)
-const BoxesBoxIdResourcesRoute = BoxesBoxIdResourcesRouteImport.update({
-  id: '/resources',
-  path: '/resources',
-  getParentRoute: () => BoxesBoxIdRouteRoute,
-} as any)
-const BoxesBoxIdLogsRoute = BoxesBoxIdLogsRouteImport.update({
-  id: '/logs',
-  path: '/logs',
-  getParentRoute: () => BoxesBoxIdRouteRoute,
-} as any)
-const BoxesBoxIdFilesRoute = BoxesBoxIdFilesRouteImport.update({
-  id: '/files',
-  path: '/files',
-  getParentRoute: () => BoxesBoxIdRouteRoute,
-} as any)
-const BoxesBoxIdChatRoute = BoxesBoxIdChatRouteImport.update({
-  id: '/chat',
-  path: '/chat',
-  getParentRoute: () => BoxesBoxIdRouteRoute,
-} as any)
+const ProjectsProjectSlugRouteRoute =
+  ProjectsProjectSlugRouteRouteImport.update({
+    id: '/projects/$projectSlug',
+    path: '/projects/$projectSlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ProjectsProjectSlugIndexRoute =
+  ProjectsProjectSlugIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectsProjectSlugRouteRoute,
+  } as any)
+const ProjectsProjectSlugSettingsRouteRoute =
+  ProjectsProjectSlugSettingsRouteRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => ProjectsProjectSlugRouteRoute,
+  } as any)
+const ProjectsProjectSlugSettingsIndexRoute =
+  ProjectsProjectSlugSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+  } as any)
+const ProjectsProjectSlugSettingsTavilyRoute =
+  ProjectsProjectSlugSettingsTavilyRouteImport.update({
+    id: '/tavily',
+    path: '/tavily',
+    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+  } as any)
+const ProjectsProjectSlugSettingsMembersRoute =
+  ProjectsProjectSlugSettingsMembersRouteImport.update({
+    id: '/members',
+    path: '/members',
+    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+  } as any)
+const ProjectsProjectSlugSettingsLlmProfilesRoute =
+  ProjectsProjectSlugSettingsLlmProfilesRouteImport.update({
+    id: '/llm-profiles',
+    path: '/llm-profiles',
+    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+  } as any)
+const ProjectsProjectSlugSettingsGithubRoute =
+  ProjectsProjectSlugSettingsGithubRouteImport.update({
+    id: '/github',
+    path: '/github',
+    getParentRoute: () => ProjectsProjectSlugSettingsRouteRoute,
+  } as any)
+const ProjectsProjectSlugBoxesCreateRoute =
+  ProjectsProjectSlugBoxesCreateRouteImport.update({
+    id: '/boxes/create',
+    path: '/boxes/create',
+    getParentRoute: () => ProjectsProjectSlugRouteRoute,
+  } as any)
+const ProjectsProjectSlugBoxesBoxIdRouteRoute =
+  ProjectsProjectSlugBoxesBoxIdRouteRouteImport.update({
+    id: '/boxes/$boxId',
+    path: '/boxes/$boxId',
+    getParentRoute: () => ProjectsProjectSlugRouteRoute,
+  } as any)
+const ProjectsProjectSlugBoxesBoxIdIndexRoute =
+  ProjectsProjectSlugBoxesBoxIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectsProjectSlugBoxesBoxIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
-  '/boxes/$boxId': typeof BoxesBoxIdRouteRouteWithChildren
-  '/boxes/create': typeof BoxesCreateRoute
+  '/projects/$projectSlug': typeof ProjectsProjectSlugRouteRouteWithChildren
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
-  '/settings/github': typeof SettingsGithubRoute
-  '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
-  '/settings/tavily': typeof SettingsTavilyRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/settings/': typeof SettingsIndexRoute
-  '/boxes/$boxId/chat': typeof BoxesBoxIdChatRoute
-  '/boxes/$boxId/files': typeof BoxesBoxIdFilesRoute
-  '/boxes/$boxId/logs': typeof BoxesBoxIdLogsRoute
-  '/boxes/$boxId/resources': typeof BoxesBoxIdResourcesRoute
-  '/boxes/$boxId/terminal': typeof BoxesBoxIdTerminalRoute
-  '/boxes/$boxId/': typeof BoxesBoxIdIndexRoute
+  '/projects/$projectSlug/settings': typeof ProjectsProjectSlugSettingsRouteRouteWithChildren
+  '/projects/$projectSlug/': typeof ProjectsProjectSlugIndexRoute
+  '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren
+  '/projects/$projectSlug/boxes/create': typeof ProjectsProjectSlugBoxesCreateRoute
+  '/projects/$projectSlug/settings/github': typeof ProjectsProjectSlugSettingsGithubRoute
+  '/projects/$projectSlug/settings/llm-profiles': typeof ProjectsProjectSlugSettingsLlmProfilesRoute
+  '/projects/$projectSlug/settings/members': typeof ProjectsProjectSlugSettingsMembersRoute
+  '/projects/$projectSlug/settings/tavily': typeof ProjectsProjectSlugSettingsTavilyRoute
+  '/projects/$projectSlug/settings/': typeof ProjectsProjectSlugSettingsIndexRoute
+  '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
-  '/boxes/create': typeof BoxesCreateRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
-  '/settings/github': typeof SettingsGithubRoute
-  '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
-  '/settings/tavily': typeof SettingsTavilyRoute
+  '/projects': typeof ProjectsIndexRoute
   '/settings': typeof SettingsIndexRoute
-  '/boxes/$boxId/chat': typeof BoxesBoxIdChatRoute
-  '/boxes/$boxId/files': typeof BoxesBoxIdFilesRoute
-  '/boxes/$boxId/logs': typeof BoxesBoxIdLogsRoute
-  '/boxes/$boxId/resources': typeof BoxesBoxIdResourcesRoute
-  '/boxes/$boxId/terminal': typeof BoxesBoxIdTerminalRoute
-  '/boxes/$boxId': typeof BoxesBoxIdIndexRoute
+  '/projects/$projectSlug': typeof ProjectsProjectSlugIndexRoute
+  '/projects/$projectSlug/boxes/create': typeof ProjectsProjectSlugBoxesCreateRoute
+  '/projects/$projectSlug/settings/github': typeof ProjectsProjectSlugSettingsGithubRoute
+  '/projects/$projectSlug/settings/llm-profiles': typeof ProjectsProjectSlugSettingsLlmProfilesRoute
+  '/projects/$projectSlug/settings/members': typeof ProjectsProjectSlugSettingsMembersRoute
+  '/projects/$projectSlug/settings/tavily': typeof ProjectsProjectSlugSettingsTavilyRoute
+  '/projects/$projectSlug/settings': typeof ProjectsProjectSlugSettingsIndexRoute
+  '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -163,20 +180,21 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
-  '/boxes/$boxId': typeof BoxesBoxIdRouteRouteWithChildren
-  '/boxes/create': typeof BoxesCreateRoute
+  '/projects/$projectSlug': typeof ProjectsProjectSlugRouteRouteWithChildren
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
-  '/settings/github': typeof SettingsGithubRoute
-  '/settings/llm-profiles': typeof SettingsLlmProfilesRoute
-  '/settings/tavily': typeof SettingsTavilyRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/settings/': typeof SettingsIndexRoute
-  '/boxes/$boxId/chat': typeof BoxesBoxIdChatRoute
-  '/boxes/$boxId/files': typeof BoxesBoxIdFilesRoute
-  '/boxes/$boxId/logs': typeof BoxesBoxIdLogsRoute
-  '/boxes/$boxId/resources': typeof BoxesBoxIdResourcesRoute
-  '/boxes/$boxId/terminal': typeof BoxesBoxIdTerminalRoute
-  '/boxes/$boxId/': typeof BoxesBoxIdIndexRoute
+  '/projects/$projectSlug/settings': typeof ProjectsProjectSlugSettingsRouteRouteWithChildren
+  '/projects/$projectSlug/': typeof ProjectsProjectSlugIndexRoute
+  '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren
+  '/projects/$projectSlug/boxes/create': typeof ProjectsProjectSlugBoxesCreateRoute
+  '/projects/$projectSlug/settings/github': typeof ProjectsProjectSlugSettingsGithubRoute
+  '/projects/$projectSlug/settings/llm-profiles': typeof ProjectsProjectSlugSettingsLlmProfilesRoute
+  '/projects/$projectSlug/settings/members': typeof ProjectsProjectSlugSettingsMembersRoute
+  '/projects/$projectSlug/settings/tavily': typeof ProjectsProjectSlugSettingsTavilyRoute
+  '/projects/$projectSlug/settings/': typeof ProjectsProjectSlugSettingsIndexRoute
+  '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -185,58 +203,59 @@ export interface FileRouteTypes {
     | '/settings'
     | '/login'
     | '/users'
-    | '/boxes/$boxId'
-    | '/boxes/create'
+    | '/projects/$projectSlug'
     | '/settings/account'
     | '/settings/appearance'
-    | '/settings/github'
-    | '/settings/llm-profiles'
-    | '/settings/tavily'
+    | '/projects/'
     | '/settings/'
-    | '/boxes/$boxId/chat'
-    | '/boxes/$boxId/files'
-    | '/boxes/$boxId/logs'
-    | '/boxes/$boxId/resources'
-    | '/boxes/$boxId/terminal'
-    | '/boxes/$boxId/'
+    | '/projects/$projectSlug/settings'
+    | '/projects/$projectSlug/'
+    | '/projects/$projectSlug/boxes/$boxId'
+    | '/projects/$projectSlug/boxes/create'
+    | '/projects/$projectSlug/settings/github'
+    | '/projects/$projectSlug/settings/llm-profiles'
+    | '/projects/$projectSlug/settings/members'
+    | '/projects/$projectSlug/settings/tavily'
+    | '/projects/$projectSlug/settings/'
+    | '/projects/$projectSlug/boxes/$boxId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/users'
-    | '/boxes/create'
     | '/settings/account'
     | '/settings/appearance'
-    | '/settings/github'
-    | '/settings/llm-profiles'
-    | '/settings/tavily'
+    | '/projects'
     | '/settings'
-    | '/boxes/$boxId/chat'
-    | '/boxes/$boxId/files'
-    | '/boxes/$boxId/logs'
-    | '/boxes/$boxId/resources'
-    | '/boxes/$boxId/terminal'
-    | '/boxes/$boxId'
+    | '/projects/$projectSlug'
+    | '/projects/$projectSlug/boxes/create'
+    | '/projects/$projectSlug/settings/github'
+    | '/projects/$projectSlug/settings/llm-profiles'
+    | '/projects/$projectSlug/settings/members'
+    | '/projects/$projectSlug/settings/tavily'
+    | '/projects/$projectSlug/settings'
+    | '/projects/$projectSlug/boxes/$boxId'
   id:
     | '__root__'
     | '/'
     | '/settings'
     | '/login'
     | '/users'
-    | '/boxes/$boxId'
-    | '/boxes/create'
+    | '/projects/$projectSlug'
     | '/settings/account'
     | '/settings/appearance'
-    | '/settings/github'
-    | '/settings/llm-profiles'
-    | '/settings/tavily'
+    | '/projects/'
     | '/settings/'
-    | '/boxes/$boxId/chat'
-    | '/boxes/$boxId/files'
-    | '/boxes/$boxId/logs'
-    | '/boxes/$boxId/resources'
-    | '/boxes/$boxId/terminal'
-    | '/boxes/$boxId/'
+    | '/projects/$projectSlug/settings'
+    | '/projects/$projectSlug/'
+    | '/projects/$projectSlug/boxes/$boxId'
+    | '/projects/$projectSlug/boxes/create'
+    | '/projects/$projectSlug/settings/github'
+    | '/projects/$projectSlug/settings/llm-profiles'
+    | '/projects/$projectSlug/settings/members'
+    | '/projects/$projectSlug/settings/tavily'
+    | '/projects/$projectSlug/settings/'
+    | '/projects/$projectSlug/boxes/$boxId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -244,8 +263,8 @@ export interface RootRouteChildren {
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   UsersRoute: typeof UsersRoute
-  BoxesBoxIdRouteRoute: typeof BoxesBoxIdRouteRouteWithChildren
-  BoxesCreateRoute: typeof BoxesCreateRoute
+  ProjectsProjectSlugRouteRoute: typeof ProjectsProjectSlugRouteRouteWithChildren
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -285,26 +304,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRouteRoute
     }
-    '/settings/tavily': {
-      id: '/settings/tavily'
-      path: '/tavily'
-      fullPath: '/settings/tavily'
-      preLoaderRoute: typeof SettingsTavilyRouteImport
-      parentRoute: typeof SettingsRouteRoute
-    }
-    '/settings/llm-profiles': {
-      id: '/settings/llm-profiles'
-      path: '/llm-profiles'
-      fullPath: '/settings/llm-profiles'
-      preLoaderRoute: typeof SettingsLlmProfilesRouteImport
-      parentRoute: typeof SettingsRouteRoute
-    }
-    '/settings/github': {
-      id: '/settings/github'
-      path: '/github'
-      fullPath: '/settings/github'
-      preLoaderRoute: typeof SettingsGithubRouteImport
-      parentRoute: typeof SettingsRouteRoute
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/settings/appearance': {
       id: '/settings/appearance'
@@ -320,61 +325,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAccountRouteImport
       parentRoute: typeof SettingsRouteRoute
     }
-    '/boxes/create': {
-      id: '/boxes/create'
-      path: '/boxes/create'
-      fullPath: '/boxes/create'
-      preLoaderRoute: typeof BoxesCreateRouteImport
+    '/projects/$projectSlug': {
+      id: '/projects/$projectSlug'
+      path: '/projects/$projectSlug'
+      fullPath: '/projects/$projectSlug'
+      preLoaderRoute: typeof ProjectsProjectSlugRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/boxes/$boxId': {
-      id: '/boxes/$boxId'
-      path: '/boxes/$boxId'
-      fullPath: '/boxes/$boxId'
-      preLoaderRoute: typeof BoxesBoxIdRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/boxes/$boxId/': {
-      id: '/boxes/$boxId/'
+    '/projects/$projectSlug/': {
+      id: '/projects/$projectSlug/'
       path: '/'
-      fullPath: '/boxes/$boxId/'
-      preLoaderRoute: typeof BoxesBoxIdIndexRouteImport
-      parentRoute: typeof BoxesBoxIdRouteRoute
+      fullPath: '/projects/$projectSlug/'
+      preLoaderRoute: typeof ProjectsProjectSlugIndexRouteImport
+      parentRoute: typeof ProjectsProjectSlugRouteRoute
     }
-    '/boxes/$boxId/terminal': {
-      id: '/boxes/$boxId/terminal'
-      path: '/terminal'
-      fullPath: '/boxes/$boxId/terminal'
-      preLoaderRoute: typeof BoxesBoxIdTerminalRouteImport
-      parentRoute: typeof BoxesBoxIdRouteRoute
+    '/projects/$projectSlug/settings': {
+      id: '/projects/$projectSlug/settings'
+      path: '/settings'
+      fullPath: '/projects/$projectSlug/settings'
+      preLoaderRoute: typeof ProjectsProjectSlugSettingsRouteRouteImport
+      parentRoute: typeof ProjectsProjectSlugRouteRoute
     }
-    '/boxes/$boxId/resources': {
-      id: '/boxes/$boxId/resources'
-      path: '/resources'
-      fullPath: '/boxes/$boxId/resources'
-      preLoaderRoute: typeof BoxesBoxIdResourcesRouteImport
-      parentRoute: typeof BoxesBoxIdRouteRoute
+    '/projects/$projectSlug/settings/': {
+      id: '/projects/$projectSlug/settings/'
+      path: '/'
+      fullPath: '/projects/$projectSlug/settings/'
+      preLoaderRoute: typeof ProjectsProjectSlugSettingsIndexRouteImport
+      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
     }
-    '/boxes/$boxId/logs': {
-      id: '/boxes/$boxId/logs'
-      path: '/logs'
-      fullPath: '/boxes/$boxId/logs'
-      preLoaderRoute: typeof BoxesBoxIdLogsRouteImport
-      parentRoute: typeof BoxesBoxIdRouteRoute
+    '/projects/$projectSlug/settings/tavily': {
+      id: '/projects/$projectSlug/settings/tavily'
+      path: '/tavily'
+      fullPath: '/projects/$projectSlug/settings/tavily'
+      preLoaderRoute: typeof ProjectsProjectSlugSettingsTavilyRouteImport
+      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
     }
-    '/boxes/$boxId/files': {
-      id: '/boxes/$boxId/files'
-      path: '/files'
-      fullPath: '/boxes/$boxId/files'
-      preLoaderRoute: typeof BoxesBoxIdFilesRouteImport
-      parentRoute: typeof BoxesBoxIdRouteRoute
+    '/projects/$projectSlug/settings/members': {
+      id: '/projects/$projectSlug/settings/members'
+      path: '/members'
+      fullPath: '/projects/$projectSlug/settings/members'
+      preLoaderRoute: typeof ProjectsProjectSlugSettingsMembersRouteImport
+      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
     }
-    '/boxes/$boxId/chat': {
-      id: '/boxes/$boxId/chat'
-      path: '/chat'
-      fullPath: '/boxes/$boxId/chat'
-      preLoaderRoute: typeof BoxesBoxIdChatRouteImport
-      parentRoute: typeof BoxesBoxIdRouteRoute
+    '/projects/$projectSlug/settings/llm-profiles': {
+      id: '/projects/$projectSlug/settings/llm-profiles'
+      path: '/llm-profiles'
+      fullPath: '/projects/$projectSlug/settings/llm-profiles'
+      preLoaderRoute: typeof ProjectsProjectSlugSettingsLlmProfilesRouteImport
+      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
+    }
+    '/projects/$projectSlug/settings/github': {
+      id: '/projects/$projectSlug/settings/github'
+      path: '/github'
+      fullPath: '/projects/$projectSlug/settings/github'
+      preLoaderRoute: typeof ProjectsProjectSlugSettingsGithubRouteImport
+      parentRoute: typeof ProjectsProjectSlugSettingsRouteRoute
+    }
+    '/projects/$projectSlug/boxes/create': {
+      id: '/projects/$projectSlug/boxes/create'
+      path: '/boxes/create'
+      fullPath: '/projects/$projectSlug/boxes/create'
+      preLoaderRoute: typeof ProjectsProjectSlugBoxesCreateRouteImport
+      parentRoute: typeof ProjectsProjectSlugRouteRoute
+    }
+    '/projects/$projectSlug/boxes/$boxId': {
+      id: '/projects/$projectSlug/boxes/$boxId'
+      path: '/boxes/$boxId'
+      fullPath: '/projects/$projectSlug/boxes/$boxId'
+      preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRouteImport
+      parentRoute: typeof ProjectsProjectSlugRouteRoute
+    }
+    '/projects/$projectSlug/boxes/$boxId/': {
+      id: '/projects/$projectSlug/boxes/$boxId/'
+      path: '/'
+      fullPath: '/projects/$projectSlug/boxes/$boxId/'
+      preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdIndexRouteImport
+      parentRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRoute
     }
   }
 }
@@ -382,18 +408,12 @@ declare module '@tanstack/react-router' {
 interface SettingsRouteRouteChildren {
   SettingsAccountRoute: typeof SettingsAccountRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
-  SettingsGithubRoute: typeof SettingsGithubRoute
-  SettingsLlmProfilesRoute: typeof SettingsLlmProfilesRoute
-  SettingsTavilyRoute: typeof SettingsTavilyRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
   SettingsAccountRoute: SettingsAccountRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
-  SettingsGithubRoute: SettingsGithubRoute,
-  SettingsLlmProfilesRoute: SettingsLlmProfilesRoute,
-  SettingsTavilyRoute: SettingsTavilyRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
@@ -401,35 +421,77 @@ const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
   SettingsRouteRouteChildren,
 )
 
-interface BoxesBoxIdRouteRouteChildren {
-  BoxesBoxIdChatRoute: typeof BoxesBoxIdChatRoute
-  BoxesBoxIdFilesRoute: typeof BoxesBoxIdFilesRoute
-  BoxesBoxIdLogsRoute: typeof BoxesBoxIdLogsRoute
-  BoxesBoxIdResourcesRoute: typeof BoxesBoxIdResourcesRoute
-  BoxesBoxIdTerminalRoute: typeof BoxesBoxIdTerminalRoute
-  BoxesBoxIdIndexRoute: typeof BoxesBoxIdIndexRoute
+interface ProjectsProjectSlugSettingsRouteRouteChildren {
+  ProjectsProjectSlugSettingsGithubRoute: typeof ProjectsProjectSlugSettingsGithubRoute
+  ProjectsProjectSlugSettingsLlmProfilesRoute: typeof ProjectsProjectSlugSettingsLlmProfilesRoute
+  ProjectsProjectSlugSettingsMembersRoute: typeof ProjectsProjectSlugSettingsMembersRoute
+  ProjectsProjectSlugSettingsTavilyRoute: typeof ProjectsProjectSlugSettingsTavilyRoute
+  ProjectsProjectSlugSettingsIndexRoute: typeof ProjectsProjectSlugSettingsIndexRoute
 }
 
-const BoxesBoxIdRouteRouteChildren: BoxesBoxIdRouteRouteChildren = {
-  BoxesBoxIdChatRoute: BoxesBoxIdChatRoute,
-  BoxesBoxIdFilesRoute: BoxesBoxIdFilesRoute,
-  BoxesBoxIdLogsRoute: BoxesBoxIdLogsRoute,
-  BoxesBoxIdResourcesRoute: BoxesBoxIdResourcesRoute,
-  BoxesBoxIdTerminalRoute: BoxesBoxIdTerminalRoute,
-  BoxesBoxIdIndexRoute: BoxesBoxIdIndexRoute,
+const ProjectsProjectSlugSettingsRouteRouteChildren: ProjectsProjectSlugSettingsRouteRouteChildren =
+  {
+    ProjectsProjectSlugSettingsGithubRoute:
+      ProjectsProjectSlugSettingsGithubRoute,
+    ProjectsProjectSlugSettingsLlmProfilesRoute:
+      ProjectsProjectSlugSettingsLlmProfilesRoute,
+    ProjectsProjectSlugSettingsMembersRoute:
+      ProjectsProjectSlugSettingsMembersRoute,
+    ProjectsProjectSlugSettingsTavilyRoute:
+      ProjectsProjectSlugSettingsTavilyRoute,
+    ProjectsProjectSlugSettingsIndexRoute:
+      ProjectsProjectSlugSettingsIndexRoute,
+  }
+
+const ProjectsProjectSlugSettingsRouteRouteWithChildren =
+  ProjectsProjectSlugSettingsRouteRoute._addFileChildren(
+    ProjectsProjectSlugSettingsRouteRouteChildren,
+  )
+
+interface ProjectsProjectSlugBoxesBoxIdRouteRouteChildren {
+  ProjectsProjectSlugBoxesBoxIdIndexRoute: typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 
-const BoxesBoxIdRouteRouteWithChildren = BoxesBoxIdRouteRoute._addFileChildren(
-  BoxesBoxIdRouteRouteChildren,
-)
+const ProjectsProjectSlugBoxesBoxIdRouteRouteChildren: ProjectsProjectSlugBoxesBoxIdRouteRouteChildren =
+  {
+    ProjectsProjectSlugBoxesBoxIdIndexRoute:
+      ProjectsProjectSlugBoxesBoxIdIndexRoute,
+  }
+
+const ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren =
+  ProjectsProjectSlugBoxesBoxIdRouteRoute._addFileChildren(
+    ProjectsProjectSlugBoxesBoxIdRouteRouteChildren,
+  )
+
+interface ProjectsProjectSlugRouteRouteChildren {
+  ProjectsProjectSlugSettingsRouteRoute: typeof ProjectsProjectSlugSettingsRouteRouteWithChildren
+  ProjectsProjectSlugIndexRoute: typeof ProjectsProjectSlugIndexRoute
+  ProjectsProjectSlugBoxesBoxIdRouteRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren
+  ProjectsProjectSlugBoxesCreateRoute: typeof ProjectsProjectSlugBoxesCreateRoute
+}
+
+const ProjectsProjectSlugRouteRouteChildren: ProjectsProjectSlugRouteRouteChildren =
+  {
+    ProjectsProjectSlugSettingsRouteRoute:
+      ProjectsProjectSlugSettingsRouteRouteWithChildren,
+    ProjectsProjectSlugIndexRoute: ProjectsProjectSlugIndexRoute,
+    ProjectsProjectSlugBoxesBoxIdRouteRoute:
+      ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren,
+    ProjectsProjectSlugBoxesCreateRoute: ProjectsProjectSlugBoxesCreateRoute,
+  }
+
+const ProjectsProjectSlugRouteRouteWithChildren =
+  ProjectsProjectSlugRouteRoute._addFileChildren(
+    ProjectsProjectSlugRouteRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   UsersRoute: UsersRoute,
-  BoxesBoxIdRouteRoute: BoxesBoxIdRouteRouteWithChildren,
-  BoxesCreateRoute: BoxesCreateRoute,
+  ProjectsProjectSlugRouteRoute: ProjectsProjectSlugRouteRouteWithChildren,
+  ProjectsIndexRoute: ProjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

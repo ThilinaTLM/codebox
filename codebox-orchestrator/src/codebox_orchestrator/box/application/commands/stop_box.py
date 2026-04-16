@@ -32,7 +32,7 @@ class StopBoxHandler:
     async def execute(self, box_id: str) -> None:
         self._connections.remove_connection_fully(box_id)
 
-        box = self._query.get_box(box_id)
+        box = await self._query.get_box(box_id)
         if box is None or box.container_status == "stopped":
             return
 

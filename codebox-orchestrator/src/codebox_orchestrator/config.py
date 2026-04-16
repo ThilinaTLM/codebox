@@ -2,7 +2,7 @@
 
 Only **server infrastructure** settings are loaded from environment variables.
 All user-facing credentials (LLM API keys, Tavily, GitHub App config) are
-stored per-user in the database — see ``llm_profile`` and ``user_settings``.
+stored per-project in the database — see ``llm_profile`` and ``project_settings``.
 """
 
 from __future__ import annotations
@@ -61,76 +61,50 @@ def _default_grpc_address() -> str:
         host = "host.containers.internal"
     else:
         host = "host.docker.internal"
+
     return f"{host}:{GRPC_PORT}"
 
 
-ORCHESTRATOR_GRPC_ADDRESS: str = (
-    os.environ.get("ORCHESTRATOR_GRPC_ADDRESS", "") or _default_grpc_address()
+ORCHESTRATOR_GRPC_ADDRESS: str = os.environ.get(
+    "ORCHESTRATOR_GRPC_ADDRESS", _default_grpc_address()
+)
+ORCHESTRATOR_TUNNEL_URL: str = os.environ.get(
+    "ORCHESTRATOR_TUNNEL_URL",
+    f"ws://localhost:{PORT}/api/projects/default/ws/tunnel",
 )
 
-
-def _default_tunnel_url() -> str:
-    """Derive the WebSocket tunnel URL for sandbox containers."""
-    host = _default_grpc_address().split(":")[0]  # Same host resolution as gRPC
-    return f"ws://{host}:{PORT}/ws/tunnel"
-
-
-ORCHESTRATOR_TUNNEL_URL: str = (
-    os.environ.get("ORCHESTRATOR_TUNNEL_URL", "") or _default_tunnel_url()
-)
+# ── Auth / sessions ────────────────────────────────────────────
+AUTH_SECRET: str = os.environ.get("AUTH_SECRET", "")
+AUTH_TOKEN_EXPIRY_HOURS: int = int(os.environ.get("AUTH_TOKEN_EXPIRY_HOURS", "168"))
+CALLBACK_SECRET: str = os.environ.get("CALLBACK_SECRET", "")
+CALLBACK_TOKEN_EXPIRY_SECONDS: int = int(os.environ.get("CALLBACK_TOKEN_EXPIRY_SECONDS", "3600"))
 
 # ── CORS ───────────────────────────────────────────────────────
 CORS_ORIGINS: list[str] = [
-    o.strip()
-    for o in os.environ.get("CORS_ORIGINS", "http://localhost:3737").split(",")
-    if o.strip()
+    origin.strip()
+    for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3737").split(",")
+    if origin.strip()
 ]
-
-# ── Encryption key for secrets in the database ─────────────────
-ENCRYPTION_KEY: str = os.environ.get("ENCRYPTION_KEY", "")
-
-# ── Callback JWT signing secret ────────────────────────────────
-CALLBACK_SECRET: str = os.environ.get("CALLBACK_SECRET", "")
-
-# ── Auth JWT signing secret ────────────────────────────────────
-AUTH_SECRET: str = os.environ.get("AUTH_SECRET", "")
-AUTH_TOKEN_EXPIRY_HOURS: int = int(os.environ.get("AUTH_TOKEN_EXPIRY_HOURS", "24"))
-
-# ── Callback token expiry ──────────────────────────────────────
-CALLBACK_TOKEN_EXPIRY_SECONDS: int = int(os.environ.get("CALLBACK_TOKEN_EXPIRY_SECONDS", "86400"))
-
-
-def get_callback_secret() -> str:
-    """Return the callback JWT signing secret. Raises if not configured."""
-    if not CALLBACK_SECRET:
-        raise RuntimeError(
-            "CALLBACK_SECRET environment variable is required. "
-            'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
-        )
-    return CALLBACK_SECRET
 
 
 def get_auth_secret() -> str:
-    """Return the auth JWT signing secret. Raises if not configured."""
-    if not AUTH_SECRET:
-        raise RuntimeError(
-            "AUTH_SECRET environment variable is required. "
-            'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
-        )
-    return AUTH_SECRET
+    if AUTH_SECRET:
+        return AUTH_SECRET
+    if ENVIRONMENT == "development":
+        return "dev-secret-change-me"
+    raise RuntimeError("AUTH_SECRET must be set in non-development environments")
+
+
+def get_callback_secret() -> str:
+    if CALLBACK_SECRET:
+        return CALLBACK_SECRET
+    if ENVIRONMENT == "development":
+        return "dev-callback-secret-change-me"
+    raise RuntimeError("CALLBACK_SECRET must be set in non-development environments")
 
 
 def validate_required_config() -> None:
-    """Validate that all required secrets are configured. Call at startup."""
-    missing: list[str] = []
-    if not AUTH_SECRET:
-        missing.append("AUTH_SECRET")
-    if not CALLBACK_SECRET:
-        missing.append("CALLBACK_SECRET")
-    if not os.environ.get("ENCRYPTION_KEY", ""):
-        missing.append("ENCRYPTION_KEY")
-    if missing:
-        raise RuntimeError(
-            f"Required environment variables not set: {', '.join(missing)}. "
-            "See codebox-orchestrator/README.md for setup instructions."
-        )
+    if ENVIRONMENT != "development" and not AUTH_SECRET:
+        raise RuntimeError("AUTH_SECRET is required in production")
+    if ENVIRONMENT != "development" and not CALLBACK_SECRET:
+        raise RuntimeError("CALLBACK_SECRET is required in production")

@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from codebox_orchestrator.box.domain.exceptions import (
+    BoxNotFoundError,
+    InvalidStatusTransitionError,
+)
+
 if TYPE_CHECKING:
     from codebox_orchestrator.box.application.services.box_query import BoxQueryService
     from codebox_orchestrator.box.domain.views import BoxView
@@ -23,18 +28,10 @@ class RestartBoxHandler:
         self._query = query_service
 
     async def execute(self, box_id: str) -> BoxView:
-        box = self._query.get_box(box_id)
+        box = await self._query.get_box(box_id)
         if box is None:
-            from codebox_orchestrator.box.domain.exceptions import (  # noqa: PLC0415
-                BoxNotFoundError,
-            )
-
             raise BoxNotFoundError(box_id)
         if box.container_status != "stopped":
-            from codebox_orchestrator.box.domain.exceptions import (  # noqa: PLC0415
-                InvalidStatusTransitionError,
-            )
-
             raise InvalidStatusTransitionError(box.container_status, "starting")
 
         self._runtime.start(box.container_name)

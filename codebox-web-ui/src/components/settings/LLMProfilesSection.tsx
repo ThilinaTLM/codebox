@@ -13,12 +13,13 @@ import { LLMProfileImportDialog } from "./LLMProfileImportDialog"
 import { SectionSkeleton } from "./SectionSkeleton"
 import type { IconSvgElement } from "@hugeicons/react"
 import type { LLMProfile } from "@/net/http/types"
+import { useProjectStore } from "@/lib/project"
 import {
   useDeleteLLMProfile,
   useDuplicateLLMProfile,
   useLLMProfiles,
-  useUpdateUserSettings,
-  useUserSettings,
+  useProjectSettings,
+  useUpdateProjectSettings,
 } from "@/net/query"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -81,8 +82,9 @@ function formatDate(iso: string): string {
 }
 
 export function LLMProfilesSection() {
-  const { data: profiles = [], isLoading } = useLLMProfiles()
-  const { data: settings } = useUserSettings()
+  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const { data: profiles = [], isLoading } = useLLMProfiles(slug || undefined)
+  const { data: settings } = useProjectSettings(slug || undefined)
   const [createOpen, setCreateOpen] = useState(false)
   const [editingProfile, setEditingProfile] = useState<LLMProfile | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
@@ -227,9 +229,10 @@ function LLMProfileCard({
   onEdit: () => void
   onExport: () => void
 }) {
-  const deleteMutation = useDeleteLLMProfile()
-  const duplicateMutation = useDuplicateLLMProfile()
-  const updateSettingsMutation = useUpdateUserSettings()
+  const slug2 = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const deleteMutation = useDeleteLLMProfile(slug2)
+  const duplicateMutation = useDuplicateLLMProfile(slug2)
+  const updateSettingsMutation = useUpdateProjectSettings(slug2)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const meta = getProviderMeta(profile.provider)

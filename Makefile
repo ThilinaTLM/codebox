@@ -1,4 +1,4 @@
-.PHONY: lint fix format format-check typecheck check ci secrets
+.PHONY: lint fix format format-check typecheck check ci secrets openapi
 
 # Lint without fixing
 lint:
@@ -29,3 +29,7 @@ secrets:
 
 # Full CI check (format + lint + typecheck + secrets)
 ci: format-check lint typecheck secrets
+
+# Generate the orchestrator OpenAPI snapshot
+openapi:
+	cd codebox-orchestrator && uv run python scripts/dump_openapi.py

@@ -4,7 +4,8 @@ import { Upload } from "lucide-react"
 import { LabelWithTooltip } from "./LabelWithTooltip"
 import { SectionSkeleton } from "./SectionSkeleton"
 import { StepHeader } from "./StepHeader"
-import { useUpdateUserSettings, useUserSettings } from "@/net/query"
+import { useProjectSettings, useUpdateProjectSettings } from "@/net/query"
+import { useProjectStore } from "@/lib/project"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,8 +20,9 @@ interface GitHubAppConfigFormProps {
 export function GitHubAppConfigForm({
   statusLoading,
 }: GitHubAppConfigFormProps) {
-  const { data: settings } = useUserSettings()
-  const updateMutation = useUpdateUserSettings()
+  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const { data: settings } = useProjectSettings(slug || undefined)
+  const updateMutation = useUpdateProjectSettings(slug)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [appId, setAppId] = useState("")

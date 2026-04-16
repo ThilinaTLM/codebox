@@ -28,13 +28,11 @@ export function useGlobalStream() {
       credentials: "include",
       signal: ctrl.signal,
 
-      // eslint-disable-next-line @typescript-eslint/require-await
       async onopen(response) {
         if (
           response.ok &&
           response.headers.get("content-type")?.includes(EventStreamContentType)
         ) {
-          // Invalidate all box queries on reconnect to sync any missed events
           if (hadConnectionRef.current) {
             qcRef.current.invalidateQueries({ queryKey: ["boxes"], exact: true })
           }
@@ -68,10 +66,10 @@ export function useGlobalStream() {
                 if (event.container_status)
                   updates.container_status = event.container_status
                 if (event.activity) updates.activity = event.activity
-                if (event.task_outcome)
-                  updates.task_outcome = event.task_outcome
-                if (event.task_outcome_message)
-                  updates.task_outcome_message = event.task_outcome_message
+                if (event.box_outcome)
+                  updates.box_outcome = event.box_outcome
+                if (event.box_outcome_message)
+                  updates.box_outcome_message = event.box_outcome_message
                 if (event.error_detail)
                   updates.error_detail = event.error_detail
                 if (event.grpc_connected !== undefined)
@@ -95,8 +93,6 @@ export function useGlobalStream() {
 
       onerror() {
         if (ctrl.signal.aborted) return
-
-        // Return undefined to let fetch-event-source use default retry
         return undefined
       },
 

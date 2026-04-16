@@ -29,12 +29,12 @@ class GitHubWebhookHandler:
         api_client: GitHubApiClient,
         repo: SqlAlchemyGitHubRepository,
         *,
-        user_id: str,
+        project_id: str,
         default_base_branch: str = "main",
     ) -> None:
         self._api = api_client
         self._repo = repo
-        self._user_id = user_id
+        self._project_id = project_id
         self._default_base_branch = default_base_branch
 
     def verify_signature(self, payload: bytes, signature: str) -> bool:
@@ -67,7 +67,7 @@ class GitHubWebhookHandler:
             action=action,
             repository=repository,
             payload=json.dumps(payload),
-            user_id=self._user_id,
+            project_id=self._project_id,
         )
 
         # Route by event type
@@ -78,7 +78,7 @@ class GitHubWebhookHandler:
                 installation_id=installation.get("id", 0),
                 account_login=account.get("login", ""),
                 account_type=account.get("type", "User"),
-                user_id=self._user_id,
+                project_id=self._project_id,
             )
             return None, event_id
 
@@ -127,7 +127,7 @@ class GitHubWebhookHandler:
             return None
 
         db_installation = await self._repo.get_installation_by_github_id(
-            gh_installation_id, user_id=self._user_id
+            gh_installation_id, project_id=self._project_id
         )
         if db_installation is None:
             account = installation.get("account", installation)
@@ -135,7 +135,7 @@ class GitHubWebhookHandler:
                 installation_id=gh_installation_id,
                 account_login=account.get("login", ""),
                 account_type=account.get("type", "User"),
-                user_id=self._user_id,
+                project_id=self._project_id,
             )
 
         is_pr = "pull_request" in issue
@@ -223,7 +223,7 @@ class GitHubWebhookHandler:
             return None
 
         db_installation = await self._repo.get_installation_by_github_id(
-            gh_installation_id, user_id=self._user_id
+            gh_installation_id, project_id=self._project_id
         )
         if db_installation is None:
             account = installation.get("account", installation)
@@ -231,7 +231,7 @@ class GitHubWebhookHandler:
                 installation_id=gh_installation_id,
                 account_login=account.get("login", ""),
                 account_type=account.get("type", "User"),
-                user_id=self._user_id,
+                project_id=self._project_id,
             )
 
         context = await self._api.extract_issue_context(

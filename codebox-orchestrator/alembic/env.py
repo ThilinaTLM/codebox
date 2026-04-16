@@ -18,9 +18,11 @@ from sqlalchemy import engine_from_config, pool
 
 import codebox_orchestrator.agent.infrastructure.orm_models
 import codebox_orchestrator.auth.models
+import codebox_orchestrator.box.infrastructure.orm_models
 import codebox_orchestrator.integration.github.infrastructure.orm_models
 import codebox_orchestrator.llm_profile.models
-import codebox_orchestrator.user_settings.models
+import codebox_orchestrator.project.models
+import codebox_orchestrator.project_settings.models
 from codebox_orchestrator.shared.persistence.base import Base
 
 # Alembic Config object (provides access to alembic.ini values).

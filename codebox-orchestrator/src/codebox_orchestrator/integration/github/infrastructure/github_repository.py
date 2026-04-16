@@ -1,23 +1,23 @@
-"""SQLAlchemy repository for GitHub installations and events (per-user scoped)."""
+"""SQLAlchemy repository for GitHub installations and events (project-scoped)."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 
 from codebox_orchestrator.integration.github.domain import entities as domain
 from codebox_orchestrator.integration.github.infrastructure import orm_models as orm
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 class SqlAlchemyGitHubRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._sf = session_factory
-
-    # ── Installations ───────────────────────────────────────
 
     async def get_installation(self, installation_id: str) -> domain.GitHubInstallation | None:
         async with self._sf() as db:
@@ -27,25 +27,25 @@ class SqlAlchemyGitHubRepository:
             return self._to_domain_installation(inst)
 
     async def get_installation_by_github_id(
-        self, installation_id: int, *, user_id: str | None = None
+        self, installation_id: int, *, project_id: str | None = None
     ) -> domain.GitHubInstallation | None:
         async with self._sf() as db:
             stmt = select(orm.GitHubInstallation).where(
                 orm.GitHubInstallation.installation_id == installation_id
             )
-            if user_id:
-                stmt = stmt.where(orm.GitHubInstallation.user_id == user_id)
+            if project_id:
+                stmt = stmt.where(orm.GitHubInstallation.project_id == project_id)
             result = await db.execute(stmt)
             inst = result.scalar_one_or_none()
             if inst is None:
                 return None
             return self._to_domain_installation(inst)
 
-    async def list_installations(self, user_id: str) -> list[domain.GitHubInstallation]:
+    async def list_installations(self, project_id: str) -> list[domain.GitHubInstallation]:
         async with self._sf() as db:
             stmt = (
                 select(orm.GitHubInstallation)
-                .where(orm.GitHubInstallation.user_id == user_id)
+                .where(orm.GitHubInstallation.project_id == project_id)
                 .order_by(orm.GitHubInstallation.created_at.desc())
             )
             result = await db.execute(stmt)
@@ -57,12 +57,12 @@ class SqlAlchemyGitHubRepository:
         account_login: str,
         account_type: str,
         *,
-        user_id: str,
+        project_id: str,
     ) -> domain.GitHubInstallation:
         async with self._sf() as db:
             stmt = select(orm.GitHubInstallation).where(
                 orm.GitHubInstallation.installation_id == installation_id,
-                orm.GitHubInstallation.user_id == user_id,
+                orm.GitHubInstallation.project_id == project_id,
             )
             result = await db.execute(stmt)
             existing = result.scalar_one_or_none()
@@ -74,7 +74,7 @@ class SqlAlchemyGitHubRepository:
                 return self._to_domain_installation(existing)
 
             inst = orm.GitHubInstallation(
-                user_id=user_id,
+                project_id=project_id,
                 installation_id=installation_id,
                 account_login=account_login,
                 account_type=account_type,
@@ -84,16 +84,14 @@ class SqlAlchemyGitHubRepository:
             await db.refresh(inst)
             return self._to_domain_installation(inst)
 
-    async def delete_installation(self, installation_id: str, *, user_id: str) -> bool:
+    async def delete_installation(self, installation_id: str, *, project_id: str) -> bool:
         async with self._sf() as db:
             inst = await db.get(orm.GitHubInstallation, installation_id)
-            if inst is None or inst.user_id != user_id:
+            if inst is None or inst.project_id != project_id:
                 return False
             await db.delete(inst)
             await db.commit()
             return True
-
-    # ── Events ──────────────────────────────────────────────
 
     async def event_exists(self, delivery_id: str) -> bool:
         async with self._sf() as db:
@@ -109,12 +107,11 @@ class SqlAlchemyGitHubRepository:
         repository: str,
         payload: str,
         *,
-        user_id: str,
+        project_id: str,
     ) -> str:
-        """Store event and return its id."""
         async with self._sf() as db:
             event = orm.GitHubEvent(
-                user_id=user_id,
+                project_id=project_id,
                 delivery_id=delivery_id,
                 event_type=event_type,
                 action=action,
@@ -132,7 +129,42 @@ class SqlAlchemyGitHubRepository:
                 ev.box_id = box_id
                 await db.commit()
 
-    # ── Mapping ─────────────────────────────────────────────
+    async def list_events(
+        self,
+        *,
+        project_id: str,
+        delivery_id: str | None = None,
+        event_type: str | None = None,
+        action: str | None = None,
+        box_id: str | None = None,
+        limit: int = 50,
+        cursor: tuple[datetime, str] | None = None,
+    ) -> list[orm.GitHubEvent]:
+        async with self._sf() as db:
+            stmt = select(orm.GitHubEvent).where(orm.GitHubEvent.project_id == project_id)
+            if delivery_id:
+                stmt = stmt.where(orm.GitHubEvent.delivery_id == delivery_id)
+            if event_type:
+                stmt = stmt.where(orm.GitHubEvent.event_type == event_type)
+            if action:
+                stmt = stmt.where(orm.GitHubEvent.action == action)
+            if box_id:
+                stmt = stmt.where(orm.GitHubEvent.box_id == box_id)
+            if cursor is not None:
+                created_at, event_id_cursor = cursor
+                stmt = stmt.where(
+                    or_(
+                        orm.GitHubEvent.created_at < created_at,
+                        and_(
+                            orm.GitHubEvent.created_at == created_at,
+                            orm.GitHubEvent.id < event_id_cursor,
+                        ),
+                    )
+                )
+            stmt = stmt.order_by(orm.GitHubEvent.created_at.desc(), orm.GitHubEvent.id.desc())
+            stmt = stmt.limit(limit)
+            result = await db.execute(stmt)
+            return list(result.scalars().all())
 
     @staticmethod
     def _to_domain_installation(inst: orm.GitHubInstallation) -> domain.GitHubInstallation:

@@ -19,6 +19,10 @@ from codebox_orchestrator.api.dependencies import (
     get_query_service,
     get_relay,
 )
+from codebox_orchestrator.project.dependencies import (
+    ProjectContext,
+    get_project_context,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -29,7 +33,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 HEARTBEAT_INTERVAL = 30.0  # seconds
 
@@ -92,17 +96,18 @@ async def _global_event_generator(
         global_broadcast.unsubscribe(queue)
 
 
-@router.get("/boxes/{box_id}/stream")
+@router.get("/api/projects/{slug}/boxes/{box_id}/stream")
 async def box_stream(
     box_id: str,
     request: Request,
     after_seq: int | None = None,
+    ctx: ProjectContext = Depends(get_project_context),
     query: BoxQueryService = Depends(get_query_service),
     relay: RelayService = Depends(get_relay),
 ) -> StreamingResponse:
     """SSE stream for a box with replay by sequence."""
-    box = query.get_box(box_id)
-    if box is None:
+    box = await query.get_box(box_id)
+    if box is None or box.project_id != ctx.project_id:
         raise HTTPException(404, "Box not found")
 
     last_event_id = request.headers.get("Last-Event-ID", "")
@@ -125,7 +130,7 @@ async def box_stream(
     )
 
 
-@router.get("/stream")
+@router.get("/api/stream")
 async def global_stream(
     global_broadcast: GlobalBroadcastService = Depends(get_global_broadcast),
 ) -> StreamingResponse:

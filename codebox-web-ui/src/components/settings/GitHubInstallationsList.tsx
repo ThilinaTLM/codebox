@@ -2,6 +2,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { StepHeader } from "./StepHeader"
 import type { GitHubInstallation, GitHubRepo } from "@/net/http/types"
+import { useProjectStore } from "@/lib/project"
 import {
   useRemoveGitHubInstallation,
   useSyncGitHubInstallation,
@@ -72,8 +73,9 @@ function InstallationCard({
 }: {
   installation: GitHubInstallation
 }) {
-  const syncMutation = useSyncGitHubInstallation()
-  const removeMutation = useRemoveGitHubInstallation()
+  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const syncMutation = useSyncGitHubInstallation(slug)
+  const removeMutation = useRemoveGitHubInstallation(slug)
   const [repos, setRepos] = useState<Array<GitHubRepo> | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
 

@@ -1,7 +1,7 @@
-"""Per-user GitHub API client manager.
+"""Per-project GitHub API client manager.
 
 Creates, caches, and invalidates ``GitHubApiClient`` instances based on
-each user's encrypted GitHub App configuration stored in ``user_settings``.
+each project's encrypted GitHub App configuration stored in ``project_settings``.
 """
 
 from __future__ import annotations
@@ -21,48 +21,48 @@ if TYPE_CHECKING:
     from codebox_orchestrator.integration.github.infrastructure.github_repository import (
         SqlAlchemyGitHubRepository,
     )
-    from codebox_orchestrator.user_settings.models import UserSettings
-    from codebox_orchestrator.user_settings.repository import UserSettingsRepository
+    from codebox_orchestrator.project_settings.models import ProjectSettings
+    from codebox_orchestrator.project_settings.repository import ProjectSettingsRepository
 
 logger = logging.getLogger(__name__)
 
 
 class GitHubClientManager:
-    """Manages per-user ``GitHubApiClient`` and ``GitHubInstallationService`` instances."""
+    """Manages per-project ``GitHubApiClient`` and ``GitHubInstallationService`` instances."""
 
     def __init__(
         self,
-        settings_repo: UserSettingsRepository,
+        settings_repo: ProjectSettingsRepository,
         github_repo: SqlAlchemyGitHubRepository,
     ) -> None:
         self._settings_repo = settings_repo
         self._github_repo = github_repo
         self._clients: dict[str, GitHubApiClient] = {}
         self._services: dict[str, GitHubInstallationService] = {}
-        # Cache of raw UserSettings for quick non-async lookups
-        self._settings_cache: dict[str, UserSettings] = {}
+        # Cache of raw ProjectSettings for quick non-async lookups
+        self._settings_cache: dict[str, ProjectSettings] = {}
 
-    async def get_client(self, user_id: str) -> GitHubApiClient | None:
-        """Get or create a client for *user_id*.
+    async def get_client(self, project_id: str) -> GitHubApiClient | None:
+        """Get or create a client for *project_id*.
 
-        Returns ``None`` if the user has no GitHub config.
+        Returns ``None`` if the project has no GitHub config.
         """
-        if user_id in self._clients:
-            return self._clients[user_id]
+        if project_id in self._clients:
+            return self._clients[project_id]
 
-        settings = await self._settings_repo.get(user_id)
+        settings = await self._settings_repo.get(project_id)
         if settings is None or not settings.github_app_id or not settings.github_private_key_enc:
             return None
 
-        self._settings_cache[user_id] = settings
-        return self._build_client(user_id, settings)
+        self._settings_cache[project_id] = settings
+        return self._build_client(project_id, settings)
 
-    async def get_client_for_webhook(self, user_id: str) -> tuple[Any | None, str | None]:
+    async def get_client_for_webhook(self, project_id: str) -> tuple[Any | None, str | None]:
         """Return ``(client, webhook_secret)`` for HMAC verification + processing.
 
-        Returns ``(None, None)`` if the user has no GitHub config.
+        Returns ``(None, None)`` if the project has no GitHub config.
         """
-        settings = await self._settings_repo.get(user_id)
+        settings = await self._settings_repo.get(project_id)
         if (
             settings is None
             or not settings.github_app_id
@@ -70,20 +70,20 @@ class GitHubClientManager:
         ):
             return None, None
 
-        self._settings_cache[user_id] = settings
-        client = self._build_client(user_id, settings)
+        self._settings_cache[project_id] = settings
+        client = self._build_client(project_id, settings)
         webhook_secret = decrypt_value(settings.github_webhook_secret_enc)
         return client, webhook_secret
 
-    def get_installation_service(self, user_id: str) -> GitHubInstallationService | None:
-        """Return a cached ``GitHubInstallationService`` for the user.
+    def get_installation_service(self, project_id: str) -> GitHubInstallationService | None:
+        """Return a cached ``GitHubInstallationService`` for the project.
 
         Must be called after ``get_client()`` so the client is available.
         """
-        if user_id in self._services:
-            return self._services[user_id]
+        if project_id in self._services:
+            return self._services[project_id]
 
-        client = self._clients.get(user_id)
+        client = self._clients.get(project_id)
         if client is None:
             return None
 
@@ -91,23 +91,23 @@ class GitHubClientManager:
             GitHubInstallationService,
         )
 
-        service = GitHubInstallationService(client, self._github_repo, user_id=user_id)
-        self._services[user_id] = service
+        service = GitHubInstallationService(client, self._github_repo, project_id=project_id)
+        self._services[project_id] = service
         return service
 
-    def get_user_settings(self, user_id: str) -> UserSettings | None:
-        """Return cached UserSettings for the user (sync, no DB call)."""
-        return self._settings_cache.get(user_id)
+    def get_project_settings(self, project_id: str) -> ProjectSettings | None:
+        """Return cached ProjectSettings for the project (sync, no DB call)."""
+        return self._settings_cache.get(project_id)
 
-    def invalidate(self, user_id: str) -> None:
-        """Clear cached client and service when user updates their GitHub config."""
-        self._clients.pop(user_id, None)
-        self._services.pop(user_id, None)
-        self._settings_cache.pop(user_id, None)
+    def invalidate(self, project_id: str) -> None:
+        """Clear cached client and service when project updates its GitHub config."""
+        self._clients.pop(project_id, None)
+        self._services.pop(project_id, None)
+        self._settings_cache.pop(project_id, None)
 
-    def _build_client(self, user_id: str, settings: Any) -> GitHubApiClient:
-        if user_id in self._clients:
-            return self._clients[user_id]
+    def _build_client(self, project_id: str, settings: Any) -> GitHubApiClient:
+        if project_id in self._clients:
+            return self._clients[project_id]
 
         from codebox_orchestrator.integration.github.infrastructure.github_api_client import (  # noqa: PLC0415
             GitHubApiClient,
@@ -122,5 +122,5 @@ class GitHubClientManager:
             app_slug=settings.github_app_slug or "codebox",
             bot_name=settings.github_bot_name or settings.github_app_slug or "codebox",
         )
-        self._clients[user_id] = client
+        self._clients[project_id] = client
         return client

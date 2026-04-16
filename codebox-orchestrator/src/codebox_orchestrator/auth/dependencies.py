@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException, Request
 
+from codebox_orchestrator.auth.models import UserStatus
 from codebox_orchestrator.auth.service import decode_auth_token
 
 
@@ -19,17 +20,8 @@ class UserInfo:
 
 
 async def get_current_user(request: Request) -> UserInfo:
-    """Extract and validate auth token from cookie or Authorization header.
-
-    Checks the ``access_token`` HttpOnly cookie first, then falls back to the
-    ``Authorization: Bearer <token>`` header (for API clients / backward compat).
-
-    Raises HTTPException(401) on missing or invalid token.
-    """
-    # 1. Try HttpOnly cookie first
+    """Extract and validate auth token from cookie or Authorization header."""
     token = request.cookies.get("access_token")
-
-    # 2. Fall back to Authorization header (API clients, backward compat)
     if not token:
         auth = request.headers.get("authorization", "")
         if auth.startswith("Bearer "):
@@ -41,10 +33,18 @@ async def get_current_user(request: Request) -> UserInfo:
     payload = decode_auth_token(token)
     if payload is None:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    auth_service = request.app.state.auth_service
+    user = await auth_service.get_user_by_id(
+        payload["user_id"], include_disabled=False, include_deleted=False
+    )
+    if user is None or user.status != UserStatus.ACTIVE:
+        raise HTTPException(status_code=401, detail="User account is not active")
+
     return UserInfo(
-        user_id=payload["user_id"],
-        username=payload["username"],
-        user_type=payload["user_type"],
+        user_id=user.id,
+        username=user.username,
+        user_type=user.user_type,
     )
 
 

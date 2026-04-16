@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 import type { LLMProfileExportFile } from "@/net/http/types"
+import { useProjectStore } from "@/lib/project"
 import { useImportLLMProfiles } from "@/net/query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +25,8 @@ export function LLMProfileImportDialog({
   open,
   onOpenChange,
 }: LLMProfileImportDialogProps) {
-  const importMutation = useImportLLMProfiles()
+  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const importMutation = useImportLLMProfiles(slug)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [exportFile, setExportFile] = useState<LLMProfileExportFile | null>(

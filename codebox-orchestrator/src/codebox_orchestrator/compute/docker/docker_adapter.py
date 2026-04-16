@@ -43,8 +43,8 @@ class DockerRuntime:
     def remove(self, container_id_or_name: str) -> None:
         docker_service.remove(container_id_or_name)
 
-    def list_containers(self) -> list[docker_service.ContainerInfo]:
-        return docker_service.list_containers()
+    def list_containers(self, project_id: str | None = None) -> list[docker_service.ContainerInfo]:
+        return docker_service.list_containers(project_id=project_id)
 
     def get_logs(self, container_id_or_name: str, tail: int = 200) -> str:
         return docker_service.get_logs(container_id_or_name, tail=tail)

@@ -15,7 +15,7 @@ class Activity(StrEnum):
     EXEC_SHELL = "exec_shell"
 
 
-class TaskOutcome(StrEnum):
+class BoxOutcome(StrEnum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     NEED_CLARIFICATION = "need_clarification"

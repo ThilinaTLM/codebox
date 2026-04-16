@@ -10,7 +10,7 @@ export enum Activity {
   EXEC_SHELL = "exec_shell",
 }
 
-export enum TaskOutcome {
+export enum BoxOutcome {
   IN_PROGRESS = "in_progress",
   COMPLETED = "completed",
   NEED_CLARIFICATION = "need_clarification",
@@ -27,9 +27,10 @@ export interface Box {
   container_id: string
   container_name: string
   grpc_connected: boolean
+  project_id: string
   activity: Activity | null
-  task_outcome: TaskOutcome | null
-  task_outcome_message: string | null
+  box_outcome: BoxOutcome | null
+  box_outcome_message: string | null
   trigger: string | null
   description: string | null
   tags: Array<string> | null
@@ -37,7 +38,6 @@ export interface Box {
   started_at: string | null
   image: string
   error_detail: string | null
-  // GitHub integration fields
   github_repo: string | null
   github_issue_number: number | null
   github_branch: string | null
@@ -60,8 +60,6 @@ export interface ContainerLogs {
   logs: string
 }
 
-// ── Box creation types ──────────────────────────────────────
-
 export interface ToolConfig {
   enabled?: boolean
   [key: string]: unknown
@@ -78,23 +76,14 @@ export interface ToolSettings {
 }
 
 export interface BoxCreatePayload {
-  // Identity
   name?: string | null
   description?: string | null
   tags?: Array<string> | null
-
-  // LLM profile
   llm_profile_id?: string | null
-
-  // Agent behaviour
   system_prompt?: string | null
   auto_start_prompt?: string | null
   recursion_limit?: number | null
-
-  // Tools
   tools?: ToolSettings | null
-
-  // Init / integration
   github_repo?: string | null
   init_bash_script?: string | null
 }
@@ -111,7 +100,6 @@ export interface ModelsPreviewRequest {
   base_url?: string | null
 }
 
-// SSE stream event types from orchestrator
 export type BoxStreamEvent = CanonicalEvent
 
 export interface FileEntry {
@@ -144,8 +132,6 @@ export interface UploadFileResponse {
   files: Array<{ path: string; size: number }>
 }
 
-// ── GitHub types ────────────────────────────────────────────
-
 export interface GitHubStatus {
   enabled: boolean
   app_slug: string | null
@@ -166,12 +152,11 @@ export interface GitHubRepo {
   default_branch: string
 }
 
-// ── Auth types ──────────────────────────────────────────────
-
 export interface AuthUser {
   id: string
   username: string
   user_type: "admin" | "user"
+  status: "active" | "disabled" | "deleted"
   first_name: string | null
   last_name: string | null
   created_at: string
@@ -180,8 +165,6 @@ export interface AuthUser {
 export interface LoginResponse {
   user: AuthUser
 }
-
-// ── LLM Profile types ─────────────────────────────────────────
 
 export interface LLMProfile {
   id: string
@@ -210,8 +193,6 @@ export interface LLMProfileUpdate {
   api_key?: string | null
   base_url?: string | null
 }
-
-// ── LLM Profile export / import types ─────────────────────────
 
 export type LLMProfileKeyMode = "no_keys" | "plaintext" | "password_encrypted"
 
@@ -248,9 +229,26 @@ export interface LLMProfileImportResult {
   profiles: Array<LLMProfile>
 }
 
-// ── User Settings types ───────────────────────────────────────
+export interface Project {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  created_by: string
+  status: "active" | "archived" | "deleted"
+  created_at: string
+  updated_at: string
+}
 
-export interface UserSettings {
+export interface ProjectMember {
+  id: string
+  project_id: string
+  user_id: string
+  role: "admin" | "contributor"
+  created_at: string
+}
+
+export interface ProjectSettings {
   default_llm_profile_id: string | null
   tavily_api_key_masked: string | null
   github_app_id: string | null
@@ -261,7 +259,7 @@ export interface UserSettings {
   github_default_base_branch: string | null
 }
 
-export interface UserSettingsUpdate {
+export interface ProjectSettingsUpdate {
   default_llm_profile_id?: string | null
   tavily_api_key?: string | null
   github_app_id?: string | null

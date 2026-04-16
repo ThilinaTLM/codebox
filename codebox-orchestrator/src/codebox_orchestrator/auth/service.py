@@ -1,4 +1,4 @@
-"""Authentication service -- password hashing, JWT tokens, and user CRUD."""
+"""Authentication service -- password hashing, JWT tokens, and user lifecycle."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import jwt
 from sqlalchemy import func, select
 
-from codebox_orchestrator.auth.models import User
+from codebox_orchestrator.auth.models import User, UserStatus
 from codebox_orchestrator.config import AUTH_TOKEN_EXPIRY_HOURS, get_auth_secret
 
 if TYPE_CHECKING:
@@ -23,11 +23,6 @@ logger = logging.getLogger(__name__)
 
 _ALGORITHM = "HS256"
 _PBKDF2_ITERATIONS = 600_000
-
-
-# ---------------------------------------------------------------------------
-# Password hashing
-# ---------------------------------------------------------------------------
 
 
 def hash_password(password: str) -> str:
@@ -51,11 +46,6 @@ def verify_password(password: str, stored_hash: str) -> bool:
     return hmac.compare_digest(dk, expected)
 
 
-# ---------------------------------------------------------------------------
-# JWT tokens
-# ---------------------------------------------------------------------------
-
-
 def create_auth_token(user: User) -> str:
     """Create a signed JWT auth token for a user."""
     now = int(time.time())
@@ -77,11 +67,6 @@ def decode_auth_token(token: str) -> dict | None:
         return None
 
 
-# ---------------------------------------------------------------------------
-# Auth service
-# ---------------------------------------------------------------------------
-
-
 class AuthService:
     """Handles user authentication and management."""
 
@@ -91,7 +76,9 @@ class AuthService:
     async def ensure_default_admin(self) -> None:
         """Create a default admin user if no users exist. Logs credentials."""
         async with self._session_factory() as session:
-            result = await session.execute(select(func.count(User.id)))
+            result = await session.execute(
+                select(func.count(User.id)).where(User.status != UserStatus.DELETED)
+            )
             count = result.scalar_one()
             if count > 0:
                 return
@@ -101,6 +88,7 @@ class AuthService:
                 username="admin",
                 password_hash=hash_password(password),
                 user_type="admin",
+                status=UserStatus.ACTIVE,
             )
             session.add(user)
             await session.commit()
@@ -113,13 +101,17 @@ class AuthService:
                 f"  Password: {password}\n"
                 "══════════════════════════════════════════════════"
             )
-            # Use print() to guarantee visibility regardless of logging config
-            print(banner)  # noqa: T201
+            logger.warning(banner)
 
     async def authenticate(self, username: str, password: str) -> User | None:
-        """Verify credentials. Returns the User or None."""
+        """Verify credentials. Returns the active User or None."""
         async with self._session_factory() as session:
-            result = await session.execute(select(User).where(User.username == username))
+            result = await session.execute(
+                select(User).where(
+                    User.username == username,
+                    User.status == UserStatus.ACTIVE,
+                )
+            )
             user = result.scalar_one_or_none()
             if user is None or not verify_password(password, user.password_hash):
                 return None
@@ -128,7 +120,9 @@ class AuthService:
     async def change_password(self, user_id: str, old_password: str, new_password: str) -> bool:
         """Change a user's password. Returns False if old_password is wrong."""
         async with self._session_factory() as session:
-            result = await session.execute(select(User).where(User.id == user_id))
+            result = await session.execute(
+                select(User).where(User.id == user_id, User.status == UserStatus.ACTIVE)
+            )
             user = result.scalar_one_or_none()
             if user is None or not verify_password(old_password, user.password_hash):
                 return False
@@ -145,13 +139,14 @@ class AuthService:
         first_name: str | None = None,
         last_name: str | None = None,
     ) -> User:
-        """Create a new user. Raises ValueError on duplicate username."""
         if user_type not in ("admin", "user"):
             msg = f"Invalid user_type: {user_type}"
             raise ValueError(msg)
 
         async with self._session_factory() as session:
-            existing = await session.execute(select(User).where(User.username == username))
+            existing = await session.execute(
+                select(User).where(User.username == username, User.status != UserStatus.DELETED)
+            )
             if existing.scalar_one_or_none() is not None:
                 msg = f"Username already exists: {username}"
                 raise ValueError(msg)
@@ -160,6 +155,7 @@ class AuthService:
                 username=username,
                 password_hash=hash_password(password),
                 user_type=user_type,
+                status=UserStatus.ACTIVE,
                 first_name=first_name,
                 last_name=last_name,
             )
@@ -168,10 +164,20 @@ class AuthService:
             await session.refresh(user)
             return user
 
-    async def get_user_by_id(self, user_id: str) -> User | None:
-        """Return a user by ID, or None if not found."""
+    async def get_user_by_id(
+        self,
+        user_id: str,
+        *,
+        include_disabled: bool = True,
+        include_deleted: bool = False,
+    ) -> User | None:
         async with self._session_factory() as session:
-            result = await session.execute(select(User).where(User.id == user_id))
+            stmt = select(User).where(User.id == user_id)
+            if not include_deleted:
+                stmt = stmt.where(User.status != UserStatus.DELETED)
+            if not include_disabled:
+                stmt = stmt.where(User.status == UserStatus.ACTIVE)
+            result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
     async def update_profile(
@@ -181,9 +187,10 @@ class AuthService:
         first_name: str | None = None,
         last_name: str | None = None,
     ) -> User | None:
-        """Update a user's profile (name fields). Returns updated User or None."""
         async with self._session_factory() as session:
-            result = await session.execute(select(User).where(User.id == user_id))
+            result = await session.execute(
+                select(User).where(User.id == user_id, User.status != UserStatus.DELETED)
+            )
             user = result.scalar_one_or_none()
             if user is None:
                 return None
@@ -193,23 +200,61 @@ class AuthService:
             await session.refresh(user)
             return user
 
-    async def list_users(self) -> list[User]:
-        """Return all users."""
+    async def list_users(
+        self,
+        *,
+        include_disabled: bool = True,
+        include_deleted: bool = False,
+    ) -> list[User]:
         async with self._session_factory() as session:
-            result = await session.execute(select(User).order_by(User.created_at))
+            stmt = select(User)
+            if not include_deleted:
+                stmt = stmt.where(User.status != UserStatus.DELETED)
+            if not include_disabled:
+                stmt = stmt.where(User.status == UserStatus.ACTIVE)
+            stmt = stmt.order_by(User.created_at)
+            result = await session.execute(stmt)
             return list(result.scalars().all())
 
+    async def disable_user(self, user_id: str, requesting_user_id: str) -> bool:
+        if user_id == requesting_user_id:
+            msg = "Cannot disable your own account"
+            raise ValueError(msg)
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(User).where(User.id == user_id, User.status != UserStatus.DELETED)
+            )
+            user = result.scalar_one_or_none()
+            if user is None:
+                return False
+            user.status = UserStatus.DISABLED
+            await session.commit()
+            return True
+
+    async def enable_user(self, user_id: str) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(User).where(User.id == user_id, User.status == UserStatus.DISABLED)
+            )
+            user = result.scalar_one_or_none()
+            if user is None:
+                return False
+            user.status = UserStatus.ACTIVE
+            await session.commit()
+            return True
+
     async def delete_user(self, user_id: str, requesting_user_id: str) -> bool:
-        """Delete a user. Prevents self-deletion. Returns False if not found."""
         if user_id == requesting_user_id:
             msg = "Cannot delete your own account"
             raise ValueError(msg)
 
         async with self._session_factory() as session:
-            result = await session.execute(select(User).where(User.id == user_id))
+            result = await session.execute(
+                select(User).where(User.id == user_id, User.status != UserStatus.DELETED)
+            )
             user = result.scalar_one_or_none()
             if user is None:
                 return False
-            await session.delete(user)
+            user.status = UserStatus.DELETED
             await session.commit()
             return True

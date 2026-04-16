@@ -20,7 +20,6 @@ export function BoxDetailHeader({
 }: BoxDetailHeaderProps) {
   return (
     <div className="flex items-center border-b border-border/40 px-2">
-      {/* Left: back + identity */}
       <div className="flex shrink-0 items-center gap-2 pr-4">
         <Button
           variant="ghost"
@@ -37,7 +36,7 @@ export function BoxDetailHeader({
         <BoxStatusBadge
           containerStatus={box.container_status}
           boxActivity={box.activity ?? undefined}
-          taskOutcome={box.task_outcome}
+          boxOutcome={box.box_outcome}
           activity={activity}
         />
         {elapsed && (
@@ -47,7 +46,6 @@ export function BoxDetailHeader({
         )}
       </div>
 
-      {/* Center: tabs */}
       <nav className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto">
         {tabs}
       </nav>

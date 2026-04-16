@@ -76,7 +76,7 @@ class BoxLifecycleService:
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
         init_bash_script: str | None = None,
-        user_id: str | None = None,
+        project_id: str = "",
     ) -> None:
         """Launch background lifecycle task for a box."""
         bg = asyncio.create_task(
@@ -101,7 +101,7 @@ class BoxLifecycleService:
                 github_trigger_url=github_trigger_url,
                 github_branch=github_branch,
                 init_bash_script=init_bash_script,
-                user_id=user_id,
+                project_id=project_id,
             )
         )
         self._running[box_id] = bg
@@ -155,7 +155,7 @@ class BoxLifecycleService:
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
         init_bash_script: str | None = None,
-        user_id: str | None = None,
+        project_id: str = "",
     ) -> None:
         is_github = bool(github_repo)
 
@@ -215,6 +215,8 @@ class BoxLifecycleService:
             "codebox.trigger": trigger or "manual",
             "codebox.created-at": datetime.now(UTC).isoformat(),
         }
+        if project_id:
+            extra_labels["codebox.project-id"] = project_id
         if description:
             extra_labels["codebox.description"] = description
         if tags:
@@ -237,9 +239,9 @@ class BoxLifecycleService:
             if github_issue_number is not None:
                 extra_env["CODEBOX_GITHUB_ISSUE_NUMBER"] = str(github_issue_number)
 
-            gh_token = await self._get_github_token(github_installation_id, user_id)
+            gh_token = await self._get_github_token(github_installation_id, project_id)
             extra_env["GH_TOKEN"] = gh_token
-            github_base_branch = await self._get_github_default_branch(user_id)
+            github_base_branch = await self._get_github_default_branch(project_id)
             extra_env["CODEBOX_GITHUB_REF"] = github_base_branch
 
         # Build certificate volume mounts for gRPC TLS
@@ -313,21 +315,19 @@ class BoxLifecycleService:
 
         logger.info("Box %s started successfully", box_id)
 
-    async def _get_github_token(
-        self, github_installation_id: str | None, user_id: str | None
-    ) -> str:
+    async def _get_github_token(self, github_installation_id: str | None, project_id: str) -> str:
         if self._github_client_manager is None:
             raise RuntimeError("GitHub client manager not available")
         if not github_installation_id:
             raise RuntimeError("No GitHub installation ID for box")
-        if not user_id:
-            raise RuntimeError("No user_id for GitHub token retrieval")
+        if not project_id:
+            raise RuntimeError("No project_id for GitHub token retrieval")
 
-        client = await self._github_client_manager.get_client(user_id)
+        client = await self._github_client_manager.get_client(project_id)
         if client is None:
-            raise RuntimeError("GitHub not configured for user")
+            raise RuntimeError("GitHub not configured for project")
 
-        installation_service = self._github_client_manager.get_installation_service(user_id)
+        installation_service = self._github_client_manager.get_installation_service(project_id)
         if installation_service is None:
             raise RuntimeError("GitHub installation service not available")
 
@@ -337,11 +337,11 @@ class BoxLifecycleService:
 
         return await installation_service.get_token(installation.installation_id)
 
-    async def _get_github_default_branch(self, user_id: str | None) -> str:
-        """Return the user's configured default base branch, falling back to 'main'."""
-        if not user_id or self._github_client_manager is None:
+    async def _get_github_default_branch(self, project_id: str) -> str:
+        """Return the project's configured default base branch, falling back to 'main'."""
+        if not project_id or self._github_client_manager is None:
             return "main"
-        settings = self._github_client_manager.get_user_settings(user_id)
+        settings = self._github_client_manager.get_project_settings(project_id)
         if settings and settings.github_default_base_branch:
             return settings.github_default_base_branch
         return "main"

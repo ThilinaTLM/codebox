@@ -2,12 +2,14 @@ import { GitHubAppConfigForm } from "./GitHubAppConfigForm"
 import { GitHubInstallSection } from "./GitHubInstallSection"
 import { GitHubInstallationsList } from "./GitHubInstallationsList"
 import { useGitHubInstallations, useGitHubStatus } from "@/net/query"
+import { useProjectStore } from "@/lib/project"
 import { Separator } from "@/components/ui/separator"
 
 export function GitHubSection() {
-  const { data: status, isLoading: statusLoading } = useGitHubStatus()
+  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const { data: status, isLoading: statusLoading } = useGitHubStatus(slug || undefined)
   const { data: installations, isLoading: installationsLoading } =
-    useGitHubInstallations()
+    useGitHubInstallations(slug || undefined)
 
   return (
     <div className="space-y-10">

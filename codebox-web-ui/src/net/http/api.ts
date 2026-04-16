@@ -20,9 +20,11 @@ import type {
   LoginResponse,
   Model,
   ModelsPreviewRequest,
+  Project,
+  ProjectMember,
+  ProjectSettings,
+  ProjectSettingsUpdate,
   UploadFileResponse,
-  UserSettings,
-  UserSettingsUpdate,
   WriteFileResponse,
 } from "./types"
 import { API_URL } from "@/lib/constants"
@@ -34,16 +36,16 @@ const client = axios.create({
   withCredentials: true,
 })
 
+const p = (slug: string) => `/api/projects/${slug}`
+
 export function isAuthError(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 401
 }
 
-// Clear auth state on 401 responses
 client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (isAuthError(error)) {
-      // Don't logout on failed login attempts
       const url = error.config?.url ?? ""
       if (!url.endsWith("/auth/login")) {
         useAuthStore.getState().logout()
@@ -54,88 +56,141 @@ client.interceptors.response.use(
 )
 
 export const api = {
+  projects: {
+    list: async (): Promise<Array<Project>> => {
+      const { data } = await client.get<Array<Project>>("/api/projects")
+      return data
+    },
+    get: async (slug: string): Promise<Project> => {
+      const { data } = await client.get<Project>(`${p(slug)}`)
+      return data
+    },
+    create: async (name: string, description?: string | null): Promise<Project> => {
+      const { data } = await client.post<Project>("/api/projects", {
+        name,
+        description: description ?? null,
+      })
+      return data
+    },
+    listMembers: async (slug: string): Promise<Array<ProjectMember>> => {
+      const { data } = await client.get<Array<ProjectMember>>(`${p(slug)}/members`)
+      return data
+    },
+    addMember: async (
+      slug: string,
+      userId: string,
+      role?: string
+    ): Promise<ProjectMember> => {
+      const { data } = await client.post<ProjectMember>(`${p(slug)}/members`, {
+        user_id: userId,
+        role: role ?? "contributor",
+      })
+      return data
+    },
+    updateMemberRole: async (
+      slug: string,
+      userId: string,
+      role: string
+    ): Promise<ProjectMember> => {
+      const { data } = await client.patch<ProjectMember>(
+        `${p(slug)}/members/${userId}`,
+        { role }
+      )
+      return data
+    },
+    removeMember: async (slug: string, userId: string): Promise<void> => {
+      await client.delete(`${p(slug)}/members/${userId}`)
+    },
+  },
   boxes: {
-    list: async (status?: string, trigger?: string): Promise<Array<Box>> => {
+    list: async (
+      slug: string,
+      status?: string,
+      trigger?: string
+    ): Promise<Array<Box>> => {
       const params: Record<string, string> = {}
-      if (status) params.status = status
+      if (status) params.container_status = status
       if (trigger) params.trigger = trigger
-      const { data } = await client.get<Array<Box>>("/api/boxes", { params })
+      const { data } = await client.get<Array<Box>>(`${p(slug)}/boxes`, { params })
       return data
     },
-    get: async (boxId: string): Promise<Box> => {
-      const { data } = await client.get<Box>(`/api/boxes/${boxId}`)
+    get: async (slug: string, boxId: string): Promise<Box> => {
+      const { data } = await client.get<Box>(`${p(slug)}/boxes/${boxId}`)
       return data
     },
-    create: async (payload: BoxCreatePayload): Promise<Box> => {
-      const { data } = await client.post<Box>("/api/boxes", payload)
+    create: async (slug: string, payload: BoxCreatePayload): Promise<Box> => {
+      const { data } = await client.post<Box>(`${p(slug)}/boxes`, payload)
       return data
     },
-    stop: async (boxId: string): Promise<Box> => {
-      const { data } = await client.post<Box>(`/api/boxes/${boxId}/stop`)
+    stop: async (slug: string, boxId: string): Promise<Box> => {
+      const { data } = await client.post<Box>(`${p(slug)}/boxes/${boxId}/stop`)
       return data
     },
-    restart: async (boxId: string): Promise<Box> => {
-      const { data } = await client.post<Box>(`/api/boxes/${boxId}/restart`)
+    restart: async (slug: string, boxId: string): Promise<Box> => {
+      const { data } = await client.post<Box>(`${p(slug)}/boxes/${boxId}/restart`)
       return data
     },
-    cancel: async (boxId: string): Promise<void> => {
-      await client.post(`/api/boxes/${boxId}/cancel`)
+    cancel: async (slug: string, boxId: string): Promise<void> => {
+      await client.post(`${p(slug)}/boxes/${boxId}/cancel`)
     },
-    delete: async (boxId: string): Promise<void> => {
-      await client.delete(`/api/boxes/${boxId}`)
+    delete: async (slug: string, boxId: string): Promise<void> => {
+      await client.delete(`${p(slug)}/boxes/${boxId}`)
     },
-    sendMessage: async (boxId: string, message: string): Promise<void> => {
-      await client.post(`/api/boxes/${boxId}/message`, { message })
+    sendMessage: async (slug: string, boxId: string, message: string): Promise<void> => {
+      await client.post(`${p(slug)}/boxes/${boxId}/message`, { message })
     },
-    sendExec: async (boxId: string, command: string): Promise<void> => {
-      await client.post(`/api/boxes/${boxId}/exec`, { command })
+    sendExec: async (slug: string, boxId: string, command: string): Promise<void> => {
+      await client.post(`${p(slug)}/boxes/${boxId}/exec`, { command })
     },
     getEvents: async (
+      slug: string,
       boxId: string,
       afterSeq?: number,
-      limit?: number,
+      limit?: number
     ): Promise<Array<CanonicalEvent>> => {
       const params: Record<string, number> = {}
       if (afterSeq != null) params.after_seq = afterSeq
       if (limit != null) params.limit = limit
       const { data } = await client.get<Array<CanonicalEvent>>(
-        `/api/boxes/${boxId}/events`,
+        `${p(slug)}/boxes/${boxId}/events`,
         { params: Object.keys(params).length > 0 ? params : undefined }
       )
       return data
     },
     listFiles: async (
+      slug: string,
       boxId: string,
       path: string = "/workspace"
     ): Promise<FileListResponse> => {
       const { data } = await client.get<FileListResponse>(
-        `/api/boxes/${boxId}/files`,
+        `${p(slug)}/boxes/${boxId}/files`,
         { params: { path } }
       )
       return data
     },
-    readFile: async (boxId: string, path: string): Promise<FileContent> => {
+    readFile: async (slug: string, boxId: string, path: string): Promise<FileContent> => {
       const { data } = await client.get<FileContent>(
-        `/api/boxes/${boxId}/files/read`,
+        `${p(slug)}/boxes/${boxId}/files/read`,
         { params: { path } }
       )
       return data
     },
-    getDownloadUrl: (boxId: string, path: string): string => {
+    getDownloadUrl: (slug: string, boxId: string, path: string): string => {
       const params = new URLSearchParams({ path })
-      return `${API_URL}/api/boxes/${boxId}/files/download?${params.toString()}`
+      return `${API_URL}${p(slug)}/boxes/${boxId}/files/download?${params.toString()}`
     },
-    getInlineUrl: (boxId: string, path: string): string => {
+    getInlineUrl: (slug: string, boxId: string, path: string): string => {
       const params = new URLSearchParams({ path, inline: "true" })
-      return `${API_URL}/api/boxes/${boxId}/files/download?${params.toString()}`
+      return `${API_URL}${p(slug)}/boxes/${boxId}/files/download?${params.toString()}`
     },
     writeFile: async (
+      slug: string,
       boxId: string,
       path: string,
       content: string
     ): Promise<WriteFileResponse> => {
       const { data } = await client.post<WriteFileResponse>(
-        `/api/boxes/${boxId}/files/write`,
+        `${p(slug)}/boxes/${boxId}/files/write`,
         content,
         {
           params: { path },
@@ -145,6 +200,7 @@ export const api = {
       return data
     },
     uploadFile: async (
+      slug: string,
       boxId: string,
       path: string,
       file: File
@@ -152,7 +208,7 @@ export const api = {
       const formData = new FormData()
       formData.append("file", file)
       const { data } = await client.post<UploadFileResponse>(
-        `/api/boxes/${boxId}/files/upload`,
+        `${p(slug)}/boxes/${boxId}/files/upload`,
         formData,
         {
           params: { path },
@@ -161,74 +217,101 @@ export const api = {
       )
       return data
     },
-    logs: async (boxId: string, tail: number = 200): Promise<ContainerLogs> => {
-      const { data } = await client.get<ContainerLogs>(
-        `/api/boxes/${boxId}/logs`,
-        { params: { tail } }
-      )
+    logs: async (
+      slug: string,
+      boxId: string,
+      tail: number = 200
+    ): Promise<ContainerLogs> => {
+      const { data } = await client.get<ContainerLogs>(`${p(slug)}/boxes/${boxId}/logs`, {
+        params: { tail },
+      })
       return data
     },
   },
   models: {
-    list: async (profileId?: string): Promise<Array<Model>> => {
-      const { data } = await client.get<Array<Model>>("/api/models", {
+    list: async (slug: string, profileId?: string): Promise<Array<Model>> => {
+      const { data } = await client.get<Array<Model>>(`${p(slug)}/models`, {
         params: profileId ? { profile_id: profileId } : undefined,
       })
       return data
     },
-    preview: async (payload: ModelsPreviewRequest): Promise<Array<Model>> => {
-      const { data } = await client.post<Array<Model>>("/api/models/preview", payload)
+    preview: async (slug: string, payload: ModelsPreviewRequest): Promise<Array<Model>> => {
+      const { data } = await client.post<Array<Model>>(
+        `${p(slug)}/models/preview`,
+        payload
+      )
       return data
     },
   },
   llmProfiles: {
-    list: async (): Promise<Array<LLMProfile>> => {
-      const { data } = await client.get<Array<LLMProfile>>("/api/llm-profiles")
+    list: async (slug: string): Promise<Array<LLMProfile>> => {
+      const { data } = await client.get<Array<LLMProfile>>(`${p(slug)}/llm-profiles`)
       return data
     },
-    get: async (id: string): Promise<LLMProfile> => {
-      const { data } = await client.get<LLMProfile>(`/api/llm-profiles/${id}`)
+    get: async (slug: string, id: string): Promise<LLMProfile> => {
+      const { data } = await client.get<LLMProfile>(`${p(slug)}/llm-profiles/${id}`)
       return data
     },
-    create: async (payload: LLMProfileCreate): Promise<LLMProfile> => {
-      const { data } = await client.post<LLMProfile>("/api/llm-profiles", payload)
+    create: async (slug: string, payload: LLMProfileCreate): Promise<LLMProfile> => {
+      const { data } = await client.post<LLMProfile>(`${p(slug)}/llm-profiles`, payload)
       return data
     },
-    update: async (id: string, payload: LLMProfileUpdate): Promise<LLMProfile> => {
-      const { data } = await client.put<LLMProfile>(`/api/llm-profiles/${id}`, payload)
+    update: async (
+      slug: string,
+      id: string,
+      payload: LLMProfileUpdate
+    ): Promise<LLMProfile> => {
+      const { data } = await client.patch<LLMProfile>(
+        `${p(slug)}/llm-profiles/${id}`,
+        payload
+      )
       return data
     },
-    delete: async (id: string): Promise<void> => {
-      await client.delete(`/api/llm-profiles/${id}`)
+    delete: async (slug: string, id: string): Promise<void> => {
+      await client.delete(`${p(slug)}/llm-profiles/${id}`)
     },
-    duplicate: async (id: string): Promise<LLMProfile> => {
-      const { data } = await client.post<LLMProfile>(`/api/llm-profiles/${id}/duplicate`)
+    duplicate: async (slug: string, id: string): Promise<LLMProfile> => {
+      const { data } = await client.post<LLMProfile>(
+        `${p(slug)}/llm-profiles/${id}/duplicate`
+      )
       return data
     },
-    export: async (payload: LLMProfileExportRequest): Promise<LLMProfileExportFile> => {
-      const { data } = await client.post<LLMProfileExportFile>("/api/llm-profiles/export", payload)
+    export: async (
+      slug: string,
+      payload: LLMProfileExportRequest
+    ): Promise<LLMProfileExportFile> => {
+      const { data } = await client.post<LLMProfileExportFile>(
+        `${p(slug)}/llm-profiles/export`,
+        payload
+      )
       return data
     },
-    import: async (payload: LLMProfileImportRequest): Promise<LLMProfileImportResult> => {
-      const { data } = await client.post<LLMProfileImportResult>("/api/llm-profiles/import", payload)
+    import: async (
+      slug: string,
+      payload: LLMProfileImportRequest
+    ): Promise<LLMProfileImportResult> => {
+      const { data } = await client.post<LLMProfileImportResult>(
+        `${p(slug)}/llm-profiles/import`,
+        payload
+      )
       return data
     },
   },
-  userSettings: {
-    get: async (): Promise<UserSettings> => {
-      const { data } = await client.get<UserSettings>("/api/user/settings")
+  projectSettings: {
+    get: async (slug: string): Promise<ProjectSettings> => {
+      const { data } = await client.get<ProjectSettings>(`${p(slug)}/settings`)
       return data
     },
-    update: async (payload: UserSettingsUpdate): Promise<UserSettings> => {
-      const { data } = await client.patch<UserSettings>("/api/user/settings", payload)
+    update: async (
+      slug: string,
+      payload: ProjectSettingsUpdate
+    ): Promise<ProjectSettings> => {
+      const { data } = await client.patch<ProjectSettings>(`${p(slug)}/settings`, payload)
       return data
     },
   },
   auth: {
-    login: async (
-      username: string,
-      password: string
-    ): Promise<LoginResponse> => {
+    login: async (username: string, password: string): Promise<LoginResponse> => {
       const { data } = await client.post<LoginResponse>("/api/auth/login", {
         username,
         password,
@@ -242,10 +325,7 @@ export const api = {
       const { data } = await client.get<AuthUser>("/api/auth/me")
       return data
     },
-    changePassword: async (
-      oldPassword: string,
-      newPassword: string
-    ): Promise<void> => {
+    changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
       await client.post("/api/auth/change-password", {
         old_password: oldPassword,
         new_password: newPassword,
@@ -286,36 +366,37 @@ export const api = {
     },
   },
   github: {
-    status: async (): Promise<GitHubStatus> => {
-      const { data } = await client.get<GitHubStatus>("/api/github/status")
+    status: async (slug: string): Promise<GitHubStatus> => {
+      const { data } = await client.get<GitHubStatus>(`${p(slug)}/github/status`)
       return data
     },
-    listInstallations: async (): Promise<Array<GitHubInstallation>> => {
+    listInstallations: async (slug: string): Promise<Array<GitHubInstallation>> => {
       const { data } = await client.get<Array<GitHubInstallation>>(
-        "/api/github/installations"
+        `${p(slug)}/github/installations`
       )
       return data
     },
     addInstallation: async (
+      slug: string,
       installationId: number
     ): Promise<GitHubInstallation> => {
       const { data } = await client.post<GitHubInstallation>(
-        "/api/github/installations",
+        `${p(slug)}/github/installations`,
         { installation_id: installationId }
       )
       return data
     },
-    syncInstallation: async (id: string): Promise<Array<GitHubRepo>> => {
+    syncInstallation: async (slug: string, id: string): Promise<Array<GitHubRepo>> => {
       const { data } = await client.post<Array<GitHubRepo>>(
-        `/api/github/installations/${id}/sync`
+        `${p(slug)}/github/installations/${id}/sync`
       )
       return data
     },
-    removeInstallation: async (id: string): Promise<void> => {
-      await client.delete(`/api/github/installations/${id}`)
+    removeInstallation: async (slug: string, id: string): Promise<void> => {
+      await client.delete(`${p(slug)}/github/installations/${id}`)
     },
-    listRepos: async (): Promise<Array<GitHubRepo>> => {
-      const { data } = await client.get<Array<GitHubRepo>>("/api/github/repos")
+    listRepos: async (slug: string): Promise<Array<GitHubRepo>> => {
+      const { data } = await client.get<Array<GitHubRepo>>(`${p(slug)}/github/repos`)
       return data
     },
   },

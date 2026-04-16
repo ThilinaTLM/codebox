@@ -81,6 +81,7 @@ class ContainerInfo:
     # Label-based metadata
     box_id: str = ""
     box_name: str = ""
+    project_id: str = ""
     trigger: str = ""
     description: str = ""
     tags: list[str] | None = None
@@ -240,14 +241,18 @@ def list_running() -> list[ContainerInfo]:
 _DOCKER_ZERO_TIME = "0001-01-01T00:00:00Z"
 
 
-def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
+def list_containers(all: bool = True, project_id: str | None = None) -> list[ContainerInfo]:  # noqa: A002
     """List sandbox containers. When *all* is True, includes stopped containers."""
     client = _get_client()
+
+    label_filters = [f"{CONTAINER_LABEL}=true"]
+    if project_id:
+        label_filters.append(f"codebox.project-id={project_id}")
 
     try:
         containers = client.containers.list(
             all=all,
-            filters={"label": f"{CONTAINER_LABEL}=true"},
+            filters={"label": label_filters},
         )
     except docker.errors.APIError as exc:
         raise DockerServiceError(f"Docker API error: {exc}") from exc
@@ -294,6 +299,7 @@ def list_containers(all: bool = True) -> list[ContainerInfo]:  # noqa: A002
                 created_at=created_at or labels.get("codebox.created-at"),
                 box_id=labels.get("codebox.box-id", ""),
                 box_name=labels.get("codebox.name", ""),
+                project_id=labels.get("codebox.project-id", ""),
                 trigger=labels.get("codebox.trigger", ""),
                 description=labels.get("codebox.description", ""),
                 tags=(

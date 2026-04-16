@@ -11,6 +11,7 @@ import { API_URL } from "@/lib/constants"
 import { useAuthStore } from "@/lib/auth"
 
 interface UseChatStateOptions {
+  slug: string
   boxId: string
   enabled?: boolean
 }
@@ -22,11 +23,12 @@ interface UseChatStateReturn {
 }
 
 export function useChatState({
+  slug,
   boxId,
   enabled = true,
 }: UseChatStateOptions): UseChatStateReturn {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const { data } = useBoxEvents(boxId, { enabled })
+  const { data } = useBoxEvents(slug, boxId, { enabled })
   const historyEvents = data ?? []
   const [liveEvents, setLiveEvents] = useState<Array<BoxStreamEvent>>([])
   const [isConnected, setIsConnected] = useState(false)
@@ -49,7 +51,7 @@ export function useChatState({
     // Use the ref value at effect-creation time; subsequent changes won't
     // tear down the SSE — we'll just get a few duplicate events that the
     // dedup in onmessage handles.
-    const url = `${API_URL}/api/boxes/${boxId}/stream?after_seq=${lastHistorySeqRef.current}`
+    const url = `${API_URL}/api/projects/${slug}/boxes/${boxId}/stream?after_seq=${lastHistorySeqRef.current}`
 
     fetchEventSource(url, {
       credentials: "include",
@@ -97,7 +99,7 @@ export function useChatState({
       setIsConnected(false)
       setLiveEvents([])
     }
-  }, [boxId, enabled, isAuthenticated])
+  }, [slug, boxId, enabled, isAuthenticated])
 
   const blocks = useMemo(
     () => collapseTokens(mergeEvents(historyEvents, liveEvents)),

@@ -52,7 +52,6 @@ class HandleBoxEventHandler:
             stored = await self._repository.append_event(box_id, raw)
             await self._apply_live_state(box_id, stored)
             await self._publisher.publish_box_event(box_id, stored)
-            return
 
     async def _apply_live_state(self, box_id: str, event: dict) -> None:
         kind = event.get("kind", "")
@@ -67,26 +66,26 @@ class HandleBoxEventHandler:
         elif kind == "outcome.declared":
             status = payload.get("status", "")
             message = payload.get("message", "")
-            self._registry.update_live_state(box_id, "task_outcome", status)
-            self._registry.update_live_state(box_id, "task_outcome_message", message)
+            self._registry.update_live_state(box_id, "box_outcome", status)
+            self._registry.update_live_state(box_id, "box_outcome_message", message)
             await self._publisher.publish_global_event(
                 {
                     "type": "box_status_changed",
                     "box_id": box_id,
-                    "task_outcome": status,
-                    "task_outcome_message": message,
+                    "box_outcome": status,
+                    "box_outcome_message": message,
                 }
             )
         elif kind == "run.failed":
             message = payload.get("error", "")
-            self._registry.update_live_state(box_id, "task_outcome", "unable_to_proceed")
-            self._registry.update_live_state(box_id, "task_outcome_message", message)
+            self._registry.update_live_state(box_id, "box_outcome", "unable_to_proceed")
+            self._registry.update_live_state(box_id, "box_outcome_message", message)
             await self._publisher.publish_global_event(
                 {
                     "type": "box_status_changed",
                     "box_id": box_id,
-                    "task_outcome": "unable_to_proceed",
-                    "task_outcome_message": message,
+                    "box_outcome": "unable_to_proceed",
+                    "box_outcome_message": message,
                 }
             )
 

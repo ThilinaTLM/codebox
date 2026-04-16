@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { File, Folder, Tree } from "@/components/ui/file-tree"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useBoxFiles, useUploadFile } from "@/net/query"
+import { useProjectStore } from "@/lib/project"
 
 export function FileExplorer({
   boxId,
@@ -29,10 +30,12 @@ export function FileExplorer({
   const binaryFilesRef = useRef<Set<string>>(new Set())
   const queryClient = useQueryClient()
 
+  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const uploadMutation = useUploadFile(boxId)
+  const uploadMutation = useUploadFile(slug, boxId)
 
   const { data: rootFiles, isLoading: isLoadingFiles } = useBoxFiles(
+    slug || undefined,
     boxId,
     "/workspace"
   )
@@ -55,7 +58,7 @@ export function FileExplorer({
           queryKey: ["boxes", boxId, "files", dirPath],
           queryFn: async () => {
             const { api } = await import("@/net/http/api")
-            return api.boxes.listFiles(boxId, dirPath)
+            return api.boxes.listFiles(slug, boxId, dirPath)
           },
           staleTime: 10000,
         })

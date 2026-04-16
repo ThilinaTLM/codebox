@@ -131,7 +131,7 @@ export function CreateBoxStepOne({
               <p className="text-sm text-muted-foreground">
                 No LLM profiles configured.{" "}
                 <Link
-                  to="/settings/llm-profiles"
+                  to="/settings/account"
                   className="underline hover:text-foreground"
                 >
                   Set up a profile →

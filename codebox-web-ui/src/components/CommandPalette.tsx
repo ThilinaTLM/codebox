@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { useBoxes } from "@/net/query"
+import { useProjectStore } from "@/lib/project"
 import {
   Command,
   CommandDialog,
@@ -14,7 +15,9 @@ import {
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
-  const { data: boxes } = useBoxes()
+  const currentProject = useProjectStore((s) => s.currentProject)
+  const slug = currentProject?.slug
+  const { data: boxes } = useBoxes(slug)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -43,7 +46,11 @@ export function CommandPalette() {
           <CommandGroup heading="Actions">
             <CommandItem
               onSelect={() =>
-                handleSelect(() => navigate({ to: "/boxes/create" }))
+                handleSelect(() =>
+                  slug
+                    ? navigate({ to: "/projects/$projectSlug/boxes/create", params: { projectSlug: slug } })
+                    : navigate({ to: "/projects" })
+                )
               }
             >
               Create Agent
@@ -68,10 +75,12 @@ export function CommandPalette() {
                     key={box.id}
                     onSelect={() =>
                       handleSelect(() =>
-                        navigate({
-                          to: "/boxes/$boxId",
-                          params: { boxId: box.id },
-                        })
+                        slug
+                          ? navigate({
+                              to: "/projects/$projectSlug/boxes/$boxId",
+                              params: { projectSlug: slug, boxId: box.id },
+                            })
+                          : undefined
                       )
                     }
                   >

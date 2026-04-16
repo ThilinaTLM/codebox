@@ -1,6 +1,6 @@
 import { isToday } from "date-fns"
 import type { Box } from "@/net/http/types"
-import { ContainerStatus, TaskOutcome } from "@/net/http/types"
+import { BoxOutcome, ContainerStatus } from "@/net/http/types"
 import { cn } from "@/lib/utils"
 import { getStatusDotClass, isBoxActive } from "@/lib/box-utils"
 
@@ -23,7 +23,7 @@ export function DashboardStats({ boxes }: DashboardStatsProps) {
       isToday(new Date(b.created_at))
   )
   const completedToday = stoppedToday.filter(
-    (b) => b.task_outcome === TaskOutcome.COMPLETED
+    (b) => b.box_outcome === BoxOutcome.COMPLETED
   ).length
   const successRate =
     stoppedToday.length > 0
@@ -32,7 +32,6 @@ export function DashboardStats({ boxes }: DashboardStatsProps) {
 
   return (
     <div className="grid grid-cols-3 gap-4">
-      {/* Active */}
       <div className="rounded-xl border border-border/50 bg-card px-4 py-3">
         <div className="font-display text-2xl font-semibold">{activeCount}</div>
         <div className="text-label mt-1">Active</div>
@@ -48,13 +47,11 @@ export function DashboardStats({ boxes }: DashboardStatsProps) {
         )}
       </div>
 
-      {/* Today */}
       <div className="rounded-xl border border-border/50 bg-card px-4 py-3">
         <div className="font-display text-2xl font-semibold">{todayCount}</div>
         <div className="text-label mt-1">Today</div>
       </div>
 
-      {/* Success Rate */}
       <div className="rounded-xl border border-border/50 bg-card px-4 py-3">
         <div className="font-display text-2xl font-semibold">{successRate}%</div>
         <div className="text-label mt-1">Success Rate</div>

@@ -19,7 +19,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, WebS
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from codebox_orchestrator.agent.infrastructure.callback_token import decode_callback_token
-from codebox_orchestrator.auth.dependencies import get_current_user
+from codebox_orchestrator.project.dependencies import (
+    ProjectContext,
+    get_project_context,
+)
 from codebox_orchestrator.tunnel.proxy import proxy_request, proxy_request_streaming
 from codebox_orchestrator.tunnel.registry import (
     NoTunnelConnectionError,
@@ -48,10 +51,11 @@ def _get_query_service(request: Request) -> BoxQueryService:
     return request.app.state.query_service
 
 
-async def _require_box(box_id: str, request: Request) -> None:
-    """Raise 404 if the box does not exist."""
+async def _require_box(box_id: str, project_id: str, request: Request) -> None:
+    """Raise 404 if the box does not exist or does not belong to the project."""
     qs: BoxQueryService = _get_query_service(request)
-    if qs.get_box(box_id) is None:
+    box = await qs.get_box(box_id)
+    if box is None or box.project_id != project_id:
         raise HTTPException(404, "Box not found")
 
 
@@ -100,19 +104,20 @@ async def tunnel_websocket(websocket: WebSocket) -> None:
 
 
 # ---------------------------------------------------------------------------
-# File proxy endpoints — frontend calls these
+# File proxy endpoints — frontend calls these (project-scoped)
 # ---------------------------------------------------------------------------
 
 
-@router.get("/api/boxes/{box_id}/files", dependencies=[Depends(get_current_user)])
+@router.get("/api/projects/{slug}/boxes/{box_id}/files")
 async def list_files(
     box_id: str,
     path: str = "/workspace",
     *,
     request: Request,
+    ctx: ProjectContext = Depends(get_project_context),
 ) -> JSONResponse:
     """List directory contents in a box workspace via tunnel."""
-    await _require_box(box_id, request)
+    await _require_box(box_id, ctx.project_id, request)
     registry = _get_tunnel_registry(request)
 
     try:
@@ -131,15 +136,16 @@ async def list_files(
         raise HTTPException(502, f"File proxy error: {exc}") from exc
 
 
-@router.get("/api/boxes/{box_id}/files/read", dependencies=[Depends(get_current_user)])
+@router.get("/api/projects/{slug}/boxes/{box_id}/files/read")
 async def read_file(
     box_id: str,
     path: str,
     *,
     request: Request,
+    ctx: ProjectContext = Depends(get_project_context),
 ) -> JSONResponse:
     """Read a file from a box workspace via tunnel."""
-    await _require_box(box_id, request)
+    await _require_box(box_id, ctx.project_id, request)
     registry = _get_tunnel_registry(request)
 
     try:
@@ -158,16 +164,17 @@ async def read_file(
         raise HTTPException(502, f"File proxy error: {exc}") from exc
 
 
-@router.get("/api/boxes/{box_id}/files/download", dependencies=[Depends(get_current_user)])
+@router.get("/api/projects/{slug}/boxes/{box_id}/files/download")
 async def download_file(
     box_id: str,
     path: str,
     inline: bool = False,
     *,
     request: Request,
+    ctx: ProjectContext = Depends(get_project_context),
 ) -> StreamingResponse:
     """Download a file from a box workspace via streaming tunnel."""
-    await _require_box(box_id, request)
+    await _require_box(box_id, ctx.project_id, request)
     registry = _get_tunnel_registry(request)
 
     try:
@@ -199,14 +206,15 @@ async def download_file(
     )
 
 
-@router.post("/api/boxes/{box_id}/files/write", dependencies=[Depends(get_current_user)])
+@router.post("/api/projects/{slug}/boxes/{box_id}/files/write")
 async def write_file(
     box_id: str,
     path: str,
     request: Request,
+    ctx: ProjectContext = Depends(get_project_context),
 ) -> JSONResponse:
     """Write content to a file in a box workspace via tunnel."""
-    await _require_box(box_id, request)
+    await _require_box(box_id, ctx.project_id, request)
     registry = _get_tunnel_registry(request)
 
     body = await request.body()
@@ -230,16 +238,17 @@ async def write_file(
         raise HTTPException(502, f"File proxy error: {exc}") from exc
 
 
-@router.post("/api/boxes/{box_id}/files/upload", dependencies=[Depends(get_current_user)])
+@router.post("/api/projects/{slug}/boxes/{box_id}/files/upload")
 async def upload_file(
     box_id: str,
     path: str,
     file: UploadFile,
     *,
     request: Request,
+    ctx: ProjectContext = Depends(get_project_context),
 ) -> JSONResponse:
     """Upload a file to a box workspace via tunnel."""
-    await _require_box(box_id, request)
+    await _require_box(box_id, ctx.project_id, request)
     registry = _get_tunnel_registry(request)
 
     try:

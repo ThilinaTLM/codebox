@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 
 from codebox_orchestrator.agent.infrastructure import orm_models as orm
+from codebox_orchestrator.box.infrastructure.orm_models import BoxRecord
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -21,12 +22,21 @@ class SqlAlchemyBoxEventRepository:
 
     async def append_event(self, box_id: str, event: dict[str, Any]) -> dict[str, Any]:
         async with self._sf() as db:
+            box = await db.get(BoxRecord, box_id)
+            if box is None:
+                msg = f"Cannot append event for unknown box: {box_id}"
+                raise ValueError(msg)
+
             seq_stmt = select(orm.BoxProjectionRecord).where(
                 orm.BoxProjectionRecord.box_id == box_id
             )
             projection = (await db.execute(seq_stmt)).scalar_one_or_none()
             if projection is None:
-                projection = orm.BoxProjectionRecord(box_id=box_id, last_seq=0)
+                projection = orm.BoxProjectionRecord(
+                    box_id=box_id,
+                    project_id=box.project_id,
+                    last_seq=0,
+                )
                 db.add(projection)
                 await db.flush()
 
@@ -49,6 +59,7 @@ class SqlAlchemyBoxEventRepository:
 
             db.add(
                 orm.BoxEventRecord(
+                    project_id=box.project_id,
                     box_id=box_id,
                     seq=next_seq,
                     kind=stored["kind"],
@@ -63,6 +74,7 @@ class SqlAlchemyBoxEventRepository:
                 )
             )
 
+            projection.project_id = box.project_id
             projection.last_seq = next_seq
             self._apply_projection(projection, stored)
             await db.commit()
@@ -92,10 +104,11 @@ class SqlAlchemyBoxEventRepository:
                 return None
             return {
                 "box_id": projection.box_id,
+                "project_id": projection.project_id,
                 "last_seq": projection.last_seq,
                 "activity": projection.activity,
-                "task_outcome": projection.task_outcome,
-                "task_outcome_message": projection.task_outcome_message,
+                "box_outcome": projection.box_outcome,
+                "box_outcome_message": projection.box_outcome_message,
             }
 
     @staticmethod
@@ -105,15 +118,15 @@ class SqlAlchemyBoxEventRepository:
         if kind == "state.changed":
             projection.activity = payload.get("activity") or projection.activity
         elif kind == "outcome.declared":
-            projection.task_outcome = payload.get("status") or projection.task_outcome
-            projection.task_outcome_message = (
-                payload.get("message") or projection.task_outcome_message
+            projection.box_outcome = payload.get("status") or projection.box_outcome
+            projection.box_outcome_message = (
+                payload.get("message") or projection.box_outcome_message
             )
         elif kind == "run.failed":
-            projection.task_outcome = "unable_to_proceed"
-            projection.task_outcome_message = payload.get("error", projection.task_outcome_message)
-        elif kind == "run.completed" and not projection.task_outcome:
-            projection.task_outcome = "completed"
+            projection.box_outcome = "unable_to_proceed"
+            projection.box_outcome_message = payload.get("error", projection.box_outcome_message)
+        elif kind == "run.completed" and not projection.box_outcome:
+            projection.box_outcome = "completed"
         projection.updated_at = datetime.now(UTC)
 
     @staticmethod

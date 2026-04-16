@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/net/http/api"
 import { useBoxFileContent } from "@/net/query"
+import { useProjectStore } from "@/lib/project"
 
 // ---------------------------------------------------------------------------
 // File type classification
@@ -69,10 +70,11 @@ interface FilePreviewProps {
 }
 
 export function FilePreview({ boxId, filePath, onClose }: FilePreviewProps) {
-  const { data: fileContent, isLoading } = useBoxFileContent(boxId, filePath)
+  const slug = useProjectStore((s) => s.currentProject?.slug)
+  const { data: fileContent, isLoading } = useBoxFileContent(slug, boxId, filePath)
 
-  const downloadUrl = filePath ? api.boxes.getDownloadUrl(boxId, filePath) : ""
-  const inlineUrl = filePath ? api.boxes.getInlineUrl(boxId, filePath) : ""
+  const downloadUrl = filePath && slug ? api.boxes.getDownloadUrl(slug, boxId, filePath) : ""
+  const inlineUrl = filePath && slug ? api.boxes.getInlineUrl(slug, boxId, filePath) : ""
   const fileName = filePath?.split("/").pop() ?? ""
   const displayPath = filePath?.replace("/workspace/", "") ?? ""
 

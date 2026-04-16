@@ -60,9 +60,9 @@ function groupBoxes(
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function StopButton({ box }: { box: Box }) {
+function StopButton({ box, projectSlug }: { box: Box; projectSlug: string }) {
   const [open, setOpen] = useState(false)
-  const stopMutation = useStopBox()
+  const stopMutation = useStopBox(projectSlug)
 
   return (
     <>
@@ -97,9 +97,9 @@ function StopButton({ box }: { box: Box }) {
   )
 }
 
-function DeleteButton({ box }: { box: Box }) {
+function DeleteButton({ box, projectSlug }: { box: Box; projectSlug: string }) {
   const [open, setOpen] = useState(false)
-  const deleteMutation = useDeleteBox()
+  const deleteMutation = useDeleteBox(projectSlug)
 
   return (
     <>
@@ -139,13 +139,13 @@ function DeleteButton({ box }: { box: Box }) {
 // Row
 // ---------------------------------------------------------------------------
 
-function AgentRow({ box }: { box: Box }) {
+function AgentRow({ box, projectSlug }: { box: Box; projectSlug: string }) {
   const active = isBoxActive(box)
 
   return (
     <Link
-      to="/boxes/$boxId"
-      params={{ boxId: box.id }}
+      to="/projects/$projectSlug/boxes/$boxId"
+      params={{ projectSlug, boxId: box.id }}
       className="group flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:border-border/40 hover:bg-muted/30"
     >
       {/* Status dot */}
@@ -209,8 +209,8 @@ function AgentRow({ box }: { box: Box }) {
         className="flex items-center gap-1 opacity-50 transition-opacity group-hover:opacity-100"
         onClick={(e) => e.preventDefault()}
       >
-        {active && <StopButton box={box} />}
-        <DeleteButton box={box} />
+        {active && <StopButton box={box} projectSlug={projectSlug} />}
+        <DeleteButton box={box} projectSlug={projectSlug} />
       </div>
     </Link>
   )
@@ -237,9 +237,11 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
 
 interface AgentTableProps {
   boxes: Array<Box>
+  projectSlug: string
+  isLoading?: boolean
 }
 
-export function AgentTable({ boxes }: AgentTableProps) {
+export function AgentTable({ boxes, projectSlug }: AgentTableProps) {
   const groups = groupBoxes(boxes)
 
   return (
@@ -249,7 +251,7 @@ export function AgentTable({ boxes }: AgentTableProps) {
           <SectionHeader title={group.title} count={group.boxes.length} />
           <div className="flex flex-col gap-0.5">
             {group.boxes.map((box) => (
-              <AgentRow key={box.id} box={box} />
+              <AgentRow key={box.id} box={box} projectSlug={projectSlug} />
             ))}
           </div>
         </div>

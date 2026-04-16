@@ -11,6 +11,7 @@ from codebox_orchestrator.box.domain.views import BoxView
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.application.services.box_lifecycle import BoxLifecycleService
+    from codebox_orchestrator.box.infrastructure.box_repository import BoxRepository
     from codebox_orchestrator.box.infrastructure.box_state_store import BoxStateStore
     from codebox_orchestrator.box.ports.event_publisher import EventPublisher
 
@@ -21,10 +22,12 @@ class CreateBoxHandler:
         publisher: EventPublisher,
         lifecycle: BoxLifecycleService,
         state_store: BoxStateStore,
+        box_repository: BoxRepository,
     ) -> None:
         self._publisher = publisher
         self._lifecycle = lifecycle
         self._state_store = state_store
+        self._box_repository = box_repository
 
     async def execute(
         self,
@@ -47,15 +50,28 @@ class CreateBoxHandler:
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
         init_bash_script: str | None = None,
-        user_id: str | None = None,  # noqa: ARG002
+        project_id: str = "",
+        created_by: str | None = None,
     ) -> BoxView:
         box_id = str(uuid.uuid4())
         box_name = name or generate_readable_name()
-        box_provider = provider
-        box_model = model
         now = datetime.now(UTC)
 
-        # Publish creation events
+        await self._box_repository.create(
+            box_id=box_id,
+            project_id=project_id,
+            created_by=created_by,
+            name=box_name,
+            description=description,
+            tags=tags,
+            provider=provider,
+            model=model,
+            trigger=trigger or "manual",
+            github_repo=github_repo,
+            github_branch=github_branch,
+            github_issue_number=github_issue_number,
+        )
+
         await self._publisher.publish_box_event(
             box_id, {"type": "status_change", "container_status": "starting"}
         )
@@ -64,21 +80,20 @@ class CreateBoxHandler:
                 "type": "box_created",
                 "box_id": box_id,
                 "name": box_name,
-                "provider": box_provider,
+                "provider": provider,
                 "container_status": "starting",
-                "model": box_model,
+                "model": model,
                 "created_at": now.isoformat(),
             }
         )
 
-        # Launch container in background
         self._lifecycle.start_box(
             box_id=box_id,
             name=box_name,
             description=description,
             tags=tags,
-            provider=box_provider,
-            model=box_model,
+            provider=provider,
+            model=model,
             api_key=api_key,
             base_url=base_url,
             tavily_api_key=tavily_api_key,
@@ -93,17 +108,19 @@ class CreateBoxHandler:
             github_trigger_url=github_trigger_url,
             github_branch=github_branch,
             init_bash_script=init_bash_script,
+            project_id=project_id,
         )
 
         view = BoxView(
             id=box_id,
             name=box_name,
-            provider=box_provider,
-            model=box_model,
+            provider=provider,
+            model=model,
             container_status="starting",
             container_id="",
             container_name=f"codebox-box-{box_id[:8]}",
             grpc_connected=False,
+            project_id=project_id,
             description=description,
             tags=tags,
             trigger=trigger,

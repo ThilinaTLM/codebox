@@ -1,10 +1,14 @@
-"""FastAPI dependency injection."""
+"""FastAPI dependency injection helpers.
+
+Each function retrieves a pre-built service from ``request.app.state``
+(populated in the application lifespan in ``app.py``).
+"""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import Request  # noqa: TC002
+from fastapi import Request  # noqa: TC002  # runtime-required: FastAPI inspects signatures
 
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
@@ -16,20 +20,19 @@ if TYPE_CHECKING:
     from codebox_orchestrator.box.application.commands.restart_box import RestartBoxHandler
     from codebox_orchestrator.box.application.commands.stop_box import StopBoxHandler
     from codebox_orchestrator.box.application.services.box_query import BoxQueryService
+    from codebox_orchestrator.box.infrastructure.box_repository import BoxRepository
     from codebox_orchestrator.compute.docker.docker_adapter import DockerRuntime
     from codebox_orchestrator.integration.github.application.client_manager import (
         GitHubClientManager,
     )
-    from codebox_orchestrator.integration.github.application.installation_service import (
-        GitHubInstallationService,
-    )
-    from codebox_orchestrator.integration.github.application.webhook_handler import (
-        GitHubWebhookHandler,
+    from codebox_orchestrator.integration.github.infrastructure.github_repository import (
+        SqlAlchemyGitHubRepository,
     )
     from codebox_orchestrator.llm_profile.service import LLMProfileService
+    from codebox_orchestrator.project.service import ProjectService
+    from codebox_orchestrator.project_settings.service import ProjectSettingsService
     from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
     from codebox_orchestrator.shared.messaging.relay import RelayService
-    from codebox_orchestrator.user_settings.service import UserSettingsService
 
 
 def get_create_box(request: Request) -> CreateBoxHandler:
@@ -68,14 +71,6 @@ def get_runtime(request: Request) -> DockerRuntime:
     return request.app.state.container_runtime
 
 
-def get_webhook_handler(request: Request) -> GitHubWebhookHandler | None:
-    return getattr(request.app.state, "webhook_handler", None)
-
-
-def get_installation_service(request: Request) -> GitHubInstallationService | None:
-    return getattr(request.app.state, "installation_service", None)
-
-
 def get_relay(request: Request) -> RelayService:
     return request.app.state.relay_service
 
@@ -92,9 +87,21 @@ def get_llm_profile_service(request: Request) -> LLMProfileService:
     return request.app.state.llm_profile_service
 
 
-def get_user_settings_service(request: Request) -> UserSettingsService:
-    return request.app.state.user_settings_service
+def get_project_settings_service(request: Request) -> ProjectSettingsService:
+    return request.app.state.project_settings_service
 
 
 def get_github_client_manager(request: Request) -> GitHubClientManager:
     return request.app.state.github_client_manager
+
+
+def get_project_service(request: Request) -> ProjectService:
+    return request.app.state.project_service
+
+
+def get_box_repository(request: Request) -> BoxRepository:
+    return request.app.state.box_repository
+
+
+def get_github_repository(request: Request) -> SqlAlchemyGitHubRepository:
+    return request.app.state.github_repository

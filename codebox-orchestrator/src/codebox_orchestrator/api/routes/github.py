@@ -1,15 +1,17 @@
-"""GitHub App integration API routes (per-user scoped).
+"""GitHub App integration API routes (project-scoped).
 
-Each user configures their own GitHub App credentials via user settings.
-Webhooks arrive at ``/api/github/webhook/{user_id}`` for per-user routing.
+Each project configures its own GitHub App credentials via project settings.
+Webhooks arrive at ``/api/projects/{slug}/github/webhook`` for per-project routing.
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
 import logging
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -18,28 +20,55 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from codebox_orchestrator.api.dependencies import (
     get_create_box,
     get_github_client_manager,
+    get_github_repository,
     get_llm_profile_service,
-    get_user_settings_service,
+    get_project_settings_service,
 )
 from codebox_orchestrator.api.schemas import (
+    GitHubEventListResponse,
+    GitHubEventResponse,
     GitHubInstallationCreate,
     GitHubInstallationResponse,
     GitHubRepoResponse,
     GitHubStatusResponse,
 )
-from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user
+from codebox_orchestrator.project.dependencies import (
+    ProjectContext,
+    get_project_context,
+    require_project_admin,
+)
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
     from codebox_orchestrator.integration.github.application.client_manager import (
         GitHubClientManager,
     )
+    from codebox_orchestrator.integration.github.infrastructure.github_repository import (
+        SqlAlchemyGitHubRepository,
+    )
     from codebox_orchestrator.llm_profile.service import LLMProfileService
-    from codebox_orchestrator.user_settings.service import UserSettingsService
+    from codebox_orchestrator.project_settings.service import ProjectSettingsService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/github", tags=["github"])
+router = APIRouter(prefix="/api/projects/{slug}/github", tags=["GitHub"])
+
+
+def _encode_cursor(created_at: datetime, event_id: str) -> str:
+    raw = f"{created_at.astimezone(UTC).isoformat()}|{event_id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def _decode_cursor(cursor: str | None) -> tuple[datetime, str] | None:
+    if not cursor:
+        return None
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+        created_at_s, event_id = raw.split("|", 1)
+        return datetime.fromisoformat(created_at_s), event_id
+    except Exception:
+        return None
+
 
 # Prevent background tasks from being garbage collected
 _background_tasks: set[asyncio.Task] = set()
@@ -50,30 +79,73 @@ _background_tasks: set[asyncio.Task] = set()
 
 @router.get("/status")
 async def github_status(
-    user: UserInfo = Depends(get_current_user),
-    settings_service: UserSettingsService = Depends(get_user_settings_service),
+    ctx: ProjectContext = Depends(get_project_context),
+    settings_service: ProjectSettingsService = Depends(get_project_settings_service),
 ) -> GitHubStatusResponse:
-    """Return whether GitHub integration is configured for the current user."""
-    settings = await settings_service.get_raw(user.user_id)
+    """Return whether GitHub integration is configured for this project."""
+    settings = await settings_service.get_raw(ctx.project_id)
     enabled = settings_service.github_configured(settings)
     app_slug = settings.github_app_slug if settings else None
-    webhook_url = f"/api/github/webhook/{user.user_id}" if enabled else None
+    webhook_url = f"/api/projects/{ctx.project_slug}/github/webhook" if enabled else None
     return GitHubStatusResponse(enabled=enabled, app_slug=app_slug, webhook_url=webhook_url)
 
 
-# ── Webhook (per-user URL, no JWT auth — verified by HMAC) ──────
+@router.get("/events", summary="List GitHub webhook events", operation_id="list_github_events")
+async def list_github_events(
+    delivery_id: str | None = None,
+    event_type: str | None = None,
+    action: str | None = None,
+    box_id: str | None = None,
+    limit: int = 50,
+    cursor: str | None = None,
+    ctx: ProjectContext = Depends(get_project_context),
+    github_repo: SqlAlchemyGitHubRepository = Depends(get_github_repository),
+) -> GitHubEventListResponse:
+    limit = max(1, min(limit, 200))
+    cursor_tuple = _decode_cursor(cursor)
+    events = await github_repo.list_events(
+        project_id=ctx.project_id,
+        delivery_id=delivery_id,
+        event_type=event_type,
+        action=action,
+        box_id=box_id,
+        limit=limit,
+        cursor=cursor_tuple,
+    )
+    next_cursor = None
+    if len(events) == limit:
+        tail = events[-1]
+        next_cursor = _encode_cursor(tail.created_at, tail.id)
+    return GitHubEventListResponse(
+        items=[
+            GitHubEventResponse(
+                id=event.id,
+                delivery_id=event.delivery_id,
+                event_type=event.event_type,
+                action=event.action,
+                repository=event.repository,
+                box_id=event.box_id,
+                created_at=event.created_at,
+            )
+            for event in events
+        ],
+        next_cursor=next_cursor,
+    )
 
 
-@router.post("/webhook/{user_id}", response_model=None)
+# ── Webhook (per-project URL, no JWT auth — verified by HMAC) ──
+
+
+@router.post("/webhook", response_model=None)
 async def github_webhook(
-    user_id: str,
+    slug: str,
     request: Request,
     github_mgr: GitHubClientManager = Depends(get_github_client_manager),
     create_box_handler: CreateBoxHandler = Depends(get_create_box),
     profile_service: LLMProfileService = Depends(get_llm_profile_service),
-    settings_service: UserSettingsService = Depends(get_user_settings_service),
+    settings_service: ProjectSettingsService = Depends(get_project_settings_service),
 ) -> JSONResponse:
-    """Receive and process GitHub webhooks for a specific user."""
+    """Receive and process GitHub webhooks for a specific project."""
     body = await request.body()
     signature = request.headers.get("X-Hub-Signature-256", "")
     event_type = request.headers.get("X-GitHub-Event", "")
@@ -82,10 +154,20 @@ async def github_webhook(
     if not signature or not event_type or not delivery_id:
         raise HTTPException(400, "Missing required webhook headers")
 
-    # Resolve user's GitHub config and verify HMAC
-    client, webhook_secret = await github_mgr.get_client_for_webhook(user_id)
+    # Resolve project from slug
+    from codebox_orchestrator.project.service import ProjectService  # noqa: PLC0415, TC001
+
+    project_service: ProjectService = request.app.state.project_service
+    project = await project_service.get_project_by_slug(slug)
+    if project is None:
+        raise HTTPException(404, "Project not found")
+
+    project_id = project.id
+
+    # Resolve project's GitHub config and verify HMAC
+    client, webhook_secret = await github_mgr.get_client_for_webhook(project_id)
     if client is None or webhook_secret is None:
-        raise HTTPException(404, "GitHub integration not configured for this user")
+        raise HTTPException(404, "GitHub integration not configured for this project")
 
     if not _verify_hmac(body, signature, webhook_secret):
         raise HTTPException(401, "Invalid signature")
@@ -95,7 +177,8 @@ async def github_webhook(
     # Process asynchronously — GitHub expects a fast 200 response
     task = asyncio.create_task(
         _process_webhook_safe(
-            user_id=user_id,
+            project_id=project_id,
+            project_slug=slug,
             event_type=event_type,
             delivery_id=delivery_id,
             payload=payload,
@@ -120,14 +203,15 @@ def _verify_hmac(payload: bytes, signature: str, secret: str) -> bool:
 
 async def _process_webhook_safe(
     *,
-    user_id: str,
+    project_id: str,
+    project_slug: str,
     event_type: str,
     delivery_id: str,
     payload: dict,
     github_mgr: GitHubClientManager,
     create_box_handler: CreateBoxHandler,
     profile_service: LLMProfileService,
-    settings_service: UserSettingsService,
+    settings_service: ProjectSettingsService,
 ) -> None:
     """Process webhook asynchronously: build handler, resolve LLM profile, create box."""
     from codebox_orchestrator.integration.github.application.webhook_handler import (  # noqa: PLC0415
@@ -135,51 +219,50 @@ async def _process_webhook_safe(
     )
 
     try:
-        client = await github_mgr.get_client(user_id)
+        client = await github_mgr.get_client(project_id)
         if client is None:
             logger.error(
-                "GitHub client unavailable for user %s during webhook processing",
-                user_id,
+                "GitHub client unavailable for project %s during webhook processing",
+                project_slug,
             )
             return
 
-        # Build a per-user webhook handler
-        settings = await settings_service.get_raw(user_id)
+        # Build a per-project webhook handler
+        settings = await settings_service.get_raw(project_id)
         default_branch = (
             settings.github_default_base_branch
             if settings and settings.github_default_base_branch
             else "main"
         )
 
-        # Access the github_repo from the client manager
         handler = GitHubWebhookHandler(
             api_client=client,
             repo=github_mgr._github_repo,  # noqa: SLF001
-            user_id=user_id,
+            project_id=project_id,
             default_base_branch=default_branch,
         )
 
         box_req, event_id = await handler.process_webhook(event_type, delivery_id, payload)
         if box_req is not None:
-            # Resolve user's default LLM profile for the box
-            default_profile_id = await settings_service.get_default_profile_id(user_id)
+            # Resolve project's default LLM profile for the box
+            default_profile_id = await settings_service.get_default_profile_id(project_id)
             if not default_profile_id:
                 logger.error(
-                    "User %s has no default LLM profile — cannot create GitHub-triggered box",
-                    user_id,
+                    "Project %s has no default LLM profile — cannot create GitHub-triggered box",
+                    project_slug,
                 )
                 return
 
-            resolved = await profile_service.resolve_profile(default_profile_id, user_id)
+            resolved = await profile_service.resolve_profile(default_profile_id, project_id)
             if resolved is None:
                 logger.error(
-                    "Default LLM profile %s not found for user %s",
+                    "Default LLM profile %s not found for project %s",
                     default_profile_id,
-                    user_id,
+                    project_slug,
                 )
                 return
 
-            tavily_key = await settings_service.get_tavily_api_key(user_id)
+            tavily_key = await settings_service.get_tavily_api_key(project_id)
 
             view = await create_box_handler.execute(
                 name=box_req.name,
@@ -196,7 +279,7 @@ async def _process_webhook_safe(
                 github_issue_number=box_req.issue_number,
                 github_trigger_url=box_req.trigger_url,
                 github_branch=box_req.branch,
-                user_id=user_id,
+                project_id=project_id,
             )
             if event_id:
                 await handler.update_event_box_id(event_id, view.id)
@@ -210,26 +293,32 @@ async def _process_webhook_safe(
 @router.get("/callback", response_model=None)
 async def github_callback(
     request: Request,
-    user: UserInfo = Depends(get_current_user),
+    ctx: ProjectContext = Depends(get_project_context),
     github_mgr: GitHubClientManager = Depends(get_github_client_manager),
 ) -> RedirectResponse:
     """Handle GitHub App installation callback redirect."""
     installation_id_str = request.query_params.get("installation_id", "")
 
     if not installation_id_str:
-        return RedirectResponse("/settings/github?error=missing_installation_id")
+        return RedirectResponse(
+            f"/projects/{ctx.project_slug}/settings/github?error=missing_installation_id"
+        )
 
     installation_id = int(installation_id_str)
 
-    service = github_mgr.get_installation_service(user.user_id)
+    service = github_mgr.get_installation_service(ctx.project_id)
     if service:
         try:
             await service.fetch_and_store(installation_id)
         except Exception:
             logger.exception("Failed to store installation %d from callback", installation_id)
-            return RedirectResponse("/settings/github?error=failed_to_store")
+            return RedirectResponse(
+                f"/projects/{ctx.project_slug}/settings/github?error=failed_to_store"
+            )
 
-    return RedirectResponse(f"/settings/github?installation_id={installation_id}")
+    return RedirectResponse(
+        f"/projects/{ctx.project_slug}/settings/github?installation_id={installation_id}"
+    )
 
 
 # ── Installations ────────────────────────────────────────────────
@@ -237,12 +326,12 @@ async def github_callback(
 
 @router.get("/installations")
 async def list_installations(
-    user: UserInfo = Depends(get_current_user),
+    ctx: ProjectContext = Depends(get_project_context),
     github_mgr: GitHubClientManager = Depends(get_github_client_manager),
 ) -> list[GitHubInstallationResponse]:
-    """List the current user's GitHub App installations."""
-    await github_mgr.get_client(user.user_id)  # ensure client loaded
-    service = github_mgr.get_installation_service(user.user_id)
+    """List the project's GitHub App installations."""
+    await github_mgr.get_client(ctx.project_id)
+    service = github_mgr.get_installation_service(ctx.project_id)
     if service is None:
         return []
     installations = await service.list_installations()
@@ -252,14 +341,14 @@ async def list_installations(
 @router.post("/installations")
 async def add_installation(
     body: GitHubInstallationCreate,
-    user: UserInfo = Depends(get_current_user),
+    ctx: ProjectContext = Depends(require_project_admin),
     github_mgr: GitHubClientManager = Depends(get_github_client_manager),
 ) -> GitHubInstallationResponse:
     """Manually add a GitHub App installation."""
-    await github_mgr.get_client(user.user_id)
-    service = github_mgr.get_installation_service(user.user_id)
+    await github_mgr.get_client(ctx.project_id)
+    service = github_mgr.get_installation_service(ctx.project_id)
     if service is None:
-        raise HTTPException(400, "GitHub integration not configured in your settings")
+        raise HTTPException(400, "GitHub integration not configured in project settings")
     try:
         inst = await service.fetch_and_store(body.installation_id)
     except Exception as exc:
@@ -270,14 +359,14 @@ async def add_installation(
 @router.post("/installations/{installation_id}/sync")
 async def sync_installation(
     installation_id: str,
-    user: UserInfo = Depends(get_current_user),
+    ctx: ProjectContext = Depends(get_project_context),
     github_mgr: GitHubClientManager = Depends(get_github_client_manager),
 ) -> list[GitHubRepoResponse]:
     """Re-fetch the repo list for an installation from the GitHub API."""
-    await github_mgr.get_client(user.user_id)
-    service = github_mgr.get_installation_service(user.user_id)
+    await github_mgr.get_client(ctx.project_id)
+    service = github_mgr.get_installation_service(ctx.project_id)
     if service is None:
-        raise HTTPException(400, "GitHub integration not configured in your settings")
+        raise HTTPException(400, "GitHub integration not configured in project settings")
     inst = await service.get_installation(installation_id)
     if inst is None:
         raise HTTPException(404, "Installation not found")
@@ -288,14 +377,14 @@ async def sync_installation(
 @router.delete("/installations/{installation_id}", response_model=None)
 async def remove_installation(
     installation_id: str,
-    user: UserInfo = Depends(get_current_user),
+    ctx: ProjectContext = Depends(require_project_admin),
     github_mgr: GitHubClientManager = Depends(get_github_client_manager),
 ) -> JSONResponse:
     """Remove an installation record."""
-    await github_mgr.get_client(user.user_id)
-    service = github_mgr.get_installation_service(user.user_id)
+    await github_mgr.get_client(ctx.project_id)
+    service = github_mgr.get_installation_service(ctx.project_id)
     if service is None:
-        raise HTTPException(400, "GitHub integration not configured in your settings")
+        raise HTTPException(400, "GitHub integration not configured in project settings")
     deleted = await service.delete_installation(installation_id)
     if not deleted:
         raise HTTPException(404, "Installation not found")
@@ -304,12 +393,12 @@ async def remove_installation(
 
 @router.get("/repos")
 async def list_repos(
-    user: UserInfo = Depends(get_current_user),
+    ctx: ProjectContext = Depends(get_project_context),
     github_mgr: GitHubClientManager = Depends(get_github_client_manager),
 ) -> list[GitHubRepoResponse]:
-    """List repos across all of the current user's installations."""
-    await github_mgr.get_client(user.user_id)
-    service = github_mgr.get_installation_service(user.user_id)
+    """List repos across all of the project's installations."""
+    await github_mgr.get_client(ctx.project_id)
+    service = github_mgr.get_installation_service(ctx.project_id)
     if service is None:
         return []
     installations = await service.list_installations()

@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.domain.views import BoxView
+
+
+class ErrorResponse(BaseModel):
+    error: str
+    message: str
+    details: dict[str, Any] | None = None
+
 
 # ── Request schemas ──────────────────────────────────────────────
 
@@ -29,27 +37,24 @@ class ToolSettings(BaseModel):
 
 
 class BoxCreate(BaseModel):
-    """Payload for ``POST /api/boxes``."""
+    """Payload for ``POST /api/projects/{slug}/boxes``."""
 
-    # Identity
     name: str | None = None
     description: str | None = None
     tags: list[str] | None = None
-
-    # LLM profile
     llm_profile_id: str | None = None
-
-    # Agent behaviour
     system_prompt: str | None = None
     auto_start_prompt: str | None = None
     recursion_limit: int | None = None
-
-    # Tools
     tools: ToolSettings | None = None
-
-    # Init / integration
     github_repo: str | None = None
     init_bash_script: str | None = None
+
+
+class BoxUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None
 
 
 class BoxMessage(BaseModel):
@@ -72,9 +77,10 @@ class BoxResponse(BaseModel):
     container_id: str
     container_name: str
     grpc_connected: bool
+    project_id: str = ""
     activity: str | None = None
-    task_outcome: str | None = None
-    task_outcome_message: str | None = None
+    box_outcome: str | None = None
+    box_outcome_message: str | None = None
     trigger: str | None = None
     description: str | None = None
     tags: list[str] | None = None
@@ -97,9 +103,10 @@ class BoxResponse(BaseModel):
             container_id=view.container_id,
             container_name=view.container_name,
             grpc_connected=view.grpc_connected,
+            project_id=view.project_id,
             activity=view.activity,
-            task_outcome=view.task_outcome,
-            task_outcome_message=view.task_outcome_message,
+            box_outcome=view.box_outcome,
+            box_outcome_message=view.box_outcome_message,
             trigger=view.trigger,
             description=view.description,
             tags=view.tags,
@@ -123,7 +130,12 @@ class BoxEventResponse(BaseModel):
     message_id: str = ""
     tool_call_id: str = ""
     command_id: str = ""
-    payload: dict
+    payload: dict[str, Any]
+
+
+class BoxEventPage(BaseModel):
+    items: list[BoxEventResponse]
+    next_cursor: str | None = None
 
 
 # ── GitHub schemas ──────────────────────────────────────────────
@@ -153,6 +165,21 @@ class GitHubRepoResponse(BaseModel):
     full_name: str
     private: bool
     default_branch: str
+
+
+class GitHubEventResponse(BaseModel):
+    id: str
+    delivery_id: str
+    event_type: str
+    action: str | None = None
+    repository: str | None = None
+    box_id: str | None = None
+    created_at: datetime
+
+
+class GitHubEventListResponse(BaseModel):
+    items: list[GitHubEventResponse]
+    next_cursor: str | None = None
 
 
 class ModelResponse(BaseModel):
@@ -244,10 +271,51 @@ class LLMProfileImportResult(BaseModel):
     profiles: list[LLMProfileResponse]
 
 
-# ── User Settings schemas ───────────────────────────────────────
+# ── Project schemas ─────────────────────────────────────────────
 
 
-class UserSettingsResponse(BaseModel):
+class ProjectCreate(BaseModel):
+    name: str
+    description: str | None = None
+
+
+class ProjectUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
+class ProjectResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    description: str | None = None
+    created_by: str
+    status: str
+    created_at: str
+    updated_at: str
+
+
+class ProjectMemberCreate(BaseModel):
+    user_id: str
+    role: str = "contributor"
+
+
+class ProjectMemberUpdate(BaseModel):
+    role: str
+
+
+class ProjectMemberResponse(BaseModel):
+    id: str
+    project_id: str
+    user_id: str
+    role: str
+    created_at: str
+
+
+# ── Project Settings schemas ────────────────────────────────────
+
+
+class ProjectSettingsResponse(BaseModel):
     default_llm_profile_id: str | None = None
     tavily_api_key_masked: str | None = None
     github_app_id: str | None = None
@@ -258,7 +326,7 @@ class UserSettingsResponse(BaseModel):
     github_default_base_branch: str | None = None
 
 
-class UserSettingsUpdate(BaseModel):
+class ProjectSettingsUpdate(BaseModel):
     default_llm_profile_id: str | None = None
     tavily_api_key: str | None = None
     github_app_id: str | None = None

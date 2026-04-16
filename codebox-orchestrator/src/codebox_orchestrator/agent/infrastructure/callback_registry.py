@@ -33,7 +33,7 @@ class CallbackRegistry:
         self._connected_events: dict[str, asyncio.Event] = {}
         # (entity_id, request_id) → asyncio.Future for query responses
         self._pending_requests: dict[tuple[str, str], asyncio.Future[Any]] = {}
-        # entity_id → {activity, task_outcome, task_outcome_message} — last-known live state
+        # entity_id → {activity, box_outcome, box_outcome_message} — last-known live state
         self._live_state: dict[str, dict[str, str]] = {}
 
     def init_connection_state(self, entity_id: str) -> None:

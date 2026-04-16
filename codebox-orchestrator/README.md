@@ -1,52 +1,113 @@
 # codebox-orchestrator
 
-Backend API service for the Codebox platform. Manages sandbox container lifecycle, relays WebSocket events between sandboxes and clients (web UI, CLI).
+FastAPI backend for Codebox. It manages project-scoped Boxes, persists Box event history, exposes project/admin APIs, and coordinates sandbox containers over gRPC.
 
 ## What it does
 
-- Spawns and manages Docker sandbox containers
-- Creates agent sessions inside sandboxes via REST
-- Streams agent events (tokens, tool calls, completions) over WebSocket
-- Persists tasks and events to PostgreSQL
-- Provides REST API for task CRUD and container management
-- Provides WebSocket endpoint for real-time bidirectional communication
+- Manages Box container lifecycle on Docker/Podman
+- Stores projects, memberships, LLM profiles, project settings, and GitHub integration records in PostgreSQL
+- Persists canonical Box event streams and Box projections in PostgreSQL
+- Exposes a project-scoped REST API under `/api/projects/{slug}/...`
+- Streams Box lifecycle and event updates over SSE
+- Accepts gRPC callbacks from sandbox containers
+- Proxies file access through the Box tunnel
 
-## API
+## Domain model
 
-### REST endpoints
+- **Users** authenticate to the platform and can be platform admins or regular users.
+- **Projects** are the tenancy boundary.
+- **Project members** control access inside a project (`admin` / `contributor`).
+- **LLM profiles** and **project settings** are project-scoped.
+- **Boxes** belong to projects. Metadata is persisted in the `boxes` table; runtime state comes from Docker + gRPC.
+- **Box events** are append-only canonical history. **Box projections** cache current activity/outcome.
+- **GitHub installations** and **GitHub events** are project-scoped.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/health` | Health check |
-| `POST` | `/api/tasks` | Create and auto-start a task |
-| `GET` | `/api/tasks` | List tasks (optional `?status=` filter) |
-| `GET` | `/api/tasks/{id}` | Get a single task |
-| `GET` | `/api/tasks/{id}/events` | Get persisted events for a task |
-| `POST` | `/api/tasks/{id}/cancel` | Cancel a running task |
-| `POST` | `/api/tasks/{id}/feedback` | Send a follow-up message |
-| `DELETE` | `/api/tasks/{id}` | Delete a task and its container |
-| `GET` | `/api/containers` | List running containers |
-| `POST` | `/api/containers/{id}/stop` | Stop a container |
+## API summary
 
-### WebSocket endpoint
+### Global / auth
 
-`WS /api/tasks/{task_id}/ws`
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Global health check |
+| `POST` | `/api/auth/login` | Login and set auth cookie |
+| `POST` | `/api/auth/logout` | Logout |
+| `GET` | `/api/auth/me` | Get current user |
+| `PATCH` | `/api/auth/me` | Update current user profile |
+| `POST` | `/api/auth/change-password` | Change password |
+| `GET` | `/api/auth/users` | List users (admin) |
+| `POST` | `/api/auth/users` | Create user (admin) |
+| `POST` | `/api/auth/users/{user_id}/disable` | Disable user (admin) |
+| `POST` | `/api/auth/users/{user_id}/enable` | Enable user (admin) |
+| `DELETE` | `/api/auth/users/{user_id}` | Tombstone user (admin) |
 
-On connect, replays persisted events from the database, then switches to live streaming. Supports bidirectional communication:
+### Projects
 
-**Server -> Client:** `token`, `tool_start`, `tool_end`, `model_start`, `done`, `error`, `status_change`, `ping`
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/projects` | Create project |
+| `GET` | `/api/projects` | List projects visible to current user |
+| `GET` | `/api/projects/{slug}` | Get project |
+| `PATCH` | `/api/projects/{slug}` | Update project |
+| `POST` | `/api/projects/{slug}/archive` | Archive project |
+| `POST` | `/api/projects/{slug}/restore` | Restore archived project |
+| `DELETE` | `/api/projects/{slug}` | Tombstone project |
+| `GET` | `/api/projects/{slug}/members` | List members |
+| `POST` | `/api/projects/{slug}/members` | Add member |
+| `PATCH` | `/api/projects/{slug}/members/{user_id}` | Update member role |
+| `DELETE` | `/api/projects/{slug}/members/{user_id}` | Remove member |
+| `GET` | `/api/projects/{slug}/settings` | Get project settings |
+| `PATCH` | `/api/projects/{slug}/settings` | Update project settings |
 
-**Client -> Server:** `message` (follow-up), `cancel`
+### Boxes
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/projects/{slug}/health` | Project health check |
+| `POST` | `/api/projects/{slug}/boxes` | Create Box |
+| `GET` | `/api/projects/{slug}/boxes` | List Boxes |
+| `GET` | `/api/projects/{slug}/boxes/{box_id}` | Get Box |
+| `PATCH` | `/api/projects/{slug}/boxes/{box_id}` | Update Box metadata |
+| `DELETE` | `/api/projects/{slug}/boxes/{box_id}` | Delete Box |
+| `GET` | `/api/projects/{slug}/boxes/{box_id}/events` | List persisted Box events |
+| `GET` | `/api/projects/{slug}/boxes/{box_id}/logs` | Get Box logs |
+| `POST` | `/api/projects/{slug}/boxes/{box_id}/stop` | Stop Box |
+| `POST` | `/api/projects/{slug}/boxes/{box_id}/restart` | Restart Box |
+| `POST` | `/api/projects/{slug}/boxes/{box_id}/cancel` | Cancel running Box work |
+| `POST` | `/api/projects/{slug}/boxes/{box_id}/message` | Send a message to the Box |
+| `POST` | `/api/projects/{slug}/boxes/{box_id}/exec` | Execute a command in the Box |
+
+### Files, streaming, models, GitHub
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/projects/{slug}/boxes/{box_id}/files` | List files via tunnel |
+| `GET` | `/api/projects/{slug}/boxes/{box_id}/files/read` | Read file via tunnel |
+| `GET` | `/api/projects/{slug}/boxes/{box_id}/files/download` | Download file via tunnel |
+| `POST` | `/api/projects/{slug}/boxes/{box_id}/files/write` | Write file via tunnel |
+| `POST` | `/api/projects/{slug}/boxes/{box_id}/files/upload` | Upload file via tunnel |
+| `GET` | `/api/projects/{slug}/boxes/{box_id}/stream` | Per-Box SSE stream |
+| `GET` | `/api/stream` | Global SSE stream |
+| `WS` | `/ws/tunnel` | Box tunnel WebSocket |
+| `GET` | `/api/projects/{slug}/models` | List models |
+| `POST` | `/api/projects/{slug}/models/preview` | Preview models for raw credentials |
+| `GET` | `/api/projects/{slug}/github/status` | GitHub status |
+| `POST` | `/api/projects/{slug}/github/webhook` | GitHub webhook receiver |
+| `GET` | `/api/projects/{slug}/github/events` | List stored GitHub events |
+| `GET` | `/api/projects/{slug}/github/installations` | List GitHub installations |
+| `POST` | `/api/projects/{slug}/github/installations` | Add GitHub installation |
+| `POST` | `/api/projects/{slug}/github/installations/{id}/sync` | Sync repos for installation |
+| `DELETE` | `/api/projects/{slug}/github/installations/{id}` | Remove installation |
+| `GET` | `/api/projects/{slug}/github/repos` | List repos |
 
 ## Running
 
-Start PostgreSQL (via Docker Compose from the repo root):
+Start PostgreSQL from the repo root:
 
 ```bash
 docker compose up postgres -d
 ```
 
-Then run the orchestrator:
+Run the orchestrator:
 
 ```bash
 uv sync
@@ -55,112 +116,71 @@ uv run python -m codebox_orchestrator
 
 Alembic migrations run automatically at startup.
 
+Generate the OpenAPI snapshot:
+
+```bash
+uv run python scripts/dump_openapi.py
+```
+
 ## Configuration
 
-Environment variables (loaded from `.env` and `.env.local`):
+Environment variables are loaded from `.env` and `.env.local`.
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+|---|---|---|
 | `DATABASE_URL` | `postgresql+asyncpg://codebox:codebox@localhost:5432/codebox` | Database connection |
-| `CODEBOX_IMAGE` | `codebox-sandbox:latest` | Docker image for sandboxes |
-| `CODEBOX_PORT` | `8443` | Port inside sandbox containers |
-| `OPENROUTER_API_KEY` | — | API key for LLM |
-| `OPENROUTER_MODEL` | — | Default model |
-| `DOCKER_NETWORK` | `codebox-net` | Docker network name |
-| `ORCHESTRATOR_HOST` | `0.0.0.0` | Bind address |
-| `ORCHESTRATOR_PORT` | `9090` | Bind port |
-| `CORS_ORIGINS` | `http://localhost:3737` | Allowed CORS origins (comma-separated) |
+| `CODEBOX_IMAGE` | `codebox-sandbox:latest` | Sandbox image |
+| `ORCHESTRATOR_HOST` | `0.0.0.0` | HTTP bind host |
+| `ORCHESTRATOR_PORT` | `9090` | HTTP bind port |
+| `GRPC_PORT` | `50051` | gRPC bind port |
+| `CORS_ORIGINS` | `http://localhost:3737` | Allowed CORS origins |
+| `AUTH_SECRET` | development fallback | Auth JWT signing secret |
+| `CALLBACK_SECRET` | development fallback | Sandbox callback JWT signing secret |
+| `AUTH_TOKEN_EXPIRY_HOURS` | `168` | Auth cookie/session TTL |
+| `CALLBACK_TOKEN_EXPIRY_SECONDS` | `3600` | Sandbox callback token TTL |
+| `CONTAINER_RUNTIME_URL` | empty | Explicit Docker/Podman connection URL |
+| `CONTAINER_RUNTIME_TYPE` | `docker` | `docker` or `podman` |
+| `CONTAINER_TLS_VERIFY` | empty | Runtime CA path or `true` / `false` |
+| `CONTAINER_TLS_CERT` | empty | Runtime client cert |
+| `CONTAINER_TLS_KEY` | empty | Runtime client key |
+| `SANDBOX_MEMORY_LIMIT` | `4g` | Per-Box memory limit |
+| `SANDBOX_CPU_LIMIT` | `2` | Per-Box CPU quota |
+| `SANDBOX_PIDS_LIMIT` | `1024` | Per-Box PID limit |
+| `SANDBOX_NETWORK` | `codebox-sandbox-net` | Runtime network |
+| `GRPC_TLS_CERT` | empty | Server certificate PEM |
+| `GRPC_TLS_KEY` | empty | Server private key PEM |
+| `GRPC_TLS_CA_CERT` | empty | CA cert mounted into sandboxes |
 
 ### gRPC TLS
 
-By default, gRPC communication between the orchestrator and sandbox containers is unencrypted. In production, enable server-side TLS to protect callback tokens, LLM API keys, and code execution results in transit.
+By default, gRPC communication between the orchestrator and sandbox containers is unencrypted. In production, enable TLS to protect callback tokens, LLM API keys, and execution results in transit.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GRPC_TLS_CERT` | _(empty)_ | Path to server certificate PEM file |
-| `GRPC_TLS_KEY` | _(empty)_ | Path to server private key PEM file |
-| `GRPC_TLS_CA_CERT` | _(empty)_ | Path to CA certificate PEM file (auto-mounted into sandbox containers) |
-
-When `GRPC_TLS_CERT` and `GRPC_TLS_KEY` are set, the gRPC server binds with TLS. The CA certificate at `GRPC_TLS_CA_CERT` is automatically mounted into sandbox containers at `/etc/grpc-certs/ca.crt` so they can verify the server's identity.
-
-**Development setup** — generate self-signed certificates:
+Development setup:
 
 ```bash
 ./scripts/generate_grpc_certs.sh
-```
-
-Then set the environment variables:
-
-```bash
 GRPC_TLS_CERT=certs/server.crt
 GRPC_TLS_KEY=certs/server.key
 GRPC_TLS_CA_CERT=certs/ca.crt
 ```
 
-**Production** — use certificates from your CA (e.g. Let's Encrypt, internal PKI) and set the three environment variables to the appropriate paths.
-
-> **Note:** This is server-side TLS only. Sandbox containers authenticate to the orchestrator via JWT bearer tokens over the encrypted channel. Certificate rotation requires an orchestrator restart.
-
 ### Container runtime
 
-The orchestrator supports Docker and Podman as container runtimes, connecting via local sockets, remote TCP/TLS, or SSH.
+The orchestrator supports Docker and Podman via local sockets, remote TCP/TLS, or SSH.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CONTAINER_RUNTIME_URL` | _(empty — uses `docker.from_env()`)_ | Connection URL for the container runtime |
-| `CONTAINER_RUNTIME_TYPE` | `docker` | Runtime type: `docker` or `podman` (controls quirk handling) |
-| `CONTAINER_TLS_VERIFY` | _(empty)_ | Path to CA certificate, or `true`/`false` |
-| `CONTAINER_TLS_CERT` | _(empty)_ | Path to TLS client certificate |
-| `CONTAINER_TLS_KEY` | _(empty)_ | Path to TLS client key |
+Examples:
 
-When `CONTAINER_RUNTIME_URL` is not set, the orchestrator uses `docker.from_env()` which reads the standard `DOCKER_HOST`, `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` environment variables. Setting `CONTAINER_RUNTIME_URL` explicitly gives you full control over the connection.
-
-#### Examples
-
-**Local Docker** (default — no configuration needed):
 ```bash
-# Uses /var/run/docker.sock automatically
-```
+# Local Docker (default)
+# uses /var/run/docker.sock
 
-**Local Podman (rootless)**:
-```bash
+# Rootless Podman
 CONTAINER_RUNTIME_URL=unix:///run/user/1000/podman/podman.sock
 CONTAINER_RUNTIME_TYPE=podman
-```
 
-**Local Podman (rootful)**:
-```bash
-CONTAINER_RUNTIME_URL=unix:///run/podman/podman.sock
-CONTAINER_RUNTIME_TYPE=podman
-```
-
-**Remote Docker over TCP (no TLS)**:
-```bash
-CONTAINER_RUNTIME_URL=tcp://docker-host:2375
-```
-
-**Remote Docker over TLS**:
-```bash
+# Remote Docker over TLS
 CONTAINER_RUNTIME_URL=tcp://docker-host:2376
 CONTAINER_TLS_VERIFY=/path/to/ca.pem
 CONTAINER_TLS_CERT=/path/to/cert.pem
 CONTAINER_TLS_KEY=/path/to/key.pem
 ```
-
-**Docker or Podman over SSH**:
-```bash
-CONTAINER_RUNTIME_URL=ssh://deploy@192.168.1.50
-```
-
-**Podman on WSL2** (from Windows host or another WSL distro):
-```bash
-CONTAINER_RUNTIME_URL=unix:///mnt/wsl/podman-sockets/podman-machine-default/podman-user.sock
-CONTAINER_RUNTIME_TYPE=podman
-```
-
-#### Podman notes
-
-- Set `CONTAINER_RUNTIME_TYPE=podman` so the orchestrator skips Docker-specific options like `host-gateway` in `extra_hosts`.
-- Podman 4.7+ automatically provides `host.containers.internal` for container-to-host communication.
-- Rootless Podman sockets are typically at `unix:///run/user/<UID>/podman/podman.sock`.
-- Ensure the Podman API service is running: `systemctl --user start podman.socket` (rootless) or `systemctl start podman.socket` (rootful).

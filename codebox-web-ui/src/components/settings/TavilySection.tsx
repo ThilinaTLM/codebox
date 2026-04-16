@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { useUpdateUserSettings, useUserSettings } from "@/net/query"
+import { useProjectSettings, useUpdateProjectSettings } from "@/net/query"
+import { useProjectStore } from "@/lib/project"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,8 +32,9 @@ export function TavilySection() {
 }
 
 function TavilyKeyForm() {
-  const { data: settings } = useUserSettings()
-  const updateMutation = useUpdateUserSettings()
+  const slug = useProjectStore((s) => s.currentProject?.slug) ?? ""
+  const { data: settings } = useProjectSettings(slug || undefined)
+  const updateMutation = useUpdateProjectSettings(slug)
   const [tavilyKey, setTavilyKey] = useState("")
 
   const handleSave = (e: React.FormEvent) => {

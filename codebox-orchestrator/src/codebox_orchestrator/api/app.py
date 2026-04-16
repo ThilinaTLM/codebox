@@ -39,22 +39,36 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         from codebox_orchestrator.auth.service import AuthService  # noqa: PLC0415
 
         auth_service = AuthService(async_session_factory)
-        await auth_service.ensure_default_admin()
 
-        # --- LLM Profile & User Settings services ---
+        # --- Project service ---
+        from codebox_orchestrator.project.repository import (  # noqa: PLC0415
+            ProjectRepository,
+        )
+        from codebox_orchestrator.project.service import ProjectService  # noqa: PLC0415
+
+        project_repo = ProjectRepository(async_session_factory)
+        project_service = ProjectService(project_repo)
+
+        # Ensure default admin + default project
+        await auth_service.ensure_default_admin()
+        await _ensure_default_project(auth_service, project_service)
+
+        # --- LLM Profile & Project Settings services ---
         from codebox_orchestrator.llm_profile.repository import (  # noqa: PLC0415
             LLMProfileRepository,
         )
         from codebox_orchestrator.llm_profile.service import LLMProfileService  # noqa: PLC0415
-        from codebox_orchestrator.user_settings.repository import (  # noqa: PLC0415
-            UserSettingsRepository,
+        from codebox_orchestrator.project_settings.repository import (  # noqa: PLC0415
+            ProjectSettingsRepository,
         )
-        from codebox_orchestrator.user_settings.service import UserSettingsService  # noqa: PLC0415
+        from codebox_orchestrator.project_settings.service import (  # noqa: PLC0415
+            ProjectSettingsService,
+        )
 
         llm_profile_repo = LLMProfileRepository(async_session_factory)
         llm_profile_service = LLMProfileService(llm_profile_repo)
-        user_settings_repo = UserSettingsRepository(async_session_factory)
-        user_settings_service = UserSettingsService(user_settings_repo)
+        project_settings_repo = ProjectSettingsRepository(async_session_factory)
+        project_settings_service = ProjectSettingsService(project_settings_repo)
 
         # --- Shared infrastructure ---
         from codebox_orchestrator.shared.messaging.global_broadcast import (  # noqa: PLC0415
@@ -75,6 +89,9 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         from codebox_orchestrator.agent.infrastructure.event_repository import (  # noqa: PLC0415
             SqlAlchemyBoxEventRepository,
         )
+        from codebox_orchestrator.box.infrastructure.box_repository import (  # noqa: PLC0415
+            BoxRepository,
+        )
         from codebox_orchestrator.box.infrastructure.event_publisher import (  # noqa: PLC0415
             EventPublisherAdapter,
         )
@@ -87,6 +104,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         registry = CallbackRegistry()
         agent_connections = AgentConnectionAdapter(registry)
         event_repository = SqlAlchemyBoxEventRepository(async_session_factory)
+        box_repository = BoxRepository(async_session_factory)
 
         # --- Box state store (in-memory lifecycle tracking) ---
         from codebox_orchestrator.box.infrastructure.box_state_store import (  # noqa: PLC0415
@@ -101,7 +119,12 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         )
 
         query_service = BoxQueryService(
-            container_runtime, registry, agent_connections, box_state_store, event_repository
+            container_runtime,
+            registry,
+            agent_connections,
+            box_state_store,
+            event_repository,
+            box_repository,
         )
 
         # --- Application layer: Agent commands & queries ---
@@ -169,17 +192,27 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             StopBoxHandler,
         )
 
-        create_box_handler = CreateBoxHandler(event_publisher, lifecycle, box_state_store)
+        create_box_handler = CreateBoxHandler(
+            event_publisher,
+            lifecycle,
+            box_state_store,
+            box_repository,
+        )
         stop_box_handler = StopBoxHandler(
             container_runtime, agent_connections, event_publisher, query_service
         )
         restart_box_handler = RestartBoxHandler(container_runtime, event_publisher, query_service)
         delete_box_handler = DeleteBoxHandler(
-            container_runtime, event_publisher, stop_box_handler, query_service, box_state_store
+            container_runtime,
+            event_publisher,
+            stop_box_handler,
+            query_service,
+            box_state_store,
+            box_repository,
         )
         cancel_box_handler = CancelBoxHandler(agent_connections)
 
-        # --- Per-user GitHub integration ---
+        # --- Per-project GitHub integration ---
         from codebox_orchestrator.integration.github.application.client_manager import (  # noqa: PLC0415
             GitHubClientManager,
         )
@@ -189,7 +222,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
         github_repo = SqlAlchemyGitHubRepository(async_session_factory)
         github_client_manager = GitHubClientManager(
-            settings_repo=user_settings_repo,
+            settings_repo=project_settings_repo,
             github_repo=github_repo,
         )
         # Wire GitHub client manager into lifecycle for token retrieval
@@ -230,8 +263,11 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.auth_service = auth_service
         app.state.event_repository = event_repository
         app.state.llm_profile_service = llm_profile_service
-        app.state.user_settings_service = user_settings_service
+        app.state.project_settings_service = project_settings_service
         app.state.github_client_manager = github_client_manager
+        app.state.github_repository = github_repo
+        app.state.project_service = project_service
+        app.state.box_repository = box_repository
 
         yield
 
@@ -242,7 +278,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     app = FastAPI(
         title="Codebox Orchestrator",
-        version="0.6.0",
+        version="0.7.0",
         lifespan=lifespan,
     )
 
@@ -272,25 +308,58 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             )
         return response
 
+    # --- Health endpoint (global) ---
+    @app.get("/api/health")
+    async def health_check():
+        return {"status": "ok"}
+
     from codebox_orchestrator.api.routes import (  # noqa: PLC0415
         auth,
         boxes,
         github,
         llm_profiles,
         models,
+        project_settings,
+        projects,
         sse,
         tunnel,
-        user_settings,
     )
     from codebox_orchestrator.auth.dependencies import get_current_user  # noqa: PLC0415
 
+    # Auth routes (no project scope)
     app.include_router(auth.router)
+
+    # Project management
+    app.include_router(projects.router, dependencies=[Depends(get_current_user)])
+
+    # Project-scoped routes (auth enforced via get_project_context dependency)
     app.include_router(boxes.router, dependencies=[Depends(get_current_user)])
     app.include_router(models.router, dependencies=[Depends(get_current_user)])
     app.include_router(sse.router, dependencies=[Depends(get_current_user)])
     app.include_router(llm_profiles.router, dependencies=[Depends(get_current_user)])
-    app.include_router(user_settings.router, dependencies=[Depends(get_current_user)])
+    app.include_router(project_settings.router, dependencies=[Depends(get_current_user)])
     app.include_router(github.router)
     app.include_router(tunnel.router)  # WebSocket + file proxy
 
     return app
+
+
+async def _ensure_default_project(auth_service, project_service) -> None:
+    """Create a default project if none exist, owned by the first admin user."""
+
+    projects = await project_service.list_projects("", is_platform_admin=True)
+    if projects:
+        return  # Projects already exist
+
+    # Find the first admin user
+    users = await auth_service.list_users()
+    admin = next((u for u in users if u.user_type == "admin"), None)
+    if admin is None:
+        return
+
+    await project_service.create_project(
+        name="Default",
+        description="Default project",
+        creator_user_id=admin.id,
+    )
+    logger.info("Created default project 'Default'")

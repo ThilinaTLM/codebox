@@ -23,7 +23,7 @@ class LLMProfileView:
     """Read-only representation returned to callers (API key masked)."""
 
     id: str
-    user_id: str
+    project_id: str
     name: str
     provider: str
     model: str
@@ -52,23 +52,23 @@ class LLMProfileService:
     # ── Queries ─────────────────────────────────────────────
 
     async def list_profiles(
-        self, user_id: str, *, default_profile_id: str | None = None
+        self, project_id: str, *, default_profile_id: str | None = None
     ) -> list[LLMProfileView]:
-        profiles = await self._repo.list_by_user(user_id)
+        profiles = await self._repo.list_by_project(project_id)
         return [self._to_view(p, default_profile_id) for p in profiles]
 
     async def get_profile(
-        self, profile_id: str, user_id: str, *, default_profile_id: str | None = None
+        self, profile_id: str, project_id: str, *, default_profile_id: str | None = None
     ) -> LLMProfileView | None:
         profile = await self._repo.get_by_id(profile_id)
-        if profile is None or profile.user_id != user_id:
+        if profile is None or profile.project_id != project_id:
             return None
         return self._to_view(profile, default_profile_id)
 
-    async def resolve_profile(self, profile_id: str, user_id: str) -> ResolvedProfile | None:
+    async def resolve_profile(self, profile_id: str, project_id: str) -> ResolvedProfile | None:
         """Decrypt and return full profile for internal use. Returns None if not found/owned."""
         profile = await self._repo.get_by_id(profile_id)
-        if profile is None or profile.user_id != user_id:
+        if profile is None or profile.project_id != project_id:
             return None
         return ResolvedProfile(
             id=profile.id,
@@ -83,7 +83,7 @@ class LLMProfileService:
     async def create_profile(
         self,
         *,
-        user_id: str,
+        project_id: str,
         name: str,
         provider: str,
         model: str,
@@ -92,7 +92,7 @@ class LLMProfileService:
     ) -> LLMProfileView:
         api_key_enc = encrypt_value(api_key)
         profile = await self._repo.create(
-            user_id=user_id,
+            project_id=project_id,
             name=name,
             provider=provider,
             model=model,
@@ -104,7 +104,7 @@ class LLMProfileService:
     async def update_profile(
         self,
         profile_id: str,
-        user_id: str,
+        project_id: str,
         *,
         name: str | None = None,
         provider: str | None = None,
@@ -113,7 +113,7 @@ class LLMProfileService:
         base_url: str | None = None,
     ) -> LLMProfileView | None:
         profile = await self._repo.get_by_id(profile_id)
-        if profile is None or profile.user_id != user_id:
+        if profile is None or profile.project_id != project_id:
             return None
 
         if name is not None:
@@ -133,19 +133,19 @@ class LLMProfileService:
     async def duplicate_profile(
         self,
         profile_id: str,
-        user_id: str,
+        project_id: str,
     ) -> LLMProfileView | None:
         """Create a copy of an existing profile with '- copy' name suffix."""
         source = await self._repo.get_by_id(profile_id)
-        if source is None or source.user_id != user_id:
+        if source is None or source.project_id != project_id:
             return None
 
-        existing = await self._repo.list_by_user(user_id)
+        existing = await self._repo.list_by_project(project_id)
         existing_names = {p.name for p in existing}
         new_name = self._unique_name(source.name, existing_names, " - copy")
 
         profile = await self._repo.create(
-            user_id=user_id,
+            project_id=project_id,
             name=new_name,
             provider=source.provider,
             model=source.model,
@@ -158,16 +158,13 @@ class LLMProfileService:
 
     async def export_profiles(
         self,
-        user_id: str,
+        project_id: str,
         *,
         profile_ids: list[str] | None = None,
         key_mode: str = "no_keys",
         password: str | None = None,
     ) -> dict:
-        """Build an export payload for the given profiles.
-
-        Returns a dict matching the ``LLMProfileExportFile`` schema.
-        """
+        """Build an export payload for the given profiles."""
         import base64  # noqa: PLC0415
         import os  # noqa: PLC0415
         from datetime import UTC, datetime  # noqa: PLC0415
@@ -175,7 +172,7 @@ class LLMProfileService:
         if key_mode == "password_encrypted" and not password:
             raise ValueError("Password is required for password-encrypted export")
 
-        all_profiles = await self._repo.list_by_user(user_id)
+        all_profiles = await self._repo.list_by_project(project_id)
         if profile_ids is not None:
             id_set = set(profile_ids)
             all_profiles = [p for p in all_profiles if p.id in id_set]
@@ -224,15 +221,12 @@ class LLMProfileService:
 
     async def import_profiles(
         self,
-        user_id: str,
+        project_id: str,
         *,
         export_data: dict,
         password: str | None = None,
     ) -> tuple[list[LLMProfileView], int]:
-        """Import profiles from an export payload.
-
-        Returns ``(created_views, skipped_count)``.
-        """
+        """Import profiles from an export payload."""
         import base64  # noqa: PLC0415
 
         key_mode = export_data.get("key_mode", "no_keys")
@@ -248,7 +242,7 @@ class LLMProfileService:
             salt = base64.b64decode(key_params["salt"])
             iterations = key_params.get("iterations", 600_000)
 
-        existing = await self._repo.list_by_user(user_id)
+        existing = await self._repo.list_by_project(project_id)
         existing_names = {p.name for p in existing}
 
         created: list[LLMProfileView] = []
@@ -257,7 +251,6 @@ class LLMProfileService:
         for entry in profiles_data:
             raw_key: str | None = entry.get("api_key")
 
-            # Resolve plaintext API key
             plaintext_key: str | None = None
             if key_mode == "plaintext" and raw_key:
                 plaintext_key = raw_key
@@ -280,7 +273,7 @@ class LLMProfileService:
             existing_names.add(name)
 
             profile = await self._repo.create(
-                user_id=user_id,
+                project_id=project_id,
                 name=name,
                 provider=entry["provider"],
                 model=entry["model"],
@@ -291,9 +284,9 @@ class LLMProfileService:
 
         return created, skipped
 
-    async def delete_profile(self, profile_id: str, user_id: str) -> bool:
+    async def delete_profile(self, profile_id: str, project_id: str) -> bool:
         profile = await self._repo.get_by_id(profile_id)
-        if profile is None or profile.user_id != user_id:
+        if profile is None or profile.project_id != project_id:
             return False
         return await self._repo.delete(profile_id)
 
@@ -301,7 +294,6 @@ class LLMProfileService:
 
     @staticmethod
     def _unique_name(base_name: str, existing_names: set[str], suffix: str = " - copy") -> str:
-        """Generate a unique name by appending *suffix* and an optional counter."""
         candidate = f"{base_name}{suffix}"
         counter = 2
         while candidate in existing_names:
@@ -313,7 +305,7 @@ class LLMProfileService:
         decrypted_key = decrypt_value(profile.api_key_enc)
         return LLMProfileView(
             id=profile.id,
-            user_id=profile.user_id,
+            project_id=profile.project_id,
             name=profile.name,
             provider=profile.provider,
             model=profile.model,

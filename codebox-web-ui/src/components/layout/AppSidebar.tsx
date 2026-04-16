@@ -19,6 +19,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { useAuthStore } from "@/lib/auth"
+import { useProjectStore } from "@/lib/project"
 import { cn } from "@/lib/utils"
 import { ConfirmActionDialog } from "@/components/ConfirmActionDialog"
 
@@ -26,19 +27,24 @@ export function AppSidebar() {
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
 
-  const isBoxPage = currentPath.startsWith("/boxes/")
+  const isBoxPage = currentPath.includes("/boxes/")
   const [collapsed, setCollapsed] = useState(isBoxPage)
+  const currentProject = useProjectStore((s) => s.currentProject)
+  const projectSlug = currentProject?.slug
   const [signOutOpen, setSignOutOpen] = useState(false)
 
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
 
+  const projectHome = projectSlug ? `/projects/${projectSlug}` : "/projects"
+  const projectSettings = projectSlug ? `/projects/${projectSlug}/settings` : "/projects"
+
   const navItems = [
     {
       icon: GridViewIcon,
       label: "Agents",
-      to: "/" as const,
-      active: currentPath === "/",
+      to: projectHome as "/",
+      active: currentPath === projectHome || currentPath === "/",
     },
     ...(user?.user_type === "admin"
       ? [
@@ -53,8 +59,8 @@ export function AppSidebar() {
     {
       icon: Settings02Icon,
       label: "Settings",
-      to: "/settings" as const,
-      active: currentPath.startsWith("/settings"),
+      to: projectSettings as "/settings",
+      active: currentPath.includes("/settings"),
     },
   ]
 
