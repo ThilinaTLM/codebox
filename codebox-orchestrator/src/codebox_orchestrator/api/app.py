@@ -4,14 +4,69 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from http.cookies import SimpleCookie
+from typing import TYPE_CHECKING
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from codebox_orchestrator.config import settings
 from codebox_orchestrator.shared.persistence.migrate import run_migrations
 
+if TYPE_CHECKING:
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
 logger = logging.getLogger(__name__)
+
+
+class RefreshAuthCookieMiddleware:
+    """Sliding-expiration refresh of the ``access_token`` cookie.
+
+    Implemented as a pure ASGI middleware (rather than via
+    ``@app.middleware('http')`` / Starlette's ``BaseHTTPMiddleware``)
+    so it does not wrap the downstream app in a sub-task.  The
+    ``BaseHTTPMiddleware`` form propagates client-disconnect
+    cancellations into in-flight async SQLAlchemy sessions used by
+    long-lived streaming endpoints (SSE, file download), causing
+    asyncpg connections to be terminated mid-cleanup and leaked from
+    the pool.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        token: str | None = None
+        for name, value in scope.get("headers", []):
+            if name == b"cookie":
+                cookies = SimpleCookie()
+                cookies.load(value.decode("latin-1"))
+                morsel = cookies.get("access_token")
+                if morsel:
+                    token = morsel.value
+                break
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start" and token is not None:
+                status_code = message["status"]
+                if status_code < 400:
+                    secure = settings.environment != "development"
+                    max_age = int(settings.auth.token_expiry_hours * 3600)
+                    cookie = (
+                        f"access_token={token}; Path=/; Max-Age={max_age}; HttpOnly; SameSite=Lax"
+                    )
+                    if secure:
+                        cookie += "; Secure"
+                    headers = list(message.get("headers", []))
+                    headers.append((b"set-cookie", cookie.encode("latin-1")))
+                    message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 
 def create_app() -> FastAPI:  # noqa: PLR0915
@@ -317,23 +372,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         allow_headers=["*"],
     )
 
-    @app.middleware("http")
-    async def refresh_auth_cookie(request: Request, call_next):
-        """Sliding expiration: refresh the auth cookie TTL on each successful request."""
-        response = await call_next(request)
-        token = request.cookies.get("access_token")
-        if token and response.status_code < 400:
-            secure = settings.environment != "development"
-            response.set_cookie(
-                key="access_token",
-                value=token,
-                httponly=True,
-                secure=secure,
-                samesite="lax",
-                path="/",
-                max_age=int(settings.auth.token_expiry_hours * 3600),
-            )
-        return response
+    app.add_middleware(RefreshAuthCookieMiddleware)
 
     # --- Health endpoint (global) ---
     @app.get("/api/health")
