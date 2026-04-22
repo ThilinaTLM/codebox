@@ -6,7 +6,6 @@ import {
   useCancelBox,
   useDeleteBox,
   useRestartBox,
-  useSendExec,
   useSendMessage,
   useStopBox,
 } from "@/net/query"
@@ -19,7 +18,6 @@ export function useBoxActions(slug: string, boxId: string) {
   const deleteMutation = useDeleteBox(slug)
   const restartMutation = useRestartBox(slug)
   const sendMessageMutation = useSendMessage(slug)
-  const sendExecMutation = useSendExec(slug)
   const cancelMutation = useCancelBox(slug)
 
   const handleStop = useCallback(() => {
@@ -56,13 +54,6 @@ export function useBoxActions(slug: string, boxId: string) {
     [sendMessageMutation, boxId]
   )
 
-  const handleSendExec = useCallback(
-    (command: string) => {
-      sendExecMutation.mutate({ boxId, command })
-    },
-    [sendExecMutation, boxId]
-  )
-
   const handleCancel = useCallback(() => {
     cancelMutation.mutate(boxId)
   }, [cancelMutation, boxId])
@@ -72,7 +63,6 @@ export function useBoxActions(slug: string, boxId: string) {
     restart: handleRestart,
     delete: handleDelete,
     sendMessage: handleSendMessage,
-    sendExec: handleSendExec,
     cancel: handleCancel,
     isStopPending: stopMutation.isPending,
     isDeletePending: deleteMutation.isPending,

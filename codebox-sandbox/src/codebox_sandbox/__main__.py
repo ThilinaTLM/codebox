@@ -8,6 +8,7 @@ from codebox_tunnel import compose_tunnel_url
 
 from codebox_sandbox.callback import run_callback
 from codebox_sandbox.file_server import run_file_server
+from codebox_sandbox.pty_server import run_pty_server
 from codebox_sandbox.tunnel.connector import run_tunnel
 
 logger = logging.getLogger(__name__)
@@ -23,8 +24,9 @@ async def _run_all() -> None:
     if orchestrator_url:
         tunnel_url = compose_tunnel_url(orchestrator_url)
         tasks.append(asyncio.create_task(run_file_server(), name="file-server"))
+        tasks.append(asyncio.create_task(run_pty_server(), name="pty-server"))
         tasks.append(asyncio.create_task(run_tunnel(tunnel_url, callback_token), name="tunnel"))
-        logger.info("Tunnel enabled — file server + tunnel connector starting")
+        logger.info("Tunnel enabled — file server + PTY server + tunnel connector starting")
     else:
         logger.warning("CODEBOX_ORCHESTRATOR_URL not set — file browser tunnel disabled")
 

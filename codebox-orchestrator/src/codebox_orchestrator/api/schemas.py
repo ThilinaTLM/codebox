@@ -61,10 +61,6 @@ class BoxMessage(BaseModel):
     message: str
 
 
-class BoxExec(BaseModel):
-    command: str
-
-
 # ── Response schemas ─────────────────────────────────────────────
 
 

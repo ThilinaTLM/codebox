@@ -30,3 +30,4 @@ STATUS_UNSUPPORTED_VERSION: int = 0x03
 # -- Well-known ports --------------------------------------------------------
 
 FILE_SERVER_PORT: int = 19080
+PTY_SERVER_PORT: int = 19081

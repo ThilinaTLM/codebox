@@ -502,13 +502,6 @@ export function useSendMessage(slug: string) {
   })
 }
 
-export function useSendExec(slug: string) {
-  return useMutation({
-    mutationFn: ({ boxId, command }: { boxId: string; command: string }) =>
-      api.boxes.sendExec(slug, boxId, command),
-  })
-}
-
 // ── GitHub queries (project-scoped) ─────────────────────────
 
 export function useGitHubStatus(slug: string | undefined, options?: QueryHookOptions) {

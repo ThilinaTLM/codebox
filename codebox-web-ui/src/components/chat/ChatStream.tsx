@@ -15,7 +15,6 @@ function _hasActiveBlock(blocks: Array<EventBlock>): boolean {
   const last = blocks[blocks.length - 1]
   if (last.kind === "thinking" && last.isStreaming) return true
   if (last.kind === "tool_call" && last.isRunning) return true
-  if (last.kind === "exec_session" && last.isRunning) return true
   return false
 }
 

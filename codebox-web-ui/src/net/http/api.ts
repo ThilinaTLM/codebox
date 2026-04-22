@@ -175,9 +175,6 @@ export const api = {
     sendMessage: async (slug: string, boxId: string, message: string): Promise<void> => {
       await client.post(`${p(slug)}/boxes/${boxId}/message`, { message })
     },
-    sendExec: async (slug: string, boxId: string, command: string): Promise<void> => {
-      await client.post(`${p(slug)}/boxes/${boxId}/exec`, { command })
-    },
     getEvents: async (
       slug: string,
       boxId: string,

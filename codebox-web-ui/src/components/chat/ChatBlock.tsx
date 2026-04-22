@@ -1,7 +1,6 @@
 import { AssistantTextBlock } from "./AssistantTextBlock"
 import { ThinkingBlock } from "./ThinkingBlock"
 import { ToolCallBlock } from "./ToolCallBlock"
-import { ExecBlock } from "./ExecBlock"
 import { UserMessageBlock } from "./UserMessageBlock"
 import { OutcomeDeclaredBlock } from "./OutcomeDeclaredBlock"
 import { InputRequestBlock } from "./InputRequestBlock"
@@ -55,9 +54,6 @@ export function ChatBlock({
 
     case "status_change":
       return <StatusChangeBlock status={block.status} />
-
-    case "exec_session":
-      return <ExecBlock block={block} />
 
     case "user_message":
       return <UserMessageBlock content={block.content} />

@@ -36,7 +36,6 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
   let textBuffer = ""
   let thinkingBuffer = ""
   let reasoningActive = false
-  let currentExec: Extract<EventBlock, { kind: "exec_session" }> | null = null
 
   const flushText = () => {
     if (textBuffer) {
@@ -56,26 +55,17 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
     }
   }
 
-  const flushExec = () => {
-    if (currentExec) {
-      blocks.push(currentExec)
-      currentExec = null
-    }
-  }
-
   for (const event of events) {
     const payload = event.payload
 
     switch (event.kind) {
       case "reasoning.started":
         flushText()
-        flushExec()
         reasoningActive = true
         break
 
       case "reasoning.delta":
         flushText()
-        flushExec()
         thinkingBuffer += String(payload.text ?? "")
         break
 
@@ -86,7 +76,6 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
 
       case "message.delta":
         flushThinking()
-        flushExec()
         textBuffer += String(payload.text ?? "")
         break
 
@@ -96,13 +85,11 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
         if (role === "user") {
           flushText()
           flushThinking()
-          flushExec()
           blocks.push({ kind: "user_message", content })
           break
         }
         if (role === "assistant") {
           flushThinking()
-          flushExec()
           if (!textBuffer && content) {
             blocks.push({ kind: "text", content })
           } else {
@@ -115,7 +102,6 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
       case "tool_call.started": {
         flushText()
         flushThinking()
-        flushExec()
         const name = String(payload.name ?? "tool")
         const existing = findToolBlock(blocks, event.tool_call_id, name)
         if (!existing) {
@@ -146,18 +132,13 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
       }
 
       case "command.started": {
-        const origin = String(payload.origin ?? "")
+        // Only agent-tool-originated commands surface in chat now;
+        // user-initiated shell activity lives on the Terminal tab and
+        // is not persisted to the event stream.
         const command = String(payload.command ?? "")
-        if (origin === "user_exec") {
-          flushText()
-          flushThinking()
-          flushExec()
-          currentExec = { kind: "exec_session", command, output: "", isRunning: true }
-        } else {
-          const block = findToolBlock(blocks, event.tool_call_id, "execute")
-          if (block && command && !block.input) {
-            block.input = JSON.stringify({ command })
-          }
+        const block = findToolBlock(blocks, event.tool_call_id, "execute")
+        if (block && command && !block.input) {
+          block.input = JSON.stringify({ command })
         }
         break
       }
@@ -169,34 +150,17 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
           if (block) {
             block.streamOutput = (block.streamOutput ?? "") + text
           }
-        } else {
-          if (!currentExec) {
-            currentExec = { kind: "exec_session", output: "", isRunning: true }
-          }
-          currentExec.output += text
         }
         break
       }
 
       case "command.completed":
       case "command.failed": {
-        const origin = String(payload.origin ?? "")
         const output = String(payload.output ?? "")
-        const exitCode = String(payload.exit_code ?? "")
-        if (origin === "user_exec") {
-          if (!currentExec) {
-            currentExec = { kind: "exec_session", output: "", isRunning: false }
-          }
-          currentExec.output = output || currentExec.output
-          currentExec.exitCode = exitCode
-          currentExec.isRunning = false
-          flushExec()
-        } else {
-          const block = findToolBlock(blocks, event.tool_call_id, "execute")
-          if (block) {
-            block.output = output
-            block.isRunning = false
-          }
+        const block = findToolBlock(blocks, event.tool_call_id, "execute")
+        if (block) {
+          block.output = output
+          block.isRunning = false
         }
         break
       }
@@ -205,7 +169,11 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
       case "tool_call.failed": {
         flushText()
         flushThinking()
-        const block = findToolBlock(blocks, event.tool_call_id, String(payload.name ?? "tool"))
+        const block = findToolBlock(
+          blocks,
+          event.tool_call_id,
+          String(payload.name ?? "tool")
+        )
         if (block) {
           block.output = String(payload.output ?? "")
           block.isRunning = false
@@ -224,39 +192,33 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
       case "run.started":
         flushText()
         flushThinking()
-        flushExec()
         break
 
       case "run.cancelled":
         flushText()
         flushThinking()
-        flushExec()
         blocks.push({ kind: "status_change", status: "Cancelled" })
         break
 
       case "run.completed":
         flushText()
         flushThinking()
-        flushExec()
         break
 
       case "run.failed":
         flushText()
         flushThinking()
-        flushExec()
         blocks.push({ kind: "error", detail: String(payload.error ?? "Run failed") })
         break
 
       case "outcome.declared":
         flushText()
         flushThinking()
-        flushExec()
         break
 
       case "input.requested":
         flushText()
         flushThinking()
-        flushExec()
         blocks.push({
           kind: "input_requested",
           message: String(payload.message ?? ""),
@@ -273,66 +235,10 @@ export function collapseTokens(events: Array<BoxStreamEvent>): Array<EventBlock>
 
   flushText()
   flushThinking()
-  flushExec()
   return blocks
 }
 
-// ── Exec blocks (for terminal view) ─────────────────────────
-
-export interface ExecBlock {
-  command: string
-  output: string
-  exitCode?: string
-  isRunning: boolean
-}
-
-/**
- * Filter and collapse events into user-exec command blocks for the terminal view.
- */
-export function collapseExecEvents(events: Array<BoxStreamEvent>): Array<ExecBlock> {
-  const blocks: Array<ExecBlock> = []
-  let current: ExecBlock | null = null
-
-  for (const event of events) {
-    const payload = event.payload
-    const origin = String(payload.origin ?? "")
-
-    switch (event.kind) {
-      case "command.started":
-        if (origin === "user_exec") {
-          if (current) blocks.push(current)
-          current = {
-            command: String(payload.command ?? ""),
-            output: "",
-            isRunning: true,
-          }
-        }
-        break
-
-      case "command.output.delta":
-        // Only process if no tool_call_id (user exec events don't have one)
-        if (!event.tool_call_id && current) {
-          current.output += String(payload.text ?? "")
-        }
-        break
-
-      case "command.completed":
-      case "command.failed":
-        if (origin === "user_exec" && current) {
-          const output = String(payload.output ?? "")
-          current.output = output || current.output
-          current.exitCode = String(payload.exit_code ?? "")
-          current.isRunning = false
-          blocks.push(current)
-          current = null
-        }
-        break
-    }
-  }
-
-  if (current) blocks.push(current)
-  return blocks
-}
+// ── Event merging ───────────────────────────────────────────
 
 /**
  * Merge sorted event arrays, deduplicating by seq.

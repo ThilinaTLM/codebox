@@ -193,19 +193,6 @@
         "title": "BoxEventResponse",
         "type": "object"
       },
-      "BoxExec": {
-        "properties": {
-          "command": {
-            "title": "Command",
-            "type": "string"
-          }
-        },
-        "required": [
-          "command"
-        ],
-        "title": "BoxExec",
-        "type": "object"
-      },
       "BoxMessage": {
         "properties": {
           "message": {
@@ -2899,65 +2886,6 @@
           }
         },
         "summary": "List box events",
-        "tags": [
-          "Boxes"
-        ]
-      }
-    },
-    "/api/projects/{slug}/boxes/{box_id}/exec": {
-      "post": {
-        "operationId": "exec_box",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "box_id",
-            "required": true,
-            "schema": {
-              "title": "Box Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "slug",
-            "required": true,
-            "schema": {
-              "title": "Slug",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BoxExec"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Execute a command in a box",
         "tags": [
           "Boxes"
         ]

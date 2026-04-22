@@ -14,7 +14,7 @@ from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from langchain_core.messages import AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessageChunk, HumanMessage, ToolMessage
 
 from codebox_agent.events import make_event, new_id
 
@@ -561,7 +561,7 @@ async def run_agent_stream(  # noqa: PLR0912, PLR0915
         await send(make_event("state.changed", run_id=run_id, payload={"activity": "idle"}))
 
 
-async def run_exec(  # noqa: PLR0915
+async def run_exec(
     send: SendFn,
     command: str,
     session_id: str,
@@ -573,12 +573,19 @@ async def run_exec(  # noqa: PLR0915
     command_id: str | None = None,
     emit_started_event: bool = False,
 ) -> None:
-    """Execute a shell command and stream output via canonical events."""
+    """Execute a shell command and stream output via canonical events.
+
+    Used today only for container init scripts driven by the orchestrator
+    via ``ExecQuery``.  Interactive user shell activity flows through a
+    separate PTY tunnel and does **not** pass through this function; it is
+    deliberately not persisted to the event log or to LangGraph state.
+    """
     logger.info("Exec command for session %s: %s", session_id, command[:200])
-    session = manager.get(session_id)
-    config = {"configurable": {"thread_id": session_id}}
     run_id = run_id or new_id("run")
     command_id = command_id or new_id("cmd")
+    # ``manager`` is kept on the signature for API stability; the exec
+    # path no longer needs the session state.
+    del manager
 
     await send(
         make_event(
@@ -601,14 +608,6 @@ async def run_exec(  # noqa: PLR0915
                 },
             )
         )
-
-    try:
-        await session.agent.aupdate_state(
-            config=config,
-            values={"messages": [HumanMessage(content=f"! {command}")]},
-        )
-    except Exception:
-        logger.debug("Could not record exec command in thread", exc_info=True)
 
     proc = None
     output_lines: list[str] = []
@@ -638,14 +637,6 @@ async def run_exec(  # noqa: PLR0915
         if len(full_output) > 10000:
             full_output = full_output[:10000] + "\n... (truncated)"
         shell_output_content = f"Exit code: {exit_code}\n\n{full_output}"
-
-        try:
-            await session.agent.aupdate_state(
-                config=config,
-                values={"messages": [SystemMessage(content=shell_output_content)]},
-            )
-        except Exception:
-            logger.debug("Could not record exec output in thread", exc_info=True)
 
         event_kind = "command.failed" if exit_code != 0 else "command.completed"
         payload = {

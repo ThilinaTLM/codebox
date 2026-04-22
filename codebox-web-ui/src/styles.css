@@ -454,6 +454,23 @@
     font-feature-settings: "liga" 1, "calt" 1;
   }
 
+  /* ── xterm.js host ───────────────────────────────────────── */
+
+  /* Let the ``.terminal-host`` flex child shrink below its content
+     size and fill the remaining viewport height so xterm's FitAddon
+     can compute row/col counts correctly. */
+  .terminal-host {
+    min-height: 0;
+  }
+  .terminal-host .xterm,
+  .terminal-host .xterm-viewport,
+  .terminal-host .xterm-screen {
+    height: 100% !important;
+  }
+  .terminal-host .xterm-viewport {
+    background-color: transparent !important;
+  }
+
   /* ── Surfaces ────────────────────────────────────────────── */
 
   .bg-inset {

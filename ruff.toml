@@ -81,6 +81,9 @@ ignore = [
     "ARG",     # unused arguments common in fixtures
     "SLF001",  # private member access in tests
     "T20",     # print in tests
+    "S108",    # hardcoded /tmp paths are fine in tests
+    "PT011",   # broad pytest.raises is fine in tests
+    "PLC0415", # local imports are fine in tests
 ]
 "scripts/**/*.py" = [
     "T20",     # print in scripts

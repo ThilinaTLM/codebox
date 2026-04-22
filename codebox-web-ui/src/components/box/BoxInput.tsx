@@ -9,13 +9,11 @@ const MAX_HEIGHT = 200
 
 export function BoxInput({
   onSendMessage,
-  onSendExec,
   onCancel,
   isWorking,
   disabled,
 }: {
   onSendMessage: (content: string) => void
-  onSendExec: (command: string) => void
   onCancel?: () => void
   isWorking?: boolean
   disabled?: boolean
@@ -42,13 +40,7 @@ export function BoxInput({
   const handleSend = () => {
     const trimmed = input.trim()
     if (!trimmed) return
-
-    // Auto-detect shell commands: "$ <command>"
-    if (trimmed.startsWith("$ ")) {
-      onSendExec(trimmed.slice(2))
-    } else {
-      onSendMessage(trimmed)
-    }
+    onSendMessage(trimmed)
     setInput("")
   }
 
@@ -116,8 +108,7 @@ export function BoxInput({
       </div>
       {/* Keyboard hints */}
       <p className="mt-1 text-center text-2xs text-muted-foreground">
-        Enter to send · Shift+Enter for newline ·{" "}
-        <span className="font-terminal">$ command</span> for shell
+        Enter to send · Shift+Enter for newline
       </p>
     </div>
   )

@@ -89,12 +89,10 @@ function eventToFeedItem(event: CanonicalEvent): FeedItem | null {
 
     case "command.started": {
       const command = String(payload.command ?? "")
-      const origin = String(payload.origin ?? "")
       return {
         key: event.event_id,
         icon: <Terminal size={12} />,
-        label:
-          origin === "user_exec" ? "Shell command" : "Agent command",
+        label: "Agent command",
         detail:
           command.length > 80 ? `${command.slice(0, 80)}…` : command,
         timestamp: ts,

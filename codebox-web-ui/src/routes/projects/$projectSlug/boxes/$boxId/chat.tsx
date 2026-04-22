@@ -47,7 +47,6 @@ function BoxChatPage() {
         <div className="mx-auto max-w-4xl">
           <BoxInput
             onSendMessage={actions.sendMessage}
-            onSendExec={actions.sendExec}
             onCancel={actions.cancel}
             isWorking={activity.isWorking}
             disabled={!isActive}

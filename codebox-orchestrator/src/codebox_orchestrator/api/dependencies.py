@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 from fastapi import Request  # noqa: TC002  # runtime-required: FastAPI inspects signatures
 
 if TYPE_CHECKING:
-    from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
     from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
     from codebox_orchestrator.auth.service import AuthService
     from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
@@ -64,10 +63,6 @@ def get_query_service(request: Request) -> BoxQueryService:
 
 def get_send_message(request: Request) -> SendMessageHandler:
     return request.app.state.send_message_handler
-
-
-def get_send_exec(request: Request) -> SendExecHandler:
-    return request.app.state.send_exec_handler
 
 
 def get_runtime(request: Request) -> DockerRuntime:

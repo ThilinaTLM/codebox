@@ -13,13 +13,6 @@ export type EventBlock =
   | { kind: "done"; content: string }
   | { kind: "error"; detail: string }
   | { kind: "status_change"; status: string }
-  | {
-      kind: "exec_session"
-      command?: string
-      output: string
-      exitCode?: string
-      isRunning: boolean
-    }
   | { kind: "user_message"; content: string }
   | {
       kind: "outcome_declared"

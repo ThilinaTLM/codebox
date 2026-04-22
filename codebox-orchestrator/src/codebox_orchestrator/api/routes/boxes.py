@@ -19,14 +19,12 @@ from codebox_orchestrator.api.dependencies import (
     get_query_service,
     get_restart_box,
     get_runtime,
-    get_send_exec,
     get_send_message,
     get_stop_box,
 )
 from codebox_orchestrator.api.schemas import (
     BoxCreate,
     BoxEventResponse,
-    BoxExec,
     BoxMessage,
     BoxResponse,
     BoxUpdateRequest,
@@ -34,7 +32,6 @@ from codebox_orchestrator.api.schemas import (
 from codebox_orchestrator.project.dependencies import ProjectContext, get_project_context
 
 if TYPE_CHECKING:
-    from codebox_orchestrator.agent.application.commands.send_exec import SendExecHandler
     from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
     from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
     from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
@@ -282,24 +279,6 @@ async def send_message(
         raise HTTPException(404, "Box not found")
     try:
         await handler.execute(box_id, body.message)
-    except NoActiveConnectionError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return {"status": "sent"}
-
-
-@router.post("/boxes/{box_id}/exec", summary="Execute a command in a box", operation_id="exec_box")
-async def exec_box(
-    box_id: str,
-    body: BoxExec,
-    ctx: ProjectContext = Depends(get_project_context),
-    handler: SendExecHandler = Depends(get_send_exec),
-    query: BoxQueryService = Depends(get_query_service),
-):
-    box = await query.get_box(box_id)
-    if box is None or box.project_id != ctx.project_id:
-        raise HTTPException(404, "Box not found")
-    try:
-        await handler.execute(box_id, body.command)
     except NoActiveConnectionError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"status": "sent"}

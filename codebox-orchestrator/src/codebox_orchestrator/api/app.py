@@ -201,11 +201,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             agent_connections,
             event_repository,
         )
-        send_exec_handler = SendExecHandler(
-            event_publisher,
-            agent_connections,
-            event_repository,
-        )
+        send_exec_handler = SendExecHandler(agent_connections)
         event_handler = HandleBoxEventHandler(
             event_publisher,
             registry,
@@ -387,6 +383,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         models,
         project_settings,
         projects,
+        pty,
         sse,
         tunnel,
     )
@@ -406,5 +403,6 @@ def create_app() -> FastAPI:  # noqa: PLR0915
     app.include_router(project_settings.router, dependencies=[Depends(get_current_user)])
     app.include_router(github.router)
     app.include_router(tunnel.router)  # WebSocket + file proxy
+    app.include_router(pty.router)  # WebSocket PTY bridge
 
     return app
