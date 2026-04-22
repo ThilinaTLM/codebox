@@ -63,7 +63,11 @@ export function PlatformSidebar() {
         collapsed ? "w-[52px]" : "w-[220px]"
       )}
     >
-      <SidebarLogo collapsed={collapsed} onToggleCollapsed={setCollapsed} />
+      <SidebarLogo
+        collapsed={collapsed}
+        onToggleCollapsed={setCollapsed}
+        to="/platform/projects"
+      />
 
       <nav
         className={cn(

@@ -6,9 +6,21 @@ import { cn } from "@/lib/utils"
 interface SidebarLogoProps {
   collapsed: boolean
   onToggleCollapsed: (next: boolean) => void
+  /**
+   * Target for the logo link. Each layout passes the destination appropriate
+   * for its context (e.g. Platform layout links to Projects; Project layout
+   * links to the active project's Agents page).
+   */
+  to: string
+  params?: Record<string, string>
 }
 
-export function SidebarLogo({ collapsed, onToggleCollapsed }: SidebarLogoProps) {
+export function SidebarLogo({
+  collapsed,
+  onToggleCollapsed,
+  to,
+  params,
+}: SidebarLogoProps) {
   return (
     <div
       className={cn(
@@ -16,7 +28,12 @@ export function SidebarLogo({ collapsed, onToggleCollapsed }: SidebarLogoProps) 
         collapsed ? "justify-center" : "justify-between"
       )}
     >
-      <Link to="/" className="flex items-center gap-2.5 overflow-hidden">
+      <Link
+        // Cast keeps this component layout-agnostic — callers own the route typing.
+        to={to as never}
+        params={params as never}
+        className="flex items-center gap-2.5 overflow-hidden"
+      >
         <img
           src="/codebox-logo.svg"
           alt="Codebox"

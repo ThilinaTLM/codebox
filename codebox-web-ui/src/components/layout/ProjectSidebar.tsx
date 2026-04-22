@@ -134,7 +134,12 @@ export function ProjectSidebar() {
         collapsed ? "w-[52px]" : "w-[220px]"
       )}
     >
-      <SidebarLogo collapsed={collapsed} onToggleCollapsed={setCollapsed} />
+      <SidebarLogo
+        collapsed={collapsed}
+        onToggleCollapsed={setCollapsed}
+        to={activeSlug ? "/projects/$projectSlug" : "/platform/projects"}
+        params={activeSlug ? { projectSlug: activeSlug } : undefined}
+      />
 
       <ProjectSwitcher activeSlug={activeSlug} collapsed={collapsed} />
 
@@ -178,7 +183,12 @@ export function ProjectSidebar() {
       <div className="flex-1" />
 
       {isPlatformAdmin && (
-        <div className={cn("pb-2", collapsed ? "px-1.5" : "px-2")}>
+        <div
+          className={cn(
+            "flex flex-col pb-2",
+            collapsed ? "px-1.5" : "px-2"
+          )}
+        >
           <ExitProjectButton collapsed={collapsed} />
         </div>
       )}
