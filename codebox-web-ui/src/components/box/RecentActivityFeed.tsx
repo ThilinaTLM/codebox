@@ -28,7 +28,6 @@ const VISIBLE_KINDS = new Set([
   "run.completed",
   "run.failed",
   "run.cancelled",
-  "outcome.declared",
   "input_requested",
 ])
 
@@ -137,16 +136,6 @@ function eventToFeedItem(event: CanonicalEvent): FeedItem | null {
         icon: <AlertCircle size={12} />,
         label: "Cancelled",
         timestamp: ts,
-      }
-
-    case "outcome.declared":
-      return {
-        key: event.event_id,
-        icon: <CheckCircle size={12} />,
-        label: String(payload.status ?? "Outcome"),
-        detail: String(payload.message ?? ""),
-        timestamp: ts,
-        variant: "success",
       }
 
     case "input_requested":

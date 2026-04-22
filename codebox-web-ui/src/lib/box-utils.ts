@@ -40,8 +40,6 @@ export function getStatusText(box: Box): string {
   }
   if (box.box_outcome_message) return box.box_outcome_message
   if (box.box_outcome === BoxOutcome.COMPLETED) return "Completed"
-  if (box.box_outcome === BoxOutcome.NEED_CLARIFICATION)
-    return "Needs clarification"
   if (box.box_outcome === BoxOutcome.UNABLE_TO_PROCEED)
     return "Unable to proceed"
   if (box.error_detail) return "Error"

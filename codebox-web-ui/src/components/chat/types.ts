@@ -15,12 +15,6 @@ export type EventBlock =
   | { kind: "status_change"; status: string }
   | { kind: "user_message"; content: string }
   | {
-      kind: "outcome_declared"
-      status: string
-      message: string
-      timestamp_ms?: number
-    }
-  | {
       kind: "input_requested"
       message: string
       questions?: Array<string>

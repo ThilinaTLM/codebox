@@ -2,7 +2,6 @@ import { AssistantTextBlock } from "./AssistantTextBlock"
 import { ThinkingBlock } from "./ThinkingBlock"
 import { ToolCallBlock } from "./ToolCallBlock"
 import { UserMessageBlock } from "./UserMessageBlock"
-import { OutcomeDeclaredBlock } from "./OutcomeDeclaredBlock"
 import { InputRequestBlock } from "./InputRequestBlock"
 import { DoneBlock, ErrorBlock, StatusChangeBlock } from "./StatusDivider"
 import { TOOL_RENDERERS } from "./tools"
@@ -57,9 +56,6 @@ export function ChatBlock({
 
     case "user_message":
       return <UserMessageBlock content={block.content} />
-
-    case "outcome_declared":
-      return <OutcomeDeclaredBlock status={block.status} message={block.message} />
 
     case "input_requested":
       return (

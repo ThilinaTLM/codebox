@@ -84,13 +84,6 @@ def _extract_exit_code(output: str) -> int:
         return 0
 
 
-def _infer_outcome(final_text: str) -> tuple[str, str]:
-    text = final_text.strip()
-    if text.endswith("?"):
-        return ("need_clarification", text)
-    return ("completed", text[:500])
-
-
 async def run_agent_stream(  # noqa: PLR0912, PLR0915
     send: SendFn,
     session_id: str,
@@ -531,12 +524,11 @@ async def run_agent_stream(  # noqa: PLR0912, PLR0915
         await _close_turn()
         final_text = ai_text_buffer.strip()
         await send(make_event("run.completed", run_id=run_id, payload={"summary": final_text}))
-        outcome_status, outcome_message = _infer_outcome(final_text)
         await send(
             make_event(
                 "outcome.declared",
                 run_id=run_id,
-                payload={"status": outcome_status, "message": outcome_message},
+                payload={"status": "completed", "message": final_text[:500]},
             )
         )
         await send(make_event("state.changed", run_id=run_id, payload={"activity": "idle"}))

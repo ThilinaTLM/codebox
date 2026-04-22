@@ -39,19 +39,13 @@ const activityDotColors: Record<Activity, string> = {
 }
 
 const outcomeLabels: Record<BoxOutcome, string> = {
-  [BoxOutcome.IN_PROGRESS]: "In progress",
   [BoxOutcome.COMPLETED]: "Completed",
-  [BoxOutcome.NEED_CLARIFICATION]: "Needs clarification",
   [BoxOutcome.UNABLE_TO_PROCEED]: "Unable to proceed",
-  [BoxOutcome.NOT_ENOUGH_CONTEXT]: "Not enough context",
 }
 
 const outcomeDotColors: Record<BoxOutcome, string> = {
-  [BoxOutcome.IN_PROGRESS]: "bg-state-writing",
   [BoxOutcome.COMPLETED]: "bg-state-completed",
-  [BoxOutcome.NEED_CLARIFICATION]: "bg-state-thinking",
   [BoxOutcome.UNABLE_TO_PROCEED]: "bg-state-error",
-  [BoxOutcome.NOT_ENOUGH_CONTEXT]: "bg-state-error",
 }
 
 interface BoxStatusBadgeProps {
@@ -112,10 +106,12 @@ export function BoxStatusBadge({
 }
 
 export function BoxOutcomeBadge({ status }: { status: BoxOutcome }) {
+  const label = outcomeLabels[status]
+  if (!label) return null
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <StatusDot color={outcomeDotColors[status]} />
-      {outcomeLabels[status]}
+      {label}
     </span>
   )
 }
