@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router"
 import { ChevronsLeft, ChevronsRight } from "lucide-react"
+import { CodeboxLogo } from "@/components/layout/CodeboxLogo"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
@@ -34,11 +35,7 @@ export function SidebarLogo({
         params={params as never}
         className="flex items-center gap-2.5 overflow-hidden"
       >
-        <img
-          src="/codebox-logo.svg"
-          alt="Codebox"
-          className="size-5 shrink-0"
-        />
+        <CodeboxLogo className="size-5 text-sidebar-foreground" />
         {!collapsed && (
           <span className="truncate font-display text-sm tracking-tight text-sidebar-foreground">
             Codebox

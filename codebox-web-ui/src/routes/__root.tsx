@@ -37,7 +37,16 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Codebox" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      // Modern browsers pick the SVG (which adapts to the OS color scheme via
+      // an embedded prefers-color-scheme media query).  The .ico is a legacy
+      // fallback.
+      { rel: "icon", type: "image/svg+xml", href: "/codebox-logo.svg" },
+      { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+      { rel: "apple-touch-icon", href: "/logo192.png" },
+      { rel: "manifest", href: "/manifest.json" },
+      { rel: "stylesheet", href: appCss },
+    ],
   }),
   beforeLoad: ({ location }) => {
     // Auth redirects are expressed as route-level redirects instead of a

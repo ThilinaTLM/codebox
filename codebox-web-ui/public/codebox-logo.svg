@@ -1,12 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <defs>
-    <linearGradient id="codebox-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#06b6d4" />
-      <stop offset="100%" stop-color="#0e7490" />
-    </linearGradient>
-  </defs>
-  <rect x="24" y="24" width="208" height="208" rx="48" fill="url(#codebox-gradient)" />
-  <polyline points="72,112 116,148 72,184" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
-  <line x1="132" y1="184" x2="180" y2="184" stroke="#ffffff" stroke-width="20" stroke-linecap="round" />
-  <path d="M168 48 Q168 80 200 80 Q168 80 168 112 Q168 80 136 80 Q168 80 168 48 Z" fill="#ffffff" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Codebox">
+  <title>Codebox</title>
+  <style>
+    .cube { fill: #0f172a; }
+    @media (prefers-color-scheme: dark) {
+      .cube { fill: #f1f5f9; }
+    }
+  </style>
+  <polygon class="cube" points="50,83 128,128 128,218 50,173"/>
+  <polygon class="cube" points="206,83 206,173 128,218 128,128"/>
+  <path class="cube" fill-rule="evenodd" d="M128,38 L206,83 L128,128 L50,83 Z M128,58 L171,83 L128,108 L85,83 Z"/>
+  <polygon points="128,67 155,83 128,99 101,83" fill="#2563eb"/>
 </svg>
