@@ -82,6 +82,7 @@ export function AgentTemplatesSection({
         {!readOnly && templates.length > 0 && (
           <Button
             size="sm"
+            nativeButton={false}
             render={
               <Link
                 to="/projects/$projectSlug/configs/agent-templates/new"
@@ -129,6 +130,7 @@ function EmptyState({
       {!readOnly && (
         <div className="mt-6 flex items-center justify-center">
           <Button
+            nativeButton={false}
             render={
               <Link
                 to="/projects/$projectSlug/configs/agent-templates/new"
