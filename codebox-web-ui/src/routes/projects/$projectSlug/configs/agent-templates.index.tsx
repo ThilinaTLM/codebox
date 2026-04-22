@@ -3,7 +3,7 @@ import { AgentTemplatesSection } from "@/components/settings/AgentTemplatesSecti
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
 export const Route = createFileRoute(
-  "/projects/$projectSlug/configs/agent-templates"
+  "/projects/$projectSlug/configs/agent-templates/"
 )({
   component: AgentTemplatesPage,
 })

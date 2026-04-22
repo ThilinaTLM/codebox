@@ -61,6 +61,14 @@ const PROJECT_NAV_SECTIONS: Array<ProjectNavSection> = [
         matchPrefix: (slug) => `/projects/${slug}`,
         exact: true,
       },
+      {
+        key: "agent-templates",
+        label: "Agent Templates",
+        icon: Clock02Icon,
+        to: "/projects/$projectSlug/configs/agent-templates",
+        matchPrefix: (slug) =>
+          `/projects/${slug}/configs/agent-templates`,
+      },
     ],
   },
   {
@@ -87,14 +95,6 @@ const PROJECT_NAV_SECTIONS: Array<ProjectNavSection> = [
         icon: Github01Icon,
         to: "/projects/$projectSlug/configs/github",
         matchPrefix: (slug) => `/projects/${slug}/configs/github`,
-      },
-      {
-        key: "agent-templates",
-        label: "Agent Templates",
-        icon: Clock02Icon,
-        to: "/projects/$projectSlug/configs/agent-templates",
-        matchPrefix: (slug) =>
-          `/projects/${slug}/configs/agent-templates`,
       },
       {
         key: "tavily",
