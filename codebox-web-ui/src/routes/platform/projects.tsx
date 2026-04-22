@@ -147,15 +147,21 @@ function ProjectRow({ project }: { project: Project }) {
 
   return (
     <>
-      <TableRow>
+      <TableRow
+        role="button"
+        tabIndex={0}
+        onClick={openProject}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            openProject()
+          }
+        }}
+        className="cursor-pointer"
+      >
         <TableCell>
           <div className="flex flex-col">
-            <button
-              onClick={openProject}
-              className="text-left font-medium transition-colors hover:text-primary"
-            >
-              {project.name}
-            </button>
+            <span className="font-medium">{project.name}</span>
             {project.description && (
               <span className="line-clamp-1 text-xs text-muted-foreground">
                 {project.description}
@@ -174,7 +180,7 @@ function ProjectRow({ project }: { project: Project }) {
             addSuffix: true,
           })}
         </TableCell>
-        <TableCell>
+        <TableCell onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
