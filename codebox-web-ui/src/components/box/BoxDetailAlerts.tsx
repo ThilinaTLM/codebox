@@ -2,48 +2,48 @@ import { useEffect, useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { ContainerStatus } from "@/net/http/types"
 
-/** Delay before showing the reconnecting banner to avoid brief flicker. */
-const RECONNECT_BANNER_DELAY_MS = 2_000
+/**
+ * Delay before showing the sandbox-disconnected banner, to avoid flicker from
+ * brief gRPC blips. The per-box SSE (chat stream) is intentionally *not*
+ * surfaced here — it is shown in the StatusBar and does not actually block
+ * agent work (send / exec go through separate channels).
+ */
+const GRPC_BANNER_DELAY_MS = 3_000
 
 interface BoxDetailAlertsProps {
   containerStatus: ContainerStatus
   grpcConnected: boolean
-  isConnected: boolean
   errorDetail?: string | null
 }
 
 export function BoxDetailAlerts({
   containerStatus,
   grpcConnected,
-  isConnected,
   errorDetail,
 }: BoxDetailAlertsProps) {
   const isRunning = containerStatus === ContainerStatus.RUNNING
-
-  // Consolidated connection warning — show ONE banner for any connection issue.
-  // We delay showing it so that brief SSE reconnections don't cause flicker.
-  const hasConnectionIssue = isRunning && (!grpcConnected || !isConnected)
-  const [showConnectionWarning, setShowConnectionWarning] = useState(false)
+  const hasGrpcIssue = isRunning && !grpcConnected
+  const [showGrpcWarning, setShowGrpcWarning] = useState(false)
 
   useEffect(() => {
-    if (!hasConnectionIssue) {
-      setShowConnectionWarning(false)
+    if (!hasGrpcIssue) {
+      setShowGrpcWarning(false)
       return
     }
     const timer = setTimeout(
-      () => setShowConnectionWarning(true),
-      RECONNECT_BANNER_DELAY_MS,
+      () => setShowGrpcWarning(true),
+      GRPC_BANNER_DELAY_MS,
     )
     return () => clearTimeout(timer)
-  }, [hasConnectionIssue])
+  }, [hasGrpcIssue])
 
   return (
     <>
-      {showConnectionWarning && (
+      {showGrpcWarning && (
         <div className="mx-4 mt-1 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
           <span className="size-1.5 animate-pulse rounded-full bg-warning" />
           <span className="text-sm text-warning">
-            Reconnecting…
+            Sandbox disconnected. Reconnecting…
           </span>
         </div>
       )}

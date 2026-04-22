@@ -8,6 +8,7 @@ import type { QueryClient } from "@tanstack/react-query"
 import type { Box } from "@/net/http/types"
 import { API_URL } from "@/lib/constants"
 import { useAuthStore } from "@/lib/auth"
+import { useConnectionStore } from "@/lib/connection"
 import { useProjectStore } from "@/lib/project"
 
 /**
@@ -103,6 +104,7 @@ export function useGlobalStream() {
   useEffect(() => {
     if (!isAuthenticated) {
       hadConnectionRef.current = false
+      useConnectionStore.getState().setGlobalStreamConnected(false)
       return
     }
 
@@ -123,6 +125,7 @@ export function useGlobalStream() {
             invalidateAllProjectBoxLists(qcRef.current)
           }
           hadConnectionRef.current = true
+          useConnectionStore.getState().setGlobalStreamConnected(true)
           return
         }
 
@@ -181,6 +184,7 @@ export function useGlobalStream() {
       },
 
       onerror() {
+        useConnectionStore.getState().setGlobalStreamConnected(false)
         if (ctrl.signal.aborted) return
         return undefined
       },
@@ -191,6 +195,7 @@ export function useGlobalStream() {
     return () => {
       ctrl.abort()
       hadConnectionRef.current = false
+      useConnectionStore.getState().setGlobalStreamConnected(false)
     }
   }, [isAuthenticated])
 }

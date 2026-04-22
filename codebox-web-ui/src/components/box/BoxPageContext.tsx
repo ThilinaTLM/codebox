@@ -4,6 +4,10 @@ import type { AgentActivity } from "@/hooks/useAgentActivity"
 export interface BoxPageActions {
   isActive: boolean
   activity?: AgentActivity
+  /** Orchestrator ↔ sandbox gRPC connection. */
+  grpcConnected: boolean
+  /** Browser ↔ orchestrator per-box SSE (chat) stream. */
+  chatConnected: boolean
   onStop: () => void
   onDelete: () => void
   onRestart?: () => void

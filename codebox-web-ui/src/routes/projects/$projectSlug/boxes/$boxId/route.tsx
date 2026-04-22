@@ -114,6 +114,8 @@ function BoxDetailLayout() {
     setBoxPageActions({
       isActive,
       activity,
+      grpcConnected: box.grpc_connected,
+      chatConnected: isConnected,
       onStop: actions.stop,
       onDelete: actions.delete,
       onRestart: isStopped ? actions.restart : undefined,
@@ -127,6 +129,7 @@ function BoxDetailLayout() {
     activity,
     isStopped,
     actions,
+    isConnected,
     setBoxPageActions,
   ])
 
@@ -197,7 +200,6 @@ function BoxDetailLayout() {
         <BoxDetailAlerts
           containerStatus={box.container_status}
           grpcConnected={box.grpc_connected}
-          isConnected={isConnected}
           errorDetail={box.error_detail}
         />
 

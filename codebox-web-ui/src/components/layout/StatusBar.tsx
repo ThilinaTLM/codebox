@@ -5,6 +5,58 @@ import { useBoxes } from "@/net/query"
 import { ContainerStatus } from "@/net/http/types"
 import { STATE_DOT_COLORS } from "@/lib/state-colors"
 import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
+import { useConnectionStore } from "@/lib/connection"
+
+interface ConnectionIndicatorState {
+  dotClass: string
+  pulse: boolean
+  label: string
+}
+
+/**
+ * Resolve the status-bar connection indicator.
+ *
+ * Priority (worst first):
+ *   1. Not authenticated / global SSE down  -> "Disconnected" (red)
+ *   2. On a box page with gRPC down         -> "Sandbox disconnected" (red)
+ *   3. On a box page with chat SSE down     -> "Chat stream reconnecting…" (warning)
+ *   4. All good                             -> "Connected" (green)
+ */
+function resolveIndicator(
+  globalConnected: boolean,
+  boxActions: ReturnType<typeof useBoxPageActions>
+): ConnectionIndicatorState {
+  if (!globalConnected) {
+    return {
+      dotClass: "bg-state-error",
+      pulse: true,
+      label: "Disconnected",
+    }
+  }
+
+  if (boxActions && boxActions.isActive) {
+    if (!boxActions.grpcConnected) {
+      return {
+        dotClass: "bg-state-error",
+        pulse: true,
+        label: "Sandbox disconnected",
+      }
+    }
+    if (!boxActions.chatConnected) {
+      return {
+        dotClass: "bg-warning",
+        pulse: true,
+        label: "Chat stream reconnecting…",
+      }
+    }
+  }
+
+  return {
+    dotClass: "bg-state-completed",
+    pulse: true,
+    label: "Connected",
+  }
+}
 
 export function StatusBar() {
   const routerState = useRouterState()
@@ -14,6 +66,7 @@ export function StatusBar() {
   const boxPageActions = useBoxPageActions()
   const activeSlug = useActiveProjectSlug()
   const { data: boxes } = useBoxes(activeSlug ?? undefined)
+  const globalConnected = useConnectionStore((s) => s.globalStreamConnected)
 
   const activeCount = (boxes ?? []).filter(
     (b) =>
@@ -21,12 +74,20 @@ export function StatusBar() {
       b.container_status === ContainerStatus.STARTING
   ).length
 
+  const indicator = resolveIndicator(globalConnected, boxPageActions)
+
   return (
     <footer className="flex h-6 shrink-0 items-center justify-between border-t border-border bg-inset px-3 text-xs">
       {/* Left: connection status */}
       <div className="flex items-center gap-1.5">
-        <span className="size-1.5 animate-pulse rounded-full bg-state-completed" />
-        <span className="text-muted-foreground">Connected</span>
+        <span
+          className={cn(
+            "size-1.5 rounded-full",
+            indicator.dotClass,
+            indicator.pulse && "animate-pulse"
+          )}
+        />
+        <span className="text-muted-foreground">{indicator.label}</span>
       </div>
 
       {/* Center: agent activity or count */}
