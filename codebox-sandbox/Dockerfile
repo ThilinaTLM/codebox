@@ -71,4 +71,10 @@ COPY codebox-sandbox/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 ENTRYPOINT ["bash", "/app/entrypoint.sh"]
-CMD ["python", "-m", "codebox_sandbox"]
+# Use an absolute path to the base-image Python so the daemon always runs
+# against the interpreter where codebox_sandbox (and codebox_agent / codebox_tunnel)
+# were installed. The entrypoint sources devbox's nix shellenv, which prepends
+# a nix-store python3 to PATH (pulled in transitively by packages like
+# postgresql / pandoc / imagemagick) and would otherwise shadow this one.
+# Agent-spawned subprocesses still see the full devbox toolchain via PATH.
+CMD ["/usr/local/bin/python", "-m", "codebox_sandbox"]
