@@ -1,8 +1,9 @@
 FROM python:3.12-slim
 
+# Keep /var/lib/apt/lists/ populated so agents can `apt install <pkg>` at
+# runtime without a mandatory `apt-get update` round-trip. Costs ~40MB.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates xz-utils bash git \
-    && rm -rf /var/lib/apt/lists/*
+    curl ca-certificates xz-utils bash git
 
 # ── Supply-chain hardening: pin installer versions & verify checksums ──
 
@@ -34,8 +35,8 @@ ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
 
 WORKDIR /app
 
-# Copy devbox config and install packages
-COPY codebox-sandbox/devbox.json ./
+# Copy devbox config + lock (lock is committed for reproducible nixpkgs pin)
+COPY codebox-sandbox/devbox.json codebox-sandbox/devbox.lock ./
 RUN devbox install
 
 # Create a wrapper so `devbox` works from any directory (agent runs from /workspace).

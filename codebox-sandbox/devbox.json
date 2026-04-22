@@ -1,19 +1,52 @@
 {
   "packages": {
-    "nodejs":  "20",
-    "go":      "1.22",
-    "ripgrep": "latest",
-    "git":     "latest",
-    "jq":      "latest",
-    "curl":    "latest",
-    "gh":      "latest",
-    "pnpm":    "latest",
-    "yarn":    "latest",
-    "fd":      "latest",
-    "tree":    "latest",
-    "unzip":   "latest",
-    "gnumake": "latest",
-    "gcc":     "latest",
-    "openssh": "latest"
+    "nodejs":                   "20",
+    "go":                       "1.22",
+    "jdk21":                    "latest",
+    "lua":                      "latest",
+
+    "ripgrep":                  "latest",
+    "fd":                       "latest",
+    "tree":                     "latest",
+    "bat":                      "latest",
+    "fzf":                      "latest",
+    "htop":                     "latest",
+    "tmux":                     "latest",
+    "neovim":                   "latest",
+
+    "git":                      "latest",
+    "gh":                       "latest",
+    "openssh":                  "latest",
+
+    "jq":                       "latest",
+    "yq-go":                    "latest",
+    "curl":                     "latest",
+    "wget":                     "latest",
+    "httpie":                   "latest",
+
+    "gnumake":                  "latest",
+    "cmake":                    "latest",
+    "pkg-config":               "latest",
+    "gcc":                      "latest",
+    "shellcheck":               "latest",
+
+    "pnpm":                     "latest",
+    "yarn":                     "latest",
+
+    "unzip":                    "latest",
+    "openssl":                  "latest",
+    "gnupg":                    "latest",
+
+    "graphviz":                 "latest",
+    "plantuml":                 "latest",
+
+    "pandoc":                   "latest",
+    "poppler_utils":            "latest",
+    "ghostscript":              "latest",
+    "imagemagick":              "latest",
+    "ffmpeg":                   "latest",
+
+    "sqlite":                   "latest",
+    "postgresql":               "latest"
   }
 }

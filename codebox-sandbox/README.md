@@ -33,6 +33,57 @@ Terminal I/O is a raw byte stream — it is deliberately **not** written
 to the canonical box event log or to the agent's LangGraph state, so the
 LLM does not see what the user ran in the terminal.
 
+## Pre-installed toolchain
+
+The image ships with a default toolset so most agent tasks run without any
+extra install step. All tools below are available on `PATH` in the daemon
+and every agent subprocess (including interactive PTY sessions).
+
+| Category      | Tools |
+| ------------- | ----- |
+| Languages     | Python 3.12 (base image), Node.js 20, Go 1.22, OpenJDK 21, Lua, GCC/G++ |
+| Python tools  | `uv` |
+| JS tools      | `pnpm`, `yarn`, `corepack` (bundled with Node) |
+| Build         | `gnumake`, `cmake`, `pkg-config` |
+| Search/FS     | `ripgrep`, `fd`, `tree`, `fzf`, `bat` |
+| VCS / remote  | `git`, `gh`, `openssh`, `curl`, `wget`, `httpie` |
+| Data / text   | `jq`, `yq` (go), `pandoc`, `poppler` (`pdftotext`, `pdftoppm`), `ghostscript`, `imagemagick`, `ffmpeg` |
+| Diagrams      | `graphviz` (`dot`), `plantuml` |
+| Databases     | `sqlite3`, `psql` (postgresql client) |
+| Shell / ops   | `tmux`, `neovim` (`nvim`), `htop`, `shellcheck`, `openssl`, `gpg`, `unzip` |
+
+### Installing extra packages at runtime
+
+Both `devbox`/nix and `apt` are ready to use inside a running Box.
+
+```sh
+# Nix-based install (preferred — same pinned nixpkgs as the image)
+devbox add texliveMedium          # or texliveFull for full LaTeX
+devbox add rustup
+devbox add nodejs@22              # parallel Node version
+
+# Debian-based install (falls back to apt)
+apt-get install -y <pkg>          # apt lists are pre-populated
+```
+
+### Why no `mermaid-cli` by default?
+
+`@mermaid-js/mermaid-cli` (`mmdc`) needs a headless Chromium per invocation,
+which starts slowly (2–5 s minimum), pulls in ~300 MB of nixpkgs chromium,
+and is fragile in root containers with the default 64 MB `/dev/shm`. In
+practice, rendering mermaid client-side in the web UI is a better fit. If a
+Box genuinely needs server-side rendering, install it on demand:
+
+```sh
+devbox add nodePackages.mermaid-cli
+# then pass a puppeteer config with --no-sandbox and --disable-dev-shm-usage
+```
+
+`devbox.lock` is committed in-repo, so image builds and runtime `devbox add`
+resolve against the same nixpkgs commit. Maintainers refresh the pin by
+running `devbox update && devbox install` inside `codebox-sandbox/` and
+committing the updated lock.
+
 ## Env
 
 The sandbox connects back to the orchestrator using:
