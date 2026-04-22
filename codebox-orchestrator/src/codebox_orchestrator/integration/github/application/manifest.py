@@ -59,7 +59,6 @@ def build_manifest(
         "default_events": [
             "issue_comment",
             "pull_request_review_comment",
-            "installation",
         ],
     }
 
