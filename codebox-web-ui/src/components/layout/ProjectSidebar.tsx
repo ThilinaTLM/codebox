@@ -2,11 +2,14 @@ import { useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Configuration02Icon,
+  AiBrain01Icon,
+  Github01Icon,
   GridViewIcon,
+  InternetIcon,
   Settings02Icon,
-  Shield02Icon,
+  SquareArrowLeft02Icon,
   UserCircleIcon,
+  UserGroupIcon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 import { Button } from "@/components/ui/button"
@@ -27,45 +30,90 @@ interface ProjectNavItem {
   icon: IconSvgElement
   to:
     | "/projects/$projectSlug"
-    | "/projects/$projectSlug/configs"
+    | "/projects/$projectSlug/configs/members"
+    | "/projects/$projectSlug/configs/llm-profiles"
+    | "/projects/$projectSlug/configs/github"
+    | "/projects/$projectSlug/configs/tavily"
     | "/projects/$projectSlug/account"
     | "/projects/$projectSlug/settings"
   matchPrefix: (slug: string) => string
   exact?: boolean
 }
 
-const PROJECT_SCOPED_NAV: Array<ProjectNavItem> = [
-  {
-    key: "agents",
-    label: "Agents",
-    icon: GridViewIcon,
-    to: "/projects/$projectSlug",
-    matchPrefix: (slug) => `/projects/${slug}`,
-    exact: true,
-  },
-  {
-    key: "configs",
-    label: "Configs",
-    icon: Configuration02Icon,
-    to: "/projects/$projectSlug/configs",
-    matchPrefix: (slug) => `/projects/${slug}/configs`,
-  },
-]
+interface ProjectNavSection {
+  key: string
+  label: string
+  items: Array<ProjectNavItem>
+}
 
-const USER_SCOPED_NAV: Array<ProjectNavItem> = [
+const PROJECT_NAV_SECTIONS: Array<ProjectNavSection> = [
   {
-    key: "account",
-    label: "Account",
-    icon: UserCircleIcon,
-    to: "/projects/$projectSlug/account",
-    matchPrefix: (slug) => `/projects/${slug}/account`,
+    key: "workspace",
+    label: "Workspace",
+    items: [
+      {
+        key: "agents",
+        label: "Agents",
+        icon: GridViewIcon,
+        to: "/projects/$projectSlug",
+        matchPrefix: (slug) => `/projects/${slug}`,
+        exact: true,
+      },
+    ],
   },
   {
-    key: "settings",
-    label: "Settings",
-    icon: Settings02Icon,
-    to: "/projects/$projectSlug/settings",
-    matchPrefix: (slug) => `/projects/${slug}/settings`,
+    key: "configuration",
+    label: "Configuration",
+    items: [
+      {
+        key: "members",
+        label: "Members",
+        icon: UserGroupIcon,
+        to: "/projects/$projectSlug/configs/members",
+        matchPrefix: (slug) => `/projects/${slug}/configs/members`,
+      },
+      {
+        key: "llm-profiles",
+        label: "LLM Profiles",
+        icon: AiBrain01Icon,
+        to: "/projects/$projectSlug/configs/llm-profiles",
+        matchPrefix: (slug) => `/projects/${slug}/configs/llm-profiles`,
+      },
+      {
+        key: "github",
+        label: "GitHub",
+        icon: Github01Icon,
+        to: "/projects/$projectSlug/configs/github",
+        matchPrefix: (slug) => `/projects/${slug}/configs/github`,
+      },
+      {
+        key: "tavily",
+        label: "Tavily",
+        icon: InternetIcon,
+        to: "/projects/$projectSlug/configs/tavily",
+        matchPrefix: (slug) => `/projects/${slug}/configs/tavily`,
+      },
+    ],
+  },
+  {
+    key: "personal",
+    label: "Personal",
+    items: [
+      {
+        key: "account",
+        label: "Account",
+        icon: UserCircleIcon,
+        to: "/projects/$projectSlug/account",
+        matchPrefix: (slug) => `/projects/${slug}/account`,
+      },
+      {
+        key: "settings",
+        label: "Settings",
+        icon: Settings02Icon,
+        to: "/projects/$projectSlug/settings",
+        matchPrefix: (slug) => `/projects/${slug}/settings`,
+      },
+    ],
   },
 ]
 
@@ -92,43 +140,46 @@ export function ProjectSidebar() {
 
       <nav
         className={cn(
-          "flex flex-col gap-0.5",
+          "flex flex-col",
           collapsed ? "px-1.5 pt-3" : "px-2 pt-3"
         )}
       >
         {activeSlug &&
-          PROJECT_SCOPED_NAV.map((item) => (
-            <ProjectNavButton
-              key={item.key}
-              item={item}
-              slug={activeSlug}
-              currentPath={currentPath}
-              collapsed={collapsed}
-            />
-          ))}
-
-        <div
-          role="separator"
-          className="mx-2 my-1.5 h-px bg-sidebar-border/60"
-        />
-
-        {activeSlug &&
-          USER_SCOPED_NAV.map((item) => (
-            <ProjectNavButton
-              key={item.key}
-              item={item}
-              slug={activeSlug}
-              currentPath={currentPath}
-              collapsed={collapsed}
-            />
+          PROJECT_NAV_SECTIONS.map((section, idx) => (
+            <div
+              key={section.key}
+              className={cn("flex flex-col gap-0.5", idx > 0 && "mt-2")}
+            >
+              {collapsed
+                ? idx > 0 && (
+                    <div
+                      role="separator"
+                      className="mx-2 my-1.5 h-px bg-sidebar-border/60"
+                    />
+                  )
+                : (
+                    <span className="px-3 pb-1 pt-1 text-2xs font-medium uppercase tracking-wider text-muted-foreground/60">
+                      {section.label}
+                    </span>
+                  )}
+              {section.items.map((item) => (
+                <ProjectNavButton
+                  key={item.key}
+                  item={item}
+                  slug={activeSlug}
+                  currentPath={currentPath}
+                  collapsed={collapsed}
+                />
+              ))}
+            </div>
           ))}
       </nav>
 
       <div className="flex-1" />
 
       {isPlatformAdmin && (
-        <div className={cn("px-2 pb-0", collapsed && "px-1.5")}>
-          <BackToPlatformButton collapsed={collapsed} />
+        <div className={cn("pb-2", collapsed ? "px-1.5" : "px-2")}>
+          <ExitProjectButton collapsed={collapsed} />
         </div>
       )}
 
@@ -208,7 +259,7 @@ function ProjectNavButton({
   return button
 }
 
-function BackToPlatformButton({ collapsed }: { collapsed: boolean }) {
+function ExitProjectButton({ collapsed }: { collapsed: boolean }) {
   const button = (
     <Button
       variant="ghost"
@@ -221,12 +272,12 @@ function BackToPlatformButton({ collapsed }: { collapsed: boolean }) {
       )}
     >
       <HugeiconsIcon
-        icon={Shield02Icon}
+        icon={SquareArrowLeft02Icon}
         size={18}
         strokeWidth={2}
         className="shrink-0 transition-colors duration-fast"
       />
-      {!collapsed && <span className="text-sm">Back to Platform</span>}
+      {!collapsed && <span className="text-sm">Exit Project</span>}
     </Button>
   )
 
@@ -235,7 +286,7 @@ function BackToPlatformButton({ collapsed }: { collapsed: boolean }) {
       <Tooltip>
         <TooltipTrigger render={button} />
         <TooltipContent side="right" sideOffset={8}>
-          Back to Platform
+          Exit Project
         </TooltipContent>
       </Tooltip>
     )
