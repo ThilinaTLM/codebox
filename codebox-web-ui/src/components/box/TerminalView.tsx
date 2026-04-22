@@ -273,9 +273,6 @@ export function TerminalView({ projectSlug, boxId, isActive }: TerminalViewProps
     setReconnectNonce((n) => n + 1)
   }, [])
 
-  const canReconnect =
-    isActive && (status === "closed" || status === "exited" || status === "error")
-
   return (
     <div className="flex h-full min-h-0 flex-col bg-inset">
       {!isActive ? (
@@ -286,42 +283,42 @@ export function TerminalView({ projectSlug, boxId, isActive }: TerminalViewProps
         </div>
       ) : (
         <>
+          <div className="flex items-center justify-between gap-3 border-b border-border/40 bg-card px-3 py-1.5 text-2xs">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              {status !== "open" && (
+                <>
+                  <span
+                    className={`inline-block size-1.5 rounded-full ${
+                      status === "connecting"
+                        ? "bg-state-writing"
+                        : status === "error"
+                          ? "bg-destructive"
+                          : "bg-muted-foreground/50"
+                    }`}
+                  />
+                  <span>{statusLabel(status, isActive)}</span>
+                  {status === "connecting" && (
+                    <Spinner className="size-3 text-muted-foreground" />
+                  )}
+                </>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleReconnect}
+              className="h-6 gap-1.5 px-2 text-2xs"
+              title={status === "open" ? "Restart shell" : "Start a new session"}
+            >
+              <RotateCcw size={12} />
+              New session
+            </Button>
+          </div>
           <div
             ref={hostRef}
             className="terminal-host min-h-0 flex-1 overflow-hidden px-3 pt-3"
             onClick={() => termRef.current?.focus()}
           />
-          <div className="flex items-center justify-between gap-3 border-t border-border/40 bg-card px-3 py-1.5 text-2xs">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <span
-                className={`inline-block size-1.5 rounded-full ${
-                  status === "open"
-                    ? "bg-state-completed"
-                    : status === "connecting"
-                      ? "bg-state-writing"
-                      : status === "error"
-                        ? "bg-destructive"
-                        : "bg-muted-foreground/50"
-                }`}
-              />
-              <span>{statusLabel(status, isActive)}</span>
-              {status === "connecting" && (
-                <Spinner className="size-3 text-muted-foreground" />
-              )}
-            </div>
-            {canReconnect && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleReconnect}
-                className="h-6 gap-1.5 px-2 text-2xs"
-                title="Start a new session"
-              >
-                <RotateCcw size={12} />
-                New session
-              </Button>
-            )}
-          </div>
         </>
       )}
     </div>
