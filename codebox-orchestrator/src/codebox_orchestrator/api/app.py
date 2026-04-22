@@ -301,6 +301,55 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         # Wire GitHub client manager into lifecycle for token retrieval
         lifecycle._github_client_manager = github_client_manager  # noqa: SLF001
 
+        # --- Agent templates: repository, service, engine singletons ---
+        from codebox_orchestrator.agent_template.application.context_builders import (  # noqa: PLC0415
+            ContextBuilderRegistry,
+        )
+        from codebox_orchestrator.agent_template.application.matcher import (  # noqa: PLC0415
+            TemplateMatcher,
+        )
+        from codebox_orchestrator.agent_template.application.renderer import (  # noqa: PLC0415
+            PromptRenderer,
+        )
+        from codebox_orchestrator.agent_template.repository import (  # noqa: PLC0415
+            AgentTemplateRepository,
+        )
+        from codebox_orchestrator.agent_template.service import (  # noqa: PLC0415
+            AgentTemplateService,
+        )
+
+        agent_template_repo = AgentTemplateRepository(async_session_factory)
+        agent_template_service = AgentTemplateService(
+            agent_template_repo,
+            llm_profile_service=llm_profile_service,
+            scheduler_handle=None,  # wired after scheduler starts
+        )
+
+        # --- Scheduler ---
+        import uuid as _uuid_mod  # noqa: PLC0415
+
+        from codebox_orchestrator.agent_template.application.scheduler import (  # noqa: PLC0415
+            AgentTemplateScheduler,
+        )
+
+        template_matcher = TemplateMatcher()
+        prompt_renderer = PromptRenderer()
+        context_builder_registry = ContextBuilderRegistry.default()
+
+        agent_template_scheduler = AgentTemplateScheduler(
+            session_factory=async_session_factory,
+            template_repo=agent_template_repo,
+            renderer=prompt_renderer,
+            context_builder=context_builder_registry.get("schedule"),
+            github_mgr=github_client_manager,
+            create_box=create_box_handler,
+            profile_service=llm_profile_service,
+            settings_service=project_settings_service,
+            github_repo=github_repo,
+            instance_id=_uuid_mod.uuid4().hex,
+        )
+        agent_template_service.set_scheduler_handle(agent_template_scheduler)
+
         # --- Container runtime check ---
         try:
             runtime_info = container_runtime.check_connection()
@@ -339,6 +388,12 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.project_settings_service = project_settings_service
         app.state.github_client_manager = github_client_manager
         app.state.github_repository = github_repo
+        app.state.agent_template_service = agent_template_service
+        app.state.agent_template_repo = agent_template_repo
+        app.state.template_matcher = template_matcher
+        app.state.prompt_renderer = prompt_renderer
+        app.state.context_builder_registry = context_builder_registry
+        app.state.agent_template_scheduler = agent_template_scheduler
         # In-memory CSRF tokens for the GitHub App manifest flow:
         # project_id -> (state_token, expires_at_epoch).
         # Single-instance only; move to Postgres if we ever run replicas.
@@ -347,9 +402,13 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.project_lifecycle_service = project_lifecycle_service
         app.state.box_repository = box_repository
 
+        # Start scheduler last, once all app.state values it references are populated
+        await agent_template_scheduler.start()
+
         yield
 
         # --- Shutdown ---
+        await agent_template_scheduler.stop()
         await grpc_server.stop(grace=5)
         await lifecycle.shutdown()
         await engine.dispose()
@@ -376,6 +435,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         return {"status": "ok"}
 
     from codebox_orchestrator.api.routes import (  # noqa: PLC0415
+        agent_templates,
         auth,
         boxes,
         github,
@@ -401,6 +461,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
     app.include_router(sse.router, dependencies=[Depends(get_current_user)])
     app.include_router(llm_profiles.router, dependencies=[Depends(get_current_user)])
     app.include_router(project_settings.router, dependencies=[Depends(get_current_user)])
+    app.include_router(agent_templates.router, dependencies=[Depends(get_current_user)])
     app.include_router(github.router)
     app.include_router(tunnel.router)  # WebSocket + file proxy
     app.include_router(pty.router)  # WebSocket PTY bridge

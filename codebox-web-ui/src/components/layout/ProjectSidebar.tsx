@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AiBrain01Icon,
+  Clock02Icon,
   Github01Icon,
   GridViewIcon,
   InternetIcon,
@@ -34,6 +35,7 @@ interface ProjectNavItem {
     | "/projects/$projectSlug/configs/llm-profiles"
     | "/projects/$projectSlug/configs/github"
     | "/projects/$projectSlug/configs/tavily"
+    | "/projects/$projectSlug/configs/agent-templates"
     | "/projects/$projectSlug/account"
     | "/projects/$projectSlug/settings"
   matchPrefix: (slug: string) => string
@@ -85,6 +87,14 @@ const PROJECT_NAV_SECTIONS: Array<ProjectNavSection> = [
         icon: Github01Icon,
         to: "/projects/$projectSlug/configs/github",
         matchPrefix: (slug) => `/projects/${slug}/configs/github`,
+      },
+      {
+        key: "agent-templates",
+        label: "Agent Templates",
+        icon: Clock02Icon,
+        to: "/projects/$projectSlug/configs/agent-templates",
+        matchPrefix: (slug) =>
+          `/projects/${slug}/configs/agent-templates`,
       },
       {
         key: "tavily",

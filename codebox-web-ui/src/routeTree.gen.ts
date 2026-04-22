@@ -36,9 +36,12 @@ import { Route as ProjectsProjectSlugConfigsTavilyRouteImport } from './routes/p
 import { Route as ProjectsProjectSlugConfigsMembersRouteImport } from './routes/projects/$projectSlug/configs/members'
 import { Route as ProjectsProjectSlugConfigsLlmProfilesRouteImport } from './routes/projects/$projectSlug/configs/llm-profiles'
 import { Route as ProjectsProjectSlugConfigsGithubRouteImport } from './routes/projects/$projectSlug/configs/github'
+import { Route as ProjectsProjectSlugConfigsAgentTemplatesRouteImport } from './routes/projects/$projectSlug/configs/agent-templates'
 import { Route as ProjectsProjectSlugBoxesCreateRouteImport } from './routes/projects/$projectSlug/boxes/create'
 import { Route as ProjectsProjectSlugBoxesBoxIdRouteRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/route'
 import { Route as ProjectsProjectSlugBoxesBoxIdIndexRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/index'
+import { Route as ProjectsProjectSlugConfigsAgentTemplatesNewRouteImport } from './routes/projects/$projectSlug/configs/agent-templates.new'
+import { Route as ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRouteImport } from './routes/projects/$projectSlug/configs/agent-templates.$templateId'
 import { Route as ProjectsProjectSlugBoxesBoxIdTerminalRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/terminal'
 import { Route as ProjectsProjectSlugBoxesBoxIdResourcesRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/resources'
 import { Route as ProjectsProjectSlugBoxesBoxIdLogsRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/logs'
@@ -194,6 +197,12 @@ const ProjectsProjectSlugConfigsGithubRoute =
     path: '/github',
     getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
   } as any)
+const ProjectsProjectSlugConfigsAgentTemplatesRoute =
+  ProjectsProjectSlugConfigsAgentTemplatesRouteImport.update({
+    id: '/agent-templates',
+    path: '/agent-templates',
+    getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
+  } as any)
 const ProjectsProjectSlugBoxesCreateRoute =
   ProjectsProjectSlugBoxesCreateRouteImport.update({
     id: '/boxes/create',
@@ -211,6 +220,18 @@ const ProjectsProjectSlugBoxesBoxIdIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => ProjectsProjectSlugBoxesBoxIdRouteRoute,
+  } as any)
+const ProjectsProjectSlugConfigsAgentTemplatesNewRoute =
+  ProjectsProjectSlugConfigsAgentTemplatesNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => ProjectsProjectSlugConfigsAgentTemplatesRoute,
+  } as any)
+const ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute =
+  ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRouteImport.update({
+    id: '/$templateId',
+    path: '/$templateId',
+    getParentRoute: () => ProjectsProjectSlugConfigsAgentTemplatesRoute,
   } as any)
 const ProjectsProjectSlugBoxesBoxIdTerminalRoute =
   ProjectsProjectSlugBoxesBoxIdTerminalRouteImport.update({
@@ -265,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/projects/$projectSlug/': typeof ProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren
   '/projects/$projectSlug/boxes/create': typeof ProjectsProjectSlugBoxesCreateRoute
+  '/projects/$projectSlug/configs/agent-templates': typeof ProjectsProjectSlugConfigsAgentTemplatesRouteWithChildren
   '/projects/$projectSlug/configs/github': typeof ProjectsProjectSlugConfigsGithubRoute
   '/projects/$projectSlug/configs/llm-profiles': typeof ProjectsProjectSlugConfigsLlmProfilesRoute
   '/projects/$projectSlug/configs/members': typeof ProjectsProjectSlugConfigsMembersRoute
@@ -278,6 +300,8 @@ export interface FileRoutesByFullPath {
   '/projects/$projectSlug/boxes/$boxId/logs': typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
   '/projects/$projectSlug/boxes/$boxId/resources': typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
   '/projects/$projectSlug/boxes/$boxId/terminal': typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
+  '/projects/$projectSlug/configs/agent-templates/$templateId': typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute
+  '/projects/$projectSlug/configs/agent-templates/new': typeof ProjectsProjectSlugConfigsAgentTemplatesNewRoute
   '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -295,6 +319,7 @@ export interface FileRoutesByTo {
   '/platform/settings': typeof PlatformSettingsIndexRoute
   '/projects/$projectSlug': typeof ProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/boxes/create': typeof ProjectsProjectSlugBoxesCreateRoute
+  '/projects/$projectSlug/configs/agent-templates': typeof ProjectsProjectSlugConfigsAgentTemplatesRouteWithChildren
   '/projects/$projectSlug/configs/github': typeof ProjectsProjectSlugConfigsGithubRoute
   '/projects/$projectSlug/configs/llm-profiles': typeof ProjectsProjectSlugConfigsLlmProfilesRoute
   '/projects/$projectSlug/configs/members': typeof ProjectsProjectSlugConfigsMembersRoute
@@ -308,6 +333,8 @@ export interface FileRoutesByTo {
   '/projects/$projectSlug/boxes/$boxId/logs': typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
   '/projects/$projectSlug/boxes/$boxId/resources': typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
   '/projects/$projectSlug/boxes/$boxId/terminal': typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
+  '/projects/$projectSlug/configs/agent-templates/$templateId': typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute
+  '/projects/$projectSlug/configs/agent-templates/new': typeof ProjectsProjectSlugConfigsAgentTemplatesNewRoute
   '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 export interface FileRoutesById {
@@ -333,6 +360,7 @@ export interface FileRoutesById {
   '/projects/$projectSlug/': typeof ProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdRouteRouteWithChildren
   '/projects/$projectSlug/boxes/create': typeof ProjectsProjectSlugBoxesCreateRoute
+  '/projects/$projectSlug/configs/agent-templates': typeof ProjectsProjectSlugConfigsAgentTemplatesRouteWithChildren
   '/projects/$projectSlug/configs/github': typeof ProjectsProjectSlugConfigsGithubRoute
   '/projects/$projectSlug/configs/llm-profiles': typeof ProjectsProjectSlugConfigsLlmProfilesRoute
   '/projects/$projectSlug/configs/members': typeof ProjectsProjectSlugConfigsMembersRoute
@@ -346,6 +374,8 @@ export interface FileRoutesById {
   '/projects/$projectSlug/boxes/$boxId/logs': typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
   '/projects/$projectSlug/boxes/$boxId/resources': typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
   '/projects/$projectSlug/boxes/$boxId/terminal': typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
+  '/projects/$projectSlug/configs/agent-templates/$templateId': typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute
+  '/projects/$projectSlug/configs/agent-templates/new': typeof ProjectsProjectSlugConfigsAgentTemplatesNewRoute
   '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -372,6 +402,7 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/'
     | '/projects/$projectSlug/boxes/$boxId'
     | '/projects/$projectSlug/boxes/create'
+    | '/projects/$projectSlug/configs/agent-templates'
     | '/projects/$projectSlug/configs/github'
     | '/projects/$projectSlug/configs/llm-profiles'
     | '/projects/$projectSlug/configs/members'
@@ -385,6 +416,8 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/boxes/$boxId/logs'
     | '/projects/$projectSlug/boxes/$boxId/resources'
     | '/projects/$projectSlug/boxes/$boxId/terminal'
+    | '/projects/$projectSlug/configs/agent-templates/$templateId'
+    | '/projects/$projectSlug/configs/agent-templates/new'
     | '/projects/$projectSlug/boxes/$boxId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -402,6 +435,7 @@ export interface FileRouteTypes {
     | '/platform/settings'
     | '/projects/$projectSlug'
     | '/projects/$projectSlug/boxes/create'
+    | '/projects/$projectSlug/configs/agent-templates'
     | '/projects/$projectSlug/configs/github'
     | '/projects/$projectSlug/configs/llm-profiles'
     | '/projects/$projectSlug/configs/members'
@@ -415,6 +449,8 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/boxes/$boxId/logs'
     | '/projects/$projectSlug/boxes/$boxId/resources'
     | '/projects/$projectSlug/boxes/$boxId/terminal'
+    | '/projects/$projectSlug/configs/agent-templates/$templateId'
+    | '/projects/$projectSlug/configs/agent-templates/new'
     | '/projects/$projectSlug/boxes/$boxId'
   id:
     | '__root__'
@@ -439,6 +475,7 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/'
     | '/projects/$projectSlug/boxes/$boxId'
     | '/projects/$projectSlug/boxes/create'
+    | '/projects/$projectSlug/configs/agent-templates'
     | '/projects/$projectSlug/configs/github'
     | '/projects/$projectSlug/configs/llm-profiles'
     | '/projects/$projectSlug/configs/members'
@@ -452,6 +489,8 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/boxes/$boxId/logs'
     | '/projects/$projectSlug/boxes/$boxId/resources'
     | '/projects/$projectSlug/boxes/$boxId/terminal'
+    | '/projects/$projectSlug/configs/agent-templates/$templateId'
+    | '/projects/$projectSlug/configs/agent-templates/new'
     | '/projects/$projectSlug/boxes/$boxId/'
   fileRoutesById: FileRoutesById
 }
@@ -654,6 +693,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectSlugConfigsGithubRouteImport
       parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
     }
+    '/projects/$projectSlug/configs/agent-templates': {
+      id: '/projects/$projectSlug/configs/agent-templates'
+      path: '/agent-templates'
+      fullPath: '/projects/$projectSlug/configs/agent-templates'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesRouteImport
+      parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
+    }
     '/projects/$projectSlug/boxes/create': {
       id: '/projects/$projectSlug/boxes/create'
       path: '/boxes/create'
@@ -674,6 +720,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/projects/$projectSlug/boxes/$boxId/'
       preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdIndexRouteImport
       parentRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRoute
+    }
+    '/projects/$projectSlug/configs/agent-templates/new': {
+      id: '/projects/$projectSlug/configs/agent-templates/new'
+      path: '/new'
+      fullPath: '/projects/$projectSlug/configs/agent-templates/new'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesNewRouteImport
+      parentRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesRoute
+    }
+    '/projects/$projectSlug/configs/agent-templates/$templateId': {
+      id: '/projects/$projectSlug/configs/agent-templates/$templateId'
+      path: '/$templateId'
+      fullPath: '/projects/$projectSlug/configs/agent-templates/$templateId'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRouteImport
+      parentRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesRoute
     }
     '/projects/$projectSlug/boxes/$boxId/terminal': {
       id: '/projects/$projectSlug/boxes/$boxId/terminal'
@@ -750,7 +810,26 @@ const PlatformRouteRouteWithChildren = PlatformRouteRoute._addFileChildren(
   PlatformRouteRouteChildren,
 )
 
+interface ProjectsProjectSlugConfigsAgentTemplatesRouteChildren {
+  ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute
+  ProjectsProjectSlugConfigsAgentTemplatesNewRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesNewRoute
+}
+
+const ProjectsProjectSlugConfigsAgentTemplatesRouteChildren: ProjectsProjectSlugConfigsAgentTemplatesRouteChildren =
+  {
+    ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute:
+      ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute,
+    ProjectsProjectSlugConfigsAgentTemplatesNewRoute:
+      ProjectsProjectSlugConfigsAgentTemplatesNewRoute,
+  }
+
+const ProjectsProjectSlugConfigsAgentTemplatesRouteWithChildren =
+  ProjectsProjectSlugConfigsAgentTemplatesRoute._addFileChildren(
+    ProjectsProjectSlugConfigsAgentTemplatesRouteChildren,
+  )
+
 interface ProjectsProjectSlugConfigsRouteRouteChildren {
+  ProjectsProjectSlugConfigsAgentTemplatesRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesRouteWithChildren
   ProjectsProjectSlugConfigsGithubRoute: typeof ProjectsProjectSlugConfigsGithubRoute
   ProjectsProjectSlugConfigsLlmProfilesRoute: typeof ProjectsProjectSlugConfigsLlmProfilesRoute
   ProjectsProjectSlugConfigsMembersRoute: typeof ProjectsProjectSlugConfigsMembersRoute
@@ -760,6 +839,8 @@ interface ProjectsProjectSlugConfigsRouteRouteChildren {
 
 const ProjectsProjectSlugConfigsRouteRouteChildren: ProjectsProjectSlugConfigsRouteRouteChildren =
   {
+    ProjectsProjectSlugConfigsAgentTemplatesRoute:
+      ProjectsProjectSlugConfigsAgentTemplatesRouteWithChildren,
     ProjectsProjectSlugConfigsGithubRoute:
       ProjectsProjectSlugConfigsGithubRoute,
     ProjectsProjectSlugConfigsLlmProfilesRoute:

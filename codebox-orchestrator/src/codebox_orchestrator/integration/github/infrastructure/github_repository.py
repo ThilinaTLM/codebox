@@ -122,13 +122,6 @@ class SqlAlchemyGitHubRepository:
             await db.commit()
             return event.id
 
-    async def update_event_box_id(self, event_id: str, box_id: str) -> None:
-        async with self._sf() as db:
-            ev = await db.get(orm.GitHubEvent, event_id)
-            if ev:
-                ev.box_id = box_id
-                await db.commit()
-
     async def list_events(
         self,
         *,
@@ -136,7 +129,6 @@ class SqlAlchemyGitHubRepository:
         delivery_id: str | None = None,
         event_type: str | None = None,
         action: str | None = None,
-        box_id: str | None = None,
         limit: int = 50,
         cursor: tuple[datetime, str] | None = None,
     ) -> list[orm.GitHubEvent]:
@@ -148,8 +140,6 @@ class SqlAlchemyGitHubRepository:
                 stmt = stmt.where(orm.GitHubEvent.event_type == event_type)
             if action:
                 stmt = stmt.where(orm.GitHubEvent.action == action)
-            if box_id:
-                stmt = stmt.where(orm.GitHubEvent.box_id == box_id)
             if cursor is not None:
                 created_at, event_id_cursor = cursor
                 stmt = stmt.where(

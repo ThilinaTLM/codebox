@@ -1,5 +1,11 @@
 import axios from "axios"
 import type {
+  AgentTemplate,
+  AgentTemplateCreate,
+  AgentTemplateDryRunRequest,
+  AgentTemplateDryRunResult,
+  AgentTemplateRunList,
+  AgentTemplateUpdate,
   AuthUser,
   Box,
   BoxCreatePayload,
@@ -325,6 +331,66 @@ export const api = {
     ): Promise<LLMProfileImportResult> => {
       const { data } = await client.post<LLMProfileImportResult>(
         `${p(slug)}/llm-profiles/import`,
+        payload
+      )
+      return data
+    },
+  },
+  agentTemplates: {
+    list: async (slug: string): Promise<Array<AgentTemplate>> => {
+      const { data } = await client.get<{ templates: Array<AgentTemplate> }>(
+        `${p(slug)}/agent-templates`
+      )
+      return data.templates
+    },
+    get: async (slug: string, id: string): Promise<AgentTemplate> => {
+      const { data } = await client.get<AgentTemplate>(
+        `${p(slug)}/agent-templates/${id}`
+      )
+      return data
+    },
+    create: async (
+      slug: string,
+      payload: AgentTemplateCreate
+    ): Promise<AgentTemplate> => {
+      const { data } = await client.post<AgentTemplate>(
+        `${p(slug)}/agent-templates`,
+        payload
+      )
+      return data
+    },
+    update: async (
+      slug: string,
+      id: string,
+      payload: AgentTemplateUpdate
+    ): Promise<AgentTemplate> => {
+      const { data } = await client.patch<AgentTemplate>(
+        `${p(slug)}/agent-templates/${id}`,
+        payload
+      )
+      return data
+    },
+    delete: async (slug: string, id: string): Promise<void> => {
+      await client.delete(`${p(slug)}/agent-templates/${id}`)
+    },
+    listRuns: async (
+      slug: string,
+      id: string,
+      params: { cursor?: string | null; status?: string | null; limit?: number } = {}
+    ): Promise<AgentTemplateRunList> => {
+      const { data } = await client.get<AgentTemplateRunList>(
+        `${p(slug)}/agent-templates/${id}/runs`,
+        { params }
+      )
+      return data
+    },
+    dryRun: async (
+      slug: string,
+      id: string,
+      payload: AgentTemplateDryRunRequest
+    ): Promise<AgentTemplateDryRunResult> => {
+      const { data } = await client.post<AgentTemplateDryRunResult>(
+        `${p(slug)}/agent-templates/${id}/dry-run`,
         payload
       )
       return data

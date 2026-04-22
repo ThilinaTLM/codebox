@@ -171,7 +171,6 @@ class GitHubEventResponse(BaseModel):
     event_type: str
     action: str | None = None
     repository: str | None = None
-    box_id: str | None = None
     created_at: datetime
 
 

@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type {
+  AgentTemplateCreate,
+  AgentTemplateDryRunRequest,
+  AgentTemplateUpdate,
   Box,
   BoxCreatePayload,
   LLMProfileCreate,
@@ -356,6 +359,93 @@ export function useImportLLMProfiles(slug: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["projects", slug, "llm-profiles"] })
     },
+  })
+}
+
+// ── Agent Templates queries & mutations ─────────────────────
+
+export function useAgentTemplates(
+  slug: string | undefined,
+  options?: QueryHookOptions
+) {
+  const enabled = useAuthQueryEnabled((options?.enabled ?? true) && !!slug)
+  return useQuery({
+    queryKey: ["projects", slug, "agent-templates"],
+    queryFn: () => api.agentTemplates.list(slug!),
+    enabled,
+  })
+}
+
+export function useAgentTemplate(
+  slug: string | undefined,
+  id: string | undefined,
+  options?: QueryHookOptions
+) {
+  const enabled = useAuthQueryEnabled(
+    (options?.enabled ?? true) && !!slug && !!id
+  )
+  return useQuery({
+    queryKey: ["projects", slug, "agent-templates", id],
+    queryFn: () => api.agentTemplates.get(slug!, id!),
+    enabled,
+  })
+}
+
+export function useCreateAgentTemplate(slug: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: AgentTemplateCreate) =>
+      api.agentTemplates.create(slug, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects", slug, "agent-templates"] })
+    },
+  })
+}
+
+export function useUpdateAgentTemplate(slug: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: AgentTemplateUpdate }) =>
+      api.agentTemplates.update(slug, id, payload),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["projects", slug, "agent-templates"] })
+      qc.invalidateQueries({
+        queryKey: ["projects", slug, "agent-templates", variables.id],
+      })
+    },
+  })
+}
+
+export function useDeleteAgentTemplate(slug: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.agentTemplates.delete(slug, id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects", slug, "agent-templates"] })
+    },
+  })
+}
+
+export function useAgentTemplateRuns(
+  slug: string | undefined,
+  id: string | undefined,
+  params: { status?: string | null; limit?: number } = {},
+  options?: QueryHookOptions
+) {
+  const enabled = useAuthQueryEnabled(
+    (options?.enabled ?? true) && !!slug && !!id
+  )
+  return useQuery({
+    queryKey: ["projects", slug, "agent-templates", id, "runs", params],
+    queryFn: () => api.agentTemplates.listRuns(slug!, id!, params),
+    enabled,
+  })
+}
+
+export function useDryRunAgentTemplate(slug: string, id: string) {
+  return useMutation({
+    mutationFn: (payload: AgentTemplateDryRunRequest) =>
+      api.agentTemplates.dryRun(slug, id, payload),
   })
 }
 

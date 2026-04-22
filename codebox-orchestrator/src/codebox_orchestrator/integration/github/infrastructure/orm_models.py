@@ -48,7 +48,4 @@ class GitHubEvent(Base):
     action: Mapped[str] = mapped_column(String(100))
     repository: Mapped[str] = mapped_column(String(255))  # "owner/repo"
     payload: Mapped[str] = mapped_column(Text)  # JSON
-    box_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("boxes.id", ondelete="SET NULL"), nullable=True, index=True
-    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

@@ -49,6 +49,8 @@ class CreateBoxHandler:
         github_issue_number: int | None = None,
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
+        github_workspace_mode: str | None = None,
+        github_workspace_ref: str | None = None,
         init_bash_script: str | None = None,
         project_id: str = "",
         created_by: str | None = None,
@@ -107,6 +109,8 @@ class CreateBoxHandler:
             github_issue_number=github_issue_number,
             github_trigger_url=github_trigger_url,
             github_branch=github_branch,
+            github_workspace_mode=github_workspace_mode,
+            github_workspace_ref=github_workspace_ref,
             init_bash_script=init_bash_script,
             project_id=project_id,
         )

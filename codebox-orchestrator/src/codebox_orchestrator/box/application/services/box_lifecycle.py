@@ -72,6 +72,8 @@ class BoxLifecycleService:
         github_issue_number: int | None = None,
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
+        github_workspace_mode: str | None = None,
+        github_workspace_ref: str | None = None,
         init_bash_script: str | None = None,
         project_id: str = "",
     ) -> None:
@@ -97,6 +99,8 @@ class BoxLifecycleService:
                 github_issue_number=github_issue_number,
                 github_trigger_url=github_trigger_url,
                 github_branch=github_branch,
+                github_workspace_mode=github_workspace_mode,
+                github_workspace_ref=github_workspace_ref,
                 init_bash_script=init_bash_script,
                 project_id=project_id,
             )
@@ -151,6 +155,8 @@ class BoxLifecycleService:
         github_issue_number: int | None = None,
         github_trigger_url: str | None = None,
         github_branch: str | None = None,
+        github_workspace_mode: str | None = None,
+        github_workspace_ref: str | None = None,
         init_bash_script: str | None = None,
         project_id: str = "",
     ) -> None:
@@ -272,6 +278,8 @@ class BoxLifecycleService:
                     github_branch=github_branch or "",
                     github_token=gh_token,
                     github_issue_number=github_issue_number,
+                    workspace_mode=github_workspace_mode,
+                    workspace_ref=github_workspace_ref,
                 )
             except Exception as exc:
                 logger.exception("GitHub setup failed for box %s", box_id)
@@ -331,16 +339,21 @@ class BoxLifecycleService:
         github_branch: str,
         github_token: str,
         github_issue_number: int | None,
+        workspace_mode: str | None = None,
+        workspace_ref: str | None = None,
     ) -> None:
         from codebox_orchestrator.integration.github.application.setup_commands import (  # noqa: PLC0415
             build_setup_commands,
         )
 
-        setup_commands = build_setup_commands(
+        mode = workspace_mode or "branch_from_issue"
+        setup_commands, _ = build_setup_commands(
+            mode=mode,  # type: ignore[arg-type]
             repo=github_repo,
             branch=github_branch,
             token=github_token,
             issue_number=github_issue_number,
+            ref=workspace_ref,
         )
         for cmd in setup_commands:
             await self._send_exec_and_wait(box_id, cmd, 120.0)

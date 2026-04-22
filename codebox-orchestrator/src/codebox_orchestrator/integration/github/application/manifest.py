@@ -56,7 +56,14 @@ def build_manifest(
             "statuses": "write",
             "metadata": "read",
         },
-        "default_events": ["issue_comment", "pull_request_review_comment"],
+        "default_events": [
+            "issues",
+            "issue_comment",
+            "pull_request",
+            "pull_request_review",
+            "pull_request_review_comment",
+            "push",
+        ],
     }
 
 

@@ -12,6 +12,7 @@ from fastapi import Request  # noqa: TC002  # runtime-required: FastAPI inspects
 
 if TYPE_CHECKING:
     from codebox_orchestrator.agent.application.commands.send_message import SendMessageHandler
+    from codebox_orchestrator.agent_template.service import AgentTemplateService
     from codebox_orchestrator.auth.service import AuthService
     from codebox_orchestrator.box.application.commands.cancel_box import CancelBoxHandler
     from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
@@ -107,3 +108,7 @@ def get_github_repository(request: Request) -> SqlAlchemyGitHubRepository:
 
 def get_project_lifecycle_service(request: Request) -> ProjectLifecycleService:
     return request.app.state.project_lifecycle_service
+
+
+def get_agent_template_service(request: Request) -> AgentTemplateService:
+    return request.app.state.agent_template_service

@@ -14,7 +14,7 @@ import logging
 import secrets
 import time
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -120,7 +120,6 @@ async def list_github_events(
     delivery_id: str | None = None,
     event_type: str | None = None,
     action: str | None = None,
-    box_id: str | None = None,
     limit: int = 50,
     cursor: str | None = None,
     ctx: ProjectContext = Depends(get_project_context),
@@ -133,7 +132,6 @@ async def list_github_events(
         delivery_id=delivery_id,
         event_type=event_type,
         action=action,
-        box_id=box_id,
         limit=limit,
         cursor=cursor_tuple,
     )
@@ -149,7 +147,6 @@ async def list_github_events(
                 event_type=event.event_type,
                 action=event.action,
                 repository=event.repository,
-                box_id=event.box_id,
                 created_at=event.created_at,
             )
             for event in events
@@ -202,6 +199,7 @@ async def github_webhook(
     # Process asynchronously — GitHub expects a fast 200 response
     task = asyncio.create_task(
         _process_webhook_safe(
+            app_state=request.app.state,
             project_id=project_id,
             project_slug=slug,
             event_type=event_type,
@@ -228,6 +226,7 @@ def _verify_hmac(payload: bytes, signature: str, secret: str) -> bool:
 
 async def _process_webhook_safe(
     *,
+    app_state: Any,
     project_id: str,
     project_slug: str,
     event_type: str,
@@ -238,9 +237,9 @@ async def _process_webhook_safe(
     profile_service: LLMProfileService,
     settings_service: ProjectSettingsService,
 ) -> None:
-    """Process webhook asynchronously: build handler, resolve LLM profile, create box."""
-    from codebox_orchestrator.integration.github.application.webhook_handler import (  # noqa: PLC0415
-        GitHubWebhookHandler,
+    """Process webhook asynchronously via the agent-template dispatcher."""
+    from codebox_orchestrator.integration.github.application.webhook_dispatcher import (  # noqa: PLC0415
+        GitHubWebhookDispatcher,
     )
 
     try:
@@ -252,7 +251,6 @@ async def _process_webhook_safe(
             )
             return
 
-        # Build a per-project webhook handler
         settings = await settings_service.get_raw(project_id)
         default_branch = (
             settings.github_default_base_branch
@@ -260,54 +258,20 @@ async def _process_webhook_safe(
             else "main"
         )
 
-        handler = GitHubWebhookHandler(
+        dispatcher = GitHubWebhookDispatcher(
             api_client=client,
-            repo=github_mgr._github_repo,  # noqa: SLF001
+            github_repo=github_mgr._github_repo,  # noqa: SLF001
+            template_repo=app_state.agent_template_repo,
+            matcher=app_state.template_matcher,
+            renderer=app_state.prompt_renderer,
+            context_builder_registry=app_state.context_builder_registry,
+            create_box=create_box_handler,
+            profile_service=profile_service,
+            settings_service=settings_service,
             project_id=project_id,
             default_base_branch=default_branch,
         )
-
-        box_req, event_id = await handler.process_webhook(event_type, delivery_id, payload)
-        if box_req is not None:
-            # Resolve project's default LLM profile for the box
-            default_profile_id = await settings_service.get_default_profile_id(project_id)
-            if not default_profile_id:
-                logger.error(
-                    "Project %s has no default LLM profile — cannot create GitHub-triggered box",
-                    project_slug,
-                )
-                return
-
-            resolved = await profile_service.resolve_profile(default_profile_id, project_id)
-            if resolved is None:
-                logger.error(
-                    "Default LLM profile %s not found for project %s",
-                    default_profile_id,
-                    project_slug,
-                )
-                return
-
-            tavily_key = await settings_service.get_tavily_api_key(project_id)
-
-            view = await create_box_handler.execute(
-                name=box_req.name,
-                provider=resolved.provider,
-                model=resolved.model,
-                api_key=resolved.api_key,
-                base_url=resolved.base_url,
-                tavily_api_key=tavily_key,
-                system_prompt=box_req.system_prompt,
-                auto_start_prompt=box_req.initial_prompt,
-                trigger=box_req.trigger,
-                github_installation_id=box_req.integration_id,
-                github_repo=box_req.repo,
-                github_issue_number=box_req.issue_number,
-                github_trigger_url=box_req.trigger_url,
-                github_branch=box_req.branch,
-                project_id=project_id,
-            )
-            if event_id:
-                await handler.update_event_box_id(event_id, view.id)
+        await dispatcher.dispatch(event_type, delivery_id, payload)
     except Exception:
         logger.exception("Error processing webhook %s (delivery %s)", event_type, delivery_id)
 

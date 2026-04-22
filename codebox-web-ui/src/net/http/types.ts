@@ -295,3 +295,98 @@ export interface ProjectSettingsUpdate {
   github_bot_name?: string | null
   github_default_base_branch?: string | null
 }
+
+// ── Agent Templates ────────────────────────────────────────
+
+export type AgentTemplateTriggerKind =
+  | "github.issues"
+  | "github.issue_comment"
+  | "github.pull_request"
+  | "github.pull_request_review"
+  | "github.pull_request_review_comment"
+  | "github.push"
+  | "schedule"
+
+export type AgentTemplateWorkspaceMode =
+  | "branch_from_issue"
+  | "checkout_ref"
+  | "pinned"
+
+export type AgentTemplateFilterOp = "eq" | "in" | "contains_any" | "matches"
+
+export interface AgentTemplateFilterPredicate {
+  field: string
+  op: AgentTemplateFilterOp
+  value: string | Array<string>
+}
+
+export interface AgentTemplate {
+  id: string
+  project_id: string
+  name: string
+  description: string | null
+  enabled: boolean
+  trigger_kind: AgentTemplateTriggerKind
+  trigger_filters: Array<AgentTemplateFilterPredicate> | null
+  schedule_cron: string | null
+  schedule_timezone: string | null
+  next_run_at: string | null
+  workspace_mode: AgentTemplateWorkspaceMode
+  pinned_repo: string | null
+  pinned_branch: string | null
+  system_prompt: string | null
+  initial_prompt: string
+  llm_profile_id: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+}
+
+export interface AgentTemplateCreate {
+  name: string
+  description?: string | null
+  enabled?: boolean
+  trigger_kind: AgentTemplateTriggerKind
+  trigger_filters?: Array<AgentTemplateFilterPredicate> | null
+  schedule_cron?: string | null
+  schedule_timezone?: string | null
+  workspace_mode: AgentTemplateWorkspaceMode
+  pinned_repo?: string | null
+  pinned_branch?: string | null
+  system_prompt?: string | null
+  initial_prompt: string
+  llm_profile_id?: string | null
+}
+
+export type AgentTemplateUpdate = Partial<AgentTemplateCreate>
+
+export interface AgentTemplateRun {
+  id: string
+  project_id: string
+  template_id: string
+  box_id: string | null
+  github_event_id: string | null
+  trigger_kind: string
+  status: "spawned" | "skipped_filter" | "error"
+  error: string | null
+  created_at: string
+}
+
+export interface AgentTemplateRunList {
+  runs: Array<AgentTemplateRun>
+  next_cursor: string | null
+}
+
+export interface AgentTemplateDryRunRequest {
+  event_type?: string | null
+  payload?: Record<string, unknown> | null
+  schedule?: boolean
+}
+
+export interface AgentTemplateDryRunResult {
+  matched: boolean
+  reason: string | null
+  rendered_system_prompt: string | null
+  rendered_initial_prompt: string | null
+  setup_commands: Array<string>
+}
