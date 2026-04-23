@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from codebox_orchestrator.agent.infrastructure import orm_models as orm
 from codebox_orchestrator.box.infrastructure.orm_models import BoxRecord
@@ -27,18 +28,28 @@ class SqlAlchemyBoxEventRepository:
                 msg = f"Cannot append event for unknown box: {box_id}"
                 raise ValueError(msg)
 
-            seq_stmt = select(orm.BoxProjectionRecord).where(
-                orm.BoxProjectionRecord.box_id == box_id
+            # Ensure a projection row exists for this box. Using an atomic
+            # upsert avoids the race where two concurrent appenders both
+            # observe no row and each try to INSERT one.
+            await db.execute(
+                pg_insert(orm.BoxProjectionRecord)
+                .values(box_id=box_id, project_id=box.project_id, last_seq=0)
+                .on_conflict_do_nothing(index_elements=["box_id"])
             )
-            projection = (await db.execute(seq_stmt)).scalar_one_or_none()
-            if projection is None:
-                projection = orm.BoxProjectionRecord(
-                    box_id=box_id,
-                    project_id=box.project_id,
-                    last_seq=0,
-                )
-                db.add(projection)
-                await db.flush()
+
+            # Take a row-level lock on the projection for the duration of
+            # this transaction so that `last_seq` increments are serialized
+            # per box. Without this lock, concurrent callers (e.g. a user
+            # SendMessage racing with streaming events from the box
+            # container) can both read the same `last_seq` and then collide
+            # on the (box_id, seq) unique constraint when inserting into
+            # `box_events`.
+            seq_stmt = (
+                select(orm.BoxProjectionRecord)
+                .where(orm.BoxProjectionRecord.box_id == box_id)
+                .with_for_update()
+            )
+            projection = (await db.execute(seq_stmt)).scalar_one()
 
             next_seq = projection.last_seq + 1
             payload = event.get("payload", {}) or {}
