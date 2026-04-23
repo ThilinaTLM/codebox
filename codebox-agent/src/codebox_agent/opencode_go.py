@@ -13,15 +13,46 @@ point is below the SDK, at the raw ``httpx`` layer, which is what the
 custom transports in this module do: they rewrite responses to
 ``/chat/completions`` on the fly, copying ``reasoning_content`` into
 ``reasoning`` when the latter is absent.
+
+Outbound image handling
+-----------------------
+
+The deepagents filesystem tools return PNG/JPEG reads as LangChain v1
+multimodal ``ToolMessage`` content blocks of the form
+``{"type": "image", "base64": "...", "mime_type": "image/png"}``.
+
+``langchain_openrouter`` does not translate those blocks when serialising a
+``ToolMessage`` (it only formats ``HumanMessage`` content, and only for the
+``video`` / ``file`` block types), so the raw block reaches the OpenRouter
+SDK's Pydantic models, which validate ``type`` against a
+``Literal["image_url"]`` and reject the payload with eight union-branch
+errors.
+
+The OpenRouter SDK's ``ToolResponseMessage.content`` is typed as
+``Union[str, List[ChatMessageContentItem]]``, so image parts **are** valid
+inside ``role: "tool"`` messages as long as they use the OpenAI-style
+``{"type": "image_url", "image_url": {"url": "data:..."}}`` shape. That
+also matches the multimodal tool-response example in Moonshot's Kimi K2.6
+quickstart. We therefore translate each LangChain image block in place:
+
+*   For vision-capable Go models (see :data:`VISION_MODELS`), image blocks
+    are rewritten to the canonical OpenAI ``image_url`` shape inside
+    whichever message carries them (tool or human).
+*   For text-only Go models (``glm-5/5.1``, ``qwen3.5/3.6-plus``,
+    ``mimo-v2-pro``, ``mimo-v2.5-pro``, ``minimax-m2.5/2.7``), the image
+    block is replaced with a short text placeholder so the model is told
+    truthfully that a PNG/JPEG was read but cannot be shown, instead of
+    failing wire validation or hallucinating a description.
 """
 
 from __future__ import annotations
 
 import contextlib
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import httpx
+from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
 from langchain_openrouter import ChatOpenRouter
 
 if TYPE_CHECKING:
@@ -29,15 +60,39 @@ if TYPE_CHECKING:
 
 __all__ = [
     "OPENCODE_GO_BASE_URL",
+    "VISION_MODELS",
     "ChatOpenCodeGo",
     "ReasoningNormalizingAsyncTransport",
     "ReasoningNormalizingTransport",
+    "rewrite_multimodal_messages",
 ]
 
 OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1"
 
 _CHAT_COMPLETIONS_SUFFIX = "/chat/completions"
 _SSE_EVENT_DELIMITER = b"\n\n"
+
+# Vision-capable OpenCode Go models. A model belongs here when the upstream
+# vendor advertises visual input and the Go endpoint routes it through an
+# OpenAI-compatible ``/chat/completions`` path. Anything else is treated as
+# text-only. Non-Go model IDs (e.g. ``moonshotai/kimi-k2.6`` served directly
+# from Moonshot / OpenRouter) are also included so callers that reuse the
+# helper with the base ``ChatOpenRouter`` get the same behaviour.
+#
+# Sources:
+#   * https://platform.moonshot.ai/docs/guide/kimi-k2-6-quickstart
+#     ("native multimodal architecture that supports text, image, and video
+#     input")
+#   * https://platform.moonshot.ai/docs/pricing/chat-k25
+#     ("supports visual and text input")
+VISION_MODELS: frozenset[str] = frozenset(
+    {
+        "kimi-k2.5",
+        "kimi-k2.6",
+        "moonshotai/kimi-k2.5",
+        "moonshotai/kimi-k2.6",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -361,6 +416,133 @@ class ReasoningNormalizingAsyncTransport(httpx.AsyncBaseTransport):
 
 
 # ---------------------------------------------------------------------------
+# Outbound multimodal content-block rewriting
+# ---------------------------------------------------------------------------
+
+
+def _is_lc_image_block(block: Any) -> bool:
+    """Return ``True`` for a LangChain v1 multimodal image data block.
+
+    The canonical shape is ``{"type": "image", "base64": str, "mime_type": str}``
+    (with optional ``id`` / ``url`` / ``file_id`` variants). We only need to
+    recognise base64-backed image blocks here because that's what the
+    deepagents filesystem tools produce; the other variants round-trip fine
+    through the existing OpenRouter conversion path.
+    """
+    if not isinstance(block, dict):
+        return False
+    if block.get("type") != "image":
+        return False
+    # Presence of ``base64`` (or ``url``) is what distinguishes a data block
+    # from an already-translated OpenAI ``image_url`` part.
+    return "base64" in block or "url" in block
+
+
+def _image_block_to_openai_part(block: dict[str, Any]) -> dict[str, Any]:
+    """Convert an LC v1 image data block to an OpenAI ``image_url`` part.
+
+    Accepts either ``base64`` + ``mime_type`` or an explicit ``url``. The
+    resulting part is the shape every OpenAI-compatible provider expects,
+    and matches the OpenRouter SDK's ``ChatMessageContentItemImage`` schema.
+    """
+    url = block.get("url")
+    if not url:
+        mime = block.get("mime_type") or "image/png"
+        b64 = block.get("base64") or ""
+        url = f"data:{mime};base64,{b64}"
+    return {"type": "image_url", "image_url": {"url": url}}
+
+
+def _image_block_placeholder_text(block: dict[str, Any], *, vision: bool) -> str:
+    mime = block.get("mime_type") or "image/*"
+    b64 = block.get("base64") or ""
+    # Approximate decoded size from the base64 payload (4 base64 chars ≈ 3
+    # bytes). Good enough for a human-readable hint.
+    approx_bytes = (len(b64) * 3) // 4 if b64 else 0
+    size_hint = f"{approx_bytes / 1024:.1f} KB" if approx_bytes else "unknown size"
+    if vision:
+        # Reserved for future paths (e.g. transports that must strip images
+        # anyway); the current rewriter keeps image parts inline for vision
+        # models so this branch is not on the hot path.
+        return f"[image: {mime}, {size_hint}]"
+    return f"[image omitted: {mime}, {size_hint} — current model does not support vision input]"
+
+
+def _rewrite_image_blocks(content: Any, *, vision: bool) -> Any:
+    """Translate LangChain image data blocks inside ``content``.
+
+    Returns ``content`` unchanged when it carries no image data blocks, so
+    callers can cheaply skip rewriting untouched messages. Otherwise
+    returns a new ``list`` where each image block is either:
+
+    *   rewritten in place to an OpenAI ``image_url`` part (``vision=True``), or
+    *   replaced with a short text placeholder (``vision=False``).
+
+    String content is passed through unchanged — the deepagents tools only
+    emit image blocks inside list content, and translating a bare string to
+    a list would only add noise.
+    """
+    if not isinstance(content, list):
+        return content
+    new_blocks: list[Any] = []
+    touched = False
+    for block in content:
+        if _is_lc_image_block(block):
+            if vision:
+                new_blocks.append(_image_block_to_openai_part(block))
+            else:
+                new_blocks.append(
+                    {
+                        "type": "text",
+                        "text": _image_block_placeholder_text(block, vision=False),
+                    }
+                )
+            touched = True
+        else:
+            new_blocks.append(block)
+    return new_blocks if touched else content
+
+
+def rewrite_multimodal_messages(
+    messages: list[BaseMessage],
+    *,
+    model: str,
+    vision_models: frozenset[str] = VISION_MODELS,
+) -> list[BaseMessage]:
+    """Rewrite outbound messages so multimodal blocks match the target model.
+
+    *   For vision-capable models, every LangChain image data block in a
+        ``ToolMessage`` or ``HumanMessage`` is rewritten in place to the
+        canonical OpenAI ``image_url`` shape. The block stays inside the
+        original message (including ``role: "tool"`` messages — the
+        OpenRouter SDK and Moonshot both accept image parts there).
+    *   For text-only models, image blocks are replaced with a text
+        placeholder so the model is told truthfully that a binary asset was
+        read but cannot be shown, and the request still passes the SDK's
+        schema validation.
+    *   All other message types and non-image blocks are untouched.
+
+    The function is pure — it returns a new list (only reallocating the
+    messages whose content actually changed) and does not mutate inputs.
+    """
+    vision = model in vision_models
+    out: list[BaseMessage] = []
+    for msg in messages:
+        if isinstance(msg, (ToolMessage, HumanMessage)):
+            new_content = _rewrite_image_blocks(msg.content, vision=vision)
+            if new_content is msg.content:
+                out.append(msg)
+            else:
+                out.append(msg.model_copy(update={"content": new_content}))
+            continue
+        # SystemMessage / AIMessage / ChatMessage: pass through unchanged.
+        # AIMessage image parts would come from the model itself and are
+        # already filtered to text blocks by the base OpenRouter converter.
+        out.append(msg)
+    return out
+
+
+# ---------------------------------------------------------------------------
 # ChatOpenCodeGo
 # ---------------------------------------------------------------------------
 
@@ -373,7 +555,31 @@ class ChatOpenCodeGo(ChatOpenRouter):
     ``/chat/completions`` get their ``reasoning_content`` field copied
     into ``reasoning`` before the OpenRouter SDK's Pydantic models parse
     and drop the unknown field.
+
+    Also rewrites outbound ``ToolMessage`` / ``HumanMessage`` content
+    blocks so that multimodal image payloads from deepagents' filesystem
+    tools are either translated to OpenAI-style ``image_url`` parts (for
+    vision-capable models listed in :data:`VISION_MODELS`) or replaced
+    with a text placeholder (for text-only models). See the module
+    docstring for the motivation and wire details.
     """
+
+    #: Vision-capable model allow-list. Declared as a ``ClassVar`` so it
+    #: stays out of the ``ChatOpenRouter`` Pydantic field schema. Subclass
+    #: and override, or reassign on the class, to broaden support.
+    vision_models: ClassVar[frozenset[str]] = VISION_MODELS
+
+    def _create_message_dicts(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        rewritten = rewrite_multimodal_messages(
+            messages,
+            model=self.model,
+            vision_models=self.vision_models,
+        )
+        return super()._create_message_dicts(rewritten, stop)
 
     def _build_client(self) -> Any:
         import openrouter  # noqa: PLC0415

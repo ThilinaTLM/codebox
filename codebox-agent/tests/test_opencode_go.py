@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 from codebox_agent.opencode_go import (
     OPENCODE_GO_BASE_URL,
+    VISION_MODELS,
     ChatOpenCodeGo,
     ReasoningNormalizingAsyncTransport,
     ReasoningNormalizingTransport,
@@ -27,6 +28,7 @@ from codebox_agent.opencode_go import (
     _rewrite_sse_event,
     _SSERewritingAsyncStream,
     _SSERewritingSyncStream,
+    rewrite_multimodal_messages,
 )
 
 # ---------------------------------------------------------------------------
@@ -483,6 +485,218 @@ class TestChatOpenCodeGo:
             if found:
                 break
         assert found, "ChatOpenCodeGo did not install reasoning-normalising transport"
+
+
+# ---------------------------------------------------------------------------
+# Outbound multimodal rewriting
+# ---------------------------------------------------------------------------
+
+
+def _png_image_block(b64: str = "AAAA") -> dict:
+    """Return a LangChain v1 image data block (base64-backed, PNG)."""
+    # Matches the shape produced by
+    # ``langchain_core.messages.content.create_image_block`` which the
+    # deepagents ``read_file`` tool uses for image file reads. We hand-roll
+    # the dict rather than call the helper so the test stays stable if the
+    # helper grows optional fields.
+    return {"type": "image", "base64": b64, "mime_type": "image/png"}
+
+
+class TestRewriteMultimodalMessages:
+    def test_vision_model_converts_tool_image_to_image_url_in_place(self):
+        from langchain_core.messages import ToolMessage
+
+        tool_msg = ToolMessage(
+            content=[_png_image_block("AAAA")],
+            tool_call_id="c1",
+        )
+        out = rewrite_multimodal_messages([tool_msg], model="kimi-k2.6")
+        assert len(out) == 1  # no follow-up user message is injected
+        (rewritten,) = out
+        assert isinstance(rewritten, ToolMessage)
+        assert rewritten.tool_call_id == "c1"
+        assert rewritten.content == [
+            {
+                "type": "image_url",
+                "image_url": {"url": "data:image/png;base64,AAAA"},
+            }
+        ]
+
+    def test_text_only_model_replaces_tool_image_with_placeholder(self):
+        from langchain_core.messages import ToolMessage
+
+        tool_msg = ToolMessage(
+            content=[_png_image_block("AAAA")],
+            tool_call_id="c1",
+        )
+        out = rewrite_multimodal_messages([tool_msg], model="glm-5.1")
+        assert len(out) == 1
+        (rewritten,) = out
+        assert isinstance(rewritten, ToolMessage)
+        assert rewritten.tool_call_id == "c1"
+        # Image is stripped; placeholder block is a plain text part so the
+        # outbound payload passes the OpenRouter SDK's schema validation.
+        assert isinstance(rewritten.content, list)
+        assert len(rewritten.content) == 1
+        block = rewritten.content[0]
+        assert block["type"] == "text"
+        assert "does not support vision" in block["text"]
+        assert "image/png" in block["text"]
+
+    def test_text_only_model_strips_image_from_human_message(self):
+        from langchain_core.messages import HumanMessage
+
+        human = HumanMessage(
+            content=[
+                {"type": "text", "text": "look:"},
+                _png_image_block(),
+            ]
+        )
+        out = rewrite_multimodal_messages([human], model="kimi-k2.6-not-a-real-id")
+        assert len(out) == 1
+        (rewritten,) = out
+        assert isinstance(rewritten, HumanMessage)
+        assert isinstance(rewritten.content, list)
+        # First text block is kept verbatim; the image block becomes a
+        # placeholder text block.
+        assert rewritten.content[0] == {"type": "text", "text": "look:"}
+        assert rewritten.content[1]["type"] == "text"
+        assert "does not support vision" in rewritten.content[1]["text"]
+
+    def test_vision_model_keeps_human_image_blocks_untouched(self):
+        from langchain_core.messages import HumanMessage
+
+        human = HumanMessage(content=[_png_image_block()])
+        out = rewrite_multimodal_messages([human], model="kimi-k2.5")
+        (rewritten,) = out
+        # The block is translated in place; no follow-up message appears.
+        assert isinstance(rewritten, HumanMessage)
+        assert rewritten.content == [
+            {
+                "type": "image_url",
+                "image_url": {"url": "data:image/png;base64,AAAA"},
+            }
+        ]
+
+    def test_non_image_messages_pass_through_identically(self):
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
+        msgs: list = [
+            SystemMessage("sys"),
+            HumanMessage("plain text"),
+            AIMessage(content="hi"),
+            ToolMessage(content="tool text", tool_call_id="c1"),
+        ]
+        out = rewrite_multimodal_messages(msgs, model="kimi-k2.6")
+        # Unchanged messages are returned by identity so the common case
+        # stays allocation-free.
+        assert [id(m) for m in out] == [id(m) for m in msgs]
+
+    def test_vision_models_set_includes_k26_and_k25(self):
+        # Guards against an accidental revert: both K2.5 and K2.6 are
+        # documented multimodal by Moonshot.
+        assert "kimi-k2.5" in VISION_MODELS
+        assert "kimi-k2.6" in VISION_MODELS
+
+    def test_custom_vision_models_allow_list(self):
+        from langchain_core.messages import ToolMessage
+
+        tool_msg = ToolMessage(
+            content=[_png_image_block()],
+            tool_call_id="c1",
+        )
+        out = rewrite_multimodal_messages(
+            [tool_msg],
+            model="custom-omni",
+            vision_models=frozenset({"custom-omni"}),
+        )
+        (rewritten,) = out
+        assert rewritten.content[0]["type"] == "image_url"
+
+    def test_non_list_content_is_passed_through(self):
+        # String content on a ToolMessage (the common case) must not grow a
+        # list wrapper — leave it exactly as-is.
+        from langchain_core.messages import ToolMessage
+
+        tool_msg = ToolMessage(content="plain text", tool_call_id="c1")
+        out = rewrite_multimodal_messages([tool_msg], model="kimi-k2.6")
+        assert out[0] is tool_msg
+
+
+class TestChatOpenCodeGoMessageDicts:
+    """End-to-end wire-shape tests for the ``_create_message_dicts`` hook.
+
+    These assert against the exact payload that ``langchain_openrouter``
+    would feed to the OpenRouter Python SDK — i.e. the same layer that
+    produced the original ``body.21.tool.content`` validation error.
+    """
+
+    @staticmethod
+    def _messages():
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
+        return [
+            SystemMessage("sys"),
+            HumanMessage("read a.png"),
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "read", "args": {"path": "a.png"}, "id": "c1"}],
+            ),
+            ToolMessage(content=[_png_image_block("AAAA")], tool_call_id="c1"),
+        ]
+
+    def test_tool_image_becomes_image_url_for_k26(self):
+        model = ChatOpenCodeGo(
+            model="kimi-k2.6",
+            api_key="sk-x",  # pragma: allowlist secret
+            base_url=OPENCODE_GO_BASE_URL,
+        )
+        dicts, _ = model._create_message_dicts(self._messages(), None)
+        tool_dict = dicts[-1]
+        assert tool_dict["role"] == "tool"
+        assert tool_dict["tool_call_id"] == "c1"
+        assert tool_dict["content"] == [
+            {
+                "type": "image_url",
+                "image_url": {"url": "data:image/png;base64,AAAA"},
+            }
+        ]
+
+    def test_tool_image_becomes_placeholder_for_glm(self):
+        model = ChatOpenCodeGo(
+            model="glm-5.1",
+            api_key="sk-x",  # pragma: allowlist secret
+            base_url=OPENCODE_GO_BASE_URL,
+        )
+        dicts, _ = model._create_message_dicts(self._messages(), None)
+        tool_dict = dicts[-1]
+        assert tool_dict["role"] == "tool"
+        content = tool_dict["content"]
+        assert isinstance(content, list)
+        assert len(content) == 1
+        assert content[0]["type"] == "text"
+        assert "does not support vision" in content[0]["text"]
+
+    def test_output_passes_openrouter_sdk_validation(self):
+        """Regression guard for the original ``body.21.tool.content`` error.
+
+        The failing stack trace came from the OpenRouter SDK's Pydantic
+        validation at ``_wrap_messages_for_sdk``. Running the rewritten
+        payload through the same function proves the validation error
+        cannot recur, on both vision-capable and text-only models.
+        """
+        from langchain_openrouter.chat_models import _wrap_messages_for_sdk
+
+        for model_name in ("kimi-k2.6", "kimi-k2.5", "glm-5.1", "qwen3.6-plus"):
+            model = ChatOpenCodeGo(
+                model=model_name,
+                api_key="sk-x",  # pragma: allowlist secret
+                base_url=OPENCODE_GO_BASE_URL,
+            )
+            dicts, _ = model._create_message_dicts(self._messages(), None)
+            # Raises pydantic.ValidationError on failure.
+            wrapped = _wrap_messages_for_sdk(dicts)
+            assert len(wrapped) == len(dicts)
 
 
 if __name__ == "__main__":  # pragma: no cover
