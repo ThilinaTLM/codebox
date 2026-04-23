@@ -342,7 +342,15 @@ class AutomationService:
                         f"trigger_filters: op '{pred.op}' requires a list value on field "
                         f"'{pred.field}'"
                     )
-                if pred.op in {"eq", "matches"} and not isinstance(pred.value, str):
+                if pred.op == "eq" and not isinstance(
+                    pred.value, list if field_type == "list" else str
+                ):
+                    type_name = "list" if field_type == "list" else "string"
+                    raise ValueError(
+                        f"trigger_filters: op '{pred.op}' requires a {type_name} value on field "
+                        f"'{pred.field}'"
+                    )
+                if pred.op == "matches" and not isinstance(pred.value, str):
                     raise ValueError(
                         f"trigger_filters: op '{pred.op}' requires a string value on field "
                         f"'{pred.field}'"
