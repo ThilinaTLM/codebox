@@ -148,7 +148,7 @@ class AgentConfig(BaseModel):
             "CORE_SYSTEM_PROMPT.  When None the default core prompt is used."
         ),
     )
-    recursion_limit: int = Field(default=150, ge=1, le=1000)
+    recursion_limit: int = Field(default=999, ge=1, le=1000)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
 
     # -- validators ----------------------------------------------------------
@@ -203,7 +203,7 @@ class AgentConfig(BaseModel):
             ``CODEBOX_LLM_API_KEY``
             ``CODEBOX_LLM_BASE_URL``        (optional, OpenAI-compatible endpoints)
             ``CODEBOX_TAVILY_API_KEY``      (optional)
-            ``CODEBOX_AGENT_RECURSION_LIMIT``  (default: 150)
+            ``CODEBOX_AGENT_RECURSION_LIMIT``  (default: 999)
             ``CODEBOX_AGENT_EXECUTE_TIMEOUT``  (default: 120, seconds)
 
         This entry point is used by the GitHub Action; the sandbox always
@@ -214,7 +214,7 @@ class AgentConfig(BaseModel):
         api_key = os.environ.get("CODEBOX_LLM_API_KEY", "")
         base_url = os.environ.get("CODEBOX_LLM_BASE_URL") or None
         tavily_key = os.environ.get("CODEBOX_TAVILY_API_KEY")
-        recursion_limit = int(os.environ.get("CODEBOX_AGENT_RECURSION_LIMIT", "150") or "150")
+        recursion_limit = int(os.environ.get("CODEBOX_AGENT_RECURSION_LIMIT", "999") or "999")
         execute_timeout = int(os.environ.get("CODEBOX_AGENT_EXECUTE_TIMEOUT", "120") or "120")
 
         return cls(

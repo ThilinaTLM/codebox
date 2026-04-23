@@ -203,7 +203,7 @@ def create_agent(
             base_url=base_url,
         ),
         system_prompt=dynamic_system_prompt,
-        recursion_limit=int(cfg.get("recursion_limit", 150)),
+        recursion_limit=int(cfg.get("recursion_limit", 999)),
     )
 
     return create_agent_from_config(

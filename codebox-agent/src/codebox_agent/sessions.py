@@ -32,7 +32,7 @@ class Session:
     created_at: datetime
     provider: str
     model: str
-    recursion_limit: int = 150
+    recursion_limit: int = 999
     current_task: asyncio.Task | None = field(default=None, repr=False)
 
 
@@ -177,7 +177,7 @@ class SessionManager:
         )
 
         cfg = sandbox_config or {}
-        recursion_limit = int(cfg.get("recursion_limit", 150))
+        recursion_limit = int(cfg.get("recursion_limit", 999))
 
         return self._register(
             session_id=session_id,

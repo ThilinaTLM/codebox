@@ -46,7 +46,7 @@ export function buildCreatePayload(form: CreateBoxFormState): BoxCreatePayload {
     system_prompt: form.systemPrompt.trim() || undefined,
     auto_start_prompt: form.autoStartPrompt.trim() || undefined,
     recursion_limit:
-      form.recursionLimit !== 150 ? form.recursionLimit : undefined,
+      form.recursionLimit !== 999 ? form.recursionLimit : undefined,
     github_repo: form.selectedRepoFullName || undefined,
     github_base_branch: hasRepo && form.selectedBaseBranch
       ? form.selectedBaseBranch

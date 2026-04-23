@@ -184,7 +184,7 @@ class BoxLifecycleService:
                 "api_key": api_key,
                 "base_url": base_url or None,
             },
-            "recursion_limit": recursion_limit or (200 if is_github else 150),
+            "recursion_limit": recursion_limit or 999,
         }
         if system_prompt:
             agent_config["system_prompt"] = system_prompt

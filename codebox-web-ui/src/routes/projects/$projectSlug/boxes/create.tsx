@@ -46,7 +46,7 @@ function CreateAgentPage() {
   >("")
   const [systemPrompt, setSystemPrompt] = useState("")
   const [autoStartPrompt, setAutoStartPrompt] = useState("")
-  const [recursionLimit, setRecursionLimit] = useState(150)
+  const [recursionLimit, setRecursionLimit] = useState(999)
   const [initBashScript, setInitBashScript] = useState("")
 
   // Tool toggles

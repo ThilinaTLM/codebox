@@ -44,7 +44,7 @@ class TestDefaults:
 
     def test_default_recursion_limit(self):
         cfg = AgentConfig(**_minimal_config())
-        assert cfg.recursion_limit == 150
+        assert cfg.recursion_limit == 999
 
     def test_default_system_prompt_is_none(self):
         cfg = AgentConfig(**_minimal_config())

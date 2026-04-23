@@ -392,11 +392,9 @@ async def run() -> None:  # noqa: PLR0912, PLR0915
     workspace = os.environ.get("GITHUB_WORKSPACE", str(Path.cwd()))
 
     # Build config from the same env vars that already exist.
+    # AgentConfig.from_env() already defaults recursion_limit to 999 when
+    # CODEBOX_AGENT_RECURSION_LIMIT is unset; callers can still override it.
     agent_config = AgentConfig.from_env()
-    # GitHub Action context gets a deeper default recursion budget when the
-    # caller hasn't set CODEBOX_AGENT_RECURSION_LIMIT explicitly.
-    if "CODEBOX_AGENT_RECURSION_LIMIT" not in os.environ:
-        agent_config = agent_config.model_copy(update={"recursion_limit": 300})
 
     system_prompt = os.environ.get("CODEBOX_AGENT_SYSTEM_PROMPT")
     if system_prompt:
