@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { ExternalLink, Sparkles } from "lucide-react"
+import { GitHubLocalDevGuide } from "./GitHubLocalDevGuide"
 import { StepHeader } from "./StepHeader"
 import { usePrepareGitHubManifest } from "@/net/query"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -97,41 +98,19 @@ export function GitHubManifestFlow({
         description="Codebox registers a GitHub App for this project with all the permissions and webhook settings pre-configured. You'll confirm and name it on GitHub, then come back here to install it on your repos."
       />
 
-      {!manifestSupported && (
-        <Alert className="max-w-xl">
-          <AlertTitle>
-            {isLocalhost
-              ? "Local development detected"
-              : "Public URL not configured"}
-          </AlertTitle>
-          <AlertDescription>
-            {isLocalhost ? (
-              <>
-                GitHub can&apos;t reach <code>localhost</code>, so the one-click
-                flow is disabled. Set{" "}
-                <code>CODEBOX_ORCHESTRATOR_PUBLIC_URL</code> to a publicly
-                reachable URL (for example, a{" "}
-                <a
-                  href="https://smee.io"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2"
-                >
-                  smee.io
-                </a>{" "}
-                channel) and restart the orchestrator. Or use{" "}
-                <em>Use existing GitHub App</em> below.
-              </>
-            ) : (
-              <>
-                <code>CODEBOX_ORCHESTRATOR_PUBLIC_URL</code> is not set on the
-                orchestrator. Set it to the public URL of this deployment and
-                restart. Or use <em>Use existing GitHub App</em> below.
-              </>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
+      {!manifestSupported &&
+        (isLocalhost ? (
+          <GitHubLocalDevGuide projectSlug={projectSlug} />
+        ) : (
+          <Alert className="max-w-xl">
+            <AlertTitle>Public URL not configured</AlertTitle>
+            <AlertDescription>
+              <code>CODEBOX_ORCHESTRATOR_PUBLIC_URL</code> is not set on the
+              orchestrator. Set it to the public URL of this deployment and
+              restart. Or use <em>Use existing GitHub App</em> below.
+            </AlertDescription>
+          </Alert>
+        ))}
 
       <form onSubmit={handleSubmit} className="max-w-xl space-y-5">
         <fieldset disabled={!manifestSupported} className="space-y-5">

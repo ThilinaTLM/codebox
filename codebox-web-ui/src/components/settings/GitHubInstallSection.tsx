@@ -34,7 +34,8 @@ export function GitHubInstallSection({
     (window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1")
   const showSmeeHint = !publicUrl && isLocalhost
-  const smeeCommand = `pnpm dlx smee-client -u https://smee.io/<your-channel> --target http://localhost:9090/api/projects/${projectSlug}/github/webhook`
+  const smeeTarget = `${API_URL.replace(/\/$/, "")}/api/projects/${projectSlug}/github/webhook`
+  const smeeCommand = `pnpm dlx smee-client -u https://smee.io/<your-channel> --target ${smeeTarget}`
 
   return (
     <section className="space-y-6">
