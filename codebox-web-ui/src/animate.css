@@ -125,6 +125,52 @@
     animation: scan-line 3s linear infinite;
   }
 
+  /* ── Codebox logo loader ─────────────────────────────────
+     Sequentially assembles the three cube faces, then holds
+     briefly before restarting. The blue accent diamond
+     heartbeats throughout as a focal point. Timings are tuned
+     so the full cycle lands at 2s — calm, not frantic. */
+
+  @keyframes cb-face-top {
+    0%      { opacity: 0; transform: translateY(-10px); }
+    15%, 85% { opacity: 1; transform: translateY(0); }
+    100%    { opacity: 0; transform: translateY(-10px); }
+  }
+  @keyframes cb-face-left {
+    0%, 15%  { opacity: 0; transform: translate(-8px, 4px); }
+    30%, 85% { opacity: 1; transform: translate(0, 0); }
+    100%    { opacity: 0; transform: translate(-8px, 4px); }
+  }
+  @keyframes cb-face-right {
+    0%, 30%  { opacity: 0; transform: translate(8px, 4px); }
+    45%, 85% { opacity: 1; transform: translate(0, 0); }
+    100%    { opacity: 0; transform: translate(8px, 4px); }
+  }
+  @keyframes cb-accent-pulse {
+    0%, 40%  { opacity: 0; transform: scale(0.2) rotate(-45deg); }
+    55%     { opacity: 1; transform: scale(1.15) rotate(0deg); }
+    70%, 85% { opacity: 1; transform: scale(1) rotate(0deg); }
+    100%    { opacity: 0; transform: scale(0.6) rotate(20deg); }
+  }
+
+  .cb-loader [data-face] {
+    /* Needed so SVG transforms resolve around each polygon's own bbox
+       rather than the SVG origin — keeps movement localized. */
+    transform-box: fill-box;
+    transform-origin: center;
+    animation-duration: 2s;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    animation-iteration-count: infinite;
+    will-change: transform, opacity;
+  }
+  .cb-loader [data-face="top"]    { animation-name: cb-face-top; }
+  .cb-loader [data-face="left"]   { animation-name: cb-face-left; }
+  .cb-loader [data-face="right"]  { animation-name: cb-face-right; }
+  .cb-loader [data-face="accent"] {
+    animation-name: cb-accent-pulse;
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
   /* Page enter — fade + slide up */
   @keyframes page-enter {
     from { opacity: 0; transform: translateY(6px); }
