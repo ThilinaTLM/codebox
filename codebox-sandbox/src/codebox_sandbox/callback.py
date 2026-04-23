@@ -79,8 +79,10 @@ async def run_callback() -> None:
     event_store = EventStore(_CHECKPOINT_DB_PATH)
     await event_store.setup()
 
-    # Send initial prompt if set via env var
-    initial_prompt = os.environ.get("CODEBOX_INITIAL_PROMPT")
+    # The orchestrator now delivers the initial prompt via an explicit
+    # ``SendMessage`` gRPC command *after* all setup has completed, so the
+    # sandbox no longer reads ``CODEBOX_INITIAL_PROMPT`` here. See
+    # automation-fix-01-agent-start-race.md for background.
 
     delay = _RECONNECT_BASE_DELAY
     while True:
@@ -91,7 +93,6 @@ async def run_callback() -> None:
                 manager,
                 callback_token,
                 event_store,
-                initial_prompt,
             )
             # Clean exit
             break
@@ -152,7 +153,6 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
     manager: SessionManager,
     callback_token: str,
     event_store: EventStore,
-    initial_prompt: str | None,
 ) -> None:
     """Connect to orchestrator via gRPC and run the bidirectional stream."""
     grpc_address = normalize_grpc_url(orchestrator_grpc_url)
@@ -232,8 +232,6 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                 current_task = None
                 session.current_task = None
 
-        initial_prompt_sent = False
-
         try:
             async for command in response_stream:
                 field = command.WhichOneof("command")
@@ -241,22 +239,9 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
 
                 if field == "registered":
                     logger.info("Registered with orchestrator via gRPC, session %s", session_id)
-                    if initial_prompt and not initial_prompt_sent:
-                        initial_prompt_sent = True
-                        await _cancel_current()
-                        current_task = asyncio.create_task(
-                            run_agent_stream(
-                                send,
-                                session_id,
-                                manager,
-                                new_message=initial_prompt,
-                                run_id=new_id("run"),
-                                input_message_id=new_id("msg"),
-                                emit_input_event=True,
-                            )
-                        )
-                        session.current_task = current_task
-                        current_task.add_done_callback(_on_task_done)
+                    # The orchestrator drives agent start via an explicit
+                    # ``SendMessage`` command issued after setup finishes; we
+                    # no longer auto-start from an environment variable here.
 
                 elif field == "message":
                     content = command.message.content

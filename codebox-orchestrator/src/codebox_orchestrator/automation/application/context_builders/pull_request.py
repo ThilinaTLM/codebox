@@ -10,6 +10,7 @@ from codebox_orchestrator.automation.application.context_builders._common import
     format_review_comments,
     issue_variables,
     labels_list,
+    pr_variables,
     project_base_variables,
     repo_variables,
 )
@@ -41,7 +42,9 @@ class PullRequestContextBuilder:
         # GitHub treats PRs as issues for comment purposes; build both sets.
         variables = project_base_variables("github.pull_request")
         variables.update(repo_variables(payload))
+        # Emit both namespaces: ISSUE_* (legacy) and PR_* (canonical for PR UX).
         variables.update(issue_variables(pr, action))
+        variables.update(pr_variables(pr, action))
         head = pr.get("head") or {}
         base = pr.get("base") or {}
         variables.update(
@@ -70,6 +73,7 @@ class PullRequestContextBuilder:
                 variables["ISSUE_COMMENTS"] = ""
         else:
             variables.setdefault("ISSUE_COMMENTS", "")
+        variables["PR_COMMENTS"] = variables.get("ISSUE_COMMENTS", "")
         variables["PR_CHANGED_FILES"] = changed_files
         variables["PR_REVIEW_COMMENTS"] = review_comments
 

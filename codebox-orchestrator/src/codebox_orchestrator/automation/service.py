@@ -284,6 +284,18 @@ class AutomationService:
         # workspace mode rules by trigger kind
         if data.trigger_kind == "github.push" and data.workspace_mode == "branch_from_issue":
             raise ValueError("workspace_mode: branch_from_issue is not valid for github.push")
+        if (
+            data.trigger_kind
+            in {
+                "github.pull_request",
+                "github.pull_request_review",
+                "github.pull_request_review_comment",
+            }
+            and data.workspace_mode == "branch_from_issue"
+        ):
+            raise ValueError(
+                "workspace_mode: branch_from_issue is not valid for PR-family triggers"
+            )
         if data.trigger_kind == "schedule" and data.workspace_mode != "pinned":
             raise ValueError("workspace_mode: scheduled automations must use 'pinned'")
 

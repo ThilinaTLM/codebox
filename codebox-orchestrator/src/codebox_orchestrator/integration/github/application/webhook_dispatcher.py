@@ -310,12 +310,25 @@ class GitHubWebhookDispatcher:
 
         # Render prompts
         variables = context.variables
-        rendered_initial = self._renderer.render(automation.initial_prompt, variables)
-        rendered_system = (
+        initial_result = self._renderer.render(automation.initial_prompt, variables)
+        system_result = (
             self._renderer.render(automation.system_prompt, variables)
             if automation.system_prompt
             else None
         )
+        unresolved: list[str] = [
+            *initial_result.unresolved,
+            *(system_result.unresolved if system_result else []),
+        ]
+        if unresolved:
+            logger.warning(
+                "automation render missing vars automation=%s trigger_kind=%s vars=%s",
+                automation.id,
+                automation.trigger_kind,
+                sorted(set(unresolved)),
+            )
+        rendered_initial = initial_result.text
+        rendered_system = system_result.text if system_result else None
 
         # Build box name
         title = (

@@ -42,19 +42,50 @@ def labels_list(issue_or_pr: dict[str, Any]) -> list[str]:
 
 
 def issue_variables(issue: dict[str, Any], action: str) -> dict[str, str]:
-    body = str(issue.get("body") or "")
-    title = str(issue.get("title") or "")
-    labels = [str(lbl.get("name", "")) for lbl in issue.get("labels") or []]
+    return _entity_variables(issue, action, prefix="ISSUE")
+
+
+def pr_variables(pr: dict[str, Any], action: str) -> dict[str, str]:
+    """Return the ``PR_*`` alias set for a pull_request payload.
+
+    Mirrors :func:`issue_variables` but with ``PR_*`` keys. Keeps the UI's
+    prompt-variable catalog honest for PR-family triggers — see
+    automation-fix-02-variable-catalog.md.
+    """
+    return _entity_variables(pr, action, prefix="PR")
+
+
+def _entity_variables(entity: dict[str, Any], action: str, *, prefix: str) -> dict[str, str]:
+    body = str(entity.get("body") or "")
+    title = str(entity.get("title") or "")
+    labels = [str(lbl.get("name", "")) for lbl in entity.get("labels") or []]
     return {
-        "ISSUE_URL": str(issue.get("html_url") or ""),
-        "ISSUE_NUMBER": str(issue.get("number") or ""),
-        "ISSUE_TITLE": title,
-        "ISSUE_BODY": body,
-        "ISSUE_LABELS": ",".join(labels),
-        "ISSUE_AUTHOR": str((issue.get("user") or {}).get("login") or ""),
-        "ISSUE_STATE": str(issue.get("state") or ""),
-        "ISSUE_ACTION": action,
-        "ISSUE_CONTENT": _build_content_block(title, body),
+        f"{prefix}_URL": str(entity.get("html_url") or ""),
+        f"{prefix}_NUMBER": str(entity.get("number") or ""),
+        f"{prefix}_TITLE": title,
+        f"{prefix}_BODY": body,
+        f"{prefix}_LABELS": ",".join(labels),
+        f"{prefix}_AUTHOR": str((entity.get("user") or {}).get("login") or ""),
+        f"{prefix}_STATE": str(entity.get("state") or ""),
+        f"{prefix}_ACTION": action,
+        f"{prefix}_CONTENT": _build_content_block(title, body),
+    }
+
+
+def comment_variables(
+    comment: dict[str, Any], action: str, *, prefix: str = "COMMENT"
+) -> dict[str, str]:
+    """Return a ``{PREFIX}_*`` set for an issue- or review-comment payload.
+
+    Parameterised by ``prefix`` so call sites can emit both ``COMMENT_*`` and
+    ``REVIEW_COMMENT_*`` copies without duplicating keys.
+    """
+    return {
+        f"{prefix}_URL": str(comment.get("html_url") or ""),
+        f"{prefix}_BODY": str(comment.get("body") or ""),
+        f"{prefix}_AUTHOR": str((comment.get("user") or {}).get("login") or ""),
+        f"{prefix}_ACTION": action,
+        f"{prefix}_PATH": str(comment.get("path") or ""),
     }
 
 

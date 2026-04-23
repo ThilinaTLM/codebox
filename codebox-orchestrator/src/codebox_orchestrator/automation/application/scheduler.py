@@ -192,12 +192,25 @@ class AutomationScheduler:
             automation=automation,
             fired_at=fired_at,
         )
-        initial = self._renderer.render(automation.initial_prompt, context.variables)
-        system = (
+        initial_result = self._renderer.render(automation.initial_prompt, context.variables)
+        system_result = (
             self._renderer.render(automation.system_prompt, context.variables)
             if automation.system_prompt
             else None
         )
+        unresolved: list[str] = [
+            *initial_result.unresolved,
+            *(system_result.unresolved if system_result else []),
+        ]
+        if unresolved:
+            logger.warning(
+                "automation render missing vars automation=%s trigger_kind=%s vars=%s",
+                automation.id,
+                "schedule",
+                sorted(set(unresolved)),
+            )
+        initial = initial_result.text
+        system = system_result.text if system_result else None
         profile_id = (
             automation.llm_profile_id
             or await self._settings_service.get_default_profile_id(automation.project_id)
@@ -210,18 +223,34 @@ class AutomationScheduler:
             msg = f"LLM profile {profile_id} missing"
             raise RuntimeError(msg)
 
-        # Installation handle: pick any installation configured for the project
-        # whose account matches pinned_repo's owner prefix.
+        # Installation handle: strictly match the pinned_repo's owner prefix.
+        # The scheduler must never silently fall back to an unrelated
+        # installation — GitHub will 404 and the box will fail with an
+        # opaque error. Record a clear error run instead. See
+        # automation-fix-04-scheduler-installation.md.
         db_installation = None
         if automation.pinned_repo:
-            owner = automation.pinned_repo.split("/")[0]
+            owner = automation.pinned_repo.split("/", 1)[0]
             installations = await self._github_repo.list_installations(automation.project_id)
-            for inst in installations:
-                if inst.account_login.lower() == owner.lower():
-                    db_installation = inst
-                    break
-            if db_installation is None and installations:
-                db_installation = installations[0]
+            db_installation = next(
+                (inst for inst in installations if inst.account_login.lower() == owner.lower()),
+                None,
+            )
+            if db_installation is None:
+                msg = (
+                    f"No GitHub installation in this project covers "
+                    f"'{automation.pinned_repo}'. Install the Codebox App on "
+                    f"the '{owner}' account, or change the pinned repository."
+                )
+                await self._repo.record_run(
+                    project_id=automation.project_id,
+                    automation_id=automation.id,
+                    trigger_kind="schedule",
+                    status="error",
+                    error=msg,
+                )
+                logger.error("scheduler.spawn automation=%s %s", automation.id, msg)
+                return
 
         # Compute workspace branch the agent will land on
         _, work_branch = build_setup_commands(

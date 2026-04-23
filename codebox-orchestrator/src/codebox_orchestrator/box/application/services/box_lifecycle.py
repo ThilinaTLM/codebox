@@ -39,6 +39,7 @@ class BoxLifecycleService:
         state_store: BoxStateStore,
         send_exec_and_wait_fn,  # async callable(box_id, command, timeout) — injected
         create_callback_token_fn=None,  # callable(box_id, entity_type) -> str — injected
+        send_message_fn=None,  # async callable(box_id, content) — injected
     ) -> None:
         self._provision_container = provision_container
         self._connections = connections
@@ -46,6 +47,7 @@ class BoxLifecycleService:
         self._state_store = state_store
         self._send_exec_and_wait = send_exec_and_wait_fn
         self._create_callback_token = create_callback_token_fn
+        self._send_message: Any = send_message_fn
         self._running: dict[str, asyncio.Task[None]] = {}
         # Optional: set by composition root for per-user GitHub integration
         self._github_client_manager: Any = None
@@ -173,8 +175,6 @@ class BoxLifecycleService:
             "CODEBOX_ORCHESTRATOR_GRPC_URL": settings.urls.grpc_url,
             "CODEBOX_CALLBACK_TOKEN": callback_token,
         }
-        if auto_start_prompt:
-            extra_env["CODEBOX_INITIAL_PROMPT"] = auto_start_prompt
 
         # ── Build CODEBOX_AGENT_CONFIG ───────────────────────────��──
         agent_config: dict[str, Any] = {
@@ -293,6 +293,23 @@ class BoxLifecycleService:
             except Exception as exc:
                 logger.exception("Init script failed for box %s", box_id)
                 await self._broadcast_error(box_id, f"Init script failed: {exc}")
+                return
+
+        # Deliver the auto-start prompt *after* all setup has completed so
+        # the sandbox's exec-query handler cannot cancel the freshly-started
+        # agent task. See automation-fix-01-agent-start-race.md.
+        if auto_start_prompt:
+            if self._send_message is None:
+                logger.error("send_message_fn is not wired; cannot auto-start box %s", box_id)
+                await self._broadcast_error(
+                    box_id, "Failed to start agent: send_message_fn unavailable"
+                )
+                return
+            try:
+                await self._send_message(box_id, auto_start_prompt)
+            except Exception as exc:
+                logger.exception("Failed to send auto-start prompt to box %s", box_id)
+                await self._broadcast_error(box_id, f"Failed to start agent: {exc}")
                 return
 
         # Mark as running via SSE broadcast

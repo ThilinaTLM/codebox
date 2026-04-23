@@ -165,6 +165,11 @@ const ISSUE_COMMENT_GROUP: VariableGroup = {
       example:
         "https://github.com/my-org/my-repo/issues/42#issuecomment-1234567890",
     },
+    {
+      name: "COMMENT_ACTION",
+      description: "The webhook action for the comment (``created``, ``edited``, ``deleted``).",
+      example: "created",
+    },
   ],
 }
 
@@ -246,6 +251,13 @@ const PR_GROUP: VariableGroup = {
       notes: "Fetched from GitHub at run time, not during dry-run.",
       runtimeOnly: true,
     },
+    {
+      name: "PR_CHANGED_FILES",
+      description: "Newline-separated list of files changed in the PR.",
+      example: "src/auth.ts\nsrc/session.ts\ntests/auth.test.ts",
+      notes: "Fetched from GitHub at run time, not during dry-run.",
+      runtimeOnly: true,
+    },
   ],
 }
 
@@ -302,6 +314,11 @@ const PR_REVIEW_COMMENT_GROUP: VariableGroup = {
       example:
         "https://github.com/my-org/my-repo/pull/17#discussion_r1234567890",
     },
+    {
+      name: "REVIEW_COMMENT_ACTION",
+      description: "The webhook action (``created``, ``edited``, ``deleted``).",
+      example: "created",
+    },
   ],
 }
 
@@ -313,6 +330,16 @@ const PUSH_GROUP: VariableGroup = {
       name: "PUSH_REF",
       description: "Ref that was pushed (``refs/heads/main``, …).",
       example: "refs/heads/main",
+    },
+    {
+      name: "PUSH_SHA",
+      description: "Commit SHA pushed (HEAD after the push).",
+      example: "a1b2c3d4e5f67890abcdef1234567890deadbeef",
+    },
+    {
+      name: "PUSH_BEFORE",
+      description: "Commit SHA that was the branch tip before the push.",
+      example: "0000000000000000000000000000000000000000",
     },
     {
       name: "PUSH_PUSHER",
@@ -329,6 +356,28 @@ const PUSH_GROUP: VariableGroup = {
       description: "Rendered list of commit messages.",
       example:
         "- abc1234 Fix typo in README\n- def5678 Bump dependency X\n- 9012345 Add missing test",
+    },
+  ],
+}
+
+const SCHEDULE_GROUP: VariableGroup = {
+  id: "schedule",
+  title: "Schedule",
+  items: [
+    {
+      name: "SCHEDULE_CRON",
+      description: "Cron expression for the automation's schedule.",
+      example: "0 9 * * 1-5",
+    },
+    {
+      name: "SCHEDULE_TIMEZONE",
+      description: "IANA timezone the cron expression is evaluated in.",
+      example: "UTC",
+    },
+    {
+      name: "SCHEDULED_AT",
+      description: "ISO 8601 timestamp of this scheduled firing.",
+      example: "2025-04-23T09:00:00Z",
     },
   ],
 }
@@ -358,7 +407,7 @@ export const VARIABLE_CATALOG: Record<
     PR_REVIEW_COMMENT_GROUP,
   ],
   "github.push": [BASE_GROUP, REPO_GROUP, PUSH_GROUP],
-  schedule: [BASE_GROUP, REPO_GROUP],
+  schedule: [BASE_GROUP, REPO_GROUP, SCHEDULE_GROUP],
 }
 
 const ALL_TRIGGER_KINDS = Object.keys(

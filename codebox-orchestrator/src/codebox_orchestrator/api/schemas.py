@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.domain.views import BoxView
@@ -48,7 +48,27 @@ class BoxCreate(BaseModel):
     recursion_limit: int | None = None
     tools: ToolSettings | None = None
     github_repo: str | None = None
+    github_base_branch: str | None = Field(default=None, max_length=255)
+    github_workspace_mode: Literal["branch_from_issue", "checkout_ref", "pinned"] | None = None
     init_bash_script: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_github_fields(self) -> BoxCreate:
+        if self.github_repo is None:
+            if self.github_base_branch is not None:
+                raise ValueError("github_base_branch requires github_repo to be set")
+            if self.github_workspace_mode is not None:
+                raise ValueError("github_workspace_mode requires github_repo to be set")
+            return self
+
+        if self.github_workspace_mode == "branch_from_issue":
+            raise ValueError(
+                "github_workspace_mode 'branch_from_issue' is not valid for "
+                "manual box creation (no issue context)"
+            )
+        if self.github_workspace_mode == "pinned" and not self.github_base_branch:
+            raise ValueError("github_workspace_mode 'pinned' requires github_base_branch")
+        return self
 
 
 class BoxUpdateRequest(BaseModel):

@@ -281,6 +281,30 @@ function DryRunResultView({ result }: { result: AutomationDryRunResult }) {
           content={result.setup_commands.join("\n")}
         />
       )}
+      {result.unresolved_variables.length > 0 && (
+        <UnresolvedVariables names={result.unresolved_variables} />
+      )}
+    </div>
+  )
+}
+
+function UnresolvedVariables({ names }: { names: Array<string> }) {
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs font-medium text-destructive">
+        Unresolved variables
+      </span>
+      <p className="text-xs text-muted-foreground">
+        These tokens were referenced in your prompts but not populated at
+        render time — they will appear literally in the agent's input.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {names.map((name) => (
+          <Badge key={name} variant="destructive" className="font-mono text-[11px]">
+            {`\${{${name}}}`}
+          </Badge>
+        ))}
+      </div>
     </div>
   )
 }

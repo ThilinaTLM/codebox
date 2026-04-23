@@ -144,3 +144,4 @@ class AutomationDryRunResponse(BaseModel):
     rendered_system_prompt: str | None = None
     rendered_initial_prompt: str | None = None
     setup_commands: list[str] = Field(default_factory=list)
+    unresolved_variables: list[str] = Field(default_factory=list)

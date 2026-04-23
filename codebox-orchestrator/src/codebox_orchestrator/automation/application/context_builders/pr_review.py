@@ -9,6 +9,7 @@ from codebox_orchestrator.automation.application.context_builders._common import
     format_comments,
     format_review_comments,
     issue_variables,
+    pr_variables,
     project_base_variables,
     repo_variables,
 )
@@ -41,6 +42,7 @@ class PullRequestReviewContextBuilder:
         variables = project_base_variables("github.pull_request_review")
         variables.update(repo_variables(payload))
         variables.update(issue_variables(pr, action))
+        variables.update(pr_variables(pr, action))
         head = pr.get("head") or {}
         base = pr.get("base") or {}
         variables.update(
@@ -71,6 +73,7 @@ class PullRequestReviewContextBuilder:
                 )
             except Exception:
                 variables["ISSUE_COMMENTS"] = ""
+        variables["PR_COMMENTS"] = variables.get("ISSUE_COMMENTS", "")
 
         match_fields = {
             "repo": repo_full,

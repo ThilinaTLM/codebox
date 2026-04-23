@@ -17,6 +17,8 @@ export interface CreateBoxFormState {
   tags: Array<string>
   selectedProfileId?: string
   selectedRepoFullName?: string
+  selectedBaseBranch?: string
+  selectedWorkspaceMode?: "branch_from_issue" | "checkout_ref" | "pinned"
   systemPrompt: string
   autoStartPrompt: string
   recursionLimit: number
@@ -35,6 +37,7 @@ export function buildCreatePayload(form: CreateBoxFormState): BoxCreatePayload {
   const generatedName =
     form.name.trim() || autoName(form.autoStartPrompt) || undefined
 
+  const hasRepo = Boolean(form.selectedRepoFullName)
   const payload: BoxCreatePayload = {
     name: generatedName,
     description: form.description.trim() || undefined,
@@ -45,6 +48,12 @@ export function buildCreatePayload(form: CreateBoxFormState): BoxCreatePayload {
     recursion_limit:
       form.recursionLimit !== 150 ? form.recursionLimit : undefined,
     github_repo: form.selectedRepoFullName || undefined,
+    github_base_branch: hasRepo && form.selectedBaseBranch
+      ? form.selectedBaseBranch
+      : undefined,
+    github_workspace_mode: hasRepo && form.selectedWorkspaceMode
+      ? form.selectedWorkspaceMode
+      : undefined,
     init_bash_script: form.initBashScript.trim() || undefined,
   }
 

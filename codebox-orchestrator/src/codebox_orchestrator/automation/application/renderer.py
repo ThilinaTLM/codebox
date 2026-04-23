@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -19,19 +20,34 @@ _PATTERN = re.compile(r"\$\{\{\s*([A-Z0-9_]+)\s*\}\}")
 MAX_RENDERED_BYTES = 50 * 1024
 
 
+@dataclass(frozen=True)
+class RenderResult:
+    """Result of rendering a template with a variables map.
+
+    ``text`` is the interpolated string; ``unresolved`` is the
+    order-stable, de-duplicated list of ``${{NAME}}`` tokens that the
+    variables map did not cover.
+    """
+
+    text: str
+    unresolved: list[str] = field(default_factory=list)
+
+
 class PromptRenderer:
     """Stateless ${{VAR}} substitution."""
 
-    def render(self, template: str, variables: Mapping[str, str]) -> str:
+    def render(self, template: str, variables: Mapping[str, str]) -> RenderResult:
         if not template:
-            return template
-        seen_unknown: set[str] = set()
+            return RenderResult(text=template, unresolved=[])
+        seen_unknown: list[str] = []
+        unknown_set: set[str] = set()
 
         def sub(match: re.Match[str]) -> str:
             key = match.group(1)
             if key not in variables:
-                if key not in seen_unknown:
-                    seen_unknown.add(key)
+                if key not in unknown_set:
+                    unknown_set.add(key)
+                    seen_unknown.append(key)
                     logger.warning("unknown template variable %s", key)
                 return match.group(0)
             return variables[key]
@@ -41,4 +57,4 @@ class PromptRenderer:
         if len(encoded) > MAX_RENDERED_BYTES:
             truncated = encoded[:MAX_RENDERED_BYTES].decode("utf-8", errors="ignore")
             rendered = truncated + "\n\n[... truncated ...]"
-        return rendered
+        return RenderResult(text=rendered, unresolved=seen_unknown)

@@ -40,6 +40,10 @@ function CreateAgentPage() {
     null
   )
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null)
+  const [selectedBaseBranch, setSelectedBaseBranch] = useState("")
+  const [selectedWorkspaceMode, setSelectedWorkspaceMode] = useState<
+    "checkout_ref" | "pinned" | ""
+  >("")
   const [systemPrompt, setSystemPrompt] = useState("")
   const [autoStartPrompt, setAutoStartPrompt] = useState("")
   const [recursionLimit, setRecursionLimit] = useState(150)
@@ -77,6 +81,8 @@ function CreateAgentPage() {
       tags,
       selectedProfileId: selectedProfile?.id,
       selectedRepoFullName: selectedRepo?.full_name,
+      selectedBaseBranch: selectedBaseBranch || undefined,
+      selectedWorkspaceMode: selectedWorkspaceMode || undefined,
       systemPrompt,
       autoStartPrompt,
       recursionLimit,
@@ -120,6 +126,10 @@ function CreateAgentPage() {
         onSelectedRepoChange={setSelectedRepo}
         repos={repos}
         githubEnabled={githubEnabled}
+        selectedBaseBranch={selectedBaseBranch}
+        onSelectedBaseBranchChange={setSelectedBaseBranch}
+        selectedWorkspaceMode={selectedWorkspaceMode}
+        onSelectedWorkspaceModeChange={setSelectedWorkspaceMode}
         isPending={isPending}
         onConfigure={() => setStep(2)}
         onCreate={handleCreate}

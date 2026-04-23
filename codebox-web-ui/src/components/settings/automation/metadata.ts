@@ -150,15 +150,20 @@ export const ALLOWED_FIELDS: Record<
   "github.pull_request_review_comment": {
     repo: "string",
     action: "string",
-    author: "string",
+    pr_author: "string",
     comment_author: "string",
     comment_body: "string",
   },
   "github.push": {
     repo: "string",
     ref: "string",
+    branch: "string",
+    tag: "string",
     pusher: "string",
     commit_count: "int",
+    forced: "bool",
+    created: "bool",
+    deleted: "bool",
   },
   schedule: { repo: "string" },
 }
@@ -193,6 +198,7 @@ export const FIELD_LABELS: Record<string, string> = {
   action: "Action",
   labels: "Labels",
   author: "Author",
+  pr_author: "PR author",
   title: "Title",
   state: "State",
   comment_author: "Comment author",
@@ -206,6 +212,11 @@ export const FIELD_LABELS: Record<string, string> = {
   ref: "Git ref",
   pusher: "Pusher",
   commit_count: "Commit count",
+  branch: "Branch",
+  tag: "Tag",
+  forced: "Forced push",
+  created: "Branch/tag created",
+  deleted: "Branch/tag deleted",
 }
 
 export function fieldLabel(field: string): string {
@@ -293,6 +304,8 @@ export const WORKSPACE_MODES: ReadonlyArray<WorkspaceModeMeta> = [
     title: "Branch from issue",
     description:
       "Create a fresh branch (named after the issue) for each matching event. Best for agents that open pull requests.",
+    // The backend rejects this mode for PR-family triggers (no issue
+    // context) and for ``github.push``. Keep UI and backend aligned.
     availableWhen: (kind) =>
       kind === "github.issues" || kind === "github.issue_comment",
   },

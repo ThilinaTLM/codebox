@@ -6,9 +6,11 @@ from typing import TYPE_CHECKING, Any
 
 from codebox_orchestrator.automation.application.context import TemplateContext
 from codebox_orchestrator.automation.application.context_builders._common import (
+    comment_variables,
     format_comments,
     format_review_comments,
     issue_variables,
+    pr_variables,
     project_base_variables,
     repo_variables,
 )
@@ -41,6 +43,7 @@ class PullRequestReviewCommentContextBuilder:
         variables = project_base_variables("github.pull_request_review_comment")
         variables.update(repo_variables(payload))
         variables.update(issue_variables(pr, action))
+        variables.update(pr_variables(pr, action))
         head = pr.get("head") or {}
         base = pr.get("base") or {}
         variables.update(
@@ -49,13 +52,12 @@ class PullRequestReviewCommentContextBuilder:
                 "PR_NUMBER": str(pr.get("number") or ""),
                 "PR_HEAD_REF": str(head.get("ref") or ""),
                 "PR_BASE_REF": str(base.get("ref") or ""),
-                "COMMENT_URL": str(comment.get("html_url") or ""),
-                "COMMENT_BODY": str(comment.get("body") or ""),
-                "COMMENT_AUTHOR": str((comment.get("user") or {}).get("login") or ""),
-                "COMMENT_ACTION": action,
-                "COMMENT_PATH": str(comment.get("path") or ""),
             }
         )
+        # Emit both ``COMMENT_*`` (legacy) and ``REVIEW_COMMENT_*`` (canonical
+        # for the UI's PR review-comment catalog).
+        variables.update(comment_variables(comment, action, prefix="COMMENT"))
+        variables.update(comment_variables(comment, action, prefix="REVIEW_COMMENT"))
 
         inst_id = installation_id or _installation_id(payload)
         repo_full = str(repository.get("full_name") or "")
@@ -72,11 +74,16 @@ class PullRequestReviewCommentContextBuilder:
                 )
             except Exception:
                 variables["ISSUE_COMMENTS"] = ""
+        variables["PR_COMMENTS"] = variables.get("ISSUE_COMMENTS", "")
 
+        pr_author = str((pr.get("user") or {}).get("login") or "")
         match_fields = {
             "repo": repo_full,
             "action": action,
-            "author": str((pr.get("user") or {}).get("login") or ""),
+            "pr_author": pr_author,
+            # Legacy alias kept for automations authored before ``pr_author``
+            # existed.
+            "author": pr_author,
             "comment_author": str((comment.get("user") or {}).get("login") or ""),
             "comment_body": str(comment.get("body") or ""),
         }

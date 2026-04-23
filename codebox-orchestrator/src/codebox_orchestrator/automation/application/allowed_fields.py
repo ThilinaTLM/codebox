@@ -53,6 +53,9 @@ ALLOWED_FIELDS: dict[str, dict[str, FieldType]] = {
     "github.pull_request_review_comment": {
         "repo": "string",
         "action": "string",
+        "pr_author": "string",
+        # ``author`` is a deprecated alias for ``pr_author``. Kept so
+        # automations authored before the rename continue to validate.
         "author": "string",
         "comment_author": "string",
         "comment_body": "string",
@@ -60,8 +63,13 @@ ALLOWED_FIELDS: dict[str, dict[str, FieldType]] = {
     "github.push": {
         "repo": "string",
         "ref": "string",
+        "branch": "string",
+        "tag": "string",
         "pusher": "string",
         "commit_count": "int",
+        "forced": "bool",
+        "created": "bool",
+        "deleted": "bool",
     },
     "schedule": {
         "repo": "string",

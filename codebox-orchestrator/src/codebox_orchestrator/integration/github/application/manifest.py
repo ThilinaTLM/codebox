@@ -11,6 +11,23 @@ from __future__ import annotations
 
 import secrets
 
+# The set of GitHub webhook event names the orchestrator depends on. This
+# single source of truth is consumed by both ``build_manifest`` (App
+# registration) and any future App-drift diagnostics. When you add a new
+# trigger kind, add the matching GitHub event name here *and* update the
+# UI's GitHub configuration tab so operators can detect drift on existing
+# installations.
+REQUIRED_EVENTS: frozenset[str] = frozenset(
+    {
+        "issues",
+        "issue_comment",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+    }
+)
+
 
 def default_app_name(project_slug: str) -> str:
     """Suggest a GitHub App name for *project_slug*.
@@ -56,14 +73,7 @@ def build_manifest(
             "statuses": "write",
             "metadata": "read",
         },
-        "default_events": [
-            "issues",
-            "issue_comment",
-            "pull_request",
-            "pull_request_review",
-            "pull_request_review_comment",
-            "push",
-        ],
+        "default_events": sorted(REQUIRED_EVENTS),
     }
 
 

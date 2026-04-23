@@ -58,11 +58,24 @@ class PushContextBuilder:
             }
         )
 
-        match_fields = {
+        # Derive branch/tag from refs/heads/... or refs/tags/...
+        branch = ""
+        tag = ""
+        if ref.startswith("refs/heads/"):
+            branch = ref[len("refs/heads/") :]
+        elif ref.startswith("refs/tags/"):
+            tag = ref[len("refs/tags/") :]
+
+        match_fields: dict[str, Any] = {
             "repo": repo_full,
             "ref": ref,
+            "branch": branch,
+            "tag": tag,
             "pusher": pusher,
             "commit_count": len(commits),
+            "forced": bool(payload.get("forced")),
+            "created": bool(payload.get("created")),
+            "deleted": bool(payload.get("deleted")),
         }
 
         # Push trigger uses checkout_ref; branch_hint is the ref

@@ -227,6 +227,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
             state_store=box_state_store,
             send_exec_and_wait_fn=send_exec_handler.execute_and_wait,
             create_callback_token_fn=create_callback_token,
+            send_message_fn=send_message_handler.execute,
         )
 
         # --- Application layer: Box commands ---

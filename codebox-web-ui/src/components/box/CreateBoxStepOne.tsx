@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react"
 import { Link } from "@tanstack/react-router"
 import { ArrowLeft, ChevronRight } from "lucide-react"
 import type { GitHubRepo, LLMProfile } from "@/net/http/types"
+import { BranchPicker } from "@/components/settings/automation/sections/RepoBranchPickers"
 import { Button } from "@/components/ui/button"
 import {
   Combobox,
@@ -44,6 +45,12 @@ interface CreateBoxStepOneProps {
   onSelectedRepoChange: (v: GitHubRepo | null) => void
   repos: Array<GitHubRepo> | undefined
   githubEnabled: boolean
+  selectedBaseBranch: string
+  onSelectedBaseBranchChange: (v: string) => void
+  selectedWorkspaceMode: "checkout_ref" | "pinned" | ""
+  onSelectedWorkspaceModeChange: (
+    v: "checkout_ref" | "pinned" | "",
+  ) => void
   isPending: boolean
   onConfigure: () => void
   onCreate: () => void
@@ -62,6 +69,10 @@ export function CreateBoxStepOne({
   onSelectedRepoChange,
   repos,
   githubEnabled,
+  selectedBaseBranch,
+  onSelectedBaseBranchChange,
+  selectedWorkspaceMode,
+  onSelectedWorkspaceModeChange,
   isPending,
   onConfigure,
   onCreate,
@@ -198,7 +209,12 @@ export function CreateBoxStepOne({
               </Label>
               <Combobox
                 value={selectedRepo}
-                onValueChange={onSelectedRepoChange}
+                onValueChange={(r: GitHubRepo | null) => {
+                  onSelectedRepoChange(r)
+                  // Reset branch / mode when the repo changes.
+                  onSelectedBaseBranchChange("")
+                  onSelectedWorkspaceModeChange("")
+                }}
                 items={repos}
                 itemToStringLabel={(r: GitHubRepo) => r.full_name}
                 isItemEqualToValue={(a: GitHubRepo, b: GitHubRepo) =>
@@ -230,6 +246,38 @@ export function CreateBoxStepOne({
                   <ComboboxEmpty>No repos found</ComboboxEmpty>
                 </ComboboxContent>
               </Combobox>
+            </div>
+          )}
+
+          {/* Base branch + workspace mode — shown once a repo is selected */}
+          {githubEnabled && selectedRepo && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="base-branch" className="text-label">
+                Base branch (optional)
+              </Label>
+              <BranchPicker
+                projectSlug={projectSlug}
+                repo={selectedRepo.full_name}
+                value={selectedBaseBranch}
+                onChange={(next) => {
+                  onSelectedBaseBranchChange(next)
+                  // When a user picks a base branch we default to 'pinned'
+                  // so the agent works on a codebox/* branch forked from it.
+                  if (next && !selectedWorkspaceMode) {
+                    onSelectedWorkspaceModeChange("pinned")
+                  }
+                  if (!next && selectedWorkspaceMode === "pinned") {
+                    onSelectedWorkspaceModeChange("")
+                  }
+                }}
+                id="base-branch"
+                githubConfigured={githubEnabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                {selectedBaseBranch
+                  ? `A fresh codebox/* branch will be created from ${selectedBaseBranch} for agent commits.`
+                  : "Leave empty to start from the repository's default branch on a fresh codebox/manual-* branch."}
+              </p>
             </div>
           )}
 

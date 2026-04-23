@@ -82,6 +82,8 @@ export interface BoxCreatePayload {
   recursion_limit?: number | null
   tools?: ToolSettings | null
   github_repo?: string | null
+  github_base_branch?: string | null
+  github_workspace_mode?: "branch_from_issue" | "checkout_ref" | "pinned" | null
   init_bash_script?: string | null
 }
 
@@ -394,4 +396,5 @@ export interface AutomationDryRunResult {
   rendered_system_prompt: string | null
   rendered_initial_prompt: string | null
   setup_commands: Array<string>
+  unresolved_variables: Array<string>
 }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -59,15 +60,11 @@ router = APIRouter(prefix="/api/projects/{slug}", tags=["Boxes"])
 async def _find_installation_for_repo(
     service: GitHubInstallationService, repo_full_name: str
 ) -> GitHubInstallation | None:
-    installations = await service.list_installations()
-    for inst in installations:
-        try:
-            repos = await service.sync_repos(inst.installation_id)
-            if any(r.get("full_name") == repo_full_name for r in repos):
-                return inst
-        except Exception:
-            logger.warning("Failed to check repos for installation %d", inst.installation_id)
-    return None
+    from codebox_orchestrator.integration.github.application.installation_resolver import (  # noqa: PLC0415
+        resolve_installation_for_repo,
+    )
+
+    return await resolve_installation_for_repo(service, repo_full_name, strict=False)
 
 
 @router.get("/health", summary="Project-scoped health check", operation_id="project_health")
@@ -98,6 +95,8 @@ async def create_box(
 
     github_installation_id: str | None = None
     github_branch: str | None = None
+    effective_workspace_mode: str | None = None
+    effective_workspace_ref: str | None = None
     if body.github_repo:
         client = await github_client_mgr.get_client(ctx.project_id)
         if client is None:
@@ -109,7 +108,27 @@ async def create_box(
         if installation is None:
             raise HTTPException(400, f"No GitHub installation found for repo: {body.github_repo}")
         github_installation_id = installation.id
-        github_branch = f"codebox/manual-{body.github_repo.split('/')[-1]}"
+
+        # Resolve effective workspace mode + unique working branch.
+        if body.github_workspace_mode is not None:
+            effective_workspace_mode = body.github_workspace_mode
+        elif body.github_base_branch:
+            effective_workspace_mode = "pinned"
+        else:
+            effective_workspace_mode = "branch_from_issue"
+        effective_workspace_ref = body.github_base_branch
+
+        # Compute a unique working branch so that two concurrent manual
+        # boxes on the same repo don't collide on push.
+        short_suffix = uuid.uuid4().hex[:8]
+        repo_short = body.github_repo.split("/", 1)[-1]
+        if effective_workspace_mode == "pinned" and body.github_base_branch:
+            # setup_commands will checkout ``base_branch`` and — when it's
+            # not already a codebox/* branch — fork off a codebox/pinned-<ts>
+            # work branch. Pass the base branch here so git can resolve it.
+            github_branch = body.github_base_branch
+        else:
+            github_branch = f"codebox/manual-{repo_short}-{short_suffix}"
 
     view = await handler.execute(
         name=body.name,
@@ -127,6 +146,8 @@ async def create_box(
         github_repo=body.github_repo,
         github_branch=github_branch,
         github_installation_id=github_installation_id,
+        github_workspace_mode=effective_workspace_mode,
+        github_workspace_ref=effective_workspace_ref,
         init_bash_script=body.init_bash_script,
         project_id=ctx.project_id,
         created_by=ctx.user_id,

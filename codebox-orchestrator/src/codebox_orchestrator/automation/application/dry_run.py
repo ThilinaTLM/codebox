@@ -80,21 +80,32 @@ async def execute_dry_run(
     if not matched:
         return AutomationDryRunResponse(matched=False, reason=reason)
 
-    rendered_system = (
+    system_result = (
         renderer.render(automation.system_prompt, context.variables)
         if automation.system_prompt
         else None
     )
-    rendered_initial = renderer.render(automation.initial_prompt, context.variables)
+    initial_result = renderer.render(automation.initial_prompt, context.variables)
+
+    unresolved_set: set[str] = set()
+    unresolved: list[str] = []
+    for name in (
+        *(initial_result.unresolved if initial_result else []),
+        *(system_result.unresolved if system_result else []),
+    ):
+        if name not in unresolved_set:
+            unresolved_set.add(name)
+            unresolved.append(name)
 
     setup_commands = _build_preview_setup_commands(automation, context)
 
     return AutomationDryRunResponse(
         matched=True,
         reason=None,
-        rendered_system_prompt=rendered_system,
-        rendered_initial_prompt=rendered_initial,
+        rendered_system_prompt=system_result.text if system_result else None,
+        rendered_initial_prompt=initial_result.text,
         setup_commands=setup_commands,
+        unresolved_variables=unresolved,
     )
 
 

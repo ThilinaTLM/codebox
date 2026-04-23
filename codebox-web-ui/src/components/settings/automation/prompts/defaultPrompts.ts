@@ -5,6 +5,11 @@
  * initial prompt is also re-applied if the user switches the trigger
  * before touching the initial prompt — so each trigger feels coherent
  * out of the box.
+ *
+ * Every ``${{NAME}}`` used below MUST exist in ``variableCatalog.ts`` for
+ * the matching trigger — otherwise the prompt will ship with unresolved
+ * tokens. The dry-run panel's "Unresolved variables" section is the
+ * authoritative signal when a token isn't populated at runtime.
  */
 
 import type { AutomationTriggerKind } from "@/net/http/types"
