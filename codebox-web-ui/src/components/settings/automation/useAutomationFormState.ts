@@ -16,12 +16,7 @@ import type {
   AutomationWorkspaceMode,
 } from "@/net/http/types"
 
-export type SectionId =
-  | "basics"
-  | "trigger"
-  | "workspace"
-  | "prompts"
-  | "agent"
+export type SectionId = "basics" | "trigger" | "prompts"
 
 export type SectionStatus = "empty" | "partial" | "complete" | "error"
 
@@ -258,24 +253,28 @@ export function computeSectionStatus(
       state.pinned_branch.trim().length > 0)
   const promptsValid = !errors.initial_prompt
 
+  // Combine trigger + workspace statuses. Error beats partial beats
+  // complete; both must be complete for the merged status to be complete.
+  const triggerStatus: SectionStatus = (() => {
+    const triggerHasError = hasFilterError || !triggerValid
+    const workspaceHasError = !workspaceValid
+    if (triggerHasError || workspaceHasError) return "error"
+    if (!workspaceHasPinned) return "partial"
+    return "complete"
+  })()
+
   return {
     basics: basicsHasError
       ? "error"
       : basicsFilled
         ? "complete"
         : "empty",
-    trigger: hasFilterError || !triggerValid ? "error" : "complete",
-    workspace: !workspaceValid
-      ? "error"
-      : workspaceHasPinned
-        ? "complete"
-        : "partial",
+    trigger: triggerStatus,
     prompts: !promptsValid
       ? state.initial_prompt.length > 0
         ? "error"
         : "empty"
       : "complete",
-    agent: "complete",
   }
 }
 

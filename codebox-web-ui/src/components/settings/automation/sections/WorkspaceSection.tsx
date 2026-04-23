@@ -1,5 +1,5 @@
 import { WORKSPACE_MODES, availableWorkspaceModes } from "../metadata"
-import { FormField, SectionCard } from "../FormField"
+import { FormField } from "../FormField"
 import { BranchPicker, RepoPicker } from "./RepoBranchPickers"
 import type { Dispatch } from "react"
 import type { AutomationWorkspaceMode } from "@/net/http/types"
@@ -14,23 +14,21 @@ import {
   RadioGroupItem,
 } from "@/components/ui/radio-group"
 
-interface WorkspaceSectionProps {
+interface WorkspaceFieldsProps {
   projectSlug: string
   state: FormState
   dispatch: Dispatch<FormAction>
   errors: FormErrors
   githubConfigured: boolean
-  id?: string
 }
 
-export function WorkspaceSection({
+export function WorkspaceFields({
   projectSlug,
   state,
   dispatch,
   errors,
   githubConfigured,
-  id,
-}: WorkspaceSectionProps) {
+}: WorkspaceFieldsProps) {
   const available = availableWorkspaceModes(state.trigger_kind)
   const isScheduled = state.trigger_kind === "schedule"
   const isPinned = state.workspace_mode === "pinned" || isScheduled
@@ -39,11 +37,7 @@ export function WorkspaceSection({
   )
 
   return (
-    <SectionCard
-      id={id}
-      title="Workspace"
-      description="Where the agent does its work — a fresh branch, the event's ref, or a pinned branch."
-    >
+    <>
       <RadioGroup
         value={state.workspace_mode}
         onValueChange={(value) => {
@@ -146,6 +140,7 @@ export function WorkspaceSection({
           </FormField>
         </div>
       )}
-    </SectionCard>
+    </>
   )
 }
+

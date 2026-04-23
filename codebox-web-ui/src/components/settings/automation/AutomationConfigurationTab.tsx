@@ -1,11 +1,10 @@
 import { toast } from "sonner"
 import { useAutomationFormState } from "./useAutomationFormState"
-import { BasicsSection } from "./sections/BasicsSection"
-import { TriggerSection } from "./sections/TriggerSection"
-import { WorkspaceSection } from "./sections/WorkspaceSection"
-import { PromptsSection } from "./sections/PromptsSection"
-import { AgentSection } from "./sections/AgentSection"
-import { AutomationConfigurationTabRail } from "./AutomationConfigurationTabRail"
+import {
+  BasicsCard,
+  PromptsCard,
+  TriggerWorkspaceCard,
+} from "./sections"
 import type { Automation } from "@/net/http/types"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -54,58 +53,36 @@ export function AutomationConfigurationTab({
   }
 
   return (
-    <div className="relative">
-      <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
-        <aside className="lg:sticky lg:top-4 lg:self-start">
-          <AutomationConfigurationTabRail status={form.sectionStatus} />
-        </aside>
-
-        <fieldset
-          disabled={readOnly}
-          className={cn(
-            "min-w-0 space-y-5",
-            readOnly && "pointer-events-none opacity-60"
-          )}
-        >
-          <BasicsSection
-            id="section-basics"
-            state={form.state}
-            dispatch={form.dispatch}
-            errors={form.errors}
-          />
-          <TriggerSection
-            id="section-trigger"
-            projectSlug={projectSlug}
-            state={form.state}
-            dispatch={form.dispatch}
-            errors={form.errors}
-            nextRunAt={automation.next_run_at}
-            githubConfigured={githubConfigured}
-          />
-          <WorkspaceSection
-            id="section-workspace"
-            projectSlug={projectSlug}
-            state={form.state}
-            dispatch={form.dispatch}
-            errors={form.errors}
-            githubConfigured={githubConfigured}
-          />
-          <PromptsSection
-            id="section-prompts"
-            state={form.state}
-            dispatch={form.dispatch}
-            errors={form.errors}
-          />
-          <AgentSection
-            id="section-agent"
-            projectSlug={projectSlug}
-            state={form.state}
-            dispatch={form.dispatch}
-          />
-          {/* Leave space for the sticky footer */}
-          <div className="h-16" />
-        </fieldset>
-      </div>
+    <div className="relative mx-auto max-w-4xl">
+      <fieldset
+        disabled={readOnly}
+        className={cn(
+          "min-w-0 space-y-5",
+          readOnly && "pointer-events-none opacity-60"
+        )}
+      >
+        <BasicsCard
+          projectSlug={projectSlug}
+          state={form.state}
+          dispatch={form.dispatch}
+          errors={form.errors}
+        />
+        <TriggerWorkspaceCard
+          projectSlug={projectSlug}
+          state={form.state}
+          dispatch={form.dispatch}
+          errors={form.errors}
+          nextRunAt={automation.next_run_at}
+          githubConfigured={githubConfigured}
+        />
+        <PromptsCard
+          state={form.state}
+          dispatch={form.dispatch}
+          errors={form.errors}
+        />
+        {/* Leave space for the sticky footer */}
+        <div className="h-16" />
+      </fieldset>
 
       {form.isDirty && !readOnly && (
         <div

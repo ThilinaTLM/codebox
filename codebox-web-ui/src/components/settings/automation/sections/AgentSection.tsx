@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { AiBrain01Icon } from "@hugeicons/core-free-icons"
-import { FormField, SectionCard } from "../FormField"
+import { FormField } from "../FormField"
 import type { LLMProfile } from "@/net/http/types"
 import type { Dispatch } from "react"
 import type {
@@ -19,19 +19,17 @@ import {
 
 const DEFAULT_PROFILE_SENTINEL = "__project_default__"
 
-interface AgentSectionProps {
+interface AgentFieldsProps {
   projectSlug: string
   state: FormState
   dispatch: Dispatch<FormAction>
-  id?: string
 }
 
-export function AgentSection({
+export function AgentFields({
   projectSlug,
   state,
   dispatch,
-  id,
-}: AgentSectionProps) {
+}: AgentFieldsProps) {
   const { data: profiles = [] } = useLLMProfiles(projectSlug)
 
   const selected: LLMProfile | undefined = profiles.find(
@@ -46,11 +44,7 @@ export function AgentSection({
   }
 
   return (
-    <SectionCard
-      id={id}
-      title="Agent"
-      description="Which LLM profile this agent should use."
-    >
+    <>
       <FormField
         label="LLM profile"
         htmlFor="at-profile"
@@ -115,9 +109,10 @@ export function AgentSection({
           </Link>
         </p>
       )}
-    </SectionCard>
+    </>
   )
 }
+
 
 function ProfileRow({ profile }: { profile: LLMProfile }) {
   return (

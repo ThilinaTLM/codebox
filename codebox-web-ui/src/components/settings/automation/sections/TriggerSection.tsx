@@ -4,7 +4,7 @@ import {
   TRIGGER_KINDS
   
 } from "../metadata"
-import { FormField, SectionCard } from "../FormField"
+import { FormField } from "../FormField"
 import { FilterBuilder } from "../filter-builder/FilterBuilder"
 import { CronBuilder } from "../cron-builder/CronBuilder"
 import type {TriggerKindMeta} from "../metadata";
@@ -17,33 +17,27 @@ import type { AutomationTriggerKind } from "@/net/http/types"
 import type { Dispatch } from "react"
 import { cn } from "@/lib/utils"
 
-interface TriggerSectionProps {
+interface TriggerFieldsProps {
   projectSlug: string
   state: FormState
   dispatch: Dispatch<FormAction>
   errors: FormErrors
   nextRunAt?: string | null
-  id?: string
   githubConfigured: boolean
 }
 
-export function TriggerSection({
+export function TriggerFields({
   projectSlug,
   state,
   dispatch,
   errors,
   nextRunAt,
-  id,
   githubConfigured,
-}: TriggerSectionProps) {
+}: TriggerFieldsProps) {
   const isScheduled = state.trigger_kind === "schedule"
 
   return (
-    <SectionCard
-      id={id}
-      title="Trigger"
-      description="Choose the event that spawns an agent, then narrow it with filters or a schedule."
-    >
+    <>
       <FormField label="Trigger kind" description="Select one.">
         <TriggerKindPicker
           projectSlug={projectSlug}
@@ -79,9 +73,10 @@ export function TriggerSection({
           }
         />
       )}
-    </SectionCard>
+    </>
   )
 }
+
 
 interface TriggerKindPickerProps {
   projectSlug: string

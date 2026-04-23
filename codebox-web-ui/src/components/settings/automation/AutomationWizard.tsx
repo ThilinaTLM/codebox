@@ -8,11 +8,11 @@ import {
 } from "@hugeicons/core-free-icons"
 import { AutomationWizardStepper } from "./AutomationWizardStepper"
 import { useAutomationFormState } from "./useAutomationFormState"
-import { BasicsSection } from "./sections/BasicsSection"
-import { TriggerSection } from "./sections/TriggerSection"
-import { WorkspaceSection } from "./sections/WorkspaceSection"
-import { PromptsSection } from "./sections/PromptsSection"
-import { AgentSection } from "./sections/AgentSection"
+import {
+  BasicsCard,
+  PromptsCard,
+  TriggerWorkspaceCard,
+} from "./sections"
 import { StarterAutomationsRow } from "./StarterAutomationsRow"
 import type { WizardStepSpec } from "./AutomationWizardStepper"
 import { useCreateAutomation, useGitHubStatus } from "@/net/query"
@@ -64,37 +64,13 @@ export function AutomationWizard({
 
   const stepId = STEP_ORDER[activeIndex]
 
-  // Step 2 collapses Trigger + Workspace into a single status: error if
-  // either has an error, complete only when both are complete.
-  const triggerWorkspaceStatus = ((): WizardStepSpec["status"] => {
-    const t = form.sectionStatus.trigger
-    const w = form.sectionStatus.workspace
-    if (t === "error" || w === "error") return "error"
-    if (t === "complete" && w === "complete") return "complete"
-    if (t === "empty" && w === "empty") return "empty"
-    return "partial"
-  })()
-
-  // Step 1 collapses Basics + Agent (LLM profile) into a single status.
-  const basicsAgentStatus = ((): WizardStepSpec["status"] => {
-    const b = form.sectionStatus.basics
-    const a = form.sectionStatus.agent
-    if (b === "error" || a === "error") return "error"
-    if (b === "complete" && a === "complete") return "complete"
-    return b
-  })()
-
-  const stepStatuses: Record<WizardStepId, WizardStepSpec["status"]> = {
-    basics: basicsAgentStatus,
-    trigger: triggerWorkspaceStatus,
-    prompts: form.sectionStatus.prompts,
-  }
-
+  // `form.sectionStatus` already exposes one status per wizard step
+  // (basics + agent merged, trigger + workspace merged, prompts).
   const steps: ReadonlyArray<WizardStepSpec> = STEP_ORDER.map((id) => ({
     id,
     title: STEP_LABELS[id].title,
     description: STEP_LABELS[id].description,
-    status: stepStatuses[id],
+    status: form.sectionStatus[id],
   }))
 
   const canContinue = ((): boolean => {
@@ -192,38 +168,25 @@ export function AutomationWizard({
             {!form.isDirty && (
               <StarterAutomationsRow dispatch={form.dispatch} />
             )}
-            <BasicsSection
-              state={form.state}
-              dispatch={form.dispatch}
-              errors={form.errors}
-            />
-            <AgentSection
+            <BasicsCard
               projectSlug={projectSlug}
               state={form.state}
               dispatch={form.dispatch}
+              errors={form.errors}
             />
           </>
         )}
         {stepId === "trigger" && (
-          <>
-            <TriggerSection
-              projectSlug={projectSlug}
-              state={form.state}
-              dispatch={form.dispatch}
-              errors={form.errors}
-              githubConfigured={githubConfigured}
-            />
-            <WorkspaceSection
-              projectSlug={projectSlug}
-              state={form.state}
-              dispatch={form.dispatch}
-              errors={form.errors}
-              githubConfigured={githubConfigured}
-            />
-          </>
+          <TriggerWorkspaceCard
+            projectSlug={projectSlug}
+            state={form.state}
+            dispatch={form.dispatch}
+            errors={form.errors}
+            githubConfigured={githubConfigured}
+          />
         )}
         {stepId === "prompts" && (
-          <PromptsSection
+          <PromptsCard
             state={form.state}
             dispatch={form.dispatch}
             errors={form.errors}

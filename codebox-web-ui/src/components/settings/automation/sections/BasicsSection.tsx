@@ -1,4 +1,4 @@
-import { FormField, SectionCard } from "../FormField"
+import { FormField } from "../FormField"
 import type { Dispatch } from "react"
 import type {
   FormAction,
@@ -10,25 +10,19 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 
-interface BasicsSectionProps {
+interface BasicsFieldsProps {
   state: FormState
   dispatch: Dispatch<FormAction>
   errors: FormErrors
-  id?: string
 }
 
-export function BasicsSection({
+export function BasicsFields({
   state,
   dispatch,
   errors,
-  id,
-}: BasicsSectionProps) {
+}: BasicsFieldsProps) {
   return (
-    <SectionCard
-      id={id}
-      title="Basics"
-      description="Name, description, and whether this automation is active."
-    >
+    <>
       <FormField
         label="Name"
         htmlFor="at-name"
@@ -83,6 +77,7 @@ export function BasicsSection({
           }
         />
       </div>
-    </SectionCard>
+    </>
   )
 }
+

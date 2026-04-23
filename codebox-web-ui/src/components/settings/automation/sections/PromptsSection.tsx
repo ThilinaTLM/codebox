@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { SparklesIcon } from "@hugeicons/core-free-icons"
-import { FormField, SectionCard } from "../FormField"
+import { FormField } from "../FormField"
 import { PromptEditor } from "../prompts/PromptEditor"
 import { VariablesPanel } from "../prompts/VariablesPanel"
 import { flatVariablesFor } from "../variableCatalog"
@@ -19,19 +19,17 @@ import {
 } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 
-interface PromptsSectionProps {
+interface PromptsFieldsProps {
   state: FormState
   dispatch: Dispatch<FormAction>
   errors: FormErrors
-  id?: string
 }
 
-export function PromptsSection({
+export function PromptsFields({
   state,
   dispatch,
   errors,
-  id,
-}: PromptsSectionProps) {
+}: PromptsFieldsProps) {
   const systemRef = useRef<PromptEditorHandle>(null)
   const initialRef = useRef<PromptEditorHandle>(null)
   const [activeEditor, setActiveEditor] = useState<"system" | "initial">(
@@ -50,12 +48,7 @@ export function PromptsSection({
   }
 
   return (
-    <SectionCard
-      id={id}
-      title="Prompts"
-      description="What the agent reads when it starts. Type ``${{`` inside either editor to get variable suggestions, or pick one from the panel on the right."
-    >
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="space-y-5">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -124,10 +117,10 @@ export function PromptsSection({
             onInsert={insert}
           />
         </aside>
-      </div>
-    </SectionCard>
+    </div>
   )
 }
+
 
 function VariablesPopover({
   triggerKind,
