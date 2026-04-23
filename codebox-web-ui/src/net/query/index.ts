@@ -785,3 +785,26 @@ export function useChangePassword() {
       api.auth.changePassword(data.oldPassword, data.newPassword),
   })
 }
+
+// ── Platform (admin) ──────────────────────────────────────────
+
+export function useOrphanContainers(options?: QueryHookOptions) {
+  const enabled = useAuthQueryEnabled(options?.enabled ?? true)
+  return useQuery({
+    queryKey: ["platform", "orphan-containers"],
+    queryFn: () => api.platform.listOrphanContainers(),
+    enabled,
+    staleTime: 5_000,
+  })
+}
+
+export function useDeleteOrphanContainer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (containerId: string) =>
+      api.platform.deleteOrphanContainer(containerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform", "orphan-containers"] })
+    },
+  })
+}

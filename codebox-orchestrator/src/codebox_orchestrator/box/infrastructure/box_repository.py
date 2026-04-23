@@ -11,6 +11,8 @@ from sqlalchemy import select
 from codebox_orchestrator.box.infrastructure.orm_models import BoxRecord
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
@@ -61,6 +63,19 @@ class BoxRepository:
                 stmt = stmt.where(BoxRecord.deleted_at.is_(None))
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
+
+    async def get_many(
+        self, box_ids: Iterable[str], *, include_deleted: bool = False
+    ) -> dict[str, BoxRecord]:
+        ids = [bid for bid in box_ids if bid]
+        if not ids:
+            return {}
+        async with self._session_factory() as session:
+            stmt = select(BoxRecord).where(BoxRecord.id.in_(ids))
+            if not include_deleted:
+                stmt = stmt.where(BoxRecord.deleted_at.is_(None))
+            result = await session.execute(stmt)
+            return {r.id: r for r in result.scalars().all()}
 
     async def list_for_project(
         self, project_id: str, *, include_deleted: bool = False

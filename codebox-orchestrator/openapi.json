@@ -56,18 +56,6 @@
             ],
             "title": "Pinned Branch"
           },
-          "pinned_repo": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pinned Repo"
-          },
           "schedule_cron": {
             "anyOf": [
               {
@@ -105,6 +93,20 @@
             ],
             "title": "System Prompt"
           },
+          "trigger_actions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Actions"
+          },
           "trigger_filters": {
             "anyOf": [
               {
@@ -132,6 +134,13 @@
             "title": "Trigger Kind",
             "type": "string"
           },
+          "trigger_repo": {
+            "maxLength": 255,
+            "minLength": 3,
+            "pattern": "^[\\w.-]+/[\\w.-]+$",
+            "title": "Trigger Repo",
+            "type": "string"
+          },
           "workspace_mode": {
             "enum": [
               "branch_from_issue",
@@ -144,6 +153,7 @@
         },
         "required": [
           "name",
+          "trigger_repo",
           "trigger_kind",
           "workspace_mode",
           "initial_prompt"
@@ -230,6 +240,13 @@
               "type": "string"
             },
             "title": "Setup Commands",
+            "type": "array"
+          },
+          "unresolved_variables": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unresolved Variables",
             "type": "array"
           }
         },
@@ -334,17 +351,6 @@
             ],
             "title": "Pinned Branch"
           },
-          "pinned_repo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pinned Repo"
-          },
           "project_id": {
             "title": "Project Id",
             "type": "string"
@@ -382,6 +388,20 @@
             ],
             "title": "System Prompt"
           },
+          "trigger_actions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Actions"
+          },
           "trigger_filters": {
             "anyOf": [
               {
@@ -400,6 +420,10 @@
             "title": "Trigger Kind",
             "type": "string"
           },
+          "trigger_repo": {
+            "title": "Trigger Repo",
+            "type": "string"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -415,6 +439,7 @@
           "project_id",
           "name",
           "enabled",
+          "trigger_repo",
           "trigger_kind",
           "workspace_mode",
           "initial_prompt",
@@ -498,6 +523,17 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "matched_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Action"
           },
           "project_id": {
             "title": "Project Id",
@@ -598,18 +634,6 @@
             ],
             "title": "Pinned Branch"
           },
-          "pinned_repo": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pinned Repo"
-          },
           "schedule_cron": {
             "anyOf": [
               {
@@ -646,6 +670,20 @@
             ],
             "title": "System Prompt"
           },
+          "trigger_actions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Actions"
+          },
           "trigger_filters": {
             "anyOf": [
               {
@@ -679,6 +717,20 @@
               }
             ],
             "title": "Trigger Kind"
+          },
+          "trigger_repo": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 3,
+                "pattern": "^[\\w.-]+/[\\w.-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Repo"
           },
           "workspace_mode": {
             "anyOf": [
@@ -739,6 +791,18 @@
             ],
             "title": "Description"
           },
+          "github_base_branch": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Github Base Branch"
+          },
           "github_repo": {
             "anyOf": [
               {
@@ -749,6 +813,22 @@
               }
             ],
             "title": "Github Repo"
+          },
+          "github_workspace_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "branch_from_issue",
+                  "checkout_ref",
+                  "pinned"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Github Workspace Mode"
           },
           "init_bash_script": {
             "anyOf": [
@@ -1323,6 +1403,7 @@
             "type": "string"
           },
           "created_at": {
+            "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
@@ -1902,6 +1983,86 @@
           "api_key"
         ],
         "title": "ModelsPreviewRequest",
+        "type": "object"
+      },
+      "OrphanContainerResponse": {
+        "properties": {
+          "box_id": {
+            "title": "Box Id",
+            "type": "string"
+          },
+          "box_name": {
+            "title": "Box Name",
+            "type": "string"
+          },
+          "container_id": {
+            "title": "Container Id",
+            "type": "string"
+          },
+          "container_name": {
+            "title": "Container Name",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "image": {
+            "title": "Image",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "missing",
+              "deleted",
+              "unlabeled"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "container_id",
+          "container_name",
+          "reason",
+          "status",
+          "image",
+          "box_id",
+          "box_name",
+          "project_id",
+          "trigger"
+        ],
+        "title": "OrphanContainerResponse",
         "type": "object"
       },
       "ProjectCreate": {
@@ -2963,6 +3124,66 @@
           }
         },
         "summary": "Health Check"
+      }
+    },
+    "/api/platform/orphan-containers": {
+      "get": {
+        "operationId": "list_orphan_containers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrphanContainerResponse"
+                  },
+                  "title": "Response List Orphan Containers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List orphaned sandbox containers",
+        "tags": [
+          "Platform"
+        ]
+      }
+    },
+    "/api/platform/orphan-containers/{container_id}": {
+      "delete": {
+        "operationId": "delete_orphan_container",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "container_id",
+            "required": true,
+            "schema": {
+              "title": "Container Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete an orphaned sandbox container",
+        "tags": [
+          "Platform"
+        ]
       }
     },
     "/api/projects": {

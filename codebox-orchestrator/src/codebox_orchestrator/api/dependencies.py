@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         SqlAlchemyGitHubRepository,
     )
     from codebox_orchestrator.llm_profile.service import LLMProfileService
+    from codebox_orchestrator.platform.application.orphan_scan import OrphanScanService
     from codebox_orchestrator.project.service import (
         ProjectLifecycleService,
         ProjectService,
@@ -112,3 +113,7 @@ def get_project_lifecycle_service(request: Request) -> ProjectLifecycleService:
 
 def get_automation_service(request: Request) -> AutomationService:
     return request.app.state.automation_service
+
+
+def get_orphan_scan_service(request: Request) -> OrphanScanService:
+    return request.app.state.orphan_scan_service

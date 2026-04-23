@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
+  Alert02Icon,
   FolderLibraryIcon,
   Settings02Icon,
   UserCircleIcon,
@@ -30,6 +31,12 @@ const PLATFORM_NAV: Array<PlatformNavItem> = [
     label: "Projects",
     icon: FolderLibraryIcon,
     matchPrefix: "/platform/projects",
+  },
+  {
+    to: "/platform/orphans",
+    label: "Orphan Containers",
+    icon: Alert02Icon,
+    matchPrefix: "/platform/orphans",
   },
   {
     to: "/platform/users",

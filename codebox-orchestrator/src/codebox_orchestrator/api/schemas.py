@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.domain.views import BoxView
+    from codebox_orchestrator.platform.domain.views import OrphanContainerView
 
 
 class ErrorResponse(BaseModel):
@@ -368,3 +369,36 @@ class ProjectSettingsUpdate(BaseModel):
     github_app_slug: str | None = None
     github_bot_name: str | None = None
     github_default_base_branch: str | None = None
+
+
+# ── Platform (admin) schemas ────────────────────────────────────
+
+
+class OrphanContainerResponse(BaseModel):
+    container_id: str
+    container_name: str
+    reason: Literal["missing", "deleted", "unlabeled"]
+    status: str
+    image: str
+    created_at: str | None = None
+    started_at: str | None = None
+    box_id: str
+    box_name: str
+    project_id: str
+    trigger: str
+
+    @classmethod
+    def from_view(cls, view: OrphanContainerView) -> OrphanContainerResponse:
+        return cls(
+            container_id=view.container_id,
+            container_name=view.container_name,
+            reason=view.reason,
+            status=view.status,
+            image=view.image,
+            created_at=view.created_at,
+            started_at=view.started_at,
+            box_id=view.box_id,
+            box_name=view.box_name,
+            project_id=view.project_id,
+            trigger=view.trigger,
+        )

@@ -128,6 +128,9 @@ class BoxRuntimeSettings(BaseSettings):
     memory_limit: str = "4g"
     cpu_limit: int = 2
     pids_limit: int = 1024
+    # Grace period (seconds) used by the orphan-container scanner to avoid
+    # racing with containers spawned moments before a scan.
+    orphan_grace_seconds: int = 60
 
     model_config = SettingsConfigDict(
         env_prefix="CODEBOX_BOX_",

@@ -18,6 +18,7 @@ import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
 import { Route as PlatformIndexRouteImport } from './routes/platform/index'
 import { Route as PlatformUsersRouteImport } from './routes/platform/users'
 import { Route as PlatformProjectsRouteImport } from './routes/platform/projects'
+import { Route as PlatformOrphansRouteImport } from './routes/platform/orphans'
 import { Route as PlatformAccountRouteImport } from './routes/platform/account'
 import { Route as ProjectsProjectSlugRouteRouteImport } from './routes/projects/$projectSlug/route'
 import { Route as PlatformSettingsRouteRouteImport } from './routes/platform/settings/route'
@@ -91,6 +92,11 @@ const PlatformUsersRoute = PlatformUsersRouteImport.update({
 const PlatformProjectsRoute = PlatformProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
+  getParentRoute: () => PlatformRouteRoute,
+} as any)
+const PlatformOrphansRoute = PlatformOrphansRouteImport.update({
+  id: '/orphans',
+  path: '/orphans',
   getParentRoute: () => PlatformRouteRoute,
 } as any)
 const PlatformAccountRoute = PlatformAccountRouteImport.update({
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/platform/settings': typeof PlatformSettingsRouteRouteWithChildren
   '/projects/$projectSlug': typeof ProjectsProjectSlugRouteRouteWithChildren
   '/platform/account': typeof PlatformAccountRoute
+  '/platform/orphans': typeof PlatformOrphansRoute
   '/platform/projects': typeof PlatformProjectsRoute
   '/platform/users': typeof PlatformUsersRoute
   '/platform/': typeof PlatformIndexRoute
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/users': typeof UsersRoute
   '/platform/account': typeof PlatformAccountRoute
+  '/platform/orphans': typeof PlatformOrphansRoute
   '/platform/projects': typeof PlatformProjectsRoute
   '/platform/users': typeof PlatformUsersRoute
   '/platform': typeof PlatformIndexRoute
@@ -347,6 +355,7 @@ export interface FileRoutesById {
   '/platform/settings': typeof PlatformSettingsRouteRouteWithChildren
   '/projects/$projectSlug': typeof ProjectsProjectSlugRouteRouteWithChildren
   '/platform/account': typeof PlatformAccountRoute
+  '/platform/orphans': typeof PlatformOrphansRoute
   '/platform/projects': typeof PlatformProjectsRoute
   '/platform/users': typeof PlatformUsersRoute
   '/platform/': typeof PlatformIndexRoute
@@ -389,6 +398,7 @@ export interface FileRouteTypes {
     | '/platform/settings'
     | '/projects/$projectSlug'
     | '/platform/account'
+    | '/platform/orphans'
     | '/platform/projects'
     | '/platform/users'
     | '/platform/'
@@ -425,6 +435,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/users'
     | '/platform/account'
+    | '/platform/orphans'
     | '/platform/projects'
     | '/platform/users'
     | '/platform'
@@ -462,6 +473,7 @@ export interface FileRouteTypes {
     | '/platform/settings'
     | '/projects/$projectSlug'
     | '/platform/account'
+    | '/platform/orphans'
     | '/platform/projects'
     | '/platform/users'
     | '/platform/'
@@ -565,6 +577,13 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/platform/projects'
       preLoaderRoute: typeof PlatformProjectsRouteImport
+      parentRoute: typeof PlatformRouteRoute
+    }
+    '/platform/orphans': {
+      id: '/platform/orphans'
+      path: '/orphans'
+      fullPath: '/platform/orphans'
+      preLoaderRoute: typeof PlatformOrphansRouteImport
       parentRoute: typeof PlatformRouteRoute
     }
     '/platform/account': {
@@ -793,6 +812,7 @@ const PlatformSettingsRouteRouteWithChildren =
 interface PlatformRouteRouteChildren {
   PlatformSettingsRouteRoute: typeof PlatformSettingsRouteRouteWithChildren
   PlatformAccountRoute: typeof PlatformAccountRoute
+  PlatformOrphansRoute: typeof PlatformOrphansRoute
   PlatformProjectsRoute: typeof PlatformProjectsRoute
   PlatformUsersRoute: typeof PlatformUsersRoute
   PlatformIndexRoute: typeof PlatformIndexRoute
@@ -801,6 +821,7 @@ interface PlatformRouteRouteChildren {
 const PlatformRouteRouteChildren: PlatformRouteRouteChildren = {
   PlatformSettingsRouteRoute: PlatformSettingsRouteRouteWithChildren,
   PlatformAccountRoute: PlatformAccountRoute,
+  PlatformOrphansRoute: PlatformOrphansRoute,
   PlatformProjectsRoute: PlatformProjectsRoute,
   PlatformUsersRoute: PlatformUsersRoute,
   PlatformIndexRoute: PlatformIndexRoute,

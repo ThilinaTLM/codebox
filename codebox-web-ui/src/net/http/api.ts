@@ -29,6 +29,7 @@ import type {
   LoginResponse,
   Model,
   ModelsPreviewRequest,
+  OrphanContainer,
   Project,
   ProjectMember,
   ProjectMemberCandidate,
@@ -523,6 +524,19 @@ export const api = {
         body
       )
       return data
+    },
+  },
+  platform: {
+    listOrphanContainers: async (): Promise<Array<OrphanContainer>> => {
+      const { data } = await client.get<Array<OrphanContainer>>(
+        "/api/platform/orphan-containers"
+      )
+      return data
+    },
+    deleteOrphanContainer: async (containerId: string): Promise<void> => {
+      await client.delete(
+        `/api/platform/orphan-containers/${encodeURIComponent(containerId)}`
+      )
     },
   },
 } as const

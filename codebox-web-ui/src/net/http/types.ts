@@ -405,3 +405,21 @@ export interface AutomationDryRunResult {
   setup_commands: Array<string>
   unresolved_variables: Array<string>
 }
+
+// ── Platform (admin) ────────────────────────────────────
+
+export type OrphanReason = "missing" | "deleted" | "unlabeled"
+
+export interface OrphanContainer {
+  container_id: string
+  container_name: string
+  reason: OrphanReason
+  status: string
+  image: string
+  created_at: string | null
+  started_at: string | null
+  box_id: string
+  box_name: string
+  project_id: string
+  trigger: string
+}

@@ -171,6 +171,17 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
         box_state_store = BoxStateStore()
 
+        # --- Platform (admin) services ---
+        from codebox_orchestrator.platform.application.orphan_scan import (  # noqa: PLC0415
+            OrphanScanService,
+        )
+
+        orphan_scan_service = OrphanScanService(
+            runtime=container_runtime,
+            box_repository=box_repository,
+            grace_seconds=settings.box.orphan_grace_seconds,
+        )
+
         # --- Box query service ---
         from codebox_orchestrator.box.application.services.box_query import (  # noqa: PLC0415
             BoxQueryService,
@@ -403,6 +414,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.project_service = project_service
         app.state.project_lifecycle_service = project_lifecycle_service
         app.state.box_repository = box_repository
+        app.state.orphan_scan_service = orphan_scan_service
 
         # Start scheduler last, once all app.state values it references are populated
         await automation_scheduler.start()
@@ -443,6 +455,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         github,
         llm_profiles,
         models,
+        platform,
         project_settings,
         projects,
         pty,
@@ -456,6 +469,9 @@ def create_app() -> FastAPI:  # noqa: PLR0915
 
     # Project management
     app.include_router(projects.router, dependencies=[Depends(get_current_user)])
+
+    # Platform (admin) routes — require_admin enforced per-endpoint
+    app.include_router(platform.router, dependencies=[Depends(get_current_user)])
 
     # Project-scoped routes (auth enforced via get_project_context dependency)
     app.include_router(boxes.router, dependencies=[Depends(get_current_user)])

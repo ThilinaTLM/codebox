@@ -76,6 +76,23 @@ FastAPI backend for Codebox. It manages project-scoped Boxes, persists Box event
 | `POST` | `/api/projects/{slug}/boxes/{box_id}/message` | Send a message to the Box |
 | `POST` | `/api/projects/{slug}/boxes/{box_id}/exec` | Execute a command in the Box |
 
+### Platform (admin)
+
+All routes under `/api/platform/*` require the caller to be a platform admin.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/platform/orphan-containers` | List sandbox containers with no live Box backing them |
+| `DELETE` | `/api/platform/orphan-containers/{container_id}` | Remove a single orphan container (and its `-app` / `-workspace` volumes) |
+
+An **orphan** is a container labelled `codebox-sandbox=true` that falls into one of:
+
+- `missing` — `codebox.box-id` label points to a `BoxRecord` that does not exist (hard delete, DB restore).
+- `deleted` — `BoxRecord` exists but is soft-deleted; the container wasn't cleaned up.
+- `unlabeled` — sandbox label is present but `codebox.box-id` is not (manual / legacy).
+
+The scanner assumes a single orchestrator per container-runtime host. Containers younger than `CODEBOX_BOX_ORPHAN_GRACE_SECONDS` (default 60s) are hidden to avoid racing with in-flight Box creation.
+
 ### Files, streaming, models, GitHub
 
 | Method | Path | Purpose |
@@ -139,6 +156,7 @@ Environment variables are loaded from `.env` at the orchestrator root. See `.env
 | `CODEBOX_BOX_MEMORY_LIMIT` | `4g` | Per-Box memory limit |
 | `CODEBOX_BOX_CPU_LIMIT` | `2` | Per-Box CPU quota (cores) |
 | `CODEBOX_BOX_PIDS_LIMIT` | `1024` | Per-Box PID limit |
+| `CODEBOX_BOX_ORPHAN_GRACE_SECONDS` | `60` | Grace period for the orphan-container scanner (see `/api/platform/orphan-containers`) |
 | `CODEBOX_ORCHESTRATOR_HTTP_HOST` | `0.0.0.0` | HTTP bind host |
 | `CODEBOX_ORCHESTRATOR_HTTP_PORT` | `9090` | HTTP bind port |
 | `CODEBOX_ORCHESTRATOR_GRPC_PORT` | `50051` | gRPC bind port |
