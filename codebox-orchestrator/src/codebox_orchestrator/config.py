@@ -99,11 +99,18 @@ class OrchestratorUrlsSettings(BaseSettings):
     flows that need a publicly reachable URL (e.g. the GitHub App manifest
     flow) will surface a clear error in the UI. Example production value:
     ``https://api.codebox.example.com``.
+
+    ``ui_url`` is the publicly reachable base URL of the web UI (e.g.
+    ``https://codebox.example.com``). Used to redirect the browser back to
+    the project GitHub settings page after GitHub App manifest creation and
+    installation. When unset, the orchestrator emits a relative redirect,
+    which only works when the UI and API share a host (e.g. local dev).
     """
 
     url: str = ""
     grpc_url: str = ""
     public_url: str = ""
+    ui_url: str = ""
 
     model_config = SettingsConfigDict(
         env_prefix="CODEBOX_ORCHESTRATOR_",

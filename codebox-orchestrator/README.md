@@ -145,6 +145,7 @@ Environment variables are loaded from `.env` at the orchestrator root. See `.env
 | `CODEBOX_ORCHESTRATOR_URL` | `http://host.docker.internal:${CODEBOX_ORCHESTRATOR_HTTP_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | Public HTTP base URL. Sandboxes derive the WebSocket tunnel URL from it by switching the scheme and appending `/ws/tunnel`. |
 | `CODEBOX_ORCHESTRATOR_GRPC_URL` | `grpc://host.docker.internal:${CODEBOX_ORCHESTRATOR_GRPC_PORT}` (Docker) / `host.containers.internal` (Podman) / `localhost` (Windows+Podman) | Public gRPC endpoint sandboxes use for callbacks. Accepts `grpc://`, `grpcs://`, or bare `host:port`. |
 | `CODEBOX_ORCHESTRATOR_PUBLIC_URL` | empty | Publicly reachable HTTP base URL used by **external callers** (GitHub, webhooks, browser redirects from github.com). Unlike `CODEBOX_ORCHESTRATOR_URL` (which is for sandbox → orchestrator traffic), this is the URL you'd paste into a GitHub App's webhook configuration. Required for the one-click GitHub App manifest flow. For local dev, point this at your smee.io channel. |
+| `CODEBOX_ORCHESTRATOR_UI_URL` | empty | Publicly reachable base URL of the web UI (e.g. `https://codebox.example.com`). Used to redirect the browser back to the project's GitHub settings page after GitHub App manifest creation or installation. When unset, the orchestrator emits a relative redirect, which only works when the UI and API share a host (local dev). |
 | `CODEBOX_GRPC_TLS_CERT` | empty | gRPC server certificate PEM |
 | `CODEBOX_GRPC_TLS_KEY` | empty | gRPC server private key PEM |
 | `CODEBOX_GRPC_TLS_CA_CERT` | empty | CA cert mounted into sandboxes for client-side verification |
@@ -192,6 +193,8 @@ For the GitHub App manifest flow (one-click App registration from the project co
 4. Open the project's GitHub settings page in the web UI and click **Create GitHub App**.
 
 If `CODEBOX_ORCHESTRATOR_PUBLIC_URL` is left unset, the manual paste-credentials fallback in the UI still works, but the one-click flow is disabled.
+
+If the web UI is served on a different host than the orchestrator API (e.g. `codebox.example.com` vs `api.codebox.example.com`), also set `CODEBOX_ORCHESTRATOR_UI_URL` to the UI's base URL. Otherwise the post-manifest and post-installation redirects land on the API host and return `{"detail":"Not Found"}`.
 
 ### Container runtime
 

@@ -86,6 +86,20 @@ def _decode_cursor(cursor: str | None) -> tuple[datetime, str] | None:
 _background_tasks: set[asyncio.Task] = set()
 
 
+def _github_settings_redirect_base(project_slug: str) -> str:
+    """Return the URL prefix for redirects back to the project's GitHub
+    settings page in the web UI.
+
+    Uses ``CODEBOX_ORCHESTRATOR_UI_URL`` when set; otherwise returns a
+    relative path (works when UI + API share a host, e.g. local dev).
+    """
+    from codebox_orchestrator.config import settings as app_settings  # noqa: PLC0415
+
+    ui_base = (app_settings.urls.ui_url or "").rstrip("/")
+    path = f"/projects/{project_slug}/configs/github"
+    return f"{ui_base}{path}" if ui_base else path
+
+
 # ── Status ───────────────────────────────────────────────────────
 
 
@@ -360,7 +374,7 @@ async def github_manifest_callback(
     """
     code = request.query_params.get("code", "")
     state = request.query_params.get("state", "")
-    redirect_base = f"/projects/{ctx.project_slug}/configs/github"
+    redirect_base = _github_settings_redirect_base(ctx.project_slug)
 
     if not code or not state:
         return RedirectResponse(f"{redirect_base}?tab=app&manifest=error&reason=missing_params")
@@ -411,7 +425,7 @@ async def github_callback(
 ) -> RedirectResponse:
     """Handle GitHub App installation callback redirect."""
     installation_id_str = request.query_params.get("installation_id", "")
-    redirect_base = f"/projects/{ctx.project_slug}/configs/github"
+    redirect_base = _github_settings_redirect_base(ctx.project_slug)
 
     if not installation_id_str:
         return RedirectResponse(f"{redirect_base}?tab=installations&error=missing_installation_id")
