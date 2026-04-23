@@ -247,10 +247,10 @@ export function AutomationWizard({
           </Button>
           <div className="flex items-center gap-2">
             <Button
-              type="button"
               variant="outline"
               size="sm"
               disabled={createMutation.isPending}
+              nativeButton={false}
               render={
                 <Link
                   to="/projects/$projectSlug/configs/automations"

@@ -36,6 +36,7 @@ export function GitHubInstallationsTab({
         </div>
         <Button
           size="sm"
+          nativeButton={false}
           render={
             <Link
               to="/projects/$projectSlug/configs/github"

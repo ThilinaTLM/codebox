@@ -72,6 +72,7 @@ export function EmptyAutomationsState({
         </ul>
         {!readOnly && (
           <Button
+            nativeButton={false}
             render={
               <Link
                 to="/projects/$projectSlug/configs/automations/new"

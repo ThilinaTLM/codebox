@@ -36,6 +36,7 @@ export function AutomationList({
         {!readOnly && (
           <Button
             size="sm"
+            nativeButton={false}
             render={
               <Link
                 to="/projects/$projectSlug/configs/automations/new"

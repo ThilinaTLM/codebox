@@ -89,6 +89,7 @@ export function RunRow({ run, projectSlug }: RunRowProps) {
             <Button
               size="xs"
               variant="outline"
+              nativeButton={false}
               render={
                 <Link
                   to="/projects/$projectSlug/boxes/$boxId"
