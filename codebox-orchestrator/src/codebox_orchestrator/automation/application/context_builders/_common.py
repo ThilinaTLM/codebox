@@ -28,17 +28,29 @@ def repo_variables(payload: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def labels_list(issue_or_pr: dict[str, Any]) -> list[str]:
-    labels = issue_or_pr.get("labels") or []
+def _iter_label_names(entity: dict[str, Any]) -> list[str]:
+    """Return label names from an issue/PR entity, tolerating both shapes.
+
+    Real GitHub webhook payloads use ``[{"name": "bug", ...}, ...]``. The
+    dry-run surface and some hand-authored payloads use the shorthand
+    ``["bug", ...]``. Malformed entries (``None``, ints, dicts without a
+    string ``name``) are skipped rather than raising so a single bad label
+    cannot 500 the whole dispatch.
+    """
     names: list[str] = []
-    for lbl in labels:
+    for lbl in entity.get("labels") or []:
         if isinstance(lbl, dict):
             name = lbl.get("name")
-            if isinstance(name, str):
-                names.append(name.lower())
-        elif isinstance(lbl, str):
-            names.append(lbl.lower())
+            if isinstance(name, str) and name:
+                names.append(name)
+        elif isinstance(lbl, str) and lbl:
+            names.append(lbl)
     return names
+
+
+def labels_list(issue_or_pr: dict[str, Any]) -> list[str]:
+    # Lowercased for case-insensitive trigger matching.
+    return [name.lower() for name in _iter_label_names(issue_or_pr)]
 
 
 def issue_variables(issue: dict[str, Any], action: str) -> dict[str, str]:
@@ -58,7 +70,7 @@ def pr_variables(pr: dict[str, Any], action: str) -> dict[str, str]:
 def _entity_variables(entity: dict[str, Any], action: str, *, prefix: str) -> dict[str, str]:
     body = str(entity.get("body") or "")
     title = str(entity.get("title") or "")
-    labels = [str(lbl.get("name", "")) for lbl in entity.get("labels") or []]
+    labels = _iter_label_names(entity)  # original case preserved for template text
     return {
         f"{prefix}_URL": str(entity.get("html_url") or ""),
         f"{prefix}_NUMBER": str(entity.get("number") or ""),
