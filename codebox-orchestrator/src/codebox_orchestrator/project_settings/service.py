@@ -94,6 +94,22 @@ class ProjectSettingsService:
         settings = await self._repo.upsert(project_id, **fields)
         return self._to_view(settings)
 
+    async def clear_github_app(self, project_id: str) -> ProjectSettingsView:
+        """Wipe the project's GitHub App credentials.
+
+        Used by the "Disconnect & recreate" flow. ``github_default_base_branch``
+        is intentionally preserved — it's a project preference, not a credential.
+        """
+        settings = await self._repo.upsert(
+            project_id,
+            github_app_id=None,
+            github_app_slug=None,
+            github_bot_name=None,
+            github_private_key_enc=None,
+            github_webhook_secret_enc=None,
+        )
+        return self._to_view(settings)
+
     async def clear_default_if_matches(self, project_id: str, profile_id: str) -> None:
         """Clear the default LLM profile if it matches *profile_id*."""
         settings = await self._repo.get(project_id)

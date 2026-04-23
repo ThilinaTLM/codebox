@@ -362,19 +362,19 @@ async def github_manifest_callback(
     redirect_base = f"/projects/{ctx.project_slug}/configs/github"
 
     if not code or not state:
-        return RedirectResponse(f"{redirect_base}?manifest=error&reason=missing_params")
+        return RedirectResponse(f"{redirect_base}?tab=app&manifest=error&reason=missing_params")
 
     store: dict[str, tuple[str, float]] = request.app.state.github_manifest_states
     _prune_manifest_states(store)
     saved = store.pop(ctx.project_id, None)
     if saved is None or saved[0] != state:
-        return RedirectResponse(f"{redirect_base}?manifest=error&reason=invalid_state")
+        return RedirectResponse(f"{redirect_base}?tab=app&manifest=error&reason=invalid_state")
 
     try:
         data = await GitHubApiClient.convert_manifest_code(code)
     except Exception:
         logger.exception("Failed to convert manifest code for project %s", ctx.project_slug)
-        return RedirectResponse(f"{redirect_base}?manifest=error&reason=exchange_failed")
+        return RedirectResponse(f"{redirect_base}?tab=app&manifest=error&reason=exchange_failed")
 
     app_id = data.get("id")
     app_slug = data.get("slug") or ""
@@ -382,7 +382,9 @@ async def github_manifest_callback(
     webhook_secret = data.get("webhook_secret") or ""
     if not app_id or not pem or not webhook_secret:
         logger.error("Manifest conversion returned incomplete data for %s", ctx.project_slug)
-        return RedirectResponse(f"{redirect_base}?manifest=error&reason=incomplete_response")
+        return RedirectResponse(
+            f"{redirect_base}?tab=app&manifest=error&reason=incomplete_response"
+        )
 
     await settings_service.update_settings(
         ctx.project_id,
@@ -394,7 +396,7 @@ async def github_manifest_callback(
     )
     github_mgr.invalidate(ctx.project_id)
 
-    return RedirectResponse(f"{redirect_base}?manifest=ok")
+    return RedirectResponse(f"{redirect_base}?tab=app&manifest=ok")
 
 
 # ── Callback ─────────────────────────────────────────────────────
@@ -411,7 +413,7 @@ async def github_callback(
     redirect_base = f"/projects/{ctx.project_slug}/configs/github"
 
     if not installation_id_str:
-        return RedirectResponse(f"{redirect_base}?error=missing_installation_id")
+        return RedirectResponse(f"{redirect_base}?tab=installations&error=missing_installation_id")
 
     installation_id = int(installation_id_str)
 
@@ -421,9 +423,9 @@ async def github_callback(
             await service.fetch_and_store(installation_id)
         except Exception:
             logger.exception("Failed to store installation %d from callback", installation_id)
-            return RedirectResponse(f"{redirect_base}?error=failed_to_store")
+            return RedirectResponse(f"{redirect_base}?tab=installations&error=failed_to_store")
 
-    return RedirectResponse(f"{redirect_base}?installation_id={installation_id}")
+    return RedirectResponse(f"{redirect_base}?tab=installations&installation_id={installation_id}")
 
 
 # ── Installations ────────────────────────────────────────────────
@@ -477,6 +479,43 @@ async def sync_installation(
         raise HTTPException(404, "Installation not found")
     repos = await service.sync_repos(inst.installation_id)
     return [GitHubRepoResponse(**r) for r in repos]
+
+
+@router.delete("/app", response_model=None)
+async def disconnect_github_app(
+    request: Request,
+    ctx: ProjectContext = Depends(require_project_admin),
+    settings_service: ProjectSettingsService = Depends(get_project_settings_service),
+    github_mgr: GitHubClientManager = Depends(get_github_client_manager),
+) -> JSONResponse:
+    """Disconnect the project's GitHub App.
+
+    Wipes stored credentials, removes every installation row, invalidates the
+    cached client, and drops any pending manifest-state entry. The actual
+    GitHub App on github.com is *not* deleted — GitHub does not expose an API
+    for that. The UI surfaces a deep-link to ``/apps/{slug}/advanced`` so the
+    user can finish the cleanup manually.
+    """
+    # Ensure the cache is populated so we can find the installation service.
+    await github_mgr.get_client(ctx.project_id)
+    service = github_mgr.get_installation_service(ctx.project_id)
+    if service is not None:
+        try:
+            await service.delete_all_installations()
+        except Exception:
+            logger.exception(
+                "Failed to delete installations during GitHub App disconnect for %s",
+                ctx.project_slug,
+            )
+            raise HTTPException(500, "Failed to delete installations") from None
+
+    await settings_service.clear_github_app(ctx.project_id)
+    github_mgr.invalidate(ctx.project_id)
+
+    store: dict[str, tuple[str, float]] = request.app.state.github_manifest_states
+    store.pop(ctx.project_id, None)
+
+    return JSONResponse({"status": "disconnected"})
 
 
 @router.delete("/installations/{installation_id}", response_model=None)

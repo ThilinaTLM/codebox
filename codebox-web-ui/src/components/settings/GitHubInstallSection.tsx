@@ -39,7 +39,6 @@ export function GitHubInstallSection({
   return (
     <section className="space-y-6">
       <StepHeader
-        step={2}
         title="Install on GitHub"
         description="Copy the webhook URL into your GitHub App settings, then install the app on your organization or repositories."
       />
@@ -151,9 +150,14 @@ function ManualInstallSection({ projectSlug }: { projectSlug: string }) {
     <Collapsible>
       <CollapsibleTrigger className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
         <ChevronRight className="size-4 transition-transform [[data-open]_&]:rotate-90" />
-        Having trouble? Enter installation ID manually
+        Manual fallback &mdash; enter installation ID by hand
       </CollapsibleTrigger>
       <CollapsibleContent>
+        <p className="mt-3 max-w-xl text-xs text-muted-foreground">
+          Use this when the install callback can&apos;t reach the orchestrator
+          (for example, running on localhost without smee.io). The installation
+          ID appears in the URL after installing the App on GitHub.
+        </p>
         <form
           onSubmit={handleSubmit}
           className="mt-3 flex items-center gap-2"

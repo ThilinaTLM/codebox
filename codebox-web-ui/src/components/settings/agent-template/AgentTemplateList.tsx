@@ -4,7 +4,7 @@ import { PlusSignIcon } from "@hugeicons/core-free-icons"
 import { EmptyTemplatesState } from "./EmptyTemplatesState"
 import { TemplateListRow } from "./TemplateListRow"
 import { SectionSkeleton } from "@/components/settings/SectionSkeleton"
-import { useAgentTemplates } from "@/net/query"
+import { useAgentTemplates, useGitHubStatus } from "@/net/query"
 import { Button } from "@/components/ui/button"
 
 interface AgentTemplateListProps {
@@ -17,6 +17,8 @@ export function AgentTemplateList({
   readOnly = false,
 }: AgentTemplateListProps) {
   const { data: templates = [], isLoading } = useAgentTemplates(projectSlug)
+  const { data: ghStatus } = useGitHubStatus(projectSlug)
+  const githubConfigured = Boolean(ghStatus?.enabled)
 
   if (isLoading) {
     return <SectionSkeleton />
@@ -61,6 +63,7 @@ export function AgentTemplateList({
               projectSlug={projectSlug}
               template={tpl}
               readOnly={readOnly}
+              githubConfigured={githubConfigured}
             />
           ))}
         </ul>

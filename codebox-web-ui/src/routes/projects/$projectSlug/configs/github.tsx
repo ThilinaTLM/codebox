@@ -2,10 +2,22 @@ import { useEffect } from "react"
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { GitHubSection } from "@/components/settings/GitHubSection"
+import { GitHubAppTab } from "@/components/settings/GitHubAppTab"
+import { GitHubInstallationsTab } from "@/components/settings/GitHubInstallationsTab"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
+type GitHubSettingsTab = "app" | "installations"
+
+const VALID_TABS: ReadonlyArray<GitHubSettingsTab> = ["app", "installations"]
+
 type GitHubSettingsSearch = {
+  tab?: GitHubSettingsTab
   manifest?: "ok" | "error"
   reason?: string
   installation_id?: string
@@ -19,12 +31,20 @@ const REASON_MESSAGES: Record<string, string> = {
     "Failed to exchange the manifest code with GitHub. The code may have expired (1 hour limit).",
   incomplete_response:
     "GitHub returned incomplete credentials. Please try again.",
+  missing_installation_id:
+    "GitHub didn't return an installation ID. Try installing again.",
+  failed_to_store: "Failed to record the installation. Try syncing manually.",
 }
 
 export const Route = createFileRoute(
   "/projects/$projectSlug/configs/github"
 )({
   validateSearch: (search: Record<string, unknown>): GitHubSettingsSearch => ({
+    tab:
+      typeof search.tab === "string" &&
+      (VALID_TABS as ReadonlyArray<string>).includes(search.tab)
+        ? (search.tab as GitHubSettingsTab)
+        : undefined,
     manifest:
       search.manifest === "ok" || search.manifest === "error"
         ? search.manifest
@@ -46,6 +66,10 @@ function GitHubSettingsPage() {
   const qc = useQueryClient()
   const { canManageProjectSettings } = useProjectPermissions(projectSlug)
 
+  const activeTab: GitHubSettingsTab = search.tab ?? "app"
+
+  // Surface toasts for callback redirects, then strip the transient query
+  // params (preserving the active tab).
   useEffect(() => {
     if (search.manifest === "ok") {
       toast.success("GitHub App created and connected to this project")
@@ -54,7 +78,11 @@ function GitHubSettingsPage() {
       })
       qc.invalidateQueries({ queryKey: ["projects", projectSlug, "settings"] })
       void navigate({
-        search: (prev) => ({ ...prev, manifest: undefined, reason: undefined }),
+        search: (prev) => ({
+          ...prev,
+          manifest: undefined,
+          reason: undefined,
+        }),
         replace: true,
       })
     } else if (search.manifest === "error") {
@@ -63,7 +91,11 @@ function GitHubSettingsPage() {
         "Failed to register GitHub App"
       toast.error(msg)
       void navigate({
-        search: (prev) => ({ ...prev, manifest: undefined, reason: undefined }),
+        search: (prev) => ({
+          ...prev,
+          manifest: undefined,
+          reason: undefined,
+        }),
         replace: true,
       })
     } else if (search.installation_id) {
@@ -76,7 +108,8 @@ function GitHubSettingsPage() {
         replace: true,
       })
     } else if (search.error) {
-      toast.error(`GitHub installation failed: ${search.error}`)
+      const msg = REASON_MESSAGES[search.error] || search.error
+      toast.error(`GitHub installation failed: ${msg}`)
       void navigate({
         search: (prev) => ({ ...prev, error: undefined }),
         replace: true,
@@ -92,10 +125,45 @@ function GitHubSettingsPage() {
     navigate,
   ])
 
+  const handleTabChange = (value: unknown) => {
+    if (typeof value !== "string") return
+    if (!(VALID_TABS as ReadonlyArray<string>).includes(value)) return
+    void navigate({
+      search: (prev) => ({ ...prev, tab: value as GitHubSettingsTab }),
+      replace: true,
+    })
+  }
+
   return (
-    <GitHubSection
-      projectSlug={projectSlug}
-      readOnly={!canManageProjectSettings}
-    />
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-xl">GitHub</h1>
+        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+          Connect a GitHub App to give your agents a GitHub identity and to
+          enable issue and pull-request triggers.
+        </p>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList>
+          <TabsTrigger value="app">GitHub App</TabsTrigger>
+          <TabsTrigger value="installations">Installations</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="app" className="mt-6">
+          <GitHubAppTab
+            projectSlug={projectSlug}
+            readOnly={!canManageProjectSettings}
+          />
+        </TabsContent>
+
+        <TabsContent value="installations" className="mt-6">
+          <GitHubInstallationsTab
+            projectSlug={projectSlug}
+            readOnly={!canManageProjectSettings}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }

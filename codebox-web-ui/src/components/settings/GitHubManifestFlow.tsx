@@ -93,9 +93,8 @@ export function GitHubManifestFlow({
   return (
     <section className="space-y-6">
       <StepHeader
-        step={1}
         title="Create a GitHub App"
-        description="Codebox registers a GitHub App for this project with all the permissions and webhook settings pre-configured. You'll confirm and name it on GitHub, then install it on your repos."
+        description="Codebox registers a GitHub App for this project with all the permissions and webhook settings pre-configured. You'll confirm and name it on GitHub, then come back here to install it on your repos."
       />
 
       {!manifestSupported && (

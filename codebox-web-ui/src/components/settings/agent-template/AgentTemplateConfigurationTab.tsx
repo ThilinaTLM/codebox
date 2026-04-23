@@ -9,7 +9,7 @@ import { AgentTemplateConfigurationTabRail } from "./AgentTemplateConfigurationT
 import type { AgentTemplate } from "@/net/http/types"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { useUpdateAgentTemplate } from "@/net/query"
+import { useGitHubStatus, useUpdateAgentTemplate } from "@/net/query"
 
 interface AgentTemplateConfigurationTabProps {
   projectSlug: string
@@ -23,6 +23,8 @@ export function AgentTemplateConfigurationTab({
   readOnly = false,
 }: AgentTemplateConfigurationTabProps) {
   const form = useAgentTemplateFormState({ template })
+  const { data: ghStatus } = useGitHubStatus(projectSlug)
+  const githubConfigured = Boolean(ghStatus?.enabled)
   const updateMutation = useUpdateAgentTemplate(projectSlug)
 
   const handleSave = () => {
@@ -73,10 +75,12 @@ export function AgentTemplateConfigurationTab({
           />
           <TriggerSection
             id="section-trigger"
+            projectSlug={projectSlug}
             state={form.state}
             dispatch={form.dispatch}
             errors={form.errors}
             nextRunAt={template.next_run_at}
+            githubConfigured={githubConfigured}
           />
           <WorkspaceSection
             id="section-workspace"

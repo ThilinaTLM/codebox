@@ -494,6 +494,9 @@ export const api = {
     removeInstallation: async (slug: string, id: string): Promise<void> => {
       await client.delete(`${p(slug)}/github/installations/${id}`)
     },
+    disconnectApp: async (slug: string): Promise<void> => {
+      await client.delete(`${p(slug)}/github/app`)
+    },
     listRepos: async (slug: string): Promise<Array<GitHubRepo>> => {
       const { data } = await client.get<Array<GitHubRepo>>(`${p(slug)}/github/repos`)
       return data

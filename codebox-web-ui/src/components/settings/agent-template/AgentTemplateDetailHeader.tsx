@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
+  AlertCircleIcon,
   ArrowLeft01Icon,
   Clock02Icon,
   Delete02Icon,
@@ -13,6 +14,7 @@ import { triggerKindMeta } from "./metadata"
 import type { AgentTemplate } from "@/net/http/types"
 import {
   useDeleteAgentTemplate,
+  useGitHubStatus,
   useUpdateAgentTemplate,
 } from "@/net/query"
 import { Badge } from "@/components/ui/badge"
@@ -35,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface AgentTemplateDetailHeaderProps {
   projectSlug: string
@@ -52,9 +55,13 @@ export function AgentTemplateDetailHeader({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const updateMutation = useUpdateAgentTemplate(projectSlug)
   const deleteMutation = useDeleteAgentTemplate(projectSlug)
+  const { data: ghStatus } = useGitHubStatus(projectSlug)
+  const githubConfigured = Boolean(ghStatus?.enabled)
   const trigger = triggerKindMeta(template.trigger_kind)
 
   const isScheduled = template.trigger_kind === "schedule"
+  const isGithubTrigger = template.trigger_kind.startsWith("github.")
+  const showGithubMissing = isGithubTrigger && !githubConfigured
   const nextRunRelative = (() => {
     if (!template.next_run_at) return null
     try {
@@ -118,6 +125,29 @@ export function AgentTemplateDetailHeader({
             </Badge>
             {!template.enabled && (
               <Badge variant="secondary">Disabled</Badge>
+            )}
+            {showGithubMissing && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Badge
+                      variant="outline"
+                      className="gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400"
+                    >
+                      <HugeiconsIcon
+                        icon={AlertCircleIcon}
+                        strokeWidth={2}
+                        className="size-3.5"
+                      />
+                      GitHub not configured
+                    </Badge>
+                  }
+                />
+                <TooltipContent className="max-w-xs">
+                  This template will not fire until a GitHub App is configured
+                  for this project.
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
           {template.description && (

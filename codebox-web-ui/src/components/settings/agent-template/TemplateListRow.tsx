@@ -43,12 +43,14 @@ interface TemplateListRowProps {
   projectSlug: string
   template: AgentTemplate
   readOnly: boolean
+  githubConfigured: boolean
 }
 
 export function TemplateListRow({
   projectSlug,
   template,
   readOnly,
+  githubConfigured,
 }: TemplateListRowProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const updateMutation = useUpdateAgentTemplate(projectSlug)
@@ -60,6 +62,8 @@ export function TemplateListRow({
   const trigger = triggerKindMeta(template.trigger_kind)
   const lastRun: AgentTemplateRun | undefined = runsData?.runs[0]
   const isScheduled = template.trigger_kind === "schedule"
+  const isGithubTrigger = template.trigger_kind.startsWith("github.")
+  const showGithubMissing = isGithubTrigger && !githubConfigured
 
   const nextRunRelative = (() => {
     if (!isScheduled || !template.next_run_at) return null
@@ -119,6 +123,29 @@ export function TemplateListRow({
                 <Badge variant="secondary" className="text-[10px]">
                   Disabled
                 </Badge>
+              )}
+              {showGithubMissing && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Badge
+                        variant="outline"
+                        className="gap-1 border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400"
+                      >
+                        <HugeiconsIcon
+                          icon={AlertCircleIcon}
+                          strokeWidth={2}
+                          className="size-3"
+                        />
+                        GitHub not configured
+                      </Badge>
+                    }
+                  />
+                  <TooltipContent className="max-w-xs">
+                    This template will not fire until a GitHub App is
+                    configured for this project.
+                  </TooltipContent>
+                </Tooltip>
               )}
               <LastRunChip run={lastRun} />
             </div>

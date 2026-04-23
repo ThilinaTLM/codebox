@@ -35,6 +35,9 @@ class GitHubInstallationService:
     async def delete_installation(self, installation_id: str) -> bool:
         return await self._repo.delete_installation(installation_id, project_id=self._project_id)
 
+    async def delete_all_installations(self) -> int:
+        return await self._repo.delete_all_installations(self._project_id)
+
     async def store_installation(
         self, installation_id: int, account_login: str, account_type: str
     ) -> GitHubInstallation:

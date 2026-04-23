@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, delete, or_, select
 
 from codebox_orchestrator.integration.github.domain import entities as domain
 from codebox_orchestrator.integration.github.infrastructure import orm_models as orm
@@ -92,6 +92,17 @@ class SqlAlchemyGitHubRepository:
             await db.delete(inst)
             await db.commit()
             return True
+
+    async def delete_all_installations(self, project_id: str) -> int:
+        """Delete every installation row for *project_id*. Returns the count."""
+        async with self._sf() as db:
+            stmt = delete(orm.GitHubInstallation).where(
+                orm.GitHubInstallation.project_id == project_id
+            )
+            result = await db.execute(stmt)
+            await db.commit()
+            rowcount = getattr(result, "rowcount", 0)
+            return rowcount or 0
 
     async def event_exists(self, delivery_id: str) -> bool:
         async with self._sf() as db:

@@ -58,16 +58,19 @@ export type FormAction =
     }
   | { type: "reset"; state: FormState }
 
-function emptyState(): FormState {
+function emptyState(
+  defaultTriggerKind: AgentTemplateTriggerKind = "github.issues"
+): FormState {
+  const isGithub = defaultTriggerKind.startsWith("github.")
   return {
     name: "",
     description: "",
     enabled: true,
-    trigger_kind: "github.issues",
+    trigger_kind: defaultTriggerKind,
     trigger_filters: [],
     schedule_cron: "",
     schedule_timezone: "UTC",
-    workspace_mode: "branch_from_issue",
+    workspace_mode: isGithub ? "branch_from_issue" : "pinned",
     pinned_repo: "",
     pinned_branch: "",
     system_prompt: "",
@@ -264,6 +267,7 @@ export function computeSectionStatus(
 
 interface UseAgentTemplateFormStateArgs {
   template?: AgentTemplate
+  defaultTriggerKind?: AgentTemplateTriggerKind
 }
 
 export interface AgentTemplateFormStateApi {
@@ -280,10 +284,12 @@ export interface AgentTemplateFormStateApi {
 
 export function useAgentTemplateFormState({
   template,
+  defaultTriggerKind,
 }: UseAgentTemplateFormStateArgs = {}): AgentTemplateFormStateApi {
   const initial = useMemo(
-    () => (template ? fromTemplate(template) : emptyState()),
-    [template]
+    () =>
+      template ? fromTemplate(template) : emptyState(defaultTriggerKind),
+    [template, defaultTriggerKind]
   )
   const [state, dispatch] = useReducer(reducer, initial)
 

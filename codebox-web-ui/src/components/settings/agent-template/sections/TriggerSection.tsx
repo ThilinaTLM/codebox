@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   TRIGGER_KINDS
@@ -17,19 +18,23 @@ import type { Dispatch } from "react"
 import { cn } from "@/lib/utils"
 
 interface TriggerSectionProps {
+  projectSlug: string
   state: FormState
   dispatch: Dispatch<FormAction>
   errors: FormErrors
   nextRunAt?: string | null
   id?: string
+  githubConfigured: boolean
 }
 
 export function TriggerSection({
+  projectSlug,
   state,
   dispatch,
   errors,
   nextRunAt,
   id,
+  githubConfigured,
 }: TriggerSectionProps) {
   const isScheduled = state.trigger_kind === "schedule"
 
@@ -41,7 +46,9 @@ export function TriggerSection({
     >
       <FormField label="Trigger kind" description="Select one.">
         <TriggerKindPicker
+          projectSlug={projectSlug}
           value={state.trigger_kind}
+          githubConfigured={githubConfigured}
           onChange={(kind) => dispatch({ type: "setTrigger", kind })}
         />
       </FormField>
@@ -77,11 +84,18 @@ export function TriggerSection({
 }
 
 interface TriggerKindPickerProps {
+  projectSlug: string
   value: AgentTemplateTriggerKind
+  githubConfigured: boolean
   onChange: (kind: AgentTemplateTriggerKind) => void
 }
 
-function TriggerKindPicker({ value, onChange }: TriggerKindPickerProps) {
+function TriggerKindPicker({
+  projectSlug,
+  value,
+  githubConfigured,
+  onChange,
+}: TriggerKindPickerProps) {
   const github = TRIGGER_KINDS.filter((t) => t.group === "github")
   const schedule = TRIGGER_KINDS.filter((t) => t.group === "schedule")
 
@@ -95,13 +109,31 @@ function TriggerKindPicker({ value, onChange }: TriggerKindPickerProps) {
         <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           GitHub events
         </p>
+        {!githubConfigured && (
+          <p className="mb-2 text-xs text-muted-foreground">
+            No GitHub App is configured for this project.{" "}
+            <Link
+              to="/projects/$projectSlug/configs/github"
+              params={{ projectSlug }}
+              search={{ tab: "app" }}
+              className="font-medium underline underline-offset-2 hover:text-foreground"
+            >
+              Configure a GitHub App
+            </Link>{" "}
+            to enable these triggers.
+          </p>
+        )}
         <div className="grid gap-2 sm:grid-cols-2">
           {github.map((t) => (
             <TriggerCard
               key={t.value}
               meta={t}
               selected={value === t.value}
-              onClick={() => onChange(t.value)}
+              disabled={!githubConfigured}
+              onClick={() => {
+                if (!githubConfigured) return
+                onChange(t.value)
+              }}
             />
           ))}
         </div>
@@ -128,10 +160,12 @@ function TriggerKindPicker({ value, onChange }: TriggerKindPickerProps) {
 function TriggerCard({
   meta,
   selected,
+  disabled = false,
   onClick,
 }: {
   meta: TriggerKindMeta
   selected: boolean
+  disabled?: boolean
   onClick: () => void
 }) {
   return (
@@ -139,13 +173,17 @@ function TriggerCard({
       type="button"
       role="radio"
       aria-checked={selected}
+      aria-disabled={disabled || undefined}
+      tabIndex={disabled ? -1 : 0}
       onClick={onClick}
       data-selected={selected ? "true" : undefined}
+      data-disabled={disabled ? "true" : undefined}
       className={cn(
         "group/trigger-card flex items-start gap-3 rounded-xl border border-border/60 bg-background p-3 text-left transition-all outline-none",
         "hover:border-border hover:bg-muted/40",
         "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        "data-[selected=true]:border-primary data-[selected=true]:bg-primary/5 data-[selected=true]:ring-1 data-[selected=true]:ring-primary/30"
+        "data-[selected=true]:border-primary data-[selected=true]:bg-primary/5 data-[selected=true]:ring-1 data-[selected=true]:ring-primary/30",
+        "data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-50 data-[disabled=true]:hover:border-border/60 data-[disabled=true]:hover:bg-background"
       )}
     >
       <div

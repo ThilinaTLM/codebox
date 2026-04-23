@@ -102,7 +102,6 @@ export function GitHubAppConfigForm({
   return (
     <section className="space-y-6">
       <StepHeader
-        step={1}
         title="Configure GitHub App"
         description="Enter your GitHub App credentials. You'll need the App ID, private key, and webhook secret from your GitHub App settings."
       />

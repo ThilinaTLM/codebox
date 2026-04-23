@@ -22,7 +22,7 @@ import { PromptsSection } from "./sections/PromptsSection"
 import { AgentSection } from "./sections/AgentSection"
 import type {SectionId} from "./useAgentTemplateFormState";
 import type {WizardStepSpec} from "./AgentTemplateWizardRail";
-import { useCreateAgentTemplate } from "@/net/query"
+import { useCreateAgentTemplate, useGitHubStatus } from "@/net/query"
 import { Button } from "@/components/ui/button"
 
 interface AgentTemplateWizardProps {
@@ -66,7 +66,11 @@ export function AgentTemplateWizard({
   projectSlug,
 }: AgentTemplateWizardProps) {
   const navigate = useNavigate()
-  const form = useAgentTemplateFormState()
+  const { data: ghStatus } = useGitHubStatus(projectSlug)
+  const githubConfigured = Boolean(ghStatus?.enabled)
+  const form = useAgentTemplateFormState({
+    defaultTriggerKind: githubConfigured ? "github.issues" : "schedule",
+  })
   const createMutation = useCreateAgentTemplate(projectSlug)
 
   const [activeIndex, setActiveIndex] = useState(0)
@@ -195,9 +199,11 @@ export function AgentTemplateWizard({
           )}
           {stepId === "trigger" && (
             <TriggerSection
+              projectSlug={projectSlug}
               state={form.state}
               dispatch={form.dispatch}
               errors={form.errors}
+              githubConfigured={githubConfigured}
             />
           )}
           {stepId === "workspace" && (

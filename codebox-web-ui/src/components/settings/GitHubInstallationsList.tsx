@@ -37,9 +37,8 @@ export function GitHubInstallationsList({
     return (
       <section className="space-y-4">
         <StepHeader
-          step={3}
-          title="Manage Installations"
-          description="View and manage your connected GitHub App installations."
+          title="Connected installations"
+          description="View and manage installations of this GitHub App."
         />
         <div className="space-y-3">
           <Skeleton className="h-24 w-full rounded-lg" />
@@ -52,12 +51,11 @@ export function GitHubInstallationsList({
   return (
     <section className="space-y-4">
       <StepHeader
-        step={3}
-        title="Manage Installations"
-        description="View and manage your connected GitHub App installations."
+        title="Connected installations"
+        description="View and manage installations of this GitHub App."
       />
       {installations.length === 0 ? (
-        <p className="ml-10 max-w-md text-sm text-muted-foreground">
+        <p className="max-w-md text-sm text-muted-foreground">
           No GitHub App installations connected yet.
         </p>
       ) : (

@@ -696,6 +696,17 @@ export function usePrepareGitHubManifest(slug: string) {
   })
 }
 
+export function useDisconnectGitHubApp(slug: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.github.disconnectApp(slug),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects", slug, "github"] })
+      qc.invalidateQueries({ queryKey: ["projects", slug, "settings"] })
+    },
+  })
+}
+
 // ── Auth queries & mutations (global, not project-scoped) ───
 
 export function useUsers(options?: QueryHookOptions) {
