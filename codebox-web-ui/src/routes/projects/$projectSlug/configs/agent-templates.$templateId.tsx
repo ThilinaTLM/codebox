@@ -1,92 +1,129 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { toast } from "sonner"
-import type {
-  AgentTemplateCreate,
-  AgentTemplateUpdate,
-} from "@/net/http/types"
-import { AgentTemplateDryRunPanel } from "@/components/settings/AgentTemplateDryRunPanel"
-import { AgentTemplateForm } from "@/components/settings/AgentTemplateForm"
-import { AgentTemplateRunsList } from "@/components/settings/AgentTemplateRunsList"
+import {
+  createFileRoute,
+  useNavigate,
+  useSearch,
+} from "@tanstack/react-router"
+import { AgentTemplateConfigurationTab } from "@/components/settings/agent-template/AgentTemplateConfigurationTab"
+import { AgentTemplateDetailHeader } from "@/components/settings/agent-template/AgentTemplateDetailHeader"
+import { AgentTemplateDryRunPanel } from "@/components/settings/agent-template/AgentTemplateDryRunPanel"
+import { AgentTemplateRunsPanel } from "@/components/settings/agent-template/AgentTemplateRunsPanel"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
-import { useAgentTemplate, useUpdateAgentTemplate } from "@/net/query"
+import { useAgentTemplate } from "@/net/query"
+
+type AgentTemplateTab = "configuration" | "dry-run" | "runs"
+
+const VALID_TABS: ReadonlyArray<AgentTemplateTab> = [
+  "configuration",
+  "dry-run",
+  "runs",
+]
+
+interface Search {
+  tab?: AgentTemplateTab
+}
 
 export const Route = createFileRoute(
   "/projects/$projectSlug/configs/agent-templates/$templateId"
 )({
+  validateSearch: (search: Record<string, unknown>): Search => {
+    const raw = search.tab
+    if (
+      typeof raw === "string" &&
+      (VALID_TABS as ReadonlyArray<string>).includes(raw)
+    ) {
+      return { tab: raw as AgentTemplateTab }
+    }
+    return {}
+  },
   component: EditAgentTemplatePage,
 })
 
 function EditAgentTemplatePage() {
   const { projectSlug, templateId } = Route.useParams()
-  const navigate = useNavigate()
+  const search = useSearch({ from: Route.id })
+  const tab: AgentTemplateTab = search.tab ?? "configuration"
+  const navigate = useNavigate({ from: Route.id })
+
   const { canManageProjectSettings, isLoadingPermissions } =
     useProjectPermissions(projectSlug)
-  const { data: template, isLoading } = useAgentTemplate(projectSlug, templateId)
-  const updateMutation = useUpdateAgentTemplate(projectSlug)
+  const { data: template, isLoading } = useAgentTemplate(
+    projectSlug,
+    templateId
+  )
 
   if (isLoading || isLoadingPermissions) {
     return <p className="text-sm text-muted-foreground">Loading…</p>
   }
   if (!template) {
-    return (
-      <p className="text-sm text-muted-foreground">Template not found.</p>
-    )
+    return <p className="text-sm text-muted-foreground">Template not found.</p>
   }
 
-  const handleSubmit = (
-    payload: AgentTemplateCreate | AgentTemplateUpdate
-  ) => {
-    updateMutation.mutate(
-      { id: template.id, payload: payload as AgentTemplateUpdate },
-      {
-        onSuccess: () => {
-          toast.success("Template updated")
-        },
-        onError: (err: unknown) => {
-          const msg =
-            err && typeof err === "object" && "response" in err
-              ? (err as { response?: { data?: { detail?: string } } })
-                  .response?.data?.detail
-              : null
-          toast.error(msg || "Failed to update template")
-        },
-      }
-    )
+  const handleTabChange = (value: unknown) => {
+    if (typeof value !== "string") return
+    if (!(VALID_TABS as ReadonlyArray<string>).includes(value)) return
+    navigate({
+      search: { tab: value as AgentTemplateTab },
+      replace: true,
+    })
+  }
+
+  const handleDeleted = () => {
+    navigate({
+      to: "/projects/$projectSlug/configs/agent-templates",
+      params: { projectSlug },
+    })
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="font-display text-lg">{template.name}</h2>
-        {template.description && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            {template.description}
-          </p>
-        )}
-      </div>
-      <AgentTemplateForm
+    <div className="space-y-6">
+      <AgentTemplateDetailHeader
         projectSlug={projectSlug}
         template={template}
-        submitting={updateMutation.isPending}
-        submitLabel="Save changes"
-        onSubmit={handleSubmit}
-        onCancel={() =>
-          navigate({
-            to: "/projects/$projectSlug/configs/agent-templates",
-            params: { projectSlug },
-          })
-        }
+        canManage={canManageProjectSettings}
+        onDeleted={handleDeleted}
       />
-      {canManageProjectSettings && (
-        <AgentTemplateDryRunPanel
-          projectSlug={projectSlug}
-          template={template}
-        />
-      )}
-      <AgentTemplateRunsList
-        projectSlug={projectSlug}
-        templateId={template.id}
-      />
+
+      <Tabs value={tab} onValueChange={handleTabChange}>
+        <TabsList>
+          <TabsTrigger value="configuration">Configuration</TabsTrigger>
+          <TabsTrigger value="dry-run">Dry run</TabsTrigger>
+          <TabsTrigger value="runs">Runs</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="configuration" className="mt-4">
+          <AgentTemplateConfigurationTab
+            projectSlug={projectSlug}
+            template={template}
+            readOnly={!canManageProjectSettings}
+          />
+        </TabsContent>
+
+        <TabsContent value="dry-run" className="mt-4">
+          {canManageProjectSettings ? (
+            <AgentTemplateDryRunPanel
+              projectSlug={projectSlug}
+              template={template}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Project admin access required.
+            </p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="runs" className="mt-4">
+          <AgentTemplateRunsPanel
+            projectSlug={projectSlug}
+            templateId={template.id}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

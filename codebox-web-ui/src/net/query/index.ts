@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import type {
   AgentTemplateCreate,
   AgentTemplateDryRunRequest,
@@ -429,7 +434,11 @@ export function useDeleteAgentTemplate(slug: string) {
 export function useAgentTemplateRuns(
   slug: string | undefined,
   id: string | undefined,
-  params: { status?: string | null; limit?: number } = {},
+  params: {
+    status?: string | null
+    limit?: number
+    cursor?: string | null
+  } = {},
   options?: QueryHookOptions
 ) {
   const enabled = useAuthQueryEnabled(
@@ -438,6 +447,36 @@ export function useAgentTemplateRuns(
   return useQuery({
     queryKey: ["projects", slug, "agent-templates", id, "runs", params],
     queryFn: () => api.agentTemplates.listRuns(slug!, id!, params),
+    enabled,
+  })
+}
+
+export function useInfiniteAgentTemplateRuns(
+  slug: string | undefined,
+  id: string | undefined,
+  params: { status?: string | null; limit?: number } = {},
+  options?: QueryHookOptions
+) {
+  const enabled = useAuthQueryEnabled(
+    (options?.enabled ?? true) && !!slug && !!id
+  )
+  return useInfiniteQuery({
+    queryKey: [
+      "projects",
+      slug,
+      "agent-templates",
+      id,
+      "runs",
+      "infinite",
+      params,
+    ],
+    queryFn: ({ pageParam }) =>
+      api.agentTemplates.listRuns(slug!, id!, {
+        ...params,
+        cursor: pageParam,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.next_cursor,
     enabled,
   })
 }

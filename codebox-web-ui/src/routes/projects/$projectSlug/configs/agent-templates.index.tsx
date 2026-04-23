@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { AgentTemplatesSection } from "@/components/settings/AgentTemplatesSection"
+import { AgentTemplateList } from "@/components/settings/agent-template/AgentTemplateList"
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 
 export const Route = createFileRoute(
@@ -12,7 +12,7 @@ function AgentTemplatesPage() {
   const { projectSlug } = Route.useParams()
   const { canManageProjectSettings } = useProjectPermissions(projectSlug)
   return (
-    <AgentTemplatesSection
+    <AgentTemplateList
       projectSlug={projectSlug}
       readOnly={!canManageProjectSettings}
     />
