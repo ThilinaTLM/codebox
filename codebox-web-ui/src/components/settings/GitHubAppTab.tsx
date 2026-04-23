@@ -153,7 +153,7 @@ function ConfiguredView({
         </div>
       </div>
 
-      <div className="ml-10 grid max-w-xl gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+      <div className="grid max-w-xl gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm">
         <SummaryRow label="App ID" value={settings?.github_app_id} />
         <SummaryRow label="App slug" value={settings?.github_app_slug} />
         <SummaryRow label="Bot name" value={settings?.github_bot_name} />
@@ -174,7 +174,7 @@ function ConfiguredView({
       </div>
 
       {!readOnly && (
-        <div className="ml-10 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -196,7 +196,7 @@ function ConfiguredView({
       )}
 
       {replaceOpen && (
-        <div className="ml-10">
+        <div>
           <GitHubAppConfigForm
             projectSlug={projectSlug}
             statusLoading={statusLoading}
