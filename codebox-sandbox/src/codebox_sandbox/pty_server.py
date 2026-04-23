@@ -62,12 +62,37 @@ _ALLOWED_SHELLS = frozenset({"/bin/bash", "/bin/sh", "/usr/bin/bash", "/usr/bin/
 
 # Env vars allowed to pass through as-is (in addition to the hard-coded
 # values we set).  Everything else is stripped.
-_ENV_ALLOWLIST = frozenset({"PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "TZ", "SHELL"})
+#
+# ``GH_TOKEN`` is the GitHub App installation token injected by the
+# orchestrator for GitHub-bound boxes.  It is already persisted in
+# plaintext to ``~/.gitconfig`` by the box setup commands (see
+# ``setup_commands.build_setup_commands``), so stripping it from the PTY
+# env would not actually protect it — it would only break ``gh`` CLI
+# usage in the terminal.  Other token-shaped env vars (LLM API keys,
+# callback JWTs, ``TAVILY_API_KEY``) are *not* on disk and remain
+# stripped by ``_SECRET_PATTERNS`` below.
+_ENV_ALLOWLIST = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "USER",
+        "LOGNAME",
+        "LANG",
+        "LC_ALL",
+        "TZ",
+        "SHELL",
+        "GH_TOKEN",
+    }
+)
 
 # Patterns (substring match against var name, uppercased) that mark a var
 # as sensitive even if it somehow slipped past allow-list logic.  Belt and
 # braces — the allow-list is what actually does the filtering.
 _SECRET_PATTERNS = ("API_KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "CODEBOX_")
+
+# Allow-listed vars that are intentionally exempt from ``_SECRET_PATTERNS``.
+# See the comment on ``_ENV_ALLOWLIST`` for the rationale for each entry.
+_SECRET_PATTERN_EXEMPT = frozenset({"GH_TOKEN"})
 
 
 def _sanitized_env() -> dict[str, str]:
@@ -80,7 +105,7 @@ def _sanitized_env() -> dict[str, str]:
     for key, value in os.environ.items():
         if key not in _ENV_ALLOWLIST:
             continue
-        if any(p in key.upper() for p in _SECRET_PATTERNS):
+        if key not in _SECRET_PATTERN_EXEMPT and any(p in key.upper() for p in _SECRET_PATTERNS):
             continue
         env[key] = value
 

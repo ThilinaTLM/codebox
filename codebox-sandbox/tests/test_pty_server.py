@@ -152,9 +152,15 @@ async def test_secret_env_vars_not_visible_to_shell(
     pty_server_port: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """If the sandbox process has a secret in its env, the spawned shell
-    must not see it."""
+    must not see it.
+
+    Also covers a generic ``*_TOKEN``-shaped var to guard against the
+    ``GH_TOKEN`` allow-list exemption accidentally widening to other
+    token-named vars.
+    """
     monkeypatch.setenv("CODEBOX_CALLBACK_TOKEN", "secret-not-for-user")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-very-secret")
+    monkeypatch.setenv("SOMETHING_TOKEN", "leak-me-not")
 
     reader, writer = await _open(pty_server_port)
     try:
@@ -166,7 +172,8 @@ async def test_secret_env_vars_not_visible_to_shell(
         await write_frame(
             writer,
             PTYFrameType.STDIN,
-            b'printf \'TOKEN=[%s] KEY=[%s]\\n\' "$CODEBOX_CALLBACK_TOKEN" "$OPENAI_API_KEY"\n',
+            b"printf 'TOKEN=[%s] KEY=[%s] OTHER=[%s]\\n'"
+            b' "$CODEBOX_CALLBACK_TOKEN" "$OPENAI_API_KEY" "$SOMETHING_TOKEN"\n',
         )
         await write_frame(writer, PTYFrameType.STDIN, b"exit\n")
         stdout, exit_info = await _collect_stdout_until_exit(reader, timeout=10.0)
@@ -176,9 +183,42 @@ async def test_secret_env_vars_not_visible_to_shell(
     # Neither the value nor any leftover substring should appear.
     assert b"secret-not-for-user" not in stdout
     assert b"sk-very-secret" not in stdout
+    assert b"leak-me-not" not in stdout
     # The shell should have printed empty values.
     assert b"TOKEN=[]" in stdout
     assert b"KEY=[]" in stdout
+    assert b"OTHER=[]" in stdout
+    assert exit_info["exit_code"] == 0
+
+
+async def test_gh_token_visible_to_shell(
+    pty_server_port: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``GH_TOKEN`` is intentionally allow-listed so ``gh`` CLI works in
+    the interactive terminal.  The installation token is already
+    persisted to ``~/.gitconfig`` by the orchestrator's setup commands,
+    so stripping it from the PTY env would provide no real protection.
+    """
+    monkeypatch.setenv("GH_TOKEN", "ghs_test_installation_token")
+
+    reader, writer = await _open(pty_server_port)
+    try:
+        await write_frame(
+            writer,
+            PTYFrameType.OPEN,
+            json.dumps({"cols": 80, "rows": 24, "shell": "/bin/sh", "cwd": "/tmp"}).encode(),
+        )
+        await write_frame(
+            writer,
+            PTYFrameType.STDIN,
+            b"printf 'GH=[%s]\\n' \"$GH_TOKEN\"\n",
+        )
+        await write_frame(writer, PTYFrameType.STDIN, b"exit\n")
+        stdout, exit_info = await _collect_stdout_until_exit(reader, timeout=10.0)
+    finally:
+        await _close_writer(writer)
+
+    assert b"GH=[ghs_test_installation_token]" in stdout
     assert exit_info["exit_code"] == 0
 
 
