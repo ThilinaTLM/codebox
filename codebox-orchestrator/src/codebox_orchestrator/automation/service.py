@@ -13,6 +13,8 @@ from sqlalchemy.exc import IntegrityError
 
 from codebox_orchestrator.automation.application.allowed_fields import (
     allowed_fields_for,
+    trigger_kind_has_actions,
+    valid_actions_for,
     valid_ops_for,
 )
 from codebox_orchestrator.automation.models import Automation
@@ -23,9 +25,15 @@ from codebox_orchestrator.automation.schemas import (
     AutomationUpdate,
     TriggerFilterPredicate,
 )
+from codebox_orchestrator.integration.github.application.installation_resolver import (
+    resolve_installation_for_repo,
+)
 
 if TYPE_CHECKING:
     from codebox_orchestrator.automation.repository import AutomationRepository
+    from codebox_orchestrator.integration.github.application.client_manager import (
+        GitHubClientManager,
+    )
     from codebox_orchestrator.llm_profile.service import LLMProfileService
 
 logger = logging.getLogger(__name__)
@@ -56,10 +64,14 @@ class AutomationService:
         repo: AutomationRepository,
         *,
         llm_profile_service: LLMProfileService,
+        github_client_manager: GitHubClientManager | None = None,
         scheduler_handle: SchedulerHandle | None = None,
     ) -> None:
         self._repo = repo
         self._llm_profile_service = llm_profile_service
+        # Optional so unit tests can omit it. When ``None``, repo-installation
+        # preflight is skipped — only the format of ``trigger_repo`` is checked.
+        self._github_mgr = github_client_manager
         self._scheduler_handle: SchedulerHandle = scheduler_handle or _NoopSchedulerHandle()
 
     def set_scheduler_handle(self, handle: SchedulerHandle) -> None:
@@ -108,6 +120,7 @@ class AutomationService:
                 box_id=r.box_id,
                 github_event_id=r.github_event_id,
                 trigger_kind=r.trigger_kind,
+                matched_action=r.matched_action,
                 status=r.status,
                 error=r.error,
                 created_at=r.created_at,
@@ -138,7 +151,9 @@ class AutomationService:
             name=data.name,
             description=data.description,
             enabled=data.enabled,
+            trigger_repo=data.trigger_repo,
             trigger_kind=data.trigger_kind,
+            trigger_actions=list(data.trigger_actions) if data.trigger_actions else None,
             trigger_filters=[p.model_dump() for p in data.trigger_filters]
             if data.trigger_filters is not None
             else None,
@@ -148,7 +163,6 @@ class AutomationService:
             else None,
             next_run_at=next_run_at,
             workspace_mode=data.workspace_mode,
-            pinned_repo=data.pinned_repo,
             pinned_branch=data.pinned_branch,
             system_prompt=data.system_prompt,
             initial_prompt=data.initial_prompt,
@@ -178,9 +192,17 @@ class AutomationService:
             name=data.name if data.name is not None else existing.name,
             description=data.description if data.description is not None else existing.description,
             enabled=data.enabled if data.enabled is not None else existing.enabled,
+            trigger_repo=data.trigger_repo
+            if data.trigger_repo is not None
+            else existing.trigger_repo,
             trigger_kind=data.trigger_kind
             if data.trigger_kind is not None
             else existing.trigger_kind,  # type: ignore[arg-type]
+            trigger_actions=list(data.trigger_actions)
+            if data.trigger_actions is not None
+            else (
+                list(existing.trigger_actions) if existing.trigger_actions is not None else None
+            ),
             trigger_filters=[
                 TriggerFilterPredicate.model_validate(p) for p in data.trigger_filters
             ]
@@ -199,7 +221,6 @@ class AutomationService:
             workspace_mode=data.workspace_mode
             if data.workspace_mode is not None
             else existing.workspace_mode,  # type: ignore[arg-type]
-            pinned_repo=data.pinned_repo if data.pinned_repo is not None else existing.pinned_repo,
             pinned_branch=data.pinned_branch
             if data.pinned_branch is not None
             else existing.pinned_branch,
@@ -219,7 +240,9 @@ class AutomationService:
             "name": merged.name,
             "description": merged.description,
             "enabled": merged.enabled,
+            "trigger_repo": merged.trigger_repo,
             "trigger_kind": merged.trigger_kind,
+            "trigger_actions": list(merged.trigger_actions) if merged.trigger_actions else None,
             "trigger_filters": [p.model_dump() for p in merged.trigger_filters]
             if merged.trigger_filters is not None
             else None,
@@ -228,7 +251,6 @@ class AutomationService:
             if merged.trigger_kind == "schedule"
             else None,
             "workspace_mode": merged.workspace_mode,
-            "pinned_repo": merged.pinned_repo,
             "pinned_branch": merged.pinned_branch,
             "system_prompt": merged.system_prompt,
             "initial_prompt": merged.initial_prompt,
@@ -270,7 +292,7 @@ class AutomationService:
 
     # ── Validation ──────────────────────────────────────────────
 
-    async def _validate(  # noqa: PLR0912
+    async def _validate(  # noqa: PLR0912, PLR0915
         self,
         project_id: str,
         data: AutomationCreate,
@@ -280,6 +302,46 @@ class AutomationService:
         # Name / prompt sanity — most length limits come from Pydantic
         if not data.initial_prompt.strip():
             raise ValueError("initial_prompt: must be non-empty")
+
+        # trigger_repo preflight. Format is already enforced by Pydantic; here
+        # we check that *some* GitHub installation in this project can reach
+        # the repo. Skipped when the client manager is unavailable (unit tests).
+        if self._github_mgr is not None:
+            installation_service = self._github_mgr.get_installation_service(project_id)
+            if installation_service is None:
+                raise ValueError(
+                    "trigger_repo: GitHub is not configured for this project; "
+                    "install the Codebox App before creating automations"
+                )
+            resolved = await resolve_installation_for_repo(
+                installation_service, data.trigger_repo, strict=True
+            )
+            if resolved is None:
+                raise ValueError(
+                    f"trigger_repo: no GitHub installation in this project covers "
+                    f"'{data.trigger_repo}'"
+                )
+
+        # trigger_actions shape
+        if trigger_kind_has_actions(data.trigger_kind):
+            if not data.trigger_actions:
+                raise ValueError(
+                    f"trigger_actions: at least one action must be selected for "
+                    f"trigger_kind={data.trigger_kind}"
+                )
+            allowed_actions = valid_actions_for(data.trigger_kind)
+            unknown = [a for a in data.trigger_actions if a not in allowed_actions]
+            if unknown:
+                raise ValueError(
+                    f"trigger_actions: unknown action(s) {unknown!r} for "
+                    f"trigger_kind={data.trigger_kind}"
+                )
+            # de-dup while preserving order
+            data.trigger_actions = list(dict.fromkeys(data.trigger_actions))
+        elif data.trigger_actions:
+            raise ValueError(
+                f"trigger_actions: must be empty for trigger_kind={data.trigger_kind}"
+            )
 
         # workspace mode rules by trigger kind
         if data.trigger_kind == "github.push" and data.workspace_mode == "branch_from_issue":
@@ -299,8 +361,8 @@ class AutomationService:
         if data.trigger_kind == "schedule" and data.workspace_mode != "pinned":
             raise ValueError("workspace_mode: scheduled automations must use 'pinned'")
 
-        if data.workspace_mode == "pinned" and (not data.pinned_repo or not data.pinned_branch):
-            raise ValueError("pinned_repo/pinned_branch: required when workspace_mode is 'pinned'")
+        if data.workspace_mode == "pinned" and not data.pinned_branch:
+            raise ValueError("pinned_branch: required when workspace_mode is 'pinned'")
 
         # Trigger-specific rules
         if data.trigger_kind == "schedule":
@@ -420,13 +482,16 @@ class AutomationService:
             name=automation.name,
             description=automation.description,
             enabled=automation.enabled,
+            trigger_repo=automation.trigger_repo,
             trigger_kind=automation.trigger_kind,
+            trigger_actions=list(automation.trigger_actions)
+            if automation.trigger_actions
+            else None,
             trigger_filters=filters,
             schedule_cron=automation.schedule_cron,
             schedule_timezone=automation.schedule_timezone,
             next_run_at=automation.next_run_at,
             workspace_mode=automation.workspace_mode,
-            pinned_repo=automation.pinned_repo,
             pinned_branch=automation.pinned_branch,
             system_prompt=automation.system_prompt,
             initial_prompt=automation.initial_prompt,

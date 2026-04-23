@@ -170,9 +170,7 @@ export function AutomationListRow({
               ) : (
                 <FilterSummary automation={automation} />
               )}
-              {automation.pinned_repo && (
-                <span className="truncate">· {automation.pinned_repo}</span>
-              )}
+              <span className="truncate">· {automation.trigger_repo}</span>
             </div>
           </div>
 
@@ -321,15 +319,34 @@ function LastRunChip({ run }: { run?: AutomationRun }) {
 }
 
 function FilterSummary({ automation }: { automation: Automation }) {
+  const actions = automation.trigger_actions ?? []
   const filters = automation.trigger_filters ?? []
-  if (filters.length === 0) {
+
+  if (actions.length === 0 && filters.length === 0) {
     return <span>Any event</span>
   }
-  const shown = filters.slice(0, 2)
-  const remaining = filters.length - shown.length
+
+  const shownActions = actions.slice(0, 3)
+  const moreActions = actions.length - shownActions.length
+  const shownFilters = filters.slice(0, 2)
+  const moreFilters = filters.length - shownFilters.length
+
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      {shown.map((f, i) => (
+      {shownActions.map((a) => (
+        <span
+          key={a}
+          className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary"
+        >
+          {a}
+        </span>
+      ))}
+      {moreActions > 0 && (
+        <span className="text-[10px] text-muted-foreground">
+          +{moreActions}
+        </span>
+      )}
+      {shownFilters.map((f, i) => (
         <span
           // biome-ignore lint/suspicious/noArrayIndexKey: positional
           key={i}
@@ -342,9 +359,9 @@ function FilterSummary({ automation }: { automation: Automation }) {
           </span>
         </span>
       ))}
-      {remaining > 0 && (
+      {moreFilters > 0 && (
         <span className="text-[10px] text-muted-foreground">
-          +{remaining} more
+          +{moreFilters} more
         </span>
       )}
     </span>

@@ -58,11 +58,11 @@ async def execute_dry_run(
         stand_in = Automation(
             project_id=automation.project_id,
             name=automation.name,
+            trigger_repo=automation.trigger_repo,
             trigger_kind=automation.trigger_kind,
             workspace_mode=automation.workspace_mode,
             schedule_cron=automation.schedule_cron,
             schedule_timezone=automation.schedule_timezone,
-            pinned_repo=automation.pinned_repo,
             pinned_branch=automation.pinned_branch,
             initial_prompt=automation.initial_prompt,
         )
@@ -70,6 +70,30 @@ async def execute_dry_run(
     else:
         payload = body.payload or {}
         context = await builder.build(project_id=automation.project_id, payload=payload, api=None)
+
+        # Structural gates — mirror the dispatcher. Repo first, then action.
+        event_repo = str(((payload.get("repository") or {}).get("full_name")) or "")
+        if event_repo and event_repo.lower() != automation.trigger_repo.lower():
+            return AutomationDryRunResponse(
+                matched=False,
+                reason=(
+                    f"skipped: event repo '{event_repo}' ≠ automation "
+                    f"trigger_repo '{automation.trigger_repo}'"
+                ),
+            )
+        event_action = str(payload.get("action") or "") or None
+        if (
+            automation.trigger_actions is not None
+            and event_action is not None
+            and event_action not in automation.trigger_actions
+        ):
+            return AutomationDryRunResponse(
+                matched=False,
+                reason=(
+                    f"skipped: action '{event_action}' not in "
+                    f"trigger_actions {sorted(automation.trigger_actions)!r}"
+                ),
+            )
 
     predicates = (
         [p.model_dump() for p in automation.trigger_filters]
@@ -129,7 +153,7 @@ def _build_preview_setup_commands(
         build_setup_commands,
     )
 
-    repo = automation.pinned_repo or context.repo or ""
+    repo = automation.trigger_repo or context.repo or ""
     if not repo:
         return []
     mode = automation.workspace_mode

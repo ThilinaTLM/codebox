@@ -323,6 +323,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         automation_service = AutomationService(
             automation_repo,
             llm_profile_service=llm_profile_service,
+            github_client_manager=github_client_manager,
             scheduler_handle=None,  # wired after scheduler starts
         )
 

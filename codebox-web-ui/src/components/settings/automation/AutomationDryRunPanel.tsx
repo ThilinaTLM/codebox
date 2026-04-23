@@ -40,8 +40,8 @@ export function AutomationDryRunPanel({
   const isScheduled = automation.trigger_kind === "schedule"
   const trigger = triggerKindMeta(automation.trigger_kind)
   const scenarios = useMemo(
-    () => scenariosFor(automation.trigger_kind),
-    [automation.trigger_kind]
+    () => scenariosFor(automation.trigger_kind, automation.trigger_repo),
+    [automation.trigger_kind, automation.trigger_repo]
   )
 
   const defaultScenario = scenarios.length > 0 ? scenarios[0] : null

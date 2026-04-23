@@ -11,6 +11,7 @@ import { useAutomationFormState } from "./useAutomationFormState"
 import {
   BasicsCard,
   PromptsCard,
+  RepoCard,
   TriggerWorkspaceCard,
 } from "./sections"
 import { StarterAutomationsRow } from "./StarterAutomationsRow"
@@ -22,10 +23,11 @@ interface AutomationWizardProps {
   projectSlug: string
 }
 
-type WizardStepId = "basics" | "trigger" | "prompts"
+type WizardStepId = "basics" | "repo" | "trigger" | "prompts"
 
 const STEP_ORDER: ReadonlyArray<WizardStepId> = [
   "basics",
+  "repo",
   "trigger",
   "prompts",
 ]
@@ -38,9 +40,13 @@ const STEP_LABELS: Record<
     title: "Basics",
     description: "Name, description, agent settings.",
   },
+  repo: {
+    title: "Target repo",
+    description: "Pick the single repo this automation targets.",
+  },
   trigger: {
-    title: "Trigger & Workspace",
-    description: "When it runs and where it works.",
+    title: "Trigger",
+    description: "When it runs, on which actions, and workspace overrides.",
   },
   prompts: {
     title: "Prompts",
@@ -77,11 +83,16 @@ export function AutomationWizard({
     switch (stepId) {
       case "basics":
         return !form.errors.name && form.state.name.trim().length > 0
+      case "repo":
+        return (
+          !form.errors.trigger_repo &&
+          form.state.trigger_repo.trim().length > 0
+        )
       case "trigger":
         return (
+          !form.errors.trigger_actions &&
           !form.errors.schedule_cron &&
           !form.errors.schedule_timezone &&
-          !form.errors.pinned_repo &&
           !form.errors.pinned_branch &&
           !(form.errors.trigger_filters ?? []).some(Boolean)
         )
@@ -175,6 +186,15 @@ export function AutomationWizard({
               errors={form.errors}
             />
           </>
+        )}
+        {stepId === "repo" && (
+          <RepoCard
+            projectSlug={projectSlug}
+            state={form.state}
+            dispatch={form.dispatch}
+            errors={form.errors}
+            githubConfigured={githubConfigured}
+          />
         )}
         {stepId === "trigger" && (
           <TriggerWorkspaceCard

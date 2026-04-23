@@ -71,6 +71,12 @@ export function RunRow({ run, projectSlug }: RunRowProps) {
         </Badge>
         <span className="truncate text-xs text-muted-foreground">
           {run.trigger_kind}
+          {run.matched_action && (
+            <span className="text-muted-foreground/70">
+              {" · "}
+              {run.matched_action}
+            </span>
+          )}
         </span>
         <div className="ml-auto flex items-center gap-3">
           <Tooltip>

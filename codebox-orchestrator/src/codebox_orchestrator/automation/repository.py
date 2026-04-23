@@ -105,7 +105,21 @@ class AutomationRepository:
 
     # ── Trigger-time queries (used by webhook dispatcher + scheduler) ──
 
-    async def list_enabled_for_event(self, project_id: str, trigger_kind: str) -> list[Automation]:
+    async def list_enabled_for_event(
+        self,
+        project_id: str,
+        trigger_kind: str,
+        *,
+        repo: str | None = None,
+        action: str | None = None,
+    ) -> list[Automation]:
+        """Return every enabled automation whose structural gates match.
+
+        The ``repo`` and ``action`` gates are applied in Python so the query
+        stays dialect-portable (``trigger_actions`` is a JSON column). The
+        hot path loads only rows for the exact ``(project_id, trigger_kind)``
+        pair which keeps the fan-out small.
+        """
         async with self._sf() as db:
             stmt = (
                 select(Automation)
@@ -117,7 +131,14 @@ class AutomationRepository:
                 .order_by(Automation.created_at)
             )
             result = await db.execute(stmt)
-            return list(result.scalars().all())
+            rows = list(result.scalars().all())
+
+        if repo is not None:
+            repo_l = repo.lower()
+            rows = [r for r in rows if (r.trigger_repo or "").lower() == repo_l]
+        if action is not None:
+            rows = [r for r in rows if r.trigger_actions is None or action in r.trigger_actions]
+        return rows
 
     async def list_due_scheduled(self, now: datetime, *, limit: int = 50) -> list[Automation]:
         async with self._sf() as db:
@@ -175,12 +196,14 @@ class AutomationRepository:
         status: str,
         box_id: str | None = None,
         github_event_id: str | None = None,
+        matched_action: str | None = None,
         error: str | None = None,
     ) -> str:
         run = AutomationRun(
             project_id=project_id,
             automation_id=automation_id,
             trigger_kind=trigger_kind,
+            matched_action=matched_action,
             status=status,
             box_id=box_id,
             github_event_id=github_event_id,

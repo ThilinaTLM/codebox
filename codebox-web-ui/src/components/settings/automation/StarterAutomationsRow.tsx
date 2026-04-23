@@ -36,7 +36,8 @@ const STARTERS: ReadonlyArray<StarterPreset> = [
       description:
         "Runs on newly opened issues and drafts a triage plan (labels, priority, next steps).",
       trigger_kind: "github.issues" as AutomationTriggerKind,
-      trigger_filters: [{ field: "action", op: "in", value: ["opened"] }],
+      trigger_actions: ["opened"],
+      trigger_filters: [],
       workspace_mode: "branch_from_issue" as AutomationWorkspaceMode,
       system_prompt: DEFAULT_SYSTEM_PROMPT,
       initial_prompt:
@@ -57,13 +58,8 @@ const STARTERS: ReadonlyArray<StarterPreset> = [
       description:
         "Reviews pull requests when they are opened, updated, or marked ready for review.",
       trigger_kind: "github.pull_request" as AutomationTriggerKind,
-      trigger_filters: [
-        {
-          field: "action",
-          op: "in",
-          value: ["opened", "synchronize", "ready_for_review"],
-        },
-      ],
+      trigger_actions: ["opened", "synchronize", "ready_for_review"],
+      trigger_filters: [],
       workspace_mode: "checkout_ref" as AutomationWorkspaceMode,
       system_prompt: DEFAULT_SYSTEM_PROMPT,
       initial_prompt:
@@ -82,9 +78,9 @@ const STARTERS: ReadonlyArray<StarterPreset> = [
     icon: Calendar03Icon,
     patch: {
       name: "Daily project digest",
-      description:
-        "Summarises project activity every weekday morning.",
+      description: "Summarises project activity every weekday morning.",
       trigger_kind: "schedule" as AutomationTriggerKind,
+      trigger_actions: [],
       trigger_filters: [],
       schedule_cron: "0 9 * * 1-5",
       schedule_timezone: "UTC",

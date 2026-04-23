@@ -43,23 +43,25 @@ class ScheduledContextBuilder:
                 "SCHEDULE_CRON": str(automation.schedule_cron or ""),
                 "SCHEDULE_TIMEZONE": str(automation.schedule_timezone or "UTC"),
                 "SCHEDULED_AT": fired.replace(microsecond=0).isoformat(),
-                "REPO_FULL_NAME": str(automation.pinned_repo or ""),
+                "REPO_FULL_NAME": str(automation.trigger_repo or ""),
                 "REPO_URL": (
-                    f"https://github.com/{automation.pinned_repo}"
-                    if automation.pinned_repo
+                    f"https://github.com/{automation.trigger_repo}"
+                    if automation.trigger_repo
                     else ""
                 ),
                 "REPO_DEFAULT_BRANCH": str(automation.pinned_branch or ""),
             }
         )
 
-        match_fields = {"repo": str(automation.pinned_repo or "")}
+        # ``schedule`` has no predicate fields in ``ALLOWED_FIELDS``; keep an
+        # empty match_fields dict so the matcher's allow-list check short-circuits.
+        match_fields: dict[str, Any] = {}
 
         return TemplateContext(
             trigger_kind="schedule",
             variables=variables,
             match_fields=match_fields,
-            repo=automation.pinned_repo,
+            repo=automation.trigger_repo,
             branch_hint=automation.pinned_branch,
             issue_number=None,
             integration_id=None,

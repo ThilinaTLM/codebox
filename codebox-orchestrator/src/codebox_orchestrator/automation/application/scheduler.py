@@ -223,39 +223,36 @@ class AutomationScheduler:
             msg = f"LLM profile {profile_id} missing"
             raise RuntimeError(msg)
 
-        # Installation handle: strictly match the pinned_repo's owner prefix.
+        # Installation handle: strictly match the trigger_repo's owner prefix.
         # The scheduler must never silently fall back to an unrelated
         # installation — GitHub will 404 and the box will fail with an
-        # opaque error. Record a clear error run instead. See
-        # automation-fix-04-scheduler-installation.md.
-        db_installation = None
-        if automation.pinned_repo:
-            owner = automation.pinned_repo.split("/", 1)[0]
-            installations = await self._github_repo.list_installations(automation.project_id)
-            db_installation = next(
-                (inst for inst in installations if inst.account_login.lower() == owner.lower()),
-                None,
+        # opaque error. Record a clear error run instead.
+        owner = (automation.trigger_repo or "").split("/", 1)[0]
+        installations = await self._github_repo.list_installations(automation.project_id)
+        db_installation = next(
+            (inst for inst in installations if inst.account_login.lower() == owner.lower()),
+            None,
+        )
+        if db_installation is None:
+            msg = (
+                f"No GitHub installation in this project covers "
+                f"'{automation.trigger_repo}'. Install the Codebox App on "
+                f"the '{owner}' account, or change the automation's repo."
             )
-            if db_installation is None:
-                msg = (
-                    f"No GitHub installation in this project covers "
-                    f"'{automation.pinned_repo}'. Install the Codebox App on "
-                    f"the '{owner}' account, or change the pinned repository."
-                )
-                await self._repo.record_run(
-                    project_id=automation.project_id,
-                    automation_id=automation.id,
-                    trigger_kind="schedule",
-                    status="error",
-                    error=msg,
-                )
-                logger.error("scheduler.spawn automation=%s %s", automation.id, msg)
-                return
+            await self._repo.record_run(
+                project_id=automation.project_id,
+                automation_id=automation.id,
+                trigger_kind="schedule",
+                status="error",
+                error=msg,
+            )
+            logger.error("scheduler.spawn automation=%s %s", automation.id, msg)
+            return
 
         # Compute workspace branch the agent will land on
         _, work_branch = build_setup_commands(
             mode="pinned",
-            repo=automation.pinned_repo or "",
+            repo=automation.trigger_repo,
             token="",
             branch=automation.pinned_branch,
         )
@@ -276,8 +273,8 @@ class AutomationScheduler:
             system_prompt=system,
             auto_start_prompt=initial,
             trigger="schedule",
-            github_installation_id=db_installation.id if db_installation else None,
-            github_repo=automation.pinned_repo,
+            github_installation_id=db_installation.id,
+            github_repo=automation.trigger_repo,
             github_branch=work_branch,
             github_workspace_mode="pinned",
             github_workspace_ref=automation.pinned_branch,

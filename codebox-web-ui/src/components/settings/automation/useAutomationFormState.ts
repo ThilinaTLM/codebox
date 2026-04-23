@@ -1,5 +1,12 @@
 import { useMemo, useReducer } from "react"
-import { ALLOWED_FIELDS, OPS_BY_TYPE } from "./metadata"
+import {
+  ALLOWED_FIELDS,
+  DEFAULT_ACTIONS,
+  OPS_BY_TYPE,
+  VALID_ACTIONS,
+  defaultWorkspaceModeFor,
+  triggerKindHasActions,
+} from "./metadata"
 import { isValidCron } from "./cronPresets"
 import {
   DEFAULT_SYSTEM_PROMPT,
@@ -16,7 +23,7 @@ import type {
   AutomationWorkspaceMode,
 } from "@/net/http/types"
 
-export type SectionId = "basics" | "trigger" | "prompts"
+export type SectionId = "basics" | "repo" | "trigger" | "prompts"
 
 export type SectionStatus = "empty" | "partial" | "complete" | "error"
 
@@ -24,12 +31,16 @@ export interface FormState {
   name: string
   description: string
   enabled: boolean
+  /** Required for every automation (single-repo scope). */
+  trigger_repo: string
   trigger_kind: AutomationTriggerKind
+  /** Non-empty for GitHub kinds that carry an action; always [] for
+   *  ``schedule`` and ``github.push``. */
+  trigger_actions: Array<string>
   trigger_filters: Array<AutomationFilterPredicate>
   schedule_cron: string
   schedule_timezone: string
   workspace_mode: AutomationWorkspaceMode
-  pinned_repo: string
   pinned_branch: string
   system_prompt: string
   initial_prompt: string
@@ -38,10 +49,11 @@ export interface FormState {
 
 export interface FormErrors {
   name?: string
+  trigger_repo?: string
+  trigger_actions?: string
   trigger_filters?: Array<string | undefined>
   schedule_cron?: string
   schedule_timezone?: string
-  pinned_repo?: string
   pinned_branch?: string
   initial_prompt?: string
 }
@@ -49,6 +61,8 @@ export interface FormErrors {
 export type FormAction =
   | { type: "set"; patch: Partial<FormState> }
   | { type: "setTrigger"; kind: AutomationTriggerKind }
+  | { type: "toggleAction"; action: string }
+  | { type: "setActions"; actions: Array<string> }
   | { type: "addFilter" }
   | { type: "removeFilter"; index: number }
   | {
@@ -61,17 +75,17 @@ export type FormAction =
 function emptyState(
   defaultTriggerKind: AutomationTriggerKind = "github.issues"
 ): FormState {
-  const isGithub = defaultTriggerKind.startsWith("github.")
   return {
     name: "",
     description: "",
     enabled: true,
+    trigger_repo: "",
     trigger_kind: defaultTriggerKind,
+    trigger_actions: [...DEFAULT_ACTIONS[defaultTriggerKind]],
     trigger_filters: [],
     schedule_cron: defaultTriggerKind === "schedule" ? "0 9 * * *" : "",
     schedule_timezone: "UTC",
-    workspace_mode: isGithub ? "branch_from_issue" : "pinned",
-    pinned_repo: "",
+    workspace_mode: defaultWorkspaceModeFor(defaultTriggerKind),
     pinned_branch: "",
     system_prompt: DEFAULT_SYSTEM_PROMPT,
     initial_prompt: defaultInitialPrompt(defaultTriggerKind),
@@ -84,12 +98,13 @@ function fromAutomation(a: Automation): FormState {
     name: a.name,
     description: a.description ?? "",
     enabled: a.enabled,
+    trigger_repo: a.trigger_repo,
     trigger_kind: a.trigger_kind,
+    trigger_actions: a.trigger_actions ? [...a.trigger_actions] : [],
     trigger_filters: a.trigger_filters ?? [],
     schedule_cron: a.schedule_cron ?? "",
     schedule_timezone: a.schedule_timezone ?? "UTC",
     workspace_mode: a.workspace_mode,
-    pinned_repo: a.pinned_repo ?? "",
     pinned_branch: a.pinned_branch ?? "",
     system_prompt: a.system_prompt ?? "",
     initial_prompt: a.initial_prompt,
@@ -104,25 +119,11 @@ function reducer(state: FormState, action: FormAction): FormState {
 
     case "setTrigger": {
       const kind = action.kind
-      let workspace_mode = state.workspace_mode
-      if (kind === "schedule") {
-        workspace_mode = "pinned"
-      } else if (
-        kind === "github.push" &&
-        workspace_mode === "branch_from_issue"
-      ) {
-        workspace_mode = "checkout_ref"
-      } else if (
-        (kind === "github.pull_request" ||
-          kind === "github.pull_request_review" ||
-          kind === "github.pull_request_review_comment") &&
-        workspace_mode === "branch_from_issue"
-      ) {
-        workspace_mode = "checkout_ref"
-      }
-      const schedule_cron = kind === "schedule"
-        ? state.schedule_cron || "0 9 * * *"
-        : state.schedule_cron
+      const workspace_mode = defaultWorkspaceModeFor(kind)
+      const schedule_cron =
+        kind === "schedule"
+          ? state.schedule_cron || "0 9 * * *"
+          : state.schedule_cron
       // Re-seed initial prompt with the new trigger's default ONLY when the
       // user has not edited it (i.e. it still equals one of the seeded
       // defaults). Empty also counts as untouched.
@@ -134,12 +135,24 @@ function reducer(state: FormState, action: FormAction): FormState {
       return {
         ...state,
         trigger_kind: kind,
+        trigger_actions: [...DEFAULT_ACTIONS[kind]],
         workspace_mode,
         schedule_cron,
         trigger_filters: [],
         initial_prompt,
       }
     }
+
+    case "toggleAction": {
+      const existing = state.trigger_actions
+      const next = existing.includes(action.action)
+        ? existing.filter((a) => a !== action.action)
+        : [...existing, action.action]
+      return { ...state, trigger_actions: next }
+    }
+
+    case "setActions":
+      return { ...state, trigger_actions: [...action.actions] }
 
     case "addFilter": {
       const fields = Object.keys(ALLOWED_FIELDS[state.trigger_kind])
@@ -151,10 +164,7 @@ function reducer(state: FormState, action: FormAction): FormState {
         fieldType === "list" || op === "in" || op === "contains_any" ? [] : ""
       return {
         ...state,
-        trigger_filters: [
-          ...state.trigger_filters,
-          { field, op, value },
-        ],
+        trigger_filters: [...state.trigger_filters, { field, op, value }],
       }
     }
 
@@ -180,10 +190,29 @@ function reducer(state: FormState, action: FormAction): FormState {
   }
 }
 
+const REPO_RE = /^[\w.-]+\/[\w.-]+$/
+
 export function computeErrors(state: FormState): FormErrors {
   const errors: FormErrors = {}
   if (!state.name.trim()) {
     errors.name = "Name is required."
+  }
+  const trimmedRepo = state.trigger_repo.trim()
+  if (!trimmedRepo) {
+    errors.trigger_repo = "Target repository is required."
+  } else if (!REPO_RE.test(trimmedRepo)) {
+    errors.trigger_repo = "Expected ``owner/name`` format."
+  }
+  if (triggerKindHasActions(state.trigger_kind)) {
+    if (state.trigger_actions.length === 0) {
+      errors.trigger_actions = "Select at least one action."
+    } else {
+      const valid = new Set(VALID_ACTIONS[state.trigger_kind])
+      const unknown = state.trigger_actions.filter((a) => !valid.has(a))
+      if (unknown.length > 0) {
+        errors.trigger_actions = `Unknown action(s): ${unknown.join(", ")}.`
+      }
+    }
   }
   if (state.trigger_kind === "schedule") {
     if (!state.schedule_cron.trim()) {
@@ -196,18 +225,8 @@ export function computeErrors(state: FormState): FormErrors {
       errors.schedule_timezone = "Timezone is required."
     }
   }
-  if (
-    state.workspace_mode === "pinned" ||
-    state.trigger_kind === "schedule"
-  ) {
-    if (!state.pinned_repo.trim()) {
-      errors.pinned_repo = "Pinned repository is required."
-    } else if (!/^[^/\s]+\/[^/\s]+$/.test(state.pinned_repo.trim())) {
-      errors.pinned_repo = "Expected ``owner/name`` format."
-    }
-    if (!state.pinned_branch.trim()) {
-      errors.pinned_branch = "Pinned branch is required."
-    }
+  if (state.workspace_mode === "pinned" && !state.pinned_branch.trim()) {
+    errors.pinned_branch = "Pinned branch is required."
   }
   if (!state.initial_prompt.trim()) {
     errors.initial_prompt = "Initial prompt is required."
@@ -239,36 +258,37 @@ export function computeSectionStatus(
   state: FormState,
   errors: FormErrors
 ): Record<SectionId, SectionStatus> {
-  const isScheduled = state.trigger_kind === "schedule"
   const basicsFilled = state.name.trim().length > 0
   const basicsHasError = !!errors.name
+
+  const repoFilled = state.trigger_repo.trim().length > 0
+  const repoHasError = !!errors.trigger_repo
+
+  const isScheduled = state.trigger_kind === "schedule"
   const triggerValid = isScheduled
     ? !errors.schedule_cron && !errors.schedule_timezone
-    : true
+    : !errors.trigger_actions
   const hasFilterError = (errors.trigger_filters ?? []).some(Boolean)
-  const workspaceValid = !errors.pinned_repo && !errors.pinned_branch
-  const workspaceHasPinned =
-    state.workspace_mode !== "pinned" ||
-    (state.pinned_repo.trim().length > 0 &&
-      state.pinned_branch.trim().length > 0)
-  const promptsValid = !errors.initial_prompt
+  const workspaceValid =
+    state.workspace_mode !== "pinned" || !errors.pinned_branch
 
-  // Combine trigger + workspace statuses. Error beats partial beats
-  // complete; both must be complete for the merged status to be complete.
   const triggerStatus: SectionStatus = (() => {
-    const triggerHasError = hasFilterError || !triggerValid
-    const workspaceHasError = !workspaceValid
-    if (triggerHasError || workspaceHasError) return "error"
-    if (!workspaceHasPinned) return "partial"
-    return "complete"
+    if (!triggerValid || hasFilterError || !workspaceValid) return "error"
+    if (triggerKindHasActions(state.trigger_kind)) {
+      return state.trigger_actions.length > 0 ? "complete" : "partial"
+    }
+    return isScheduled
+      ? state.schedule_cron.trim().length > 0
+        ? "complete"
+        : "partial"
+      : "complete"
   })()
 
+  const promptsValid = !errors.initial_prompt
+
   return {
-    basics: basicsHasError
-      ? "error"
-      : basicsFilled
-        ? "complete"
-        : "empty",
+    basics: basicsHasError ? "error" : basicsFilled ? "complete" : "empty",
+    repo: repoHasError ? "error" : repoFilled ? "complete" : "empty",
     trigger: triggerStatus,
     prompts: !promptsValid
       ? state.initial_prompt.length > 0
@@ -314,9 +334,10 @@ export function useAutomationFormState({
 
   const isValid = useMemo(() => {
     if (errors.name) return false
+    if (errors.trigger_repo) return false
+    if (errors.trigger_actions) return false
     if (errors.schedule_cron) return false
     if (errors.schedule_timezone) return false
-    if (errors.pinned_repo) return false
     if (errors.pinned_branch) return false
     if (errors.initial_prompt) return false
     if ((errors.trigger_filters ?? []).some(Boolean)) return false
@@ -334,13 +355,16 @@ export function useAutomationFormState({
       name: state.name.trim(),
       description: state.description.trim() || null,
       enabled: state.enabled,
+      trigger_repo: state.trigger_repo.trim(),
       trigger_kind: state.trigger_kind,
+      trigger_actions: triggerKindHasActions(state.trigger_kind)
+        ? [...state.trigger_actions]
+        : null,
       trigger_filters:
         state.trigger_filters.length > 0 ? state.trigger_filters : null,
       schedule_cron: isScheduled ? state.schedule_cron.trim() : null,
       schedule_timezone: isScheduled ? state.schedule_timezone.trim() : null,
       workspace_mode: state.workspace_mode,
-      pinned_repo: state.pinned_repo.trim() || null,
       pinned_branch: state.pinned_branch.trim() || null,
       system_prompt: state.system_prompt.trim() || null,
       initial_prompt: state.initial_prompt,
@@ -355,8 +379,16 @@ export function useAutomationFormState({
     if (full.description !== (original.description ?? null))
       patch.description = full.description
     if (full.enabled !== original.enabled) patch.enabled = full.enabled
+    if (full.trigger_repo !== original.trigger_repo)
+      patch.trigger_repo = full.trigger_repo
     if (full.trigger_kind !== original.trigger_kind)
       patch.trigger_kind = full.trigger_kind
+    if (
+      JSON.stringify(full.trigger_actions) !==
+      JSON.stringify(original.trigger_actions ?? null)
+    ) {
+      patch.trigger_actions = full.trigger_actions
+    }
     if (
       JSON.stringify(full.trigger_filters) !==
       JSON.stringify(original.trigger_filters ?? null)
@@ -369,8 +401,6 @@ export function useAutomationFormState({
       patch.schedule_timezone = full.schedule_timezone
     if (full.workspace_mode !== original.workspace_mode)
       patch.workspace_mode = full.workspace_mode
-    if (full.pinned_repo !== (original.pinned_repo ?? null))
-      patch.pinned_repo = full.pinned_repo
     if (full.pinned_branch !== (original.pinned_branch ?? null))
       patch.pinned_branch = full.pinned_branch
     if (full.system_prompt !== (original.system_prompt ?? null))

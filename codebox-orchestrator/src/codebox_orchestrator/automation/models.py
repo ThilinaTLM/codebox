@@ -37,6 +37,7 @@ class Automation(Base):
         Index("ix_automations_project_enabled", "project_id", "enabled"),
         Index("ix_automations_trigger_kind", "project_id", "trigger_kind"),
         Index("ix_automations_next_run_at", "next_run_at"),
+        Index("ix_automations_trigger_repo", "project_id", "trigger_repo"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
@@ -51,7 +52,16 @@ class Automation(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # Trigger ----------------------------------------------------------------
+    # ``trigger_repo`` is the single repo (``owner/name``) this automation is
+    # bound to. Required for every kind — including ``schedule`` where it
+    # supplies the pinned clone target — so the installation can be
+    # preflight-validated at create-time.
+    trigger_repo: Mapped[str] = mapped_column(String(255), nullable=False)
     trigger_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    # Set of GitHub action strings this automation responds to. NULL for
+    # ``schedule`` and ``github.push`` (neither has an ``action`` field);
+    # non-empty list for every other GitHub kind.
+    trigger_actions: Mapped[list | None] = mapped_column(JSON, nullable=True)
     trigger_filters: Mapped[list | None] = mapped_column(JSON, nullable=True)
     schedule_cron: Mapped[str | None] = mapped_column(String(64), nullable=True)
     schedule_timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -59,7 +69,8 @@ class Automation(Base):
 
     # Workspace --------------------------------------------------------------
     workspace_mode: Mapped[str] = mapped_column(String(32), nullable=False)
-    pinned_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Branch override for ``workspace_mode=pinned``. When NULL the event's
+    # branch is used (or the repo's default branch for schedule).
     pinned_branch: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Prompts ----------------------------------------------------------------
@@ -119,6 +130,9 @@ class AutomationRun(Base):
         nullable=True,
     )
     trigger_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    # GitHub ``action`` carried by the event that produced this run, if any.
+    # NULL for ``schedule`` and for push events (no action).
+    matched_action: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     # "spawned" | "skipped_filter" | "error"
     error: Mapped[str | None] = mapped_column(Text, nullable=True)

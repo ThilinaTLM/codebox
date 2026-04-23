@@ -1,9 +1,14 @@
 /**
  * Static metadata for the automation form UI.
  *
- * ``ALLOWED_FIELDS`` and ``OPS_BY_TYPE`` mirror
+ * ``ALLOWED_FIELDS``, ``VALID_ACTIONS``, and ``OPS_BY_TYPE`` mirror
  * ``codebox-orchestrator/src/codebox_orchestrator/automation/application/allowed_fields.py``.
  * Keep these tables in sync when the backend adds / removes fields.
+ *
+ * Note: ``repo`` and ``action`` are **not** filter fields. Repo is
+ * structural (``Automation.trigger_repo``) and action is structural
+ * (``Automation.trigger_actions``). Both live outside the predicate
+ * builder.
  */
 
 import {
@@ -41,7 +46,8 @@ export const TRIGGER_KINDS: ReadonlyArray<TriggerKindMeta> = [
   {
     value: "github.issues",
     title: "Issue",
-    description: "Runs when an issue is opened, labeled, closed, …",
+    description:
+      "Runs on the issue actions you select (opened, labeled, closed, …).",
     icon: Bug01Icon,
     group: "github",
     eventType: "issues",
@@ -49,7 +55,8 @@ export const TRIGGER_KINDS: ReadonlyArray<TriggerKindMeta> = [
   {
     value: "github.issue_comment",
     title: "Issue Comment",
-    description: "Runs on new comments on issues or pull requests.",
+    description:
+      "Runs on the comment actions you select (created, edited, deleted).",
     icon: Comment01Icon,
     group: "github",
     eventType: "issue_comment",
@@ -57,7 +64,8 @@ export const TRIGGER_KINDS: ReadonlyArray<TriggerKindMeta> = [
   {
     value: "github.pull_request",
     title: "Pull Request",
-    description: "Runs when a PR is opened, synchronized, merged, …",
+    description:
+      "Runs on the PR actions you select (opened, synchronize, ready_for_review, …).",
     icon: GitPullRequestIcon,
     group: "github",
     eventType: "pull_request",
@@ -65,7 +73,8 @@ export const TRIGGER_KINDS: ReadonlyArray<TriggerKindMeta> = [
   {
     value: "github.pull_request_review",
     title: "PR Review",
-    description: "Runs when a PR review is submitted.",
+    description:
+      "Runs on the review actions you select (submitted, edited, dismissed).",
     icon: Message01Icon,
     group: "github",
     eventType: "pull_request_review",
@@ -73,7 +82,8 @@ export const TRIGGER_KINDS: ReadonlyArray<TriggerKindMeta> = [
   {
     value: "github.pull_request_review_comment",
     title: "PR Review Comment",
-    description: "Runs on inline review comments inside a PR.",
+    description:
+      "Runs on the review-comment actions you select (created, edited, deleted).",
     icon: MessageMultiple01Icon,
     group: "github",
     eventType: "pull_request_review_comment",
@@ -81,7 +91,7 @@ export const TRIGGER_KINDS: ReadonlyArray<TriggerKindMeta> = [
   {
     value: "github.push",
     title: "Push",
-    description: "Runs on pushes to any branch or tag.",
+    description: "Runs on pushes to any branch or tag of the target repo.",
     icon: GitCommitIcon,
     group: "github",
     eventType: "push",
@@ -114,16 +124,11 @@ export const ALLOWED_FIELDS: Record<
   Record<string, FieldType>
 > = {
   "github.issues": {
-    repo: "string",
-    action: "string",
     labels: "list",
     author: "string",
     title: "string",
-    state: "string",
   },
   "github.issue_comment": {
-    repo: "string",
-    action: "string",
     labels: "list",
     author: "string",
     comment_author: "string",
@@ -131,8 +136,6 @@ export const ALLOWED_FIELDS: Record<
     is_pr: "bool",
   },
   "github.pull_request": {
-    repo: "string",
-    action: "string",
     labels: "list",
     author: "string",
     title: "string",
@@ -141,22 +144,16 @@ export const ALLOWED_FIELDS: Record<
     draft: "bool",
   },
   "github.pull_request_review": {
-    repo: "string",
-    action: "string",
     author: "string",
     review_state: "string",
     review_body: "string",
   },
   "github.pull_request_review_comment": {
-    repo: "string",
-    action: "string",
     pr_author: "string",
     comment_author: "string",
     comment_body: "string",
   },
   "github.push": {
-    repo: "string",
-    ref: "string",
     branch: "string",
     tag: "string",
     pusher: "string",
@@ -165,7 +162,7 @@ export const ALLOWED_FIELDS: Record<
     created: "bool",
     deleted: "bool",
   },
-  schedule: { repo: "string" },
+  schedule: {},
 }
 
 // ── Filter ops ──────────────────────────────────────────────
@@ -194,13 +191,10 @@ export const OP_HINTS: Record<AutomationFilterOp, string> = {
 // ── Field labels ────────────────────────────────────────────
 
 export const FIELD_LABELS: Record<string, string> = {
-  repo: "Repository",
-  action: "Action",
   labels: "Labels",
   author: "Author",
   pr_author: "PR author",
   title: "Title",
-  state: "State",
   comment_author: "Comment author",
   comment_body: "Comment body",
   is_pr: "On pull request",
@@ -209,7 +203,6 @@ export const FIELD_LABELS: Record<string, string> = {
   draft: "Draft",
   review_state: "Review state",
   review_body: "Review body",
-  ref: "Git ref",
   pusher: "Pusher",
   commit_count: "Commit count",
   branch: "Branch",
@@ -236,55 +229,83 @@ export function fieldTypeBadge(type: FieldType): string {
   }
 }
 
-// ── Known values per field ──────────────────────────────────
+// ── Valid actions + defaults per trigger kind ──────────────
 
 /**
- * Suggestions for fields with a known finite set of values. Used by
- * ``FilterValueInput`` to surface quick-add chips next to the tag input.
+ * Valid GitHub action strings per trigger kind. Non-empty sets indicate
+ * that the kind requires a non-empty ``trigger_actions`` selection.
+ * ``github.push`` and ``schedule`` have no action field and stay empty.
+ * Ordering reflects how commonly users need each chip.
+ */
+export const VALID_ACTIONS: Record<
+  AutomationTriggerKind,
+  ReadonlyArray<string>
+> = {
+  "github.issues": [
+    "opened",
+    "reopened",
+    "edited",
+    "labeled",
+    "unlabeled",
+    "closed",
+    "assigned",
+    "unassigned",
+    "pinned",
+    "unpinned",
+  ],
+  "github.issue_comment": ["created", "edited", "deleted"],
+  "github.pull_request": [
+    "opened",
+    "synchronize",
+    "ready_for_review",
+    "reopened",
+    "edited",
+    "labeled",
+    "unlabeled",
+    "closed",
+    "review_requested",
+    "review_request_removed",
+  ],
+  "github.pull_request_review": ["submitted", "edited", "dismissed"],
+  "github.pull_request_review_comment": ["created", "edited", "deleted"],
+  "github.push": [],
+  schedule: [],
+}
+
+/** Per-kind default actions seeded when the user picks a trigger kind. */
+export const DEFAULT_ACTIONS: Record<
+  AutomationTriggerKind,
+  ReadonlyArray<string>
+> = {
+  "github.issues": ["opened", "reopened"],
+  "github.issue_comment": ["created"],
+  "github.pull_request": ["opened", "synchronize", "ready_for_review"],
+  "github.pull_request_review": ["submitted"],
+  "github.pull_request_review_comment": ["created"],
+  "github.push": [],
+  schedule: [],
+}
+
+export function triggerKindHasActions(kind: AutomationTriggerKind): boolean {
+  return VALID_ACTIONS[kind].length > 0
+}
+
+/**
+ * Suggestions for filter fields with a known finite set of values. Used
+ * by ``FilterValueInput`` to surface quick-add chips next to the tag
+ * input. Empty for every kind that has no finite-value filter field.
  */
 export const KNOWN_VALUES: Record<
   AutomationTriggerKind,
   Partial<Record<string, ReadonlyArray<string>>>
 > = {
-  "github.issues": {
-    action: [
-      "opened",
-      "closed",
-      "reopened",
-      "edited",
-      "labeled",
-      "unlabeled",
-      "assigned",
-      "unassigned",
-      "pinned",
-      "unpinned",
-    ],
-    state: ["open", "closed"],
-  },
-  "github.issue_comment": {
-    action: ["created", "edited", "deleted"],
-  },
-  "github.pull_request": {
-    action: [
-      "opened",
-      "closed",
-      "reopened",
-      "edited",
-      "ready_for_review",
-      "synchronize",
-      "labeled",
-      "unlabeled",
-      "review_requested",
-      "review_request_removed",
-    ],
-  },
+  "github.issues": {},
+  "github.issue_comment": {},
+  "github.pull_request": {},
   "github.pull_request_review": {
-    action: ["submitted", "edited", "dismissed"],
     review_state: ["approved", "changes_requested", "commented"],
   },
-  "github.pull_request_review_comment": {
-    action: ["created", "edited", "deleted"],
-  },
+  "github.pull_request_review_comment": {},
   "github.push": {},
   schedule: {},
 }
@@ -320,7 +341,7 @@ export const WORKSPACE_MODES: ReadonlyArray<WorkspaceModeMeta> = [
     value: "pinned",
     title: "Pinned branch",
     description:
-      "Always work on a fixed repository + branch. Required for scheduled automations.",
+      "Always work on a fixed branch of the target repo. Required for scheduled automations.",
     availableWhen: () => true,
   },
 ] as const
@@ -338,4 +359,22 @@ export function availableWorkspaceModes(
     return WORKSPACE_MODES.filter((m) => m.value === "pinned")
   }
   return WORKSPACE_MODES.filter((m) => m.availableWhen(kind))
+}
+
+/**
+ * The workspace mode seeded when the user picks *kind*. Users can override
+ * it via the advanced disclosure in the trigger step.
+ */
+export function defaultWorkspaceModeFor(
+  kind: AutomationTriggerKind
+): AutomationWorkspaceMode {
+  switch (kind) {
+    case "schedule":
+      return "pinned"
+    case "github.issues":
+    case "github.issue_comment":
+      return "branch_from_issue"
+    default:
+      return "checkout_ref"
+  }
 }

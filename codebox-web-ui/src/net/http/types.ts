@@ -333,13 +333,17 @@ export interface Automation {
   name: string
   description: string | null
   enabled: boolean
+  /** ``owner/name`` — required for every automation (single-repo scope). */
+  trigger_repo: string
   trigger_kind: AutomationTriggerKind
+  /** Non-empty subset of the known actions for GitHub kinds that carry an
+   * ``action``; ``null`` for ``schedule`` and ``github.push``. */
+  trigger_actions: Array<string> | null
   trigger_filters: Array<AutomationFilterPredicate> | null
   schedule_cron: string | null
   schedule_timezone: string | null
   next_run_at: string | null
   workspace_mode: AutomationWorkspaceMode
-  pinned_repo: string | null
   pinned_branch: string | null
   system_prompt: string | null
   initial_prompt: string
@@ -353,12 +357,13 @@ export interface AutomationCreate {
   name: string
   description?: string | null
   enabled?: boolean
+  trigger_repo: string
   trigger_kind: AutomationTriggerKind
+  trigger_actions?: Array<string> | null
   trigger_filters?: Array<AutomationFilterPredicate> | null
   schedule_cron?: string | null
   schedule_timezone?: string | null
   workspace_mode: AutomationWorkspaceMode
-  pinned_repo?: string | null
   pinned_branch?: string | null
   system_prompt?: string | null
   initial_prompt: string
@@ -374,6 +379,8 @@ export interface AutomationRun {
   box_id: string | null
   github_event_id: string | null
   trigger_kind: string
+  /** GitHub ``action`` that produced this run, if any. */
+  matched_action: string | null
   status: "spawned" | "skipped_filter" | "error"
   error: string | null
   created_at: string

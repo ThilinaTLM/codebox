@@ -1,6 +1,5 @@
 import { SectionCard } from "../FormField"
 import { TriggerFields } from "./TriggerSection"
-import { WorkspaceFields } from "./WorkspaceSection"
 import type {
   FormAction,
   FormErrors,
@@ -18,6 +17,13 @@ interface TriggerWorkspaceCardProps {
   githubConfigured: boolean
 }
 
+/**
+ * Wizard step 3 — trigger kind + (actions | cron) + advanced disclosures
+ * for workspace mode overrides and additional event filters.
+ *
+ * Repo is no longer picked here — it's a dedicated earlier step because a
+ * single-repo scope is required for every automation.
+ */
 export function TriggerWorkspaceCard({
   id,
   projectSlug,
@@ -30,8 +36,8 @@ export function TriggerWorkspaceCard({
   return (
     <SectionCard
       id={id}
-      title="Trigger & Workspace"
-      description="When this automation runs and where the agent does its work."
+      title="Trigger"
+      description="When this automation runs. Workspace and filter overrides live in the advanced disclosures below."
     >
       <TriggerFields
         projectSlug={projectSlug}
@@ -39,13 +45,6 @@ export function TriggerWorkspaceCard({
         dispatch={dispatch}
         errors={errors}
         nextRunAt={nextRunAt}
-        githubConfigured={githubConfigured}
-      />
-      <WorkspaceFields
-        projectSlug={projectSlug}
-        state={state}
-        dispatch={dispatch}
-        errors={errors}
         githubConfigured={githubConfigured}
       />
     </SectionCard>

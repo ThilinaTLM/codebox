@@ -140,9 +140,16 @@ class GitHubWebhookDispatcher:
             logger.debug("unsupported event type %s (delivery %s)", event_type, delivery_id)
             return result
 
-        # 5. Load enabled automations for (project, kind)
+        # 5. Load enabled automations for (project, kind) pre-filtered by the
+        # structural gates (trigger_repo, trigger_actions). These filters are
+        # cheap and avoid recording noisy ``skipped_filter`` runs for events
+        # that don't even concern this automation's repo or action set.
+        action_str = str(action) if action else None
         automations = await self._automation_repo.list_enabled_for_event(
-            self._project_id, trigger_kind
+            self._project_id,
+            trigger_kind,
+            repo=repository or None,
+            action=action_str,
         )
         if not automations:
             return result
@@ -186,6 +193,7 @@ class GitHubWebhookDispatcher:
                     project_id=self._project_id,
                     automation_id=automation.id,
                     trigger_kind=trigger_kind,
+                    matched_action=action_str,
                     status="skipped_filter",
                     github_event_id=event_id,
                     error=reason,
@@ -205,6 +213,7 @@ class GitHubWebhookDispatcher:
                         project_id=self._project_id,
                         automation_id=automation.id,
                         trigger_kind=trigger_kind,
+                        matched_action=action_str,
                         status="spawned",
                         box_id=box_id,
                         github_event_id=event_id,
@@ -222,6 +231,7 @@ class GitHubWebhookDispatcher:
                     project_id=self._project_id,
                     automation_id=automation.id,
                     trigger_kind=trigger_kind,
+                    matched_action=action_str,
                     status="error",
                     github_event_id=event_id,
                     error=str(exc),
@@ -294,10 +304,11 @@ class GitHubWebhookDispatcher:
 
         # Workspace setup — compute branch the agent actually lands on
         token_placeholder = ""  # real token fetched by box_lifecycle via installation handle
+        repo_full = automation.trigger_repo or context.repo or ""
         try:
             _, work_branch = build_setup_commands(
                 mode=automation.workspace_mode,
-                repo=automation.pinned_repo or context.repo or "",
+                repo=repo_full,
                 token=token_placeholder,
                 issue_number=context.issue_number,
                 issue_title=context.variables.get("ISSUE_TITLE"),
@@ -355,7 +366,7 @@ class GitHubWebhookDispatcher:
             auto_start_prompt=rendered_initial,
             trigger=automation.trigger_kind,
             github_installation_id=db_installation.id if db_installation else None,
-            github_repo=automation.pinned_repo or context.repo,
+            github_repo=repo_full or None,
             github_issue_number=context.issue_number,
             github_trigger_url=context.trigger_url,
             github_branch=work_branch,

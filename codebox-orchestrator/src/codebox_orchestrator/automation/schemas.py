@@ -48,17 +48,26 @@ class TriggerFilterPredicate(BaseModel):
 
 # --- Create / Update / Response ------------------------------------------
 
+# ``owner/name`` \u2014 loose regex; strict validation lives in the service layer
+# (it also preflights against the project's GitHub installations).
+_REPO_FULL_NAME_PATTERN = r"^[\w.-]+/[\w.-]+$"
+
 
 class AutomationCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=2048)
     enabled: bool = True
+    # Required for every kind, including ``schedule``. See models docstring.
+    trigger_repo: str = Field(..., min_length=3, max_length=255, pattern=_REPO_FULL_NAME_PATTERN)
     trigger_kind: TriggerKind
+    # Non-empty subset of ``VALID_ACTIONS[trigger_kind]`` for GitHub kinds
+    # that carry an action. Must be ``None`` for ``schedule`` and
+    # ``github.push``. Finer validation happens in ``AutomationService``.
+    trigger_actions: list[str] | None = None
     trigger_filters: list[TriggerFilterPredicate] | None = None
     schedule_cron: str | None = Field(default=None, max_length=64)
     schedule_timezone: str | None = Field(default="UTC", max_length=64)
     workspace_mode: WorkspaceMode
-    pinned_repo: str | None = Field(default=None, max_length=255)
     pinned_branch: str | None = Field(default=None, max_length=255)
     system_prompt: str | None = Field(default=None, max_length=16 * 1024)
     initial_prompt: str = Field(..., min_length=1, max_length=50 * 1024)
@@ -69,12 +78,18 @@ class AutomationUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=2048)
     enabled: bool | None = None
+    trigger_repo: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=255,
+        pattern=_REPO_FULL_NAME_PATTERN,
+    )
     trigger_kind: TriggerKind | None = None
+    trigger_actions: list[str] | None = None
     trigger_filters: list[TriggerFilterPredicate] | None = None
     schedule_cron: str | None = Field(default=None, max_length=64)
     schedule_timezone: str | None = Field(default=None, max_length=64)
     workspace_mode: WorkspaceMode | None = None
-    pinned_repo: str | None = Field(default=None, max_length=255)
     pinned_branch: str | None = Field(default=None, max_length=255)
     system_prompt: str | None = Field(default=None, max_length=16 * 1024)
     initial_prompt: str | None = Field(default=None, min_length=1, max_length=50 * 1024)
@@ -87,13 +102,14 @@ class AutomationResponse(BaseModel):
     name: str
     description: str | None = None
     enabled: bool
+    trigger_repo: str
     trigger_kind: str
+    trigger_actions: list[str] | None = None
     trigger_filters: list[TriggerFilterPredicate] | None = None
     schedule_cron: str | None = None
     schedule_timezone: str | None = None
     next_run_at: datetime | None = None
     workspace_mode: str
-    pinned_repo: str | None = None
     pinned_branch: str | None = None
     system_prompt: str | None = None
     initial_prompt: str
@@ -114,6 +130,7 @@ class AutomationRunResponse(BaseModel):
     box_id: str | None = None
     github_event_id: str | None = None
     trigger_kind: str
+    matched_action: str | None = None
     status: str
     error: str | None = None
     created_at: datetime
