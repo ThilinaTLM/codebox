@@ -11,20 +11,43 @@ from __future__ import annotations
 
 import secrets
 
-# The set of GitHub webhook event names the orchestrator depends on. This
-# single source of truth is consumed by both ``build_manifest`` (App
-# registration) and any future App-drift diagnostics. When you add a new
-# trigger kind, add the matching GitHub event name here *and* update the
-# UI's GitHub configuration tab so operators can detect drift on existing
-# installations.
+# The set of GitHub webhook event names the orchestrator subscribes to on
+# App registration. This single source of truth is consumed by both
+# ``build_manifest`` (App registration) and any future App-drift diagnostics.
+#
+# Not every event here has a matching ``trigger_kind`` in
+# ``webhook_dispatcher.EVENT_TYPE_TO_TRIGGER_KIND`` yet — unrouted events
+# are persisted but not fanned out to automations. Subscribing early keeps
+# newly-installed apps ready for future trigger kinds without requiring
+# operators to re-accept permission prompts.
+#
+# When you add a new trigger kind, add the matching GitHub event name here
+# *and* the dispatcher mapping, *and* update the UI's GitHub configuration
+# tab so operators can detect drift on existing installations.
 REQUIRED_EVENTS: frozenset[str] = frozenset(
     {
+        # Currently dispatched to trigger kinds
         "issues",
         "issue_comment",
         "pull_request",
         "pull_request_review",
         "pull_request_review_comment",
         "push",
+        # Subscribed for future dispatcher support / observability
+        "create",
+        "delete",
+        "release",
+        "check_run",
+        "check_suite",
+        "status",
+        "workflow_run",
+        "workflow_job",
+        "workflow_dispatch",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "repository",
     }
 )
 
@@ -67,11 +90,35 @@ def build_manifest(
         "setup_on_update": True,
         "request_oauth_on_install": False,
         "default_permissions": {
+            # Code + git history (branches, commits, tags, releases)
             "contents": "write",
-            "pull_requests": "write",
+            # Commit/modify files under .github/workflows/**
+            "workflows": "write",
+            # Trigger / cancel / re-run workflow runs, download artifacts &
+            # logs, manage caches. Does NOT grant Actions secrets access.
+            "actions": "write",
+            # Issues + PRs
             "issues": "write",
+            "pull_requests": "write",
+            # Commit statuses (legacy CI surfacing)
             "statuses": "write",
+            # Modern check runs & suites
+            "checks": "write",
+            # Deployments & environments
+            "deployments": "write",
+            "environments": "write",
+            # Required by GitHub; cannot be removed
             "metadata": "read",
+            # Discussions
+            "discussions": "write",
+            # GitHub Pages
+            "pages": "write",
+            # Repo-level GitHub Projects (classic)
+            "repository_projects": "write",
+            # Packages attached to the repo (GHCR, npm, etc.)
+            "packages": "write",
+            # Manage repo webhooks
+            "repository_hooks": "write",
         },
         "default_events": sorted(REQUIRED_EVENTS),
     }
