@@ -660,6 +660,23 @@ export function useGitHubRepos(slug: string | undefined, options?: QueryHookOpti
   })
 }
 
+export function useGitHubBranches(
+  slug: string | undefined,
+  repo: string | undefined,
+  options?: QueryHookOptions,
+) {
+  const validRepo = !!repo && /^[^/\s]+\/[^/\s]+$/.test(repo)
+  const enabled = useAuthQueryEnabled(
+    (options?.enabled ?? true) && !!slug && validRepo,
+  )
+  return useQuery({
+    queryKey: ["projects", slug, "github", "branches", repo],
+    queryFn: () => api.github.listBranches(slug!, repo!),
+    enabled,
+    staleTime: 60_000,
+  })
+}
+
 export function useAddGitHubInstallation(slug: string) {
   const qc = useQueryClient()
   return useMutation({

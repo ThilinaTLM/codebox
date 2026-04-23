@@ -162,6 +162,11 @@ export interface GitHubRepo {
   default_branch: string
 }
 
+export interface GitHubBranch {
+  name: string
+  protected: boolean
+}
+
 export interface AuthUser {
   id: string
   username: string

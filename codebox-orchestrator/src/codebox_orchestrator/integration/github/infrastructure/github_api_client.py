@@ -188,6 +188,43 @@ class GitHubApiClient:
         return repos
 
     # ------------------------------------------------------------------
+    # List branches for a repo
+    # ------------------------------------------------------------------
+
+    async def list_repo_branches(self, installation_id: int, repo: str) -> list[dict]:
+        """Fetch branches for ``repo`` (``owner/name``) accessible to the installation."""
+        token = await self.get_installation_token(installation_id)
+        branches: list[dict] = []
+        page = 1
+        async with httpx.AsyncClient(verify=_ssl_ctx) as client:
+            while True:
+                resp = await client.get(
+                    f"{GITHUB_API_BASE}/repos/{repo}/branches",
+                    params={"per_page": 100, "page": page},
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/vnd.github+json",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if not isinstance(data, list):
+                    break
+                branches.extend(
+                    {
+                        "name": b.get("name", ""),
+                        "protected": bool(b.get("protected", False)),
+                    }
+                    for b in data
+                    if b.get("name")
+                )
+                if len(data) < 100:
+                    break
+                page += 1
+        return branches
+
+    # ------------------------------------------------------------------
     # Context extraction
     # ------------------------------------------------------------------
 

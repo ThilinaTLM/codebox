@@ -1,19 +1,17 @@
-import {  useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { PlusSignIcon, SparklesIcon } from "@hugeicons/core-free-icons"
+import { SparklesIcon } from "@hugeicons/core-free-icons"
 import { FormField, SectionCard } from "../FormField"
-import {
-  PromptEditor
-  
-} from "../prompts/PromptEditor"
+import { PromptEditor } from "../prompts/PromptEditor"
 import { VariablesPanel } from "../prompts/VariablesPanel"
-import type {PromptEditorHandle} from "../prompts/PromptEditor";
+import { flatVariablesFor } from "../variableCatalog"
+import type { PromptEditorHandle } from "../prompts/PromptEditor"
 import type {
   FormAction,
   FormErrors,
   FormState,
 } from "../useAgentTemplateFormState"
-import type {Dispatch} from "react";
+import type { Dispatch } from "react"
 import {
   Popover,
   PopoverContent,
@@ -37,17 +35,17 @@ export function PromptsSection({
   const systemRef = useRef<PromptEditorHandle>(null)
   const initialRef = useRef<PromptEditorHandle>(null)
   const [activeEditor, setActiveEditor] = useState<"system" | "initial">(
-    "initial"
+    "initial",
   )
-  const [systemExpanded, setSystemExpanded] = useState(
-    state.system_prompt.length > 0
+
+  const variables = useMemo(
+    () => flatVariablesFor(state.trigger_kind),
+    [state.trigger_kind],
   )
 
   const insert = (token: string) => {
     const target =
-      activeEditor === "system" && systemExpanded
-        ? systemRef.current
-        : initialRef.current
+      activeEditor === "system" ? systemRef.current : initialRef.current
     target?.insertAtCursor(token)
   }
 
@@ -55,76 +53,43 @@ export function PromptsSection({
     <SectionCard
       id={id}
       title="Prompts"
-      description="What the agent reads when it starts. Use variables like ${{ISSUE_TITLE}} to inject event context."
+      description="What the agent reads when it starts. Type ``${{`` inside either editor to get variable suggestions, or pick one from the panel on the right."
     >
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="space-y-5">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium">System prompt</h4>
-              <div className="flex items-center gap-2">
-                <div className="lg:hidden">
-                  <VariablesPopover
-                    triggerKind={state.trigger_kind}
-                    onInsert={(token) => {
-                      setActiveEditor("system")
-                      systemRef.current?.insertAtCursor(token)
-                    }}
-                  />
-                </div>
-                {!systemExpanded ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => setSystemExpanded(true)}
-                  >
-                    <HugeiconsIcon
-                      icon={PlusSignIcon}
-                      strokeWidth={2}
-                      data-icon="inline-start"
-                    />
-                    Add system prompt
-                  </Button>
-                ) : (
-                  state.system_prompt.length === 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setSystemExpanded(false)}
-                    >
-                      Remove
-                    </Button>
-                  )
-                )}
+              <div className="lg:hidden">
+                <VariablesPopover
+                  triggerKind={state.trigger_kind}
+                  onInsert={(token) => {
+                    setActiveEditor("system")
+                    systemRef.current?.insertAtCursor(token)
+                  }}
+                />
               </div>
             </div>
-            {systemExpanded ? (
-              <FormField
-                label={<span className="sr-only">System prompt</span>}
-                htmlFor="at-sys"
-                description="Optional. Sent as the system message. Keep it concise — this defines the agent's role."
-              >
-                <PromptEditor
-                  ref={systemRef}
-                  id="at-sys"
-                  value={state.system_prompt}
-                  onChange={(v) =>
-                    dispatch({ type: "set", patch: { system_prompt: v } })
-                  }
-                  onFocus={() => setActiveEditor("system")}
-                  rows={5}
-                  maxLength={16 * 1024}
-                  placeholder="You are an expert triage agent for this project…"
-                  aria-label="System prompt"
-                />
-              </FormField>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Optional. Defines the agent's role.
-              </p>
-            )}
+            <FormField
+              label={<span className="sr-only">System prompt</span>}
+              htmlFor="at-sys"
+              description="Sent as the system message. Defines the agent's role. Clear the field to skip the system message."
+            >
+              <PromptEditor
+                ref={systemRef}
+                id="at-sys"
+                value={state.system_prompt}
+                onChange={(v) =>
+                  dispatch({ type: "set", patch: { system_prompt: v } })
+                }
+                onFocus={() => setActiveEditor("system")}
+                rows={5}
+                maxLength={16 * 1024}
+                placeholder="You are an expert triage agent for this project…"
+                aria-label="System prompt"
+                variables={variables}
+              />
+            </FormField>
           </div>
 
           <FormField
@@ -148,11 +113,12 @@ export function PromptsSection({
               aria-label="Initial prompt"
               invalid={!!errors.initial_prompt}
               required
+              variables={variables}
             />
           </FormField>
         </div>
 
-        <aside className="hidden max-h-[520px] rounded-xl border border-border/50 bg-muted/20 p-4 lg:flex">
+        <aside className="hidden max-h-[560px] rounded-xl border border-border/50 bg-muted/20 p-4 lg:flex">
           <VariablesPanel
             triggerKind={state.trigger_kind}
             onInsert={insert}

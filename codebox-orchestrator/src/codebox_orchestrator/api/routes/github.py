@@ -28,6 +28,7 @@ from codebox_orchestrator.api.dependencies import (
     get_project_settings_service,
 )
 from codebox_orchestrator.api.schemas import (
+    GitHubBranchResponse,
     GitHubEventListResponse,
     GitHubEventResponse,
     GitHubInstallationCreate,
@@ -554,3 +555,21 @@ async def list_repos(
         except Exception:
             logger.warning("Failed to fetch repos for installation %d", inst.installation_id)
     return all_repos
+
+
+@router.get("/repos/{owner}/{name}/branches")
+async def list_branches(
+    owner: str,
+    name: str,
+    ctx: ProjectContext = Depends(get_project_context),
+    github_mgr: GitHubClientManager = Depends(get_github_client_manager),
+) -> list[GitHubBranchResponse]:
+    """List branches for a repo covered by one of the project's installations."""
+    await github_mgr.get_client(ctx.project_id)
+    service = github_mgr.get_installation_service(ctx.project_id)
+    if service is None:
+        raise HTTPException(400, "GitHub integration not configured in project settings")
+    branches = await service.list_branches(f"{owner}/{name}")
+    if branches is None:
+        raise HTTPException(404, "Repository not covered by any project installation")
+    return [GitHubBranchResponse(**b) for b in branches]

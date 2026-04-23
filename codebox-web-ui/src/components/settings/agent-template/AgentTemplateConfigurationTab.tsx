@@ -84,9 +84,11 @@ export function AgentTemplateConfigurationTab({
           />
           <WorkspaceSection
             id="section-workspace"
+            projectSlug={projectSlug}
             state={form.state}
             dispatch={form.dispatch}
             errors={form.errors}
+            githubConfigured={githubConfigured}
           />
           <PromptsSection
             id="section-prompts"

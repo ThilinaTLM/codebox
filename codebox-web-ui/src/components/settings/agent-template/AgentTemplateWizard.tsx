@@ -6,22 +6,15 @@ import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
 } from "@hugeicons/core-free-icons"
-import {
-  AgentTemplateWizardRail
-  
-} from "./AgentTemplateWizardRail"
-import { AgentTemplateReviewStep } from "./AgentTemplateReviewStep"
-import {
-  
-  useAgentTemplateFormState
-} from "./useAgentTemplateFormState"
+import { AgentTemplateWizardStepper } from "./AgentTemplateWizardStepper"
+import { useAgentTemplateFormState } from "./useAgentTemplateFormState"
 import { BasicsSection } from "./sections/BasicsSection"
 import { TriggerSection } from "./sections/TriggerSection"
 import { WorkspaceSection } from "./sections/WorkspaceSection"
 import { PromptsSection } from "./sections/PromptsSection"
 import { AgentSection } from "./sections/AgentSection"
-import type {SectionId} from "./useAgentTemplateFormState";
-import type {WizardStepSpec} from "./AgentTemplateWizardRail";
+import { StarterTemplatesRow } from "./StarterTemplatesRow"
+import type { WizardStepSpec } from "./AgentTemplateWizardStepper"
 import { useCreateAgentTemplate, useGitHubStatus } from "@/net/query"
 import { Button } from "@/components/ui/button"
 
@@ -29,36 +22,29 @@ interface AgentTemplateWizardProps {
   projectSlug: string
 }
 
-type WizardStepId = Exclude<SectionId, "agent"> | "review"
+type WizardStepId = "basics" | "trigger" | "prompts"
 
 const STEP_ORDER: ReadonlyArray<WizardStepId> = [
   "basics",
   "trigger",
-  "workspace",
   "prompts",
-  "review",
 ]
 
 const STEP_LABELS: Record<
   WizardStepId,
   { title: string; description: string }
 > = {
-  basics: { title: "Basics", description: "Name, description, enabled." },
-  trigger: {
-    title: "Trigger",
-    description: "Which event fires this template.",
+  basics: {
+    title: "Basics",
+    description: "Name, description, agent settings.",
   },
-  workspace: {
-    title: "Workspace",
-    description: "Where the agent does its work.",
+  trigger: {
+    title: "Trigger & Workspace",
+    description: "When it runs and where it works.",
   },
   prompts: {
-    title: "Prompts & agent",
-    description: "System + initial prompt, LLM profile.",
-  },
-  review: {
-    title: "Review & create",
-    description: "Confirm and create.",
+    title: "Prompts",
+    description: "What the agent reads when it starts.",
   },
 }
 
@@ -78,16 +64,30 @@ export function AgentTemplateWizard({
 
   const stepId = STEP_ORDER[activeIndex]
 
+  // Step 2 collapses Trigger + Workspace into a single status: error if
+  // either has an error, complete only when both are complete.
+  const triggerWorkspaceStatus = ((): WizardStepSpec["status"] => {
+    const t = form.sectionStatus.trigger
+    const w = form.sectionStatus.workspace
+    if (t === "error" || w === "error") return "error"
+    if (t === "complete" && w === "complete") return "complete"
+    if (t === "empty" && w === "empty") return "empty"
+    return "partial"
+  })()
+
+  // Step 1 collapses Basics + Agent (LLM profile) into a single status.
+  const basicsAgentStatus = ((): WizardStepSpec["status"] => {
+    const b = form.sectionStatus.basics
+    const a = form.sectionStatus.agent
+    if (b === "error" || a === "error") return "error"
+    if (b === "complete" && a === "complete") return "complete"
+    return b
+  })()
+
   const stepStatuses: Record<WizardStepId, WizardStepSpec["status"]> = {
-    basics: form.sectionStatus.basics,
-    trigger: form.sectionStatus.trigger,
-    workspace: form.sectionStatus.workspace,
-    prompts:
-      form.sectionStatus.prompts === "complete" &&
-      form.sectionStatus.agent === "complete"
-        ? "complete"
-        : form.sectionStatus.prompts,
-    review: form.isValid ? "complete" : "empty",
+    basics: basicsAgentStatus,
+    trigger: triggerWorkspaceStatus,
+    prompts: form.sectionStatus.prompts,
   }
 
   const steps: ReadonlyArray<WizardStepSpec> = STEP_ORDER.map((id) => ({
@@ -97,7 +97,6 @@ export function AgentTemplateWizard({
     status: stepStatuses[id],
   }))
 
-  // Per-step "can continue" checks
   const canContinue = ((): boolean => {
     switch (stepId) {
       case "basics":
@@ -106,13 +105,11 @@ export function AgentTemplateWizard({
         return (
           !form.errors.schedule_cron &&
           !form.errors.schedule_timezone &&
+          !form.errors.pinned_repo &&
+          !form.errors.pinned_branch &&
           !(form.errors.trigger_filters ?? []).some(Boolean)
         )
-      case "workspace":
-        return !form.errors.pinned_repo && !form.errors.pinned_branch
       case "prompts":
-        return !form.errors.initial_prompt
-      case "review":
         return form.isValid
       default:
         return false
@@ -157,6 +154,8 @@ export function AgentTemplateWizard({
     })
   }
 
+  const isLastStep = activeIndex === STEP_ORDER.length - 1
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -179,25 +178,34 @@ export function AgentTemplateWizard({
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="lg:sticky lg:top-4 lg:self-start">
-          <AgentTemplateWizardRail
-            steps={steps}
-            activeIndex={activeIndex}
-            furthestIndex={furthestIndex}
-            onGo={goTo}
-          />
-        </aside>
+      {/* Top horizontal stepper */}
+      <AgentTemplateWizardStepper
+        steps={steps}
+        activeIndex={activeIndex}
+        furthestIndex={furthestIndex}
+        onGo={goTo}
+      />
 
-        <div className="min-w-0 space-y-6">
-          {stepId === "basics" && (
+      <div className="min-w-0 space-y-6">
+        {stepId === "basics" && (
+          <>
+            {!form.isDirty && (
+              <StarterTemplatesRow dispatch={form.dispatch} />
+            )}
             <BasicsSection
               state={form.state}
               dispatch={form.dispatch}
               errors={form.errors}
             />
-          )}
-          {stepId === "trigger" && (
+            <AgentSection
+              projectSlug={projectSlug}
+              state={form.state}
+              dispatch={form.dispatch}
+            />
+          </>
+        )}
+        {stepId === "trigger" && (
+          <>
             <TriggerSection
               projectSlug={projectSlug}
               state={form.state}
@@ -205,92 +213,79 @@ export function AgentTemplateWizard({
               errors={form.errors}
               githubConfigured={githubConfigured}
             />
-          )}
-          {stepId === "workspace" && (
             <WorkspaceSection
+              projectSlug={projectSlug}
               state={form.state}
               dispatch={form.dispatch}
               errors={form.errors}
+              githubConfigured={githubConfigured}
             />
-          )}
-          {stepId === "prompts" && (
-            <>
-              <PromptsSection
-                state={form.state}
-                dispatch={form.dispatch}
-                errors={form.errors}
-              />
-              <AgentSection
-                projectSlug={projectSlug}
-                state={form.state}
-                dispatch={form.dispatch}
-              />
-            </>
-          )}
-          {stepId === "review" && (
-            <AgentTemplateReviewStep
-              projectSlug={projectSlug}
-              state={form.state}
-            />
-          )}
+          </>
+        )}
+        {stepId === "prompts" && (
+          <PromptsSection
+            state={form.state}
+            dispatch={form.dispatch}
+            errors={form.errors}
+          />
+        )}
 
-          <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-4">
+        <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-4">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleBack}
+            disabled={activeIndex === 0 || createMutation.isPending}
+          >
+            <HugeiconsIcon
+              icon={ArrowLeft01Icon}
+              strokeWidth={2}
+              data-icon="inline-start"
+            />
+            Back
+          </Button>
+          <div className="flex items-center gap-2">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={handleBack}
-              disabled={activeIndex === 0 || createMutation.isPending}
+              disabled={createMutation.isPending}
+              render={
+                <Link
+                  to="/projects/$projectSlug/configs/agent-templates"
+                  params={{ projectSlug }}
+                />
+              }
             >
-              <HugeiconsIcon
-                icon={ArrowLeft01Icon}
-                strokeWidth={2}
-                data-icon="inline-start"
-              />
-              Back
+              Cancel
             </Button>
-            <div className="flex items-center gap-2">
+            {isLastStep ? (
               <Button
                 type="button"
-                variant="outline"
                 size="sm"
-                disabled={createMutation.isPending}
-                render={
-                  <Link
-                    to="/projects/$projectSlug/configs/agent-templates"
-                    params={{ projectSlug }}
-                  />
-                }
+                onClick={handleSubmit}
+                disabled={!form.isValid || createMutation.isPending}
               >
-                Cancel
+                {createMutation.isPending
+                  ? "Creating…"
+                  : "Create template"}
               </Button>
-              {stepId === "review" ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSubmit}
-                  disabled={!form.isValid || createMutation.isPending}
-                >
-                  {createMutation.isPending
-                    ? "Creating…"
-                    : "Create template"}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleContinue}
-                  disabled={!canContinue}
-                >
-                  Continue
-                  <HugeiconsIcon
-                    icon={ArrowRight01Icon}
-                    strokeWidth={2}
-                    data-icon="inline-end"
-                  />
-                </Button>
-              )}
-            </div>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleContinue}
+                disabled={!canContinue}
+              >
+                Continue
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  strokeWidth={2}
+                  data-icon="inline-end"
+                />
+              </Button>
+            )}
           </div>
         </div>
       </div>

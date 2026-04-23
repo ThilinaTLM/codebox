@@ -1,5 +1,6 @@
 import { WORKSPACE_MODES, availableWorkspaceModes } from "../metadata"
 import { FormField, SectionCard } from "../FormField"
+import { BranchPicker, RepoPicker } from "./RepoBranchPickers"
 import type { Dispatch } from "react"
 import type { AgentTemplateWorkspaceMode } from "@/net/http/types"
 import type {
@@ -8,30 +9,33 @@ import type {
   FormState,
 } from "../useAgentTemplateFormState"
 import { cn } from "@/lib/utils"
-import { Input } from "@/components/ui/input"
 import {
   RadioGroup,
   RadioGroupItem,
 } from "@/components/ui/radio-group"
 
 interface WorkspaceSectionProps {
+  projectSlug: string
   state: FormState
   dispatch: Dispatch<FormAction>
   errors: FormErrors
+  githubConfigured: boolean
   id?: string
 }
 
 export function WorkspaceSection({
+  projectSlug,
   state,
   dispatch,
   errors,
+  githubConfigured,
   id,
 }: WorkspaceSectionProps) {
   const available = availableWorkspaceModes(state.trigger_kind)
   const isScheduled = state.trigger_kind === "schedule"
   const isPinned = state.workspace_mode === "pinned" || isScheduled
   const hidden = WORKSPACE_MODES.filter(
-    (m) => !available.some((a) => a.value === m.value)
+    (m) => !available.some((a) => a.value === m.value),
   )
 
   return (
@@ -61,7 +65,7 @@ export function WorkspaceSection({
               className={cn(
                 "group/mode flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-background p-3 transition-all",
                 "hover:border-border hover:bg-muted/30",
-                "data-[selected=true]:border-primary data-[selected=true]:bg-primary/5 data-[selected=true]:ring-1 data-[selected=true]:ring-primary/30"
+                "data-[selected=true]:border-primary data-[selected=true]:bg-primary/5 data-[selected=true]:ring-1 data-[selected=true]:ring-primary/30",
               )}
             >
               <RadioGroupItem value={m.value} className="mt-1" />
@@ -91,19 +95,27 @@ export function WorkspaceSection({
             htmlFor="at-repo"
             required
             error={errors.pinned_repo}
-            description="``owner/name`` — e.g. ``my-org/my-repo``."
+            description={
+              githubConfigured
+                ? "Pick from connected repos or type ``owner/name``."
+                : "``owner/name`` — e.g. ``my-org/my-repo``."
+            }
           >
-            <Input
+            <RepoPicker
               id="at-repo"
+              projectSlug={projectSlug}
+              githubConfigured={githubConfigured}
               value={state.pinned_repo}
-              onChange={(e) =>
-                dispatch({
-                  type: "set",
-                  patch: { pinned_repo: e.target.value },
-                })
-              }
-              placeholder="my-org/my-repo"
-              aria-invalid={!!errors.pinned_repo || undefined}
+              onChange={(next, matched) => {
+                const patch: Partial<FormState> = { pinned_repo: next }
+                // Auto-fill default branch when a known repo is picked and
+                // the branch field is still empty.
+                if (matched && state.pinned_branch.trim().length === 0) {
+                  patch.pinned_branch = matched.default_branch
+                }
+                dispatch({ type: "set", patch })
+              }}
+              invalid={!!errors.pinned_repo}
             />
           </FormField>
           <FormField
@@ -111,19 +123,25 @@ export function WorkspaceSection({
             htmlFor="at-branch"
             required
             error={errors.pinned_branch}
-            description="Branch to check out before the agent runs."
+            description={
+              githubConfigured
+                ? "Pick an existing branch or type a name (auto-created if missing)."
+                : "Branch to check out before the agent runs."
+            }
           >
-            <Input
+            <BranchPicker
               id="at-branch"
+              projectSlug={projectSlug}
+              githubConfigured={githubConfigured}
+              repo={state.pinned_repo}
               value={state.pinned_branch}
-              onChange={(e) =>
+              onChange={(next) =>
                 dispatch({
                   type: "set",
-                  patch: { pinned_branch: e.target.value },
+                  patch: { pinned_branch: next },
                 })
               }
-              placeholder="main"
-              aria-invalid={!!errors.pinned_branch || undefined}
+              invalid={!!errors.pinned_branch}
             />
           </FormField>
         </div>

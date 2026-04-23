@@ -48,6 +48,34 @@ class GitHubInstallationService:
     async def sync_repos(self, installation_id: int) -> list[dict]:
         return await self._api.sync_installation_repos(installation_id)
 
+    async def list_branches(self, repo: str) -> list[dict] | None:
+        """List branches for ``owner/name``.
+
+        Returns ``None`` when no installation in this project covers the
+        owner; otherwise returns the GitHub branch list. An empty list is
+        returned on transient errors so the caller can render an empty
+        picker instead of failing the wizard.
+        """
+        if "/" not in repo:
+            return None
+        owner = repo.split("/", 1)[0]
+        installations = await self._repo.list_installations(self._project_id)
+        # Prefer an installation whose account matches the owner prefix, fall
+        # back to any installation so users can still pick a branch of a repo
+        # their first installation covers transitively.
+        match = next(
+            (inst for inst in installations if inst.account_login.lower() == owner.lower()),
+            None,
+        )
+        if match is None and installations:
+            match = installations[0]
+        if match is None:
+            return None
+        try:
+            return await self._api.list_repo_branches(match.installation_id, repo)
+        except Exception:
+            return []
+
     async def fetch_and_store(self, installation_id: int) -> GitHubInstallation:
         info = await self._api.fetch_installation_info(installation_id)
         account = info.get("account", {})

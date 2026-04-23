@@ -13,6 +13,7 @@ import type {
   ContainerLogs,
   FileContent,
   FileListResponse,
+  GitHubBranch,
   GitHubInstallation,
   GitHubManifestPrepareRequest,
   GitHubManifestPrepareResponse,
@@ -499,6 +500,18 @@ export const api = {
     },
     listRepos: async (slug: string): Promise<Array<GitHubRepo>> => {
       const { data } = await client.get<Array<GitHubRepo>>(`${p(slug)}/github/repos`)
+      return data
+    },
+    listBranches: async (
+      slug: string,
+      repo: string
+    ): Promise<Array<GitHubBranch>> => {
+      // ``repo`` is ``owner/name``; pass as two path segments so neither
+      // needs encoding.
+      const [owner, name] = repo.split("/", 2)
+      const { data } = await client.get<Array<GitHubBranch>>(
+        `${p(slug)}/github/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/branches`
+      )
       return data
     },
     prepareManifest: async (

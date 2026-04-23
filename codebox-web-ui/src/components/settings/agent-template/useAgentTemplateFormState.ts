@@ -1,6 +1,11 @@
 import { useMemo, useReducer } from "react"
 import { ALLOWED_FIELDS, OPS_BY_TYPE } from "./metadata"
 import { isValidCron } from "./cronPresets"
+import {
+  DEFAULT_SYSTEM_PROMPT,
+  defaultInitialPrompt,
+  isDefaultInitialPrompt,
+} from "./prompts/defaultPrompts"
 import type {
   AgentTemplate,
   AgentTemplateCreate,
@@ -68,13 +73,13 @@ function emptyState(
     enabled: true,
     trigger_kind: defaultTriggerKind,
     trigger_filters: [],
-    schedule_cron: "",
+    schedule_cron: defaultTriggerKind === "schedule" ? "0 9 * * *" : "",
     schedule_timezone: "UTC",
     workspace_mode: isGithub ? "branch_from_issue" : "pinned",
     pinned_repo: "",
     pinned_branch: "",
-    system_prompt: "",
-    initial_prompt: "",
+    system_prompt: DEFAULT_SYSTEM_PROMPT,
+    initial_prompt: defaultInitialPrompt(defaultTriggerKind),
     llm_profile_id: "",
   }
 }
@@ -123,12 +128,21 @@ function reducer(state: FormState, action: FormAction): FormState {
       const schedule_cron = kind === "schedule"
         ? state.schedule_cron || "0 9 * * *"
         : state.schedule_cron
+      // Re-seed initial prompt with the new trigger's default ONLY when the
+      // user has not edited it (i.e. it still equals one of the seeded
+      // defaults). Empty also counts as untouched.
+      const initial_prompt =
+        state.initial_prompt.trim().length === 0 ||
+        isDefaultInitialPrompt(state.initial_prompt)
+          ? defaultInitialPrompt(kind)
+          : state.initial_prompt
       return {
         ...state,
         trigger_kind: kind,
         workspace_mode,
         schedule_cron,
         trigger_filters: [],
+        initial_prompt,
       }
     }
 

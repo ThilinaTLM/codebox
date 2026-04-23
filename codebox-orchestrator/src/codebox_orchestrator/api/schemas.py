@@ -165,6 +165,11 @@ class GitHubRepoResponse(BaseModel):
     default_branch: str
 
 
+class GitHubBranchResponse(BaseModel):
+    name: str
+    protected: bool
+
+
 class GitHubEventResponse(BaseModel):
     id: str
     delivery_id: str
