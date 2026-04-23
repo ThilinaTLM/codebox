@@ -4,6 +4,7 @@ import { Refresh01Icon } from "@hugeicons/core-free-icons"
 import { RunRow } from "./RunRow"
 import { useInfiniteAutomationRuns } from "@/net/query"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 type StatusFilter = "all" | "spawned" | "skipped_filter" | "error"
@@ -106,7 +107,10 @@ function RunsPanelInner({
       </div>
 
       {isLoading ? (
-        <p className="text-xs text-muted-foreground">Loading…</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Spinner className="size-3.5 text-muted-foreground" />
+          Loading…
+        </p>
       ) : isEmpty ? (
         <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-xs text-muted-foreground">
           {status === "all"

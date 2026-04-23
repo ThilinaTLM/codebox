@@ -21,8 +21,9 @@ export function BoxDetailHeader({
   tabs,
 }: BoxDetailHeaderProps) {
   return (
-    <div className="flex items-center border-b border-border/40 px-2">
-      <div className="flex shrink-0 items-center gap-2 pr-4">
+    <div className="flex items-center gap-4 border-b border-border/40 px-2">
+      {/* Left: back + trimmed name */}
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         <Button
           variant="ghost"
           size="icon-xs"
@@ -37,25 +38,31 @@ export function BoxDetailHeader({
         >
           <ArrowLeft size={16} />
         </Button>
-        <span className="truncate font-display text-sm font-medium">
+        <span
+          className="min-w-0 truncate font-display text-sm font-medium"
+          title={box.name || "Agent"}
+        >
           {box.name || "Agent"}
         </span>
-        <BoxStatusBadge
-          containerStatus={box.container_status}
-          boxActivity={box.activity ?? undefined}
-          boxOutcome={box.box_outcome}
-          activity={activity}
-        />
-        {elapsed && (
-          <span className="whitespace-nowrap text-xs text-muted-foreground">
-            · {elapsed}
-          </span>
-        )}
       </div>
 
-      <nav className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto">
-        {tabs}
-      </nav>
+      {/* Right: status + elapsed + nav tabs (all flush-right) */}
+      <div className="flex shrink-0 items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <BoxStatusBadge
+            containerStatus={box.container_status}
+            boxActivity={box.activity ?? undefined}
+            boxOutcome={box.box_outcome}
+            activity={activity}
+          />
+          {elapsed && (
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              · {elapsed}
+            </span>
+          )}
+        </div>
+        <nav className="flex items-center gap-0.5">{tabs}</nav>
+      </div>
     </div>
   )
 }

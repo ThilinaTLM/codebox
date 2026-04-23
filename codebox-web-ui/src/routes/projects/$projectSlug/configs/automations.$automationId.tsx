@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tabs"
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
 import { useAutomation } from "@/net/query"
+import { CodeboxLoadingState } from "@/components/layout/CodeboxLogoLoader"
 
 type AutomationTab = "configuration" | "dry-run" | "runs"
 
@@ -58,7 +59,7 @@ function EditAutomationPage() {
   )
 
   if (isLoading || isLoadingPermissions) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>
+    return <CodeboxLoadingState message="Loading…" />
   }
   if (!automation) {
     return (

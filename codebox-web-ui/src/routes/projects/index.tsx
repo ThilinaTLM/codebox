@@ -25,6 +25,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog"
+import { CodeboxLoadingState } from "@/components/layout/CodeboxLogoLoader"
 
 export const Route = createFileRoute("/projects/")({
   component: ProjectsChooserPage,
@@ -42,7 +43,7 @@ function ProjectsChooserPage() {
   if (isLoading) {
     return (
       <div className="flex h-[calc(100svh-24px)] items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading projects...</p>
+        <CodeboxLoadingState message="Loading projects…" />
       </div>
     )
   }

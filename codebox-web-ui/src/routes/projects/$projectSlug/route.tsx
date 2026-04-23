@@ -3,6 +3,7 @@ import { Navigate, Outlet, createFileRoute } from "@tanstack/react-router"
 import { useAuthStore } from "@/lib/auth"
 import { useProjectStore } from "@/lib/project"
 import { useProject } from "@/net/query"
+import { CodeboxLoadingState } from "@/components/layout/CodeboxLogoLoader"
 
 export const Route = createFileRoute("/projects/$projectSlug")({
   component: ProjectLayout,
@@ -32,7 +33,7 @@ function ProjectLayout() {
   if (isLoading) {
     return (
       <div className="flex h-[calc(100svh-24px)] items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading project...</p>
+        <CodeboxLoadingState message="Loading project…" />
       </div>
     )
   }

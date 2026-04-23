@@ -11,6 +11,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useAuthStore } from "@/lib/auth"
 import { useProjectStore } from "@/lib/project"
 import { useProjects } from "@/net/query"
+import { CodeboxLoadingState } from "@/components/layout/CodeboxLogoLoader"
 
 export const Route = createFileRoute("/")({
   component: RootIndex,
@@ -74,7 +75,7 @@ function RootIndex() {
 
   return (
     <div className="flex h-svh items-center justify-center">
-      <p className="text-sm text-muted-foreground">Loading...</p>
+      <CodeboxLoadingState message="Loading…" />
     </div>
   )
 }
