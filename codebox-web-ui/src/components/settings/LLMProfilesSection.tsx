@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import {
   AiCloud01Icon,
   AiGenerativeIcon,
+  AiMagicIcon,
   MoreHorizontalCircle01Icon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons"
@@ -60,6 +61,13 @@ function getProviderMeta(provider: string): {
         icon: AiGenerativeIcon,
         color: "text-emerald-600 dark:text-emerald-400",
         bg: "bg-emerald-500/10",
+      }
+    case "opencode-go":
+      return {
+        label: "OpenCode Go",
+        icon: AiMagicIcon,
+        color: "text-amber-600 dark:text-amber-400",
+        bg: "bg-amber-500/10",
       }
     default:
       return {

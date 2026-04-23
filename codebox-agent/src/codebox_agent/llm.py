@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from langchain_openai import ChatOpenAI
 from langchain_openrouter import ChatOpenRouter
 
+from codebox_agent.opencode_go import OPENCODE_GO_BASE_URL, ChatOpenCodeGo
+
 
 @dataclass(frozen=True)
 class LLMProviderConfig:
@@ -22,6 +24,13 @@ def create_chat_model(config: LLMProviderConfig):
         return ChatOpenRouter(
             model=config.model,
             api_key=config.api_key,
+        )
+
+    if config.provider == "opencode-go":
+        return ChatOpenCodeGo(
+            model=config.model,
+            api_key=config.api_key,
+            base_url=config.base_url or OPENCODE_GO_BASE_URL,
         )
 
     if config.provider == "openai":

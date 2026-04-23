@@ -44,6 +44,8 @@ import {
 } from "@/components/ui/combobox"
 import { Spinner } from "@/components/ui/spinner"
 
+const OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1"
+
 function getModelPlaceholder(provider: string) {
   switch (provider) {
     case "openrouter":
@@ -52,6 +54,8 @@ function getModelPlaceholder(provider: string) {
       return "e.g. gpt-4o"
     case "openai-compatible":
       return "e.g. your-model-id"
+    case "opencode-go":
+      return "e.g. kimi-k2.6"
     default:
       return "Model name"
   }
@@ -113,11 +117,13 @@ export function LLMProfileFormDialog({
 
       debounceRef.current = setTimeout(() => {
         const apiProvider = p === "openai-compatible" ? "openai" : p
+        const previewBaseUrl =
+          p === "opencode-go" ? OPENCODE_GO_BASE_URL : url || undefined
         previewModelsMutation.mutate(
           {
             provider: apiProvider,
             api_key: key,
-            base_url: url || undefined,
+            base_url: previewBaseUrl,
           },
           {
             onSuccess: (models) => setPreviewModels(models),
@@ -149,6 +155,9 @@ export function LLMProfileFormDialog({
     if (!open) return
     if (mode === "edit" && profile) {
       setName(profile.name)
+      // `opencode-go` profiles always carry the Go base URL on the server,
+      // but the UI hides the base-URL field for them; keep the provider as
+      // stored so the openai-compatible shortcut doesn't swallow it.
       setProvider(
         profile.provider === "openai" && profile.base_url
           ? "openai-compatible"
@@ -175,6 +184,11 @@ export function LLMProfileFormDialog({
     const apiProvider =
       provider === "openai-compatible" ? "openai" : provider
 
+    // `opencode-go` profiles pin the Go base URL server-side so exports
+    // stay self-contained and the agent always has it available.
+    const submitBaseUrl =
+      provider === "opencode-go" ? OPENCODE_GO_BASE_URL : baseUrl || null
+
     if (mode === "create") {
       createMutation.mutate(
         {
@@ -182,7 +196,7 @@ export function LLMProfileFormDialog({
           provider: apiProvider,
           model,
           api_key: apiKey,
-          base_url: baseUrl || null,
+          base_url: submitBaseUrl,
         },
         {
           onSuccess: () => {
@@ -198,7 +212,7 @@ export function LLMProfileFormDialog({
       if (apiProvider !== profile.provider) payload.provider = apiProvider
       if (model !== profile.model) payload.model = model
       if (apiKey) payload.api_key = apiKey
-      const newBaseUrl = baseUrl || null
+      const newBaseUrl = submitBaseUrl
       if (newBaseUrl !== profile.base_url) payload.base_url = newBaseUrl
 
       updateMutation.mutate(
@@ -261,6 +275,7 @@ export function LLMProfileFormDialog({
                 <SelectItem value="openai-compatible">
                   OpenAI Compatible
                 </SelectItem>
+                <SelectItem value="opencode-go">OpenCode Go</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -115,6 +115,19 @@ class TestFromDict:
         with pytest.raises(ValidationError, match="api_key"):
             AgentConfig.from_dict({"llm": {"provider": "openai", "model": "gpt-4o"}})
 
+    def test_opencode_go_provider_accepted(self):
+        cfg = AgentConfig.from_dict(
+            {
+                "llm": {
+                    "provider": "opencode-go",
+                    "model": "kimi-k2.6",
+                    "api_key": "sk-x",
+                },
+            }
+        )
+        assert cfg.llm.provider == "opencode-go"
+        assert cfg.llm.model == "kimi-k2.6"
+
     def test_json_serializable(self):
         """Config can be serialized to JSON and deserialized back."""
         cfg = AgentConfig(**_minimal_config())

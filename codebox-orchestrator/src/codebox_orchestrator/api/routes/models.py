@@ -31,6 +31,29 @@ _CACHE_TTL = 300  # 5 minutes
 _cache: dict[str, list[ModelResponse]] = {}
 _cache_ts: dict[str, float] = {}
 
+# OpenCode Go has no /models endpoint (returns the site's 404 HTML), so we
+# ship the curated catalogue from https://opencode.ai/docs/go in code. The
+# IDs are verified against the live /chat/completions endpoint.
+_OPENCODE_GO_MODELS: list[ModelResponse] = [
+    ModelResponse(provider="opencode-go", id="glm-5", name="GLM-5"),
+    ModelResponse(provider="opencode-go", id="glm-5.1", name="GLM-5.1"),
+    ModelResponse(provider="opencode-go", id="kimi-k2.5", name="Kimi K2.5"),
+    ModelResponse(provider="opencode-go", id="kimi-k2.6", name="Kimi K2.6"),
+    ModelResponse(provider="opencode-go", id="mimo-v2-pro", name="MiMo-V2-Pro"),
+    ModelResponse(provider="opencode-go", id="mimo-v2-omni", name="MiMo-V2-Omni"),
+    ModelResponse(provider="opencode-go", id="mimo-v2.5", name="MiMo-V2.5"),
+    ModelResponse(provider="opencode-go", id="mimo-v2.5-pro", name="MiMo-V2.5-Pro"),
+    ModelResponse(provider="opencode-go", id="minimax-m2.5", name="MiniMax M2.5"),
+    ModelResponse(provider="opencode-go", id="minimax-m2.7", name="MiniMax M2.7"),
+    ModelResponse(provider="opencode-go", id="qwen3.5-plus", name="Qwen3.5 Plus"),
+    ModelResponse(provider="opencode-go", id="qwen3.6-plus", name="Qwen3.6 Plus"),
+]
+
+
+def _fetch_opencode_go_models() -> list[ModelResponse]:
+    """Return the hard-coded OpenCode Go model catalogue."""
+    return list(_OPENCODE_GO_MODELS)
+
 
 async def _resolve_profile_key(
     project_id: str,
@@ -73,6 +96,8 @@ async def list_models(
         models = await _fetch_openrouter_models(api_key)
     elif provider == "openai":
         models = await _fetch_openai_models(api_key, base_url)
+    elif provider == "opencode-go":
+        models = _fetch_opencode_go_models()
     else:
         raise HTTPException(400, f"Unsupported provider: {provider}")
 
@@ -100,6 +125,8 @@ async def preview_models(
         models = await _fetch_openrouter_models(api_key)
     elif provider in ("openai", "openai-compatible"):
         models = await _fetch_openai_models(api_key, base_url)
+    elif provider == "opencode-go":
+        models = _fetch_opencode_go_models()
     else:
         raise HTTPException(400, f"Unsupported provider: {provider}")
 

@@ -6,7 +6,7 @@ inputs:
     description: 'GitHub token for API access'
     required: true
   llm-provider:
-    description: 'LLM provider identifier ("openai" or "openrouter")'
+    description: 'LLM provider identifier ("openai", "openrouter", or "opencode-go")'
     required: false
     default: 'openrouter'
   llm-model:

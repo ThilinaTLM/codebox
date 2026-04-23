@@ -27,13 +27,13 @@ logger = logging.getLogger(__name__)
 # LLM
 # ---------------------------------------------------------------------------
 
-_SUPPORTED_PROVIDERS = ("openai", "openrouter")
+_SUPPORTED_PROVIDERS = ("openai", "openrouter", "opencode-go")
 
 
 class LLMConfig(BaseModel):
     """LLM provider and model settings."""
 
-    provider: str = Field(description="LLM provider: 'openai' or 'openrouter'")
+    provider: str = Field(description="LLM provider: 'openai', 'openrouter', or 'opencode-go'")
     model: str = Field(description="Model identifier (e.g. 'gpt-4o', 'anthropic/claude-sonnet-4')")
     api_key: str = Field(description="Provider API key")
     base_url: str | None = Field(
