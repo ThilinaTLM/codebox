@@ -1,7 +1,8 @@
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { CheckmarkCircle02Icon, InformationCircleIcon, Alert02Icon, MultiplicationSignCircleIcon, Loading03Icon } from "@hugeicons/core-free-icons"
+import { CheckmarkCircle02Icon, InformationCircleIcon, Alert02Icon, MultiplicationSignCircleIcon } from "@hugeicons/core-free-icons"
+import { CodeboxLogoLoader } from "@/components/layout/CodeboxLogoLoader"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -24,9 +25,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         error: (
           <HugeiconsIcon icon={MultiplicationSignCircleIcon} strokeWidth={2} className="size-4" />
         ),
-        loading: (
-          <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} className="size-4 animate-spin" />
-        ),
+        loading: <CodeboxLogoLoader className="size-4" />,
       }}
       style={
         {

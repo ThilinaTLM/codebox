@@ -238,7 +238,7 @@ async def _process_webhook_safe(
     profile_service: LLMProfileService,
     settings_service: ProjectSettingsService,
 ) -> None:
-    """Process webhook asynchronously via the agent-template dispatcher."""
+    """Process webhook asynchronously via the automation dispatcher."""
     from codebox_orchestrator.integration.github.application.webhook_dispatcher import (  # noqa: PLC0415
         GitHubWebhookDispatcher,
     )
@@ -262,8 +262,8 @@ async def _process_webhook_safe(
         dispatcher = GitHubWebhookDispatcher(
             api_client=client,
             github_repo=github_mgr._github_repo,  # noqa: SLF001
-            template_repo=app_state.agent_template_repo,
-            matcher=app_state.template_matcher,
+            automation_repo=app_state.automation_repo,
+            matcher=app_state.automation_matcher,
             renderer=app_state.prompt_renderer,
             context_builder_registry=app_state.context_builder_registry,
             create_box=create_box_handler,

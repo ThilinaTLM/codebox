@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
+import { CodeboxLogoLoader } from "@/components/layout/CodeboxLogoLoader"
 import { useBoxDetail } from "@/components/box/BoxDetailContext"
 import { useBoxLogs } from "@/net/query"
 
@@ -64,7 +64,7 @@ function BoxLogsPage() {
       <div className="min-h-0 flex-1 px-2 pb-2">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
-            <Spinner />
+            <CodeboxLogoLoader className="size-10 text-muted-foreground" />
           </div>
         ) : (
           <pre

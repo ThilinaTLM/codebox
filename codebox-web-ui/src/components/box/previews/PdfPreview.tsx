@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Download, FileWarning } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
+import { CodeboxLogoLoader } from "@/components/layout/CodeboxLogoLoader"
 
 interface PdfPreviewProps {
   inlineUrl: string
@@ -41,7 +41,7 @@ export function PdfPreview({
     <div className="relative min-h-[400px]">
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <Spinner />
+          <CodeboxLogoLoader className="size-10 text-muted-foreground" />
         </div>
       )}
       <iframe

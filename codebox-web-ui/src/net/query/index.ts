@@ -5,9 +5,9 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 import type {
-  AgentTemplateCreate,
-  AgentTemplateDryRunRequest,
-  AgentTemplateUpdate,
+  AutomationCreate,
+  AutomationDryRunRequest,
+  AutomationUpdate,
   Box,
   BoxCreatePayload,
   LLMProfileCreate,
@@ -367,21 +367,21 @@ export function useImportLLMProfiles(slug: string) {
   })
 }
 
-// ── Agent Templates queries & mutations ─────────────────────
+// ── Automations queries & mutations ─────────────────────
 
-export function useAgentTemplates(
+export function useAutomations(
   slug: string | undefined,
   options?: QueryHookOptions
 ) {
   const enabled = useAuthQueryEnabled((options?.enabled ?? true) && !!slug)
   return useQuery({
-    queryKey: ["projects", slug, "agent-templates"],
-    queryFn: () => api.agentTemplates.list(slug!),
+    queryKey: ["projects", slug, "automations"],
+    queryFn: () => api.automations.list(slug!),
     enabled,
   })
 }
 
-export function useAgentTemplate(
+export function useAutomation(
   slug: string | undefined,
   id: string | undefined,
   options?: QueryHookOptions
@@ -390,48 +390,48 @@ export function useAgentTemplate(
     (options?.enabled ?? true) && !!slug && !!id
   )
   return useQuery({
-    queryKey: ["projects", slug, "agent-templates", id],
-    queryFn: () => api.agentTemplates.get(slug!, id!),
+    queryKey: ["projects", slug, "automations", id],
+    queryFn: () => api.automations.get(slug!, id!),
     enabled,
   })
 }
 
-export function useCreateAgentTemplate(slug: string) {
+export function useCreateAutomation(slug: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: AgentTemplateCreate) =>
-      api.agentTemplates.create(slug, payload),
+    mutationFn: (payload: AutomationCreate) =>
+      api.automations.create(slug, payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["projects", slug, "agent-templates"] })
+      qc.invalidateQueries({ queryKey: ["projects", slug, "automations"] })
     },
   })
 }
 
-export function useUpdateAgentTemplate(slug: string) {
+export function useUpdateAutomation(slug: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: AgentTemplateUpdate }) =>
-      api.agentTemplates.update(slug, id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: AutomationUpdate }) =>
+      api.automations.update(slug, id, payload),
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ["projects", slug, "agent-templates"] })
+      qc.invalidateQueries({ queryKey: ["projects", slug, "automations"] })
       qc.invalidateQueries({
-        queryKey: ["projects", slug, "agent-templates", variables.id],
+        queryKey: ["projects", slug, "automations", variables.id],
       })
     },
   })
 }
 
-export function useDeleteAgentTemplate(slug: string) {
+export function useDeleteAutomation(slug: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.agentTemplates.delete(slug, id),
+    mutationFn: (id: string) => api.automations.delete(slug, id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["projects", slug, "agent-templates"] })
+      qc.invalidateQueries({ queryKey: ["projects", slug, "automations"] })
     },
   })
 }
 
-export function useAgentTemplateRuns(
+export function useAutomationRuns(
   slug: string | undefined,
   id: string | undefined,
   params: {
@@ -445,13 +445,13 @@ export function useAgentTemplateRuns(
     (options?.enabled ?? true) && !!slug && !!id
   )
   return useQuery({
-    queryKey: ["projects", slug, "agent-templates", id, "runs", params],
-    queryFn: () => api.agentTemplates.listRuns(slug!, id!, params),
+    queryKey: ["projects", slug, "automations", id, "runs", params],
+    queryFn: () => api.automations.listRuns(slug!, id!, params),
     enabled,
   })
 }
 
-export function useInfiniteAgentTemplateRuns(
+export function useInfiniteAutomationRuns(
   slug: string | undefined,
   id: string | undefined,
   params: { status?: string | null; limit?: number } = {},
@@ -464,14 +464,14 @@ export function useInfiniteAgentTemplateRuns(
     queryKey: [
       "projects",
       slug,
-      "agent-templates",
+      "automations",
       id,
       "runs",
       "infinite",
       params,
     ],
     queryFn: ({ pageParam }) =>
-      api.agentTemplates.listRuns(slug!, id!, {
+      api.automations.listRuns(slug!, id!, {
         ...params,
         cursor: pageParam,
       }),
@@ -481,10 +481,10 @@ export function useInfiniteAgentTemplateRuns(
   })
 }
 
-export function useDryRunAgentTemplate(slug: string, id: string) {
+export function useDryRunAutomation(slug: string, id: string) {
   return useMutation({
-    mutationFn: (payload: AgentTemplateDryRunRequest) =>
-      api.agentTemplates.dryRun(slug, id, payload),
+    mutationFn: (payload: AutomationDryRunRequest) =>
+      api.automations.dryRun(slug, id, payload),
   })
 }
 

@@ -35,7 +35,7 @@ interface ProjectNavItem {
     | "/projects/$projectSlug/configs/llm-profiles"
     | "/projects/$projectSlug/configs/github"
     | "/projects/$projectSlug/configs/tavily"
-    | "/projects/$projectSlug/configs/agent-templates"
+    | "/projects/$projectSlug/configs/automations"
     | "/projects/$projectSlug/account"
     | "/projects/$projectSlug/settings"
   matchPrefix: (slug: string) => string
@@ -62,12 +62,12 @@ const PROJECT_NAV_SECTIONS: Array<ProjectNavSection> = [
         exact: true,
       },
       {
-        key: "agent-templates",
-        label: "Agent Templates",
+        key: "automations",
+        label: "Automations",
         icon: Clock02Icon,
-        to: "/projects/$projectSlug/configs/agent-templates",
+        to: "/projects/$projectSlug/configs/automations",
         matchPrefix: (slug) =>
-          `/projects/${slug}/configs/agent-templates`,
+          `/projects/${slug}/configs/automations`,
       },
     ],
   },

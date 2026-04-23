@@ -1,12 +1,12 @@
 import axios from "axios"
 import type {
-  AgentTemplate,
-  AgentTemplateCreate,
-  AgentTemplateDryRunRequest,
-  AgentTemplateDryRunResult,
-  AgentTemplateRunList,
-  AgentTemplateUpdate,
   AuthUser,
+  Automation,
+  AutomationCreate,
+  AutomationDryRunRequest,
+  AutomationDryRunResult,
+  AutomationRunList,
+  AutomationUpdate,
   Box,
   BoxCreatePayload,
   CanonicalEvent,
@@ -337,25 +337,25 @@ export const api = {
       return data
     },
   },
-  agentTemplates: {
-    list: async (slug: string): Promise<Array<AgentTemplate>> => {
-      const { data } = await client.get<{ templates: Array<AgentTemplate> }>(
-        `${p(slug)}/agent-templates`
+  automations: {
+    list: async (slug: string): Promise<Array<Automation>> => {
+      const { data } = await client.get<{ automations: Array<Automation> }>(
+        `${p(slug)}/automations`
       )
-      return data.templates
+      return data.automations
     },
-    get: async (slug: string, id: string): Promise<AgentTemplate> => {
-      const { data } = await client.get<AgentTemplate>(
-        `${p(slug)}/agent-templates/${id}`
+    get: async (slug: string, id: string): Promise<Automation> => {
+      const { data } = await client.get<Automation>(
+        `${p(slug)}/automations/${id}`
       )
       return data
     },
     create: async (
       slug: string,
-      payload: AgentTemplateCreate
-    ): Promise<AgentTemplate> => {
-      const { data } = await client.post<AgentTemplate>(
-        `${p(slug)}/agent-templates`,
+      payload: AutomationCreate
+    ): Promise<Automation> => {
+      const { data } = await client.post<Automation>(
+        `${p(slug)}/automations`,
         payload
       )
       return data
@@ -363,24 +363,24 @@ export const api = {
     update: async (
       slug: string,
       id: string,
-      payload: AgentTemplateUpdate
-    ): Promise<AgentTemplate> => {
-      const { data } = await client.patch<AgentTemplate>(
-        `${p(slug)}/agent-templates/${id}`,
+      payload: AutomationUpdate
+    ): Promise<Automation> => {
+      const { data } = await client.patch<Automation>(
+        `${p(slug)}/automations/${id}`,
         payload
       )
       return data
     },
     delete: async (slug: string, id: string): Promise<void> => {
-      await client.delete(`${p(slug)}/agent-templates/${id}`)
+      await client.delete(`${p(slug)}/automations/${id}`)
     },
     listRuns: async (
       slug: string,
       id: string,
       params: { cursor?: string | null; status?: string | null; limit?: number } = {}
-    ): Promise<AgentTemplateRunList> => {
-      const { data } = await client.get<AgentTemplateRunList>(
-        `${p(slug)}/agent-templates/${id}/runs`,
+    ): Promise<AutomationRunList> => {
+      const { data } = await client.get<AutomationRunList>(
+        `${p(slug)}/automations/${id}/runs`,
         { params }
       )
       return data
@@ -388,10 +388,10 @@ export const api = {
     dryRun: async (
       slug: string,
       id: string,
-      payload: AgentTemplateDryRunRequest
-    ): Promise<AgentTemplateDryRunResult> => {
-      const { data } = await client.post<AgentTemplateDryRunResult>(
-        `${p(slug)}/agent-templates/${id}/dry-run`,
+      payload: AutomationDryRunRequest
+    ): Promise<AutomationDryRunResult> => {
+      const { data } = await client.post<AutomationDryRunResult>(
+        `${p(slug)}/automations/${id}/dry-run`,
         payload
       )
       return data

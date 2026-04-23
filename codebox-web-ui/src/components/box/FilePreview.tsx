@@ -7,7 +7,7 @@ import { MediaPreview } from "./previews/MediaPreview"
 import { PdfPreview } from "./previews/PdfPreview"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Spinner } from "@/components/ui/spinner"
+import { CodeboxLogoLoader } from "@/components/layout/CodeboxLogoLoader"
 import { api } from "@/net/http/api"
 import { useBoxFileContent } from "@/net/query"
 import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
@@ -106,7 +106,7 @@ export function FilePreview({ boxId, filePath, onClose }: FilePreviewProps) {
         <div className="max-h-[70vh] min-h-[200px] overflow-auto">
           {isLoading ? (
             <div className="flex h-[200px] items-center justify-center">
-              <Spinner />
+              <CodeboxLogoLoader className="size-10 text-muted-foreground" />
             </div>
           ) : !fileContent ? (
             <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">

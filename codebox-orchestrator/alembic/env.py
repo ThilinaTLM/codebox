@@ -17,8 +17,8 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 import codebox_orchestrator.agent.infrastructure.orm_models
-import codebox_orchestrator.agent_template.models
 import codebox_orchestrator.auth.models
+import codebox_orchestrator.automation.models
 import codebox_orchestrator.box.infrastructure.orm_models
 import codebox_orchestrator.integration.github.infrastructure.orm_models
 import codebox_orchestrator.llm_profile.models

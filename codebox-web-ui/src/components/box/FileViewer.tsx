@@ -6,7 +6,7 @@ import { MarkdownPreview } from "./previews/MarkdownPreview"
 import { MediaPreview } from "./previews/MediaPreview"
 import { PdfPreview } from "./previews/PdfPreview"
 
-import { Spinner } from "@/components/ui/spinner"
+import { CodeboxLogoLoader } from "@/components/layout/CodeboxLogoLoader"
 import { api } from "@/net/http/api"
 import { useBoxFileContent } from "@/net/query"
 import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
@@ -94,7 +94,7 @@ export function FileViewer({ boxId, filePath }: FileViewerProps) {
       <div className="min-h-0 flex-1 overflow-auto">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
-            <Spinner />
+            <CodeboxLogoLoader className="size-10 text-muted-foreground" />
           </div>
         ) : !fileContent ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

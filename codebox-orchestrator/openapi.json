@@ -1,7 +1,7 @@
 {
   "components": {
     "schemas": {
-      "AgentTemplateCreate": {
+      "AutomationCreate": {
         "properties": {
           "description": {
             "anyOf": [
@@ -148,10 +148,10 @@
           "workspace_mode",
           "initial_prompt"
         ],
-        "title": "AgentTemplateCreate",
+        "title": "AutomationCreate",
         "type": "object"
       },
-      "AgentTemplateDryRunRequest": {
+      "AutomationDryRunRequest": {
         "description": "Dry-run against a synthetic event.\n\nEither ``schedule=True`` or (``event_type`` + ``payload``) must be set.",
         "properties": {
           "event_type": {
@@ -183,10 +183,10 @@
             "type": "boolean"
           }
         },
-        "title": "AgentTemplateDryRunRequest",
+        "title": "AutomationDryRunRequest",
         "type": "object"
       },
-      "AgentTemplateDryRunResponse": {
+      "AutomationDryRunResponse": {
         "properties": {
           "matched": {
             "title": "Matched",
@@ -236,26 +236,26 @@
         "required": [
           "matched"
         ],
-        "title": "AgentTemplateDryRunResponse",
+        "title": "AutomationDryRunResponse",
         "type": "object"
       },
-      "AgentTemplateListResponse": {
+      "AutomationListResponse": {
         "properties": {
-          "templates": {
+          "automations": {
             "items": {
-              "$ref": "#/components/schemas/AgentTemplateResponse"
+              "$ref": "#/components/schemas/AutomationResponse"
             },
-            "title": "Templates",
+            "title": "Automations",
             "type": "array"
           }
         },
         "required": [
-          "templates"
+          "automations"
         ],
-        "title": "AgentTemplateListResponse",
+        "title": "AutomationListResponse",
         "type": "object"
       },
-      "AgentTemplateResponse": {
+      "AutomationResponse": {
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -421,10 +421,10 @@
           "created_at",
           "updated_at"
         ],
-        "title": "AgentTemplateResponse",
+        "title": "AutomationResponse",
         "type": "object"
       },
-      "AgentTemplateRunListResponse": {
+      "AutomationRunListResponse": {
         "properties": {
           "next_cursor": {
             "anyOf": [
@@ -439,7 +439,7 @@
           },
           "runs": {
             "items": {
-              "$ref": "#/components/schemas/AgentTemplateRunResponse"
+              "$ref": "#/components/schemas/AutomationRunResponse"
             },
             "title": "Runs",
             "type": "array"
@@ -448,11 +448,15 @@
         "required": [
           "runs"
         ],
-        "title": "AgentTemplateRunListResponse",
+        "title": "AutomationRunListResponse",
         "type": "object"
       },
-      "AgentTemplateRunResponse": {
+      "AutomationRunResponse": {
         "properties": {
+          "automation_id": {
+            "title": "Automation Id",
+            "type": "string"
+          },
           "box_id": {
             "anyOf": [
               {
@@ -503,10 +507,6 @@
             "title": "Status",
             "type": "string"
           },
-          "template_id": {
-            "title": "Template Id",
-            "type": "string"
-          },
           "trigger_kind": {
             "title": "Trigger Kind",
             "type": "string"
@@ -515,15 +515,15 @@
         "required": [
           "id",
           "project_id",
-          "template_id",
+          "automation_id",
           "trigger_kind",
           "status",
           "created_at"
         ],
-        "title": "AgentTemplateRunResponse",
+        "title": "AutomationRunResponse",
         "type": "object"
       },
-      "AgentTemplateUpdate": {
+      "AutomationUpdate": {
         "properties": {
           "description": {
             "anyOf": [
@@ -697,7 +697,7 @@
             "title": "Workspace Mode"
           }
         },
-        "title": "AgentTemplateUpdate",
+        "title": "AutomationUpdate",
         "type": "object"
       },
       "Body_upload_file_api_projects__slug__boxes__box_id__files_upload_post": {
@@ -3165,9 +3165,51 @@
         ]
       }
     },
-    "/api/projects/{slug}/agent-templates": {
+    "/api/projects/{slug}/archive": {
+      "post": {
+        "operationId": "archive_project",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive project",
+        "tags": [
+          "Projects"
+        ]
+      }
+    },
+    "/api/projects/{slug}/automations": {
       "get": {
-        "operationId": "list_agent_templates",
+        "operationId": "list_automations",
         "parameters": [
           {
             "in": "path",
@@ -3216,7 +3258,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentTemplateListResponse"
+                  "$ref": "#/components/schemas/AutomationListResponse"
                 }
               }
             },
@@ -3233,13 +3275,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List agent templates",
+        "summary": "List automations",
         "tags": [
-          "Agent Templates"
+          "Automations"
         ]
       },
       "post": {
-        "operationId": "create_agent_template",
+        "operationId": "create_automation",
         "parameters": [
           {
             "in": "path",
@@ -3255,7 +3297,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AgentTemplateCreate"
+                "$ref": "#/components/schemas/AutomationCreate"
               }
             }
           },
@@ -3266,7 +3308,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentTemplateResponse"
+                  "$ref": "#/components/schemas/AutomationResponse"
                 }
               }
             },
@@ -3283,22 +3325,22 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create agent template",
+        "summary": "Create automation",
         "tags": [
-          "Agent Templates"
+          "Automations"
         ]
       }
     },
-    "/api/projects/{slug}/agent-templates/{template_id}": {
+    "/api/projects/{slug}/automations/{automation_id}": {
       "delete": {
-        "operationId": "delete_agent_template",
+        "operationId": "delete_automation",
         "parameters": [
           {
             "in": "path",
-            "name": "template_id",
+            "name": "automation_id",
             "required": true,
             "schema": {
-              "title": "Template Id",
+              "title": "Automation Id",
               "type": "string"
             }
           },
@@ -3327,20 +3369,20 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Delete agent template",
+        "summary": "Delete automation",
         "tags": [
-          "Agent Templates"
+          "Automations"
         ]
       },
       "get": {
-        "operationId": "get_agent_template",
+        "operationId": "get_automation",
         "parameters": [
           {
             "in": "path",
-            "name": "template_id",
+            "name": "automation_id",
             "required": true,
             "schema": {
-              "title": "Template Id",
+              "title": "Automation Id",
               "type": "string"
             }
           },
@@ -3359,7 +3401,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentTemplateResponse"
+                  "$ref": "#/components/schemas/AutomationResponse"
                 }
               }
             },
@@ -3376,20 +3418,20 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get agent template",
+        "summary": "Get automation",
         "tags": [
-          "Agent Templates"
+          "Automations"
         ]
       },
       "patch": {
-        "operationId": "patch_agent_template",
+        "operationId": "patch_automation",
         "parameters": [
           {
             "in": "path",
-            "name": "template_id",
+            "name": "automation_id",
             "required": true,
             "schema": {
-              "title": "Template Id",
+              "title": "Automation Id",
               "type": "string"
             }
           },
@@ -3407,7 +3449,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AgentTemplateUpdate"
+                "$ref": "#/components/schemas/AutomationUpdate"
               }
             }
           },
@@ -3418,7 +3460,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentTemplateResponse"
+                  "$ref": "#/components/schemas/AutomationResponse"
                 }
               }
             },
@@ -3435,22 +3477,22 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update agent template",
+        "summary": "Update automation",
         "tags": [
-          "Agent Templates"
+          "Automations"
         ]
       }
     },
-    "/api/projects/{slug}/agent-templates/{template_id}/dry-run": {
+    "/api/projects/{slug}/automations/{automation_id}/dry-run": {
       "post": {
-        "operationId": "dry_run_agent_template",
+        "operationId": "dry_run_automation",
         "parameters": [
           {
             "in": "path",
-            "name": "template_id",
+            "name": "automation_id",
             "required": true,
             "schema": {
-              "title": "Template Id",
+              "title": "Automation Id",
               "type": "string"
             }
           },
@@ -3468,7 +3510,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AgentTemplateDryRunRequest"
+                "$ref": "#/components/schemas/AutomationDryRunRequest"
               }
             }
           },
@@ -3479,7 +3521,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentTemplateDryRunResponse"
+                  "$ref": "#/components/schemas/AutomationDryRunResponse"
                 }
               }
             },
@@ -3496,22 +3538,22 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Dry-run a template against a synthetic event",
+        "summary": "Dry-run an automation against a synthetic event",
         "tags": [
-          "Agent Templates"
+          "Automations"
         ]
       }
     },
-    "/api/projects/{slug}/agent-templates/{template_id}/runs": {
+    "/api/projects/{slug}/automations/{automation_id}/runs": {
       "get": {
-        "operationId": "list_agent_template_runs",
+        "operationId": "list_automation_runs",
         "parameters": [
           {
             "in": "path",
-            "name": "template_id",
+            "name": "automation_id",
             "required": true,
             "schema": {
-              "title": "Template Id",
+              "title": "Automation Id",
               "type": "string"
             }
           },
@@ -3572,7 +3614,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentTemplateRunListResponse"
+                  "$ref": "#/components/schemas/AutomationRunListResponse"
                 }
               }
             },
@@ -3589,51 +3631,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List runs for an agent template",
+        "summary": "List runs for an automation",
         "tags": [
-          "Agent Templates"
-        ]
-      }
-    },
-    "/api/projects/{slug}/archive": {
-      "post": {
-        "operationId": "archive_project",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "slug",
-            "required": true,
-            "schema": {
-              "title": "Slug",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProjectResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Archive project",
-        "tags": [
-          "Projects"
+          "Automations"
         ]
       }
     },

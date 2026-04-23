@@ -38,10 +38,10 @@ import { Route as ProjectsProjectSlugConfigsLlmProfilesRouteImport } from './rou
 import { Route as ProjectsProjectSlugConfigsGithubRouteImport } from './routes/projects/$projectSlug/configs/github'
 import { Route as ProjectsProjectSlugBoxesCreateRouteImport } from './routes/projects/$projectSlug/boxes/create'
 import { Route as ProjectsProjectSlugBoxesBoxIdRouteRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/route'
-import { Route as ProjectsProjectSlugConfigsAgentTemplatesIndexRouteImport } from './routes/projects/$projectSlug/configs/agent-templates.index'
+import { Route as ProjectsProjectSlugConfigsAutomationsIndexRouteImport } from './routes/projects/$projectSlug/configs/automations.index'
 import { Route as ProjectsProjectSlugBoxesBoxIdIndexRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/index'
-import { Route as ProjectsProjectSlugConfigsAgentTemplatesNewRouteImport } from './routes/projects/$projectSlug/configs/agent-templates.new'
-import { Route as ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRouteImport } from './routes/projects/$projectSlug/configs/agent-templates.$templateId'
+import { Route as ProjectsProjectSlugConfigsAutomationsNewRouteImport } from './routes/projects/$projectSlug/configs/automations.new'
+import { Route as ProjectsProjectSlugConfigsAutomationsAutomationIdRouteImport } from './routes/projects/$projectSlug/configs/automations.$automationId'
 import { Route as ProjectsProjectSlugBoxesBoxIdTerminalRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/terminal'
 import { Route as ProjectsProjectSlugBoxesBoxIdResourcesRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/resources'
 import { Route as ProjectsProjectSlugBoxesBoxIdLogsRouteImport } from './routes/projects/$projectSlug/boxes/$boxId/logs'
@@ -209,10 +209,10 @@ const ProjectsProjectSlugBoxesBoxIdRouteRoute =
     path: '/boxes/$boxId',
     getParentRoute: () => ProjectsProjectSlugRouteRoute,
   } as any)
-const ProjectsProjectSlugConfigsAgentTemplatesIndexRoute =
-  ProjectsProjectSlugConfigsAgentTemplatesIndexRouteImport.update({
-    id: '/agent-templates/',
-    path: '/agent-templates/',
+const ProjectsProjectSlugConfigsAutomationsIndexRoute =
+  ProjectsProjectSlugConfigsAutomationsIndexRouteImport.update({
+    id: '/automations/',
+    path: '/automations/',
     getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
   } as any)
 const ProjectsProjectSlugBoxesBoxIdIndexRoute =
@@ -221,16 +221,16 @@ const ProjectsProjectSlugBoxesBoxIdIndexRoute =
     path: '/',
     getParentRoute: () => ProjectsProjectSlugBoxesBoxIdRouteRoute,
   } as any)
-const ProjectsProjectSlugConfigsAgentTemplatesNewRoute =
-  ProjectsProjectSlugConfigsAgentTemplatesNewRouteImport.update({
-    id: '/agent-templates/new',
-    path: '/agent-templates/new',
+const ProjectsProjectSlugConfigsAutomationsNewRoute =
+  ProjectsProjectSlugConfigsAutomationsNewRouteImport.update({
+    id: '/automations/new',
+    path: '/automations/new',
     getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
   } as any)
-const ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute =
-  ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRouteImport.update({
-    id: '/agent-templates/$templateId',
-    path: '/agent-templates/$templateId',
+const ProjectsProjectSlugConfigsAutomationsAutomationIdRoute =
+  ProjectsProjectSlugConfigsAutomationsAutomationIdRouteImport.update({
+    id: '/automations/$automationId',
+    path: '/automations/$automationId',
     getParentRoute: () => ProjectsProjectSlugConfigsRouteRoute,
   } as any)
 const ProjectsProjectSlugBoxesBoxIdTerminalRoute =
@@ -299,10 +299,10 @@ export interface FileRoutesByFullPath {
   '/projects/$projectSlug/boxes/$boxId/logs': typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
   '/projects/$projectSlug/boxes/$boxId/resources': typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
   '/projects/$projectSlug/boxes/$boxId/terminal': typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
-  '/projects/$projectSlug/configs/agent-templates/$templateId': typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute
-  '/projects/$projectSlug/configs/agent-templates/new': typeof ProjectsProjectSlugConfigsAgentTemplatesNewRoute
+  '/projects/$projectSlug/configs/automations/$automationId': typeof ProjectsProjectSlugConfigsAutomationsAutomationIdRoute
+  '/projects/$projectSlug/configs/automations/new': typeof ProjectsProjectSlugConfigsAutomationsNewRoute
   '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
-  '/projects/$projectSlug/configs/agent-templates/': typeof ProjectsProjectSlugConfigsAgentTemplatesIndexRoute
+  '/projects/$projectSlug/configs/automations/': typeof ProjectsProjectSlugConfigsAutomationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -332,10 +332,10 @@ export interface FileRoutesByTo {
   '/projects/$projectSlug/boxes/$boxId/logs': typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
   '/projects/$projectSlug/boxes/$boxId/resources': typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
   '/projects/$projectSlug/boxes/$boxId/terminal': typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
-  '/projects/$projectSlug/configs/agent-templates/$templateId': typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute
-  '/projects/$projectSlug/configs/agent-templates/new': typeof ProjectsProjectSlugConfigsAgentTemplatesNewRoute
+  '/projects/$projectSlug/configs/automations/$automationId': typeof ProjectsProjectSlugConfigsAutomationsAutomationIdRoute
+  '/projects/$projectSlug/configs/automations/new': typeof ProjectsProjectSlugConfigsAutomationsNewRoute
   '/projects/$projectSlug/boxes/$boxId': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
-  '/projects/$projectSlug/configs/agent-templates': typeof ProjectsProjectSlugConfigsAgentTemplatesIndexRoute
+  '/projects/$projectSlug/configs/automations': typeof ProjectsProjectSlugConfigsAutomationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -373,10 +373,10 @@ export interface FileRoutesById {
   '/projects/$projectSlug/boxes/$boxId/logs': typeof ProjectsProjectSlugBoxesBoxIdLogsRoute
   '/projects/$projectSlug/boxes/$boxId/resources': typeof ProjectsProjectSlugBoxesBoxIdResourcesRoute
   '/projects/$projectSlug/boxes/$boxId/terminal': typeof ProjectsProjectSlugBoxesBoxIdTerminalRoute
-  '/projects/$projectSlug/configs/agent-templates/$templateId': typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute
-  '/projects/$projectSlug/configs/agent-templates/new': typeof ProjectsProjectSlugConfigsAgentTemplatesNewRoute
+  '/projects/$projectSlug/configs/automations/$automationId': typeof ProjectsProjectSlugConfigsAutomationsAutomationIdRoute
+  '/projects/$projectSlug/configs/automations/new': typeof ProjectsProjectSlugConfigsAutomationsNewRoute
   '/projects/$projectSlug/boxes/$boxId/': typeof ProjectsProjectSlugBoxesBoxIdIndexRoute
-  '/projects/$projectSlug/configs/agent-templates/': typeof ProjectsProjectSlugConfigsAgentTemplatesIndexRoute
+  '/projects/$projectSlug/configs/automations/': typeof ProjectsProjectSlugConfigsAutomationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -415,10 +415,10 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/boxes/$boxId/logs'
     | '/projects/$projectSlug/boxes/$boxId/resources'
     | '/projects/$projectSlug/boxes/$boxId/terminal'
-    | '/projects/$projectSlug/configs/agent-templates/$templateId'
-    | '/projects/$projectSlug/configs/agent-templates/new'
+    | '/projects/$projectSlug/configs/automations/$automationId'
+    | '/projects/$projectSlug/configs/automations/new'
     | '/projects/$projectSlug/boxes/$boxId/'
-    | '/projects/$projectSlug/configs/agent-templates/'
+    | '/projects/$projectSlug/configs/automations/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -448,10 +448,10 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/boxes/$boxId/logs'
     | '/projects/$projectSlug/boxes/$boxId/resources'
     | '/projects/$projectSlug/boxes/$boxId/terminal'
-    | '/projects/$projectSlug/configs/agent-templates/$templateId'
-    | '/projects/$projectSlug/configs/agent-templates/new'
+    | '/projects/$projectSlug/configs/automations/$automationId'
+    | '/projects/$projectSlug/configs/automations/new'
     | '/projects/$projectSlug/boxes/$boxId'
-    | '/projects/$projectSlug/configs/agent-templates'
+    | '/projects/$projectSlug/configs/automations'
   id:
     | '__root__'
     | '/'
@@ -488,10 +488,10 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/boxes/$boxId/logs'
     | '/projects/$projectSlug/boxes/$boxId/resources'
     | '/projects/$projectSlug/boxes/$boxId/terminal'
-    | '/projects/$projectSlug/configs/agent-templates/$templateId'
-    | '/projects/$projectSlug/configs/agent-templates/new'
+    | '/projects/$projectSlug/configs/automations/$automationId'
+    | '/projects/$projectSlug/configs/automations/new'
     | '/projects/$projectSlug/boxes/$boxId/'
-    | '/projects/$projectSlug/configs/agent-templates/'
+    | '/projects/$projectSlug/configs/automations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -707,11 +707,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRouteImport
       parentRoute: typeof ProjectsProjectSlugRouteRoute
     }
-    '/projects/$projectSlug/configs/agent-templates/': {
-      id: '/projects/$projectSlug/configs/agent-templates/'
-      path: '/agent-templates'
-      fullPath: '/projects/$projectSlug/configs/agent-templates/'
-      preLoaderRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesIndexRouteImport
+    '/projects/$projectSlug/configs/automations/': {
+      id: '/projects/$projectSlug/configs/automations/'
+      path: '/automations'
+      fullPath: '/projects/$projectSlug/configs/automations/'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsAutomationsIndexRouteImport
       parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
     }
     '/projects/$projectSlug/boxes/$boxId/': {
@@ -721,18 +721,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectSlugBoxesBoxIdIndexRouteImport
       parentRoute: typeof ProjectsProjectSlugBoxesBoxIdRouteRoute
     }
-    '/projects/$projectSlug/configs/agent-templates/new': {
-      id: '/projects/$projectSlug/configs/agent-templates/new'
-      path: '/agent-templates/new'
-      fullPath: '/projects/$projectSlug/configs/agent-templates/new'
-      preLoaderRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesNewRouteImport
+    '/projects/$projectSlug/configs/automations/new': {
+      id: '/projects/$projectSlug/configs/automations/new'
+      path: '/automations/new'
+      fullPath: '/projects/$projectSlug/configs/automations/new'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsAutomationsNewRouteImport
       parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
     }
-    '/projects/$projectSlug/configs/agent-templates/$templateId': {
-      id: '/projects/$projectSlug/configs/agent-templates/$templateId'
-      path: '/agent-templates/$templateId'
-      fullPath: '/projects/$projectSlug/configs/agent-templates/$templateId'
-      preLoaderRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRouteImport
+    '/projects/$projectSlug/configs/automations/$automationId': {
+      id: '/projects/$projectSlug/configs/automations/$automationId'
+      path: '/automations/$automationId'
+      fullPath: '/projects/$projectSlug/configs/automations/$automationId'
+      preLoaderRoute: typeof ProjectsProjectSlugConfigsAutomationsAutomationIdRouteImport
       parentRoute: typeof ProjectsProjectSlugConfigsRouteRoute
     }
     '/projects/$projectSlug/boxes/$boxId/terminal': {
@@ -816,9 +816,9 @@ interface ProjectsProjectSlugConfigsRouteRouteChildren {
   ProjectsProjectSlugConfigsMembersRoute: typeof ProjectsProjectSlugConfigsMembersRoute
   ProjectsProjectSlugConfigsTavilyRoute: typeof ProjectsProjectSlugConfigsTavilyRoute
   ProjectsProjectSlugConfigsIndexRoute: typeof ProjectsProjectSlugConfigsIndexRoute
-  ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute
-  ProjectsProjectSlugConfigsAgentTemplatesNewRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesNewRoute
-  ProjectsProjectSlugConfigsAgentTemplatesIndexRoute: typeof ProjectsProjectSlugConfigsAgentTemplatesIndexRoute
+  ProjectsProjectSlugConfigsAutomationsAutomationIdRoute: typeof ProjectsProjectSlugConfigsAutomationsAutomationIdRoute
+  ProjectsProjectSlugConfigsAutomationsNewRoute: typeof ProjectsProjectSlugConfigsAutomationsNewRoute
+  ProjectsProjectSlugConfigsAutomationsIndexRoute: typeof ProjectsProjectSlugConfigsAutomationsIndexRoute
 }
 
 const ProjectsProjectSlugConfigsRouteRouteChildren: ProjectsProjectSlugConfigsRouteRouteChildren =
@@ -832,12 +832,12 @@ const ProjectsProjectSlugConfigsRouteRouteChildren: ProjectsProjectSlugConfigsRo
     ProjectsProjectSlugConfigsTavilyRoute:
       ProjectsProjectSlugConfigsTavilyRoute,
     ProjectsProjectSlugConfigsIndexRoute: ProjectsProjectSlugConfigsIndexRoute,
-    ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute:
-      ProjectsProjectSlugConfigsAgentTemplatesTemplateIdRoute,
-    ProjectsProjectSlugConfigsAgentTemplatesNewRoute:
-      ProjectsProjectSlugConfigsAgentTemplatesNewRoute,
-    ProjectsProjectSlugConfigsAgentTemplatesIndexRoute:
-      ProjectsProjectSlugConfigsAgentTemplatesIndexRoute,
+    ProjectsProjectSlugConfigsAutomationsAutomationIdRoute:
+      ProjectsProjectSlugConfigsAutomationsAutomationIdRoute,
+    ProjectsProjectSlugConfigsAutomationsNewRoute:
+      ProjectsProjectSlugConfigsAutomationsNewRoute,
+    ProjectsProjectSlugConfigsAutomationsIndexRoute:
+      ProjectsProjectSlugConfigsAutomationsIndexRoute,
   }
 
 const ProjectsProjectSlugConfigsRouteRouteWithChildren =

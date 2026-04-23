@@ -1,13 +1,13 @@
-"""GitHub webhook dispatcher — drives AgentTemplate matching and box fan-out.
+"""GitHub webhook dispatcher — drives Automation matching and box fan-out.
 
 Replaces the legacy ``@<bot>``-mention handler. Prompts are now user-authored
-per template; the dispatcher simply:
+per automation; the dispatcher simply:
 
 1. Dedups by delivery_id
 2. Persists the raw event
 3. Routes system events (installation, ping, …) to their handlers
 4. Maps event type → trigger_kind and fans out to every enabled matching
-   template (one box per match)
+   automation (one box per match)
 
 All user-controlled fields (issue/comment body, review text, …) are
 interpolated into prompts verbatim by the renderer. Agent-side tool allow-lists
@@ -26,12 +26,12 @@ from codebox_orchestrator.integration.github.application.setup_commands import (
 )
 
 if TYPE_CHECKING:
-    from codebox_orchestrator.agent_template.application.context_builders import (
+    from codebox_orchestrator.automation.application.context_builders import (
         ContextBuilderRegistry,
     )
-    from codebox_orchestrator.agent_template.application.matcher import TemplateMatcher
-    from codebox_orchestrator.agent_template.application.renderer import PromptRenderer
-    from codebox_orchestrator.agent_template.repository import AgentTemplateRepository
+    from codebox_orchestrator.automation.application.matcher import AutomationMatcher
+    from codebox_orchestrator.automation.application.renderer import PromptRenderer
+    from codebox_orchestrator.automation.repository import AutomationRepository
     from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
     from codebox_orchestrator.integration.github.infrastructure.github_api_client import (
         GitHubApiClient,
@@ -54,7 +54,7 @@ EVENT_TYPE_TO_TRIGGER_KIND: dict[str, str] = {
     "push": "github.push",
 }
 
-# Events we persist + handle but never fan out to templates
+# Events we persist + handle but never fan out to automations
 _SYSTEM_EVENT_TYPES = {
     "installation",
     "installation_repositories",
@@ -73,15 +73,15 @@ class DispatchResult:
 
 
 class GitHubWebhookDispatcher:
-    """Maps GitHub webhooks to AgentTemplate runs for a single project."""
+    """Maps GitHub webhooks to Automation runs for a single project."""
 
     def __init__(
         self,
         *,
         api_client: GitHubApiClient,
         github_repo: SqlAlchemyGitHubRepository,
-        template_repo: AgentTemplateRepository,
-        matcher: TemplateMatcher,
+        automation_repo: AutomationRepository,
+        matcher: AutomationMatcher,
         renderer: PromptRenderer,
         context_builder_registry: ContextBuilderRegistry,
         create_box: CreateBoxHandler,
@@ -92,7 +92,7 @@ class GitHubWebhookDispatcher:
     ) -> None:
         self._api = api_client
         self._github_repo = github_repo
-        self._template_repo = template_repo
+        self._automation_repo = automation_repo
         self._matcher = matcher
         self._renderer = renderer
         self._registry = context_builder_registry
@@ -129,7 +129,7 @@ class GitHubWebhookDispatcher:
         )
         result.event_id = event_id
 
-        # 3. System events (installation, ping, …) — never match templates
+        # 3. System events (installation, ping, …) — never match automations
         if event_type in _SYSTEM_EVENT_TYPES:
             await self._handle_system_event(event_type, payload)
             return result
@@ -140,11 +140,11 @@ class GitHubWebhookDispatcher:
             logger.debug("unsupported event type %s (delivery %s)", event_type, delivery_id)
             return result
 
-        # 5. Load enabled templates for (project, kind)
-        templates = await self._template_repo.list_enabled_for_event(
+        # 5. Load enabled automations for (project, kind)
+        automations = await self._automation_repo.list_enabled_for_event(
             self._project_id, trigger_kind
         )
-        if not templates:
+        if not automations:
             return result
 
         # 6. Build event context once
@@ -176,15 +176,15 @@ class GitHubWebhookDispatcher:
             )
             return result
 
-        # 7. For each template, match + spawn
-        for template in templates:
-            predicates = template.trigger_filters
+        # 7. For each automation, match + spawn
+        for automation in automations:
+            predicates = automation.trigger_filters
             matched, reason = self._matcher.matches(predicates, context)
             if not matched:
                 result.skipped += 1
-                await self._template_repo.record_run(
+                await self._automation_repo.record_run(
                     project_id=self._project_id,
-                    template_id=template.id,
+                    automation_id=automation.id,
                     trigger_kind=trigger_kind,
                     status="skipped_filter",
                     github_event_id=event_id,
@@ -194,16 +194,16 @@ class GitHubWebhookDispatcher:
 
             result.matched += 1
             try:
-                box_id = await self._spawn_for_template(
-                    template=template,
+                box_id = await self._spawn_for_automation(
+                    automation=automation,
                     context=context,
                     installation_id=installation_id_val,
                 )
                 if box_id is not None:
                     result.spawned += 1
-                    await self._template_repo.record_run(
+                    await self._automation_repo.record_run(
                         project_id=self._project_id,
-                        template_id=template.id,
+                        automation_id=automation.id,
                         trigger_kind=trigger_kind,
                         status="spawned",
                         box_id=box_id,
@@ -213,14 +213,14 @@ class GitHubWebhookDispatcher:
                     result.errors += 1
             except Exception as exc:
                 logger.exception(
-                    "failed to spawn template %s on event %s",
-                    template.id,
+                    "failed to spawn automation %s on event %s",
+                    automation.id,
                     delivery_id,
                 )
                 result.errors += 1
-                await self._template_repo.record_run(
+                await self._automation_repo.record_run(
                     project_id=self._project_id,
-                    template_id=template.id,
+                    automation_id=automation.id,
                     trigger_kind=trigger_kind,
                     status="error",
                     github_event_id=event_id,
@@ -253,22 +253,22 @@ class GitHubWebhookDispatcher:
                     project_id=self._project_id,
                 )
 
-    async def _spawn_for_template(
+    async def _spawn_for_automation(
         self,
         *,
-        template: Any,
+        automation: Any,
         context: Any,
         installation_id: int | None,
     ) -> str | None:
         # Resolve LLM profile
         profile_id = (
-            template.llm_profile_id
+            automation.llm_profile_id
             or await self._settings_service.get_default_profile_id(self._project_id)
         )
         if not profile_id:
             logger.error(
-                "no LLM profile for template %s and no project default",
-                template.id,
+                "no LLM profile for automation %s and no project default",
+                automation.id,
             )
             return None
         resolved = await self._profile_service.resolve_profile(profile_id, self._project_id)
@@ -296,30 +296,32 @@ class GitHubWebhookDispatcher:
         token_placeholder = ""  # real token fetched by box_lifecycle via installation handle
         try:
             _, work_branch = build_setup_commands(
-                mode=template.workspace_mode,
-                repo=template.pinned_repo or context.repo or "",
+                mode=automation.workspace_mode,
+                repo=automation.pinned_repo or context.repo or "",
                 token=token_placeholder,
                 issue_number=context.issue_number,
                 issue_title=context.variables.get("ISSUE_TITLE"),
                 ref=context.branch_hint,
-                branch=template.pinned_branch,
+                branch=automation.pinned_branch,
             )
         except Exception:
-            logger.exception("build_setup_commands failed for template %s", template.id)
+            logger.exception("build_setup_commands failed for automation %s", automation.id)
             return None
 
         # Render prompts
         variables = context.variables
-        rendered_initial = self._renderer.render(template.initial_prompt, variables)
+        rendered_initial = self._renderer.render(automation.initial_prompt, variables)
         rendered_system = (
-            self._renderer.render(template.system_prompt, variables)
-            if template.system_prompt
+            self._renderer.render(automation.system_prompt, variables)
+            if automation.system_prompt
             else None
         )
 
         # Build box name
-        title = variables.get("ISSUE_TITLE") or variables.get("PR_NUMBER") or template.trigger_kind
-        box_name = f"[Template:{template.name}] {title}"[:200]
+        title = (
+            variables.get("ISSUE_TITLE") or variables.get("PR_NUMBER") or automation.trigger_kind
+        )
+        box_name = f"[Automation:{automation.name}] {title}"[:200]
 
         # Tavily key — best-effort
         tavily_key = None
@@ -338,13 +340,13 @@ class GitHubWebhookDispatcher:
             tavily_api_key=tavily_key,
             system_prompt=rendered_system,
             auto_start_prompt=rendered_initial,
-            trigger=template.trigger_kind,
+            trigger=automation.trigger_kind,
             github_installation_id=db_installation.id if db_installation else None,
-            github_repo=template.pinned_repo or context.repo,
+            github_repo=automation.pinned_repo or context.repo,
             github_issue_number=context.issue_number,
             github_trigger_url=context.trigger_url,
             github_branch=work_branch,
-            github_workspace_mode=template.workspace_mode,
+            github_workspace_mode=automation.workspace_mode,
             github_workspace_ref=context.branch_hint,
             project_id=self._project_id,
         )

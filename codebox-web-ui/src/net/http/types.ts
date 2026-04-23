@@ -301,9 +301,9 @@ export interface ProjectSettingsUpdate {
   github_default_base_branch?: string | null
 }
 
-// ── Agent Templates ────────────────────────────────────────
+// ── Automations ────────────────────────────────────────────
 
-export type AgentTemplateTriggerKind =
+export type AutomationTriggerKind =
   | "github.issues"
   | "github.issue_comment"
   | "github.pull_request"
@@ -312,31 +312,31 @@ export type AgentTemplateTriggerKind =
   | "github.push"
   | "schedule"
 
-export type AgentTemplateWorkspaceMode =
+export type AutomationWorkspaceMode =
   | "branch_from_issue"
   | "checkout_ref"
   | "pinned"
 
-export type AgentTemplateFilterOp = "eq" | "in" | "contains_any" | "matches"
+export type AutomationFilterOp = "eq" | "in" | "contains_any" | "matches"
 
-export interface AgentTemplateFilterPredicate {
+export interface AutomationFilterPredicate {
   field: string
-  op: AgentTemplateFilterOp
+  op: AutomationFilterOp
   value: string | Array<string>
 }
 
-export interface AgentTemplate {
+export interface Automation {
   id: string
   project_id: string
   name: string
   description: string | null
   enabled: boolean
-  trigger_kind: AgentTemplateTriggerKind
-  trigger_filters: Array<AgentTemplateFilterPredicate> | null
+  trigger_kind: AutomationTriggerKind
+  trigger_filters: Array<AutomationFilterPredicate> | null
   schedule_cron: string | null
   schedule_timezone: string | null
   next_run_at: string | null
-  workspace_mode: AgentTemplateWorkspaceMode
+  workspace_mode: AutomationWorkspaceMode
   pinned_repo: string | null
   pinned_branch: string | null
   system_prompt: string | null
@@ -347,15 +347,15 @@ export interface AgentTemplate {
   created_by: string | null
 }
 
-export interface AgentTemplateCreate {
+export interface AutomationCreate {
   name: string
   description?: string | null
   enabled?: boolean
-  trigger_kind: AgentTemplateTriggerKind
-  trigger_filters?: Array<AgentTemplateFilterPredicate> | null
+  trigger_kind: AutomationTriggerKind
+  trigger_filters?: Array<AutomationFilterPredicate> | null
   schedule_cron?: string | null
   schedule_timezone?: string | null
-  workspace_mode: AgentTemplateWorkspaceMode
+  workspace_mode: AutomationWorkspaceMode
   pinned_repo?: string | null
   pinned_branch?: string | null
   system_prompt?: string | null
@@ -363,12 +363,12 @@ export interface AgentTemplateCreate {
   llm_profile_id?: string | null
 }
 
-export type AgentTemplateUpdate = Partial<AgentTemplateCreate>
+export type AutomationUpdate = Partial<AutomationCreate>
 
-export interface AgentTemplateRun {
+export interface AutomationRun {
   id: string
   project_id: string
-  template_id: string
+  automation_id: string
   box_id: string | null
   github_event_id: string | null
   trigger_kind: string
@@ -377,18 +377,18 @@ export interface AgentTemplateRun {
   created_at: string
 }
 
-export interface AgentTemplateRunList {
-  runs: Array<AgentTemplateRun>
+export interface AutomationRunList {
+  runs: Array<AutomationRun>
   next_cursor: string | null
 }
 
-export interface AgentTemplateDryRunRequest {
+export interface AutomationDryRunRequest {
   event_type?: string | null
   payload?: Record<string, unknown> | null
   schedule?: boolean
 }
 
-export interface AgentTemplateDryRunResult {
+export interface AutomationDryRunResult {
   matched: boolean
   reason: string | null
   rendered_system_prompt: string | null

@@ -72,7 +72,7 @@ export function DisconnectGitHubAppDialog({
           <li className="flex items-baseline gap-2">
             <span className="text-muted-foreground">&bull;</span>
             <span>
-              Agent templates with GitHub triggers will stop firing until you
+              Automations with GitHub triggers will stop firing until you
               reconnect an App.
             </span>
           </li>
