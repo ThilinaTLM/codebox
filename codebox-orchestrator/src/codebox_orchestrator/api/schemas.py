@@ -174,7 +174,7 @@ class GitHubInstallationResponse(BaseModel):
     installation_id: int
     account_login: str
     account_type: str
-    created_at: str
+    created_at: datetime
 
     model_config = {"from_attributes": True}
 
