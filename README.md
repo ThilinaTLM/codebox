@@ -94,3 +94,7 @@ Regenerate gRPC stubs after editing `proto/` files:
 ```bash
 python scripts/generate_proto.py
 ```
+
+## License
+
+Codebox is licensed under the [Apache License 2.0](LICENSE).

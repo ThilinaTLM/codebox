@@ -2,6 +2,7 @@
 name = "codebox-tunnel"
 version = "0.1.0"
 description = "Async yamux tunnel for codebox sandbox communication"
+license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = []
 

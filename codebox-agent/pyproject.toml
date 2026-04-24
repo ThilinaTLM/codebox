@@ -3,6 +3,7 @@ name = "codebox-agent"
 version = "0.1.0"
 description = "Portable AI coding agent — LangGraph + deepagents foundation"
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = [
     "deepagents",
