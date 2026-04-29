@@ -124,6 +124,21 @@ class BoxQueryService:
             started_at = container.started_at
             image = container.image
 
+        # While a freshly-created box is still bootstrapping (DB row exists,
+        # but the lifecycle task hasn't finished provisioning the container
+        # and waiting for the sandbox to connect back), report ``starting``
+        # rather than the Docker-derived status. Without this override, the
+        # detail page briefly shows "Stopped" between row creation and the
+        # first Docker container appearing, which is indistinguishable from a
+        # genuinely stopped box. Failed bootstraps clear the flag via
+        # ``set_error`` and continue to surface ``stopped`` + ``error_detail``.
+        if (
+            self._state_store.is_bootstrapping(record.id)
+            and self._state_store.get_error(record.id) is None
+            and container_status != "running"
+        ):
+            container_status = "starting"
+
         return BoxView(
             id=record.id,
             name=record.name,

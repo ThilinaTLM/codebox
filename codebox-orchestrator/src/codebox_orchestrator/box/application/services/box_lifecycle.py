@@ -312,6 +312,11 @@ class BoxLifecycleService:
                 await self._broadcast_error(box_id, f"Failed to start agent: {exc}")
                 return
 
+        # Bootstrap is complete — stop forcing ``starting`` in the query
+        # service. Done immediately before the SSE broadcast so the next
+        # poll sees Docker's ``running`` status in lockstep with the event.
+        self._state_store.mark_bootstrap_complete(box_id)
+
         # Mark as running via SSE broadcast
         await self._publisher.publish_box_event(
             box_id, {"type": "status_change", "container_status": "running"}
