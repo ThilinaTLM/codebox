@@ -34,9 +34,10 @@ function useAuthQueryEnabled(enabled: boolean = true): boolean {
 // ── Project queries ─────────────────────────────────────────
 
 export function useProjects(options?: QueryHookOptions) {
+  const user = useAuthStore((s) => s.user)
   const enabled = useAuthQueryEnabled(options?.enabled)
   return useQuery({
-    queryKey: ["projects"],
+    queryKey: ["projects", user?.id],
     queryFn: () => api.projects.list(),
     enabled,
   })
