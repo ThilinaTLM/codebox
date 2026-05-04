@@ -11,5 +11,5 @@ class EventPublisher(Protocol):
         ...
 
     async def publish_global_event(self, event: dict[str, Any]) -> None:
-        """Publish a platform-level event (box created/deleted/status changed)."""
+        """Publish a lifecycle event; project-scoped events must include project_id."""
         ...

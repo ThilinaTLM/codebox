@@ -55,6 +55,7 @@ class SqlAlchemyBoxEventRepository:
             payload = event.get("payload", {}) or {}
             stored = {
                 "seq": next_seq,
+                "project_id": box.project_id,
                 "event_id": event.get("event_id") or f"evt_{uuid.uuid4().hex}",
                 "timestamp_ms": int(
                     event.get("timestamp_ms") or datetime.now(UTC).timestamp() * 1000
@@ -90,6 +91,11 @@ class SqlAlchemyBoxEventRepository:
             self._apply_projection(projection, stored)
             await db.commit()
             return stored
+
+    async def get_project_id_for_box(self, box_id: str) -> str | None:
+        async with self._sf() as db:
+            box = await db.get(BoxRecord, box_id)
+            return box.project_id if box is not None else None
 
     async def list_events(
         self,
@@ -144,6 +150,7 @@ class SqlAlchemyBoxEventRepository:
     def _to_dict(record: orm.BoxEventRecord) -> dict[str, Any]:
         return {
             "seq": record.seq,
+            "project_id": record.project_id,
             "event_id": record.event_id,
             "timestamp_ms": record.timestamp_ms,
             "kind": record.kind,

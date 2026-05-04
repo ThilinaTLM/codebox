@@ -42,6 +42,7 @@ export interface Box {
 
 export interface CanonicalEvent {
   seq: number
+  project_id?: string
   event_id: string
   timestamp_ms: number
   kind: string

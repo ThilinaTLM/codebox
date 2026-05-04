@@ -131,6 +131,9 @@ class ProjectService:
         updated = await self._repo.update(project_id, name=name, description=description)
         return self._to_view(updated) if updated else None
 
+    async def has_member(self, project_id: str, user_id: str) -> bool:
+        return await self._repo.get_member(project_id, user_id) is not None
+
     async def get_member(self, project_id: str, user_id: str) -> ProjectMemberView | None:
         row = await self._repo.get_member_with_user(project_id, user_id)
         if row is None:

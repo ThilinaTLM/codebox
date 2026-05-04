@@ -51,6 +51,7 @@ class StopBoxHandler:
             {
                 "type": "box_status_changed",
                 "box_id": box_id,
+                "project_id": box.project_id,
                 "container_status": "stopped",
                 "container_stop_reason": "user_stopped",
             }

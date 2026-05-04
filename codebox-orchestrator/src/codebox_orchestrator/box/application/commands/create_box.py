@@ -81,6 +81,7 @@ class CreateBoxHandler:
             {
                 "type": "box_created",
                 "box_id": box_id,
+                "project_id": project_id,
                 "name": box_name,
                 "provider": provider,
                 "container_status": "starting",
