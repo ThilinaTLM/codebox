@@ -341,6 +341,9 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         # --- Scheduler ---
         import uuid as _uuid_mod  # noqa: PLC0415
 
+        from codebox_orchestrator.automation.application.box_spawner import (  # noqa: PLC0415
+            AutomationBoxSpawner,
+        )
         from codebox_orchestrator.automation.application.scheduler import (  # noqa: PLC0415
             AutomationScheduler,
         )
@@ -349,15 +352,19 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         prompt_renderer = PromptRenderer()
         context_builder_registry = ContextBuilderRegistry.default()
 
+        # Shared spawner used by both webhook dispatcher (in routes/github.py)
+        # and the scheduler. Stateless; safe to share.
+        automation_box_spawner = AutomationBoxSpawner(
+            profile_service=llm_profile_service,
+            settings_service=project_settings_service,
+            renderer=prompt_renderer,
+            create_box=create_box_handler,
+        )
         automation_scheduler = AutomationScheduler(
             session_factory=async_session_factory,
             automation_repo=automation_repo,
-            renderer=prompt_renderer,
             context_builder=context_builder_registry.get("schedule"),
-            github_mgr=github_client_manager,
-            create_box=create_box_handler,
-            profile_service=llm_profile_service,
-            settings_service=project_settings_service,
+            spawner=automation_box_spawner,
             github_repo=github_repo,
             instance_id=_uuid_mod.uuid4().hex,
         )
@@ -407,6 +414,7 @@ def create_app() -> FastAPI:  # noqa: PLR0915
         app.state.prompt_renderer = prompt_renderer
         app.state.context_builder_registry = context_builder_registry
         app.state.automation_scheduler = automation_scheduler
+        app.state.automation_box_spawner = automation_box_spawner
         # In-memory CSRF tokens for the GitHub App manifest flow:
         # project_id -> (state_token, expires_at_epoch).
         # Single-instance only; move to Postgres if we ever run replicas.
@@ -442,6 +450,13 @@ def create_app() -> FastAPI:  # noqa: PLR0915
     )
 
     app.add_middleware(RefreshAuthCookieMiddleware)
+
+    # --- Domain exception handlers (centralized status mapping) ---
+    from codebox_orchestrator.api.exception_handlers import (  # noqa: PLC0415
+        register_exception_handlers,
+    )
+
+    register_exception_handlers(app)
 
     # --- Health endpoint (global) ---
     @app.get("/api/health")

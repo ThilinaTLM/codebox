@@ -8,32 +8,30 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from codebox_orchestrator.llm_profile.models import LLMProfile
+from codebox_orchestrator.shared.persistence.repository import SoftDeleteMixin
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
 
-class LLMProfileRepository:
+class LLMProfileRepository(SoftDeleteMixin):
     def __init__(self, session_factory: async_sessionmaker) -> None:
         self._session_factory = session_factory
 
     async def list_by_project(self, project_id: str) -> list[LLMProfile]:
         async with self._session_factory() as session:
-            result = await session.execute(
-                select(LLMProfile)
-                .where(
-                    LLMProfile.project_id == project_id,
-                    LLMProfile.deleted_at.is_(None),
-                )
-                .order_by(LLMProfile.created_at)
-            )
+            stmt = self.apply_soft_delete_filter(
+                select(LLMProfile).where(LLMProfile.project_id == project_id),
+                LLMProfile,
+            ).order_by(LLMProfile.created_at)
+            result = await session.execute(stmt)
             return list(result.scalars().all())
 
     async def get_by_id(self, profile_id: str) -> LLMProfile | None:
         async with self._session_factory() as session:
-            stmt = select(LLMProfile).where(
-                LLMProfile.id == profile_id,
-                LLMProfile.deleted_at.is_(None),
+            stmt = self.apply_soft_delete_filter(
+                select(LLMProfile).where(LLMProfile.id == profile_id),
+                LLMProfile,
             )
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
@@ -72,31 +70,27 @@ class LLMProfileRepository:
 
     async def delete(self, profile_id: str) -> bool:
         async with self._session_factory() as session:
-            stmt = select(LLMProfile).where(
-                LLMProfile.id == profile_id,
-                LLMProfile.deleted_at.is_(None),
+            stmt = self.apply_soft_delete_filter(
+                select(LLMProfile).where(LLMProfile.id == profile_id),
+                LLMProfile,
             )
             result = await session.execute(stmt)
             profile = result.scalar_one_or_none()
             if profile is None:
                 return False
-            profile.deleted_at = datetime.now(UTC)
-            profile.updated_at = datetime.now(UTC)
+            self.mark_soft_deleted(profile)
             await session.commit()
             return True
 
     async def soft_delete_by_project(self, project_id: str) -> int:
         async with self._session_factory() as session:
-            result = await session.execute(
-                select(LLMProfile).where(
-                    LLMProfile.project_id == project_id,
-                    LLMProfile.deleted_at.is_(None),
-                )
+            stmt = self.apply_soft_delete_filter(
+                select(LLMProfile).where(LLMProfile.project_id == project_id),
+                LLMProfile,
             )
+            result = await session.execute(stmt)
             profiles = list(result.scalars().all())
-            now = datetime.now(UTC)
             for profile in profiles:
-                profile.deleted_at = now
-                profile.updated_at = now
+                self.mark_soft_deleted(profile)
             await session.commit()
             return len(profiles)

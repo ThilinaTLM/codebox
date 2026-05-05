@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from codebox_orchestrator.agent.domain.exceptions import NoActiveConnectionError
 from codebox_orchestrator.api.dependencies import (
     get_box_repository,
     get_cancel_box,
@@ -251,21 +250,11 @@ async def restart_box(
     handler: RestartBoxHandler = Depends(get_restart_box),
     query: BoxQueryService = Depends(get_query_service),
 ) -> BoxResponse:
-    from codebox_orchestrator.box.domain.exceptions import (  # noqa: PLC0415
-        BoxNotFoundError,
-        InvalidStatusTransitionError,
-    )
-
     box = await query.get_box(box_id)
     if box is None or box.project_id != ctx.project_id:
         raise HTTPException(404, "Box not found")
 
-    try:
-        view = await handler.execute(box_id)
-    except BoxNotFoundError as exc:
-        raise HTTPException(404, "Box not found") from exc
-    except InvalidStatusTransitionError as exc:
-        raise HTTPException(400, str(exc)) from exc
+    view = await handler.execute(box_id)
     return BoxResponse.from_view(view)
 
 
@@ -298,10 +287,7 @@ async def send_message(
     box = await query.get_box(box_id)
     if box is None or box.project_id != ctx.project_id:
         raise HTTPException(404, "Box not found")
-    try:
-        await handler.execute(box_id, body.message)
-    except NoActiveConnectionError as exc:
-        raise HTTPException(400, str(exc)) from exc
+    await handler.execute(box_id, body.message)
     return {"status": "sent"}
 
 

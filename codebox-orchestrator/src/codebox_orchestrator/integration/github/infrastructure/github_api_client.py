@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import logging
 import platform
 import time
@@ -12,6 +10,8 @@ from typing import TYPE_CHECKING
 
 import httpx
 import jwt
+
+from codebox_orchestrator.shared.crypto import verify_hmac_sha256
 
 if TYPE_CHECKING:
     import ssl
@@ -128,10 +128,7 @@ class GitHubApiClient:
 
     def verify_webhook_signature(self, payload: bytes, signature: str) -> bool:
         """Verify X-Hub-Signature-256 header against the webhook secret."""
-        if not signature.startswith("sha256="):
-            return False
-        expected = hmac.new(self._webhook_secret, payload, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(f"sha256={expected}", signature)
+        return verify_hmac_sha256(payload, signature, self._webhook_secret)
 
     # ------------------------------------------------------------------
     # Fetch installation info from GitHub API (for callback flow)

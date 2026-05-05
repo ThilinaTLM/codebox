@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import hashlib
-import hmac
 import logging
 import secrets
 import time
@@ -21,10 +19,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from codebox_orchestrator.api.dependencies import (
-    get_create_box,
     get_github_client_manager,
     get_github_repository,
-    get_llm_profile_service,
     get_project_settings_service,
 )
 from codebox_orchestrator.api.schemas import (
@@ -49,16 +45,15 @@ from codebox_orchestrator.project.dependencies import (
     get_project_context,
     require_project_admin,
 )
+from codebox_orchestrator.shared.crypto import verify_hmac_sha256
 
 if TYPE_CHECKING:
-    from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
     from codebox_orchestrator.integration.github.application.client_manager import (
         GitHubClientManager,
     )
     from codebox_orchestrator.integration.github.infrastructure.github_repository import (
         SqlAlchemyGitHubRepository,
     )
-    from codebox_orchestrator.llm_profile.service import LLMProfileService
     from codebox_orchestrator.project_settings.service import ProjectSettingsService
 
 logger = logging.getLogger(__name__)
@@ -178,8 +173,6 @@ async def github_webhook(
     slug: str,
     request: Request,
     github_mgr: GitHubClientManager = Depends(get_github_client_manager),
-    create_box_handler: CreateBoxHandler = Depends(get_create_box),
-    profile_service: LLMProfileService = Depends(get_llm_profile_service),
     settings_service: ProjectSettingsService = Depends(get_project_settings_service),
 ) -> JSONResponse:
     """Receive and process GitHub webhooks for a specific project."""
@@ -206,7 +199,7 @@ async def github_webhook(
     if client is None or webhook_secret is None:
         raise HTTPException(404, "GitHub integration not configured for this project")
 
-    if not _verify_hmac(body, signature, webhook_secret):
+    if not verify_hmac_sha256(body, signature, webhook_secret):
         raise HTTPException(401, "Invalid signature")
 
     payload = await request.json()
@@ -221,8 +214,6 @@ async def github_webhook(
             delivery_id=delivery_id,
             payload=payload,
             github_mgr=github_mgr,
-            create_box_handler=create_box_handler,
-            profile_service=profile_service,
             settings_service=settings_service,
         )
     )
@@ -230,13 +221,6 @@ async def github_webhook(
     task.add_done_callback(_background_tasks.discard)
 
     return JSONResponse({"status": "accepted"}, status_code=200)
-
-
-def _verify_hmac(payload: bytes, signature: str, secret: str) -> bool:
-    if not signature.startswith("sha256="):
-        return False
-    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(f"sha256={expected}", signature)
 
 
 async def _process_webhook_safe(
@@ -248,8 +232,6 @@ async def _process_webhook_safe(
     delivery_id: str,
     payload: dict,
     github_mgr: GitHubClientManager,
-    create_box_handler: CreateBoxHandler,
-    profile_service: LLMProfileService,
     settings_service: ProjectSettingsService,
 ) -> None:
     """Process webhook asynchronously via the automation dispatcher."""
@@ -278,11 +260,8 @@ async def _process_webhook_safe(
             github_repo=github_mgr._github_repo,  # noqa: SLF001
             automation_repo=app_state.automation_repo,
             matcher=app_state.automation_matcher,
-            renderer=app_state.prompt_renderer,
             context_builder_registry=app_state.context_builder_registry,
-            create_box=create_box_handler,
-            profile_service=profile_service,
-            settings_service=settings_service,
+            spawner=app_state.automation_box_spawner,
             project_id=project_id,
             default_base_branch=default_branch,
         )

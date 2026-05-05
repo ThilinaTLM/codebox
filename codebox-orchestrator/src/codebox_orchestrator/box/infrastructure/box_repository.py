@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from codebox_orchestrator.box.infrastructure.orm_models import BoxRecord
+from codebox_orchestrator.shared.persistence.repository import SoftDeleteMixin
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
-class BoxRepository:
+class BoxRepository(SoftDeleteMixin):
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
@@ -58,9 +59,11 @@ class BoxRepository:
 
     async def get(self, box_id: str, *, include_deleted: bool = False) -> BoxRecord | None:
         async with self._session_factory() as session:
-            stmt = select(BoxRecord).where(BoxRecord.id == box_id)
-            if not include_deleted:
-                stmt = stmt.where(BoxRecord.deleted_at.is_(None))
+            stmt = self.apply_soft_delete_filter(
+                select(BoxRecord).where(BoxRecord.id == box_id),
+                BoxRecord,
+                include_deleted=include_deleted,
+            )
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
@@ -71,9 +74,11 @@ class BoxRepository:
         if not ids:
             return {}
         async with self._session_factory() as session:
-            stmt = select(BoxRecord).where(BoxRecord.id.in_(ids))
-            if not include_deleted:
-                stmt = stmt.where(BoxRecord.deleted_at.is_(None))
+            stmt = self.apply_soft_delete_filter(
+                select(BoxRecord).where(BoxRecord.id.in_(ids)),
+                BoxRecord,
+                include_deleted=include_deleted,
+            )
             result = await session.execute(stmt)
             return {r.id: r for r in result.scalars().all()}
 
@@ -81,10 +86,11 @@ class BoxRepository:
         self, project_id: str, *, include_deleted: bool = False
     ) -> list[BoxRecord]:
         async with self._session_factory() as session:
-            stmt = select(BoxRecord).where(BoxRecord.project_id == project_id)
-            if not include_deleted:
-                stmt = stmt.where(BoxRecord.deleted_at.is_(None))
-            stmt = stmt.order_by(BoxRecord.created_at.desc())
+            stmt = self.apply_soft_delete_filter(
+                select(BoxRecord).where(BoxRecord.project_id == project_id),
+                BoxRecord,
+                include_deleted=include_deleted,
+            ).order_by(BoxRecord.created_at.desc())
             result = await session.execute(stmt)
             return list(result.scalars().all())
 
@@ -126,8 +132,7 @@ class BoxRepository:
             record = result.scalar_one_or_none()
             if record is None:
                 return False
-            record.deleted_at = datetime.now(UTC)
-            record.updated_at = datetime.now(UTC)
+            self.mark_soft_deleted(record)
             await session.commit()
             return True
 

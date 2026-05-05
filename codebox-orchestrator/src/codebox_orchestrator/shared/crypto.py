@@ -8,6 +8,8 @@ The encryption key is loaded from ``settings.encryption_key`` (env var
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -71,6 +73,21 @@ def decrypt_value(ciphertext: str) -> str:
     return get_fernet().decrypt(ciphertext.encode()).decode()
 
 
+def verify_hmac_sha256(payload: bytes, signature: str, secret: bytes | str) -> bool:
+    """Verify a GitHub-style ``X-Hub-Signature-256`` header.
+
+    The header is the literal string ``sha256=<hex digest>`` produced by
+    HMAC-SHA256 of ``payload`` keyed with ``secret``. Returns ``False`` for any
+    malformed input rather than raising. ``hmac.compare_digest`` is used to
+    avoid timing leaks.
+    """
+    if not signature.startswith("sha256="):
+        return False
+    key = secret.encode() if isinstance(secret, str) else secret
+    expected = hmac.new(key, payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(f"sha256={expected}", signature)
+
+
 def mask_secret(value: str, visible: int = 4) -> str:
     """Mask a secret for safe display.
 
@@ -123,4 +140,5 @@ __all__ = [
     "encrypt_value_with_password",
     "get_fernet",
     "mask_secret",
+    "verify_hmac_sha256",
 ]

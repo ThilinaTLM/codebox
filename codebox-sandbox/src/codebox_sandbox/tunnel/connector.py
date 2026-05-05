@@ -28,10 +28,10 @@ from codebox_tunnel import (
     AsyncYamuxStream,
 )
 
+from codebox_sandbox.retry import Backoff
+
 logger = logging.getLogger(__name__)
 
-_RECONNECT_BASE_DELAY = 1.0
-_RECONNECT_MAX_DELAY = 30.0
 _BRIDGE_BUF_SIZE = 16384
 
 
@@ -41,7 +41,7 @@ async def run_tunnel(tunnel_url: str, callback_token: str) -> None:
     Connects to the orchestrator's WebSocket endpoint, sets up a yamux
     session (role=initiator), and accepts streams from the orchestrator.
     """
-    delay = _RECONNECT_BASE_DELAY
+    backoff = Backoff()
 
     while True:
         try:
@@ -56,7 +56,7 @@ async def run_tunnel(tunnel_url: str, callback_token: str) -> None:
                 max_size=None,  # No message size limit
             ) as ws:
                 logger.info("Tunnel WebSocket connected")
-                delay = _RECONNECT_BASE_DELAY  # Reset backoff on success
+                backoff.reset()  # Reset backoff on successful connection
 
                 adapter = AsyncWSAdapter(ws)
                 session = AsyncYamuxSession(adapter, role="initiator")
@@ -84,22 +84,21 @@ async def run_tunnel(tunnel_url: str, callback_token: str) -> None:
             logger.warning(
                 "Tunnel WebSocket rejected (HTTP %s), reconnecting in %.1fs",
                 exc.response.status_code,
-                delay,
+                backoff.peek(),
             )
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, _RECONNECT_MAX_DELAY)
+            await backoff.sleep()
         except (ConnectionRefusedError, OSError) as exc:
             logger.warning(
                 "Tunnel connection failed (%s), reconnecting in %.1fs",
                 exc,
-                delay,
+                backoff.peek(),
             )
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, _RECONNECT_MAX_DELAY)
+            await backoff.sleep()
         except Exception:
-            logger.warning("Tunnel disconnected, reconnecting in %.1fs", delay, exc_info=True)
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, _RECONNECT_MAX_DELAY)
+            logger.warning(
+                "Tunnel disconnected, reconnecting in %.1fs", backoff.peek(), exc_info=True
+            )
+            await backoff.sleep()
 
 
 async def _dispatch_stream(stream: AsyncYamuxStream) -> None:

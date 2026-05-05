@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from codebox_orchestrator.api.dependencies import get_orphan_scan_service
 from codebox_orchestrator.api.schemas import OrphanContainerResponse
 from codebox_orchestrator.auth.dependencies import UserInfo, require_admin
-from codebox_orchestrator.compute.docker.docker_service import DockerServiceError
 
 if TYPE_CHECKING:
     from codebox_orchestrator.platform.application.orphan_scan import OrphanScanService
@@ -29,10 +28,7 @@ async def list_orphan_containers(
     _: UserInfo = Depends(require_admin),
     service: OrphanScanService = Depends(get_orphan_scan_service),
 ) -> list[OrphanContainerResponse]:
-    try:
-        orphans = await service.list_orphans()
-    except DockerServiceError as exc:
-        raise HTTPException(502, f"Failed to list containers: {exc}") from exc
+    orphans = await service.list_orphans()
     return [OrphanContainerResponse.from_view(o) for o in orphans]
 
 
@@ -50,6 +46,5 @@ async def delete_orphan_container(
     try:
         await service.delete_orphan(container_id)
     except ValueError as exc:
+        # Route-local mapping: ValueError here means container not found.
         raise HTTPException(404, str(exc)) from exc
-    except DockerServiceError as exc:
-        raise HTTPException(502, f"Failed to remove container: {exc}") from exc

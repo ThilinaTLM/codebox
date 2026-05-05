@@ -17,10 +17,11 @@ from typing import TYPE_CHECKING
 from croniter import croniter
 from sqlalchemy import select, update
 
-from codebox_orchestrator.automation.models import Automation, SchedulerLock
-from codebox_orchestrator.integration.github.application.setup_commands import (
-    build_setup_commands,
+from codebox_orchestrator.automation.application.box_spawner import (
+    AutomationBoxSpawner,
+    SpawnContext,
 )
+from codebox_orchestrator.automation.models import Automation, SchedulerLock
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -28,17 +29,10 @@ if TYPE_CHECKING:
     from codebox_orchestrator.automation.application.context_builders import (
         ContextBuilder,
     )
-    from codebox_orchestrator.automation.application.renderer import PromptRenderer
     from codebox_orchestrator.automation.repository import AutomationRepository
-    from codebox_orchestrator.box.application.commands.create_box import CreateBoxHandler
-    from codebox_orchestrator.integration.github.application.client_manager import (
-        GitHubClientManager,
-    )
     from codebox_orchestrator.integration.github.infrastructure.github_repository import (
         SqlAlchemyGitHubRepository,
     )
-    from codebox_orchestrator.llm_profile.service import LLMProfileService
-    from codebox_orchestrator.project_settings.service import ProjectSettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -56,23 +50,15 @@ class AutomationScheduler:
         *,
         session_factory: async_sessionmaker,
         automation_repo: AutomationRepository,
-        renderer: PromptRenderer,
         context_builder: ContextBuilder | None,
-        github_mgr: GitHubClientManager,
-        create_box: CreateBoxHandler,
-        profile_service: LLMProfileService,
-        settings_service: ProjectSettingsService,
+        spawner: AutomationBoxSpawner,
         github_repo: SqlAlchemyGitHubRepository,
         instance_id: str,
     ) -> None:
         self._sf = session_factory
         self._repo = automation_repo
-        self._renderer = renderer
         self._context_builder = context_builder
-        self._github_mgr = github_mgr
-        self._create_box = create_box
-        self._profile_service = profile_service
-        self._settings_service = settings_service
+        self._spawner = spawner
         self._github_repo = github_repo
         self._instance_id = instance_id
         self._stopping = False
@@ -192,36 +178,6 @@ class AutomationScheduler:
             automation=automation,
             fired_at=fired_at,
         )
-        initial_result = self._renderer.render(automation.initial_prompt, context.variables)
-        system_result = (
-            self._renderer.render(automation.system_prompt, context.variables)
-            if automation.system_prompt
-            else None
-        )
-        unresolved: list[str] = [
-            *initial_result.unresolved,
-            *(system_result.unresolved if system_result else []),
-        ]
-        if unresolved:
-            logger.warning(
-                "automation render missing vars automation=%s trigger_kind=%s vars=%s",
-                automation.id,
-                "schedule",
-                sorted(set(unresolved)),
-            )
-        initial = initial_result.text
-        system = system_result.text if system_result else None
-        profile_id = (
-            automation.llm_profile_id
-            or await self._settings_service.get_default_profile_id(automation.project_id)
-        )
-        if not profile_id:
-            msg = "no LLM profile available for scheduled automation"
-            raise RuntimeError(msg)
-        resolved = await self._profile_service.resolve_profile(profile_id, automation.project_id)
-        if resolved is None:
-            msg = f"LLM profile {profile_id} missing"
-            raise RuntimeError(msg)
 
         # Installation handle: strictly match the trigger_repo's owner prefix.
         # The scheduler must never silently fall back to an unrelated
@@ -249,45 +205,31 @@ class AutomationScheduler:
             logger.error("scheduler.spawn automation=%s %s", automation.id, msg)
             return
 
-        # Compute workspace branch the agent will land on
-        _, work_branch = build_setup_commands(
-            mode="pinned",
-            repo=automation.trigger_repo,
-            token="",
-            branch=automation.pinned_branch,
-        )
-
-        tavily_key = None
-        try:
-            tavily_key = await self._settings_service.get_tavily_api_key(automation.project_id)
-        except Exception:
-            tavily_key = None
-
-        view = await self._create_box.execute(
-            name=f"[Automation:{automation.name}] scheduled"[:200],
-            provider=resolved.provider,
-            model=resolved.model,
-            api_key=resolved.api_key,
-            base_url=resolved.base_url,
-            tavily_api_key=tavily_key,
-            system_prompt=system,
-            auto_start_prompt=initial,
-            trigger="schedule",
-            github_installation_id=db_installation.id,
-            github_repo=automation.trigger_repo,
-            github_branch=work_branch,
-            github_workspace_mode="pinned",
-            github_workspace_ref=automation.pinned_branch,
+        spawn_ctx = SpawnContext(
             project_id=automation.project_id,
+            trigger_kind="schedule",
+            workspace_mode="pinned",
+            box_name=f"[Automation:{automation.name}] scheduled"[:200],
+            base_repo=automation.trigger_repo,
+            pinned_branch=automation.pinned_branch,
+            installation=db_installation,
+            variables=context.variables,
         )
+        result = await self._spawner.spawn(automation, spawn_ctx)
+        if not result.succeeded:
+            raise RuntimeError(result.error or "spawner returned no box id")
         await self._repo.record_run(
             project_id=automation.project_id,
             automation_id=automation.id,
             trigger_kind="schedule",
             status="spawned",
-            box_id=view.id,
+            box_id=result.box_id,
         )
-        logger.info("scheduler.spawn automation=%s status=spawned box=%s", automation.id, view.id)
+        logger.info(
+            "scheduler.spawn automation=%s status=spawned box=%s",
+            automation.id,
+            result.box_id,
+        )
 
     # ── Leader election ─────────────────────────────────────────
 
