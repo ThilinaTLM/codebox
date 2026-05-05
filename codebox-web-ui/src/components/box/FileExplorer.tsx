@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { File, Folder, Tree } from "@/components/ui/file-tree"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useBoxFiles, useUploadFile } from "@/net/query"
+import { boxesKeys, useBoxFiles, useUploadFile } from "@/net/query"
 import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
 
 export function FileExplorer({
@@ -55,7 +55,7 @@ export function FileExplorer({
       loadedDirsRef.current.add(dirPath)
       try {
         const result = await queryClient.fetchQuery({
-          queryKey: ["boxes", boxId, "files", dirPath],
+          queryKey: boxesKeys.files(slug, boxId, dirPath),
           queryFn: async () => {
             const { api } = await import("@/net/http/api")
             return api.boxes.listFiles(slug, boxId, dirPath)
@@ -79,7 +79,7 @@ export function FileExplorer({
     loadedDirsRef.current.clear()
     binaryFilesRef.current.clear()
     await queryClient.invalidateQueries({
-      queryKey: ["boxes", boxId, "files"],
+      queryKey: boxesKeys.files(slug, boxId, ""),
     })
     setIsRefreshing(false)
   }, [queryClient, boxId])

@@ -17,6 +17,10 @@ from typing import Any
 
 import grpc
 from codebox_tunnel import normalize_grpc_url
+from codebox_tunnel.proto_converters import (
+    dict_to_query_result_event,
+    dict_to_stream_event,
+)
 from grpc import aio as grpc_aio
 
 from codebox_agent.agent_runner import (
@@ -29,11 +33,10 @@ from codebox_agent.message_store import EventStore
 from codebox_agent.sessions import SessionManager
 from codebox_sandbox.grpc.generated.codebox.box import box_pb2, box_pb2_grpc
 from codebox_sandbox.prompts import SANDBOX_ENVIRONMENT_SYSTEM_PROMPT
+from codebox_sandbox.retry import Backoff
 
 logger = logging.getLogger(__name__)
 
-_RECONNECT_BASE_DELAY = 1.0
-_RECONNECT_MAX_DELAY = 30.0
 _HEARTBEAT_INTERVAL_S = 20  # Send a heartbeat if no data sent for this long
 
 _WORKSPACE_ROOT = Path("/workspace")
@@ -84,7 +87,7 @@ async def run_callback() -> None:
     # sandbox no longer reads ``CODEBOX_INITIAL_PROMPT`` here. See
     # automation-fix-01-agent-start-race.md for background.
 
-    delay = _RECONNECT_BASE_DELAY
+    backoff = Backoff()
     while True:
         try:
             await _connect_and_run(
@@ -100,22 +103,19 @@ async def run_callback() -> None:
             logger.warning(
                 "gRPC connection to orchestrator lost (%s), retrying in %.1fs",
                 exc.code(),
-                delay,
+                backoff.peek(),
             )
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, _RECONNECT_MAX_DELAY)
+            await backoff.sleep()
         except (ConnectionRefusedError, OSError) as exc:
             logger.warning(
                 "Connection to orchestrator failed (%s), retrying in %.1fs",
                 exc,
-                delay,
+                backoff.peek(),
             )
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, _RECONNECT_MAX_DELAY)
+            await backoff.sleep()
         except Exception:
             logger.exception("Unexpected error in callback loop")
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, _RECONNECT_MAX_DELAY)
+            await backoff.sleep()
 
 
 def _should_use_tls(orchestrator_grpc_url: str) -> bool:
@@ -202,13 +202,18 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
                     envelope.setdefault("event_id", new_id("evt"))
                     stored = await event_store.append_event(envelope)
                     await outbound.put(
-                        box_pb2.BoxEvent(stream_event=_dict_to_stream_event(stored))
+                        box_pb2.BoxEvent(stream_event=dict_to_stream_event(stored, box_pb2))
                     )
                     return
 
-                event = _dict_to_event(msg)
+                event = dict_to_query_result_event(msg, box_pb2)
                 if event is not None:
                     await outbound.put(event)
+                else:
+                    logger.debug(
+                        "Unknown event type for protobuf conversion: %s",
+                        msg.get("type", ""),
+                    )
             except Exception:
                 logger.debug("Failed to enqueue event", exc_info=True)
 
@@ -319,214 +324,3 @@ async def _connect_and_run(  # noqa: PLR0912, PLR0915
         finally:
             await _cancel_current()
             await outbound.put(None)
-
-
-# ──────────────────────────────────────────────────────────────
-# Dict → Protobuf conversion (thin layer at sandbox boundary)
-# ──────────────────────────────────────────────────────────────
-
-
-def _dict_to_stream_event(  # noqa: PLR0911, PLR0912
-    msg: dict[str, Any],
-) -> box_pb2.StreamEvent:
-    """Convert a canonical event dict to a StreamEvent protobuf."""
-    base = {
-        "seq": int(msg.get("seq", 0) or 0),
-        "event_id": msg.get("event_id", ""),
-        "timestamp_ms": int(msg.get("timestamp_ms", 0) or 0),
-        "run_id": msg.get("run_id", ""),
-        "turn_id": msg.get("turn_id", ""),
-        "message_id": msg.get("message_id", ""),
-        "tool_call_id": msg.get("tool_call_id", ""),
-        "command_id": msg.get("command_id", ""),
-    }
-    payload = msg.get("payload", {}) or {}
-    kind = msg.get("kind", "")
-
-    if kind == "run.started":
-        return box_pb2.StreamEvent(
-            **base,
-            run_started=box_pb2.RunStarted(
-                trigger=payload.get("trigger", ""),
-                input=payload.get("input", ""),
-            ),
-        )
-    if kind == "run.completed":
-        return box_pb2.StreamEvent(
-            **base,
-            run_completed=box_pb2.RunCompleted(summary=payload.get("summary", "")),
-        )
-    if kind == "run.failed":
-        return box_pb2.StreamEvent(
-            **base,
-            run_failed=box_pb2.RunFailed(error=payload.get("error", "")),
-        )
-    if kind == "run.cancelled":
-        return box_pb2.StreamEvent(**base, run_cancelled=box_pb2.RunCancelled())
-    if kind == "turn.started":
-        return box_pb2.StreamEvent(**base, turn_started=box_pb2.TurnStarted())
-    if kind == "turn.completed":
-        return box_pb2.StreamEvent(**base, turn_completed=box_pb2.TurnCompleted())
-    if kind == "message.started":
-        return box_pb2.StreamEvent(
-            **base,
-            message_started=box_pb2.MessageStarted(role=payload.get("role", "assistant")),
-        )
-    if kind == "message.delta":
-        return box_pb2.StreamEvent(
-            **base,
-            message_delta=box_pb2.MessageDelta(text=payload.get("text", "")),
-        )
-    if kind == "message.completed":
-        return box_pb2.StreamEvent(
-            **base,
-            message_completed=box_pb2.MessageCompleted(
-                role=payload.get("role", "assistant"),
-                content=payload.get("content", ""),
-            ),
-        )
-    if kind == "reasoning.started":
-        return box_pb2.StreamEvent(**base, reasoning_started=box_pb2.ReasoningStarted())
-    if kind == "reasoning.delta":
-        return box_pb2.StreamEvent(
-            **base,
-            reasoning_delta=box_pb2.ReasoningDelta(text=payload.get("text", "")),
-        )
-    if kind == "reasoning.completed":
-        return box_pb2.StreamEvent(**base, reasoning_completed=box_pb2.ReasoningCompleted())
-    if kind == "tool_call.started":
-        return box_pb2.StreamEvent(
-            **base,
-            tool_call_started=box_pb2.ToolCallStarted(name=payload.get("name", "")),
-        )
-    if kind == "tool_call.arguments.delta":
-        return box_pb2.StreamEvent(
-            **base,
-            tool_call_arguments_delta=box_pb2.ToolCallArgumentsDelta(text=payload.get("text", "")),
-        )
-    if kind == "tool_call.arguments.completed":
-        return box_pb2.StreamEvent(
-            **base,
-            tool_call_arguments_completed=box_pb2.ToolCallArgumentsCompleted(
-                arguments_json=payload.get("arguments_json", "")
-            ),
-        )
-    if kind == "tool_call.completed":
-        return box_pb2.StreamEvent(
-            **base,
-            tool_call_completed=box_pb2.ToolCallCompleted(
-                name=payload.get("name", ""),
-                output=payload.get("output", ""),
-            ),
-        )
-    if kind == "tool_call.failed":
-        return box_pb2.StreamEvent(
-            **base,
-            tool_call_failed=box_pb2.ToolCallFailed(
-                name=payload.get("name", ""),
-                error=payload.get("error", ""),
-                output=payload.get("output", ""),
-            ),
-        )
-    if kind == "command.started":
-        origin = payload.get("origin", "")
-        proto_origin = (
-            box_pb2.COMMAND_ORIGIN_AGENT_TOOL
-            if origin == "agent_tool"
-            else box_pb2.COMMAND_ORIGIN_USER_EXEC
-        )
-        return box_pb2.StreamEvent(
-            **base,
-            command_started=box_pb2.CommandStarted(
-                origin=proto_origin,
-                command=payload.get("command", ""),
-                timeout_seconds=int(payload.get("timeout_seconds", 0) or 0),
-            ),
-        )
-    if kind == "command.output.delta":
-        return box_pb2.StreamEvent(
-            **base,
-            command_output_delta=box_pb2.CommandOutputDelta(text=payload.get("text", "")),
-        )
-    if kind == "command.completed":
-        origin = payload.get("origin", "")
-        proto_origin = (
-            box_pb2.COMMAND_ORIGIN_AGENT_TOOL
-            if origin == "agent_tool"
-            else box_pb2.COMMAND_ORIGIN_USER_EXEC
-        )
-        return box_pb2.StreamEvent(
-            **base,
-            command_completed=box_pb2.CommandCompleted(
-                origin=proto_origin,
-                exit_code=int(payload.get("exit_code", 0) or 0),
-                output=payload.get("output", ""),
-            ),
-        )
-    if kind == "command.failed":
-        origin = payload.get("origin", "")
-        proto_origin = (
-            box_pb2.COMMAND_ORIGIN_AGENT_TOOL
-            if origin == "agent_tool"
-            else box_pb2.COMMAND_ORIGIN_USER_EXEC
-        )
-        return box_pb2.StreamEvent(
-            **base,
-            command_failed=box_pb2.CommandFailed(
-                origin=proto_origin,
-                exit_code=int(payload.get("exit_code", 1) or 1),
-                error=payload.get("error", ""),
-                output=payload.get("output", ""),
-            ),
-        )
-    if kind == "state.changed":
-        return box_pb2.StreamEvent(
-            **base,
-            state_changed=box_pb2.StateChanged(activity=payload.get("activity", "")),
-        )
-    if kind == "outcome.declared":
-        return box_pb2.StreamEvent(
-            **base,
-            outcome_declared=box_pb2.OutcomeDeclared(
-                status=payload.get("status", ""),
-                message=payload.get("message", ""),
-            ),
-        )
-    if kind == "input.requested":
-        return box_pb2.StreamEvent(
-            **base,
-            input_requested=box_pb2.InputRequested(
-                message=payload.get("message", ""),
-                questions=list(payload.get("questions", []) or []),
-            ),
-        )
-
-    raise ValueError(f"Unknown canonical event kind: {kind}")
-
-
-def _build_exec_result(msg: dict[str, Any]) -> box_pb2.BoxEvent:
-    request_id = msg.get("request_id", "")
-    output = msg.get("output", "")
-    try:
-        exit_code = int(output)
-    except (ValueError, TypeError):
-        exit_code = -1
-    return box_pb2.BoxEvent(
-        query_result=box_pb2.QueryResult(
-            request_id=request_id,
-            exec=box_pb2.ExecResult(exit_code=exit_code),
-        )
-    )
-
-
-_QUERY_RESULT_BUILDERS: dict[str, Any] = {
-    "exec_done": _build_exec_result,
-}
-
-
-def _dict_to_event(msg: dict[str, Any]) -> box_pb2.BoxEvent | None:
-    msg_type = msg.get("type", "")
-    if msg_type in _QUERY_RESULT_BUILDERS:
-        return _QUERY_RESULT_BUILDERS[msg_type](msg)
-    logger.debug("Unknown event type for protobuf conversion: %s", msg_type)
-    return None

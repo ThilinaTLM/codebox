@@ -8,6 +8,7 @@ root = [
     "codebox-github-action/src",
     "codebox-orchestrator/src",
     "codebox-sandbox/src",
+    "codebox-tunnel/src",
 ]
 
 extra-paths = [
@@ -15,6 +16,7 @@ extra-paths = [
     "codebox-github-action/src",
     "codebox-orchestrator/src",
     "codebox-sandbox/src",
+    "codebox-tunnel/src",
     "codebox-orchestrator/.venv/lib/python3.12/site-packages",
     "codebox-agent/.venv/lib/python3.12/site-packages",
     "codebox-sandbox/.venv/lib/python3.12/site-packages",

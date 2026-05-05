@@ -11,6 +11,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { useProjectPermissions } from "@/hooks/useProjectPermissions"
+import { projectsKeys } from "@/net/query"
 
 type GitHubSettingsTab = "app" | "installations"
 
@@ -74,9 +75,9 @@ function GitHubSettingsPage() {
     if (search.manifest === "ok") {
       toast.success("GitHub App created and connected to this project")
       qc.invalidateQueries({
-        queryKey: ["projects", projectSlug, "github", "status"],
+        queryKey: projectsKeys.github.status(projectSlug),
       })
-      qc.invalidateQueries({ queryKey: ["projects", projectSlug, "settings"] })
+      qc.invalidateQueries({ queryKey: projectsKeys.settings(projectSlug) })
       void navigate({
         search: (prev) => ({
           ...prev,
@@ -101,7 +102,7 @@ function GitHubSettingsPage() {
     } else if (search.installation_id) {
       toast.success("GitHub App installation connected")
       qc.invalidateQueries({
-        queryKey: ["projects", projectSlug, "github", "installations"],
+        queryKey: projectsKeys.github.installations(projectSlug),
       })
       void navigate({
         search: (prev) => ({ ...prev, installation_id: undefined }),

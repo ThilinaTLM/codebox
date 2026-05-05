@@ -48,7 +48,7 @@ async def list_profiles(
 ) -> list[LLMProfileResponse]:
     default_id = await _default_profile_id(ctx.project_id, settings_service)
     views = await service.list_profiles(ctx.project_id, default_profile_id=default_id)
-    return [LLMProfileResponse.model_validate(v.__dict__) for v in views]
+    return [LLMProfileResponse.model_validate(v) for v in views]
 
 
 @router.post(
@@ -101,7 +101,7 @@ async def import_profiles(
     return LLMProfileImportResult(
         imported=len(created),
         skipped=skipped,
-        profiles=[LLMProfileResponse.model_validate(v.__dict__) for v in created],
+        profiles=[LLMProfileResponse.model_validate(v) for v in created],
     )
 
 
@@ -124,7 +124,7 @@ async def create_profile(
         api_key=body.api_key,
         base_url=body.base_url,
     )
-    return LLMProfileResponse.model_validate(view.__dict__)
+    return LLMProfileResponse.model_validate(view)
 
 
 @router.post(
@@ -141,7 +141,7 @@ async def duplicate_profile(
     view = await service.duplicate_profile(profile_id, ctx.project_id)
     if view is None:
         raise HTTPException(404, "Profile not found")
-    return LLMProfileResponse.model_validate(view.__dict__)
+    return LLMProfileResponse.model_validate(view)
 
 
 @router.get(
@@ -159,7 +159,7 @@ async def get_profile(
     view = await service.get_profile(profile_id, ctx.project_id, default_profile_id=default_id)
     if view is None:
         raise HTTPException(404, "Profile not found")
-    return LLMProfileResponse.model_validate(view.__dict__)
+    return LLMProfileResponse.model_validate(view)
 
 
 @router.patch(
@@ -184,7 +184,7 @@ async def update_profile(
     )
     if view is None:
         raise HTTPException(404, "Profile not found")
-    return LLMProfileResponse.model_validate(view.__dict__)
+    return LLMProfileResponse.model_validate(view)
 
 
 @router.delete(

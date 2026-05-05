@@ -208,25 +208,23 @@ class AgentConfig(BaseModel):
 
         This entry point is used by the GitHub Action; the sandbox always
         receives the full config as the ``CODEBOX_AGENT_CONFIG`` JSON blob.
+        Internally builds a dict and delegates to :meth:`from_dict` so
+        every loader uses the same pydantic validation pipeline.
         """
-        provider = os.environ.get("CODEBOX_LLM_PROVIDER", "openai") or "openai"
-        model = os.environ.get("CODEBOX_LLM_MODEL", "")
-        api_key = os.environ.get("CODEBOX_LLM_API_KEY", "")
-        base_url = os.environ.get("CODEBOX_LLM_BASE_URL") or None
-        tavily_key = os.environ.get("CODEBOX_TAVILY_API_KEY")
         recursion_limit = int(os.environ.get("CODEBOX_AGENT_RECURSION_LIMIT", "999") or "999")
         execute_timeout = int(os.environ.get("CODEBOX_AGENT_EXECUTE_TIMEOUT", "120") or "120")
-
-        return cls(
-            llm=LLMConfig(
-                provider=provider,
-                model=model,
-                api_key=api_key,
-                base_url=base_url,
-            ),
-            recursion_limit=recursion_limit,
-            tools=ToolsConfig(
-                execute=ExecuteToolConfig(timeout=execute_timeout),
-                web_search=WebSearchToolConfig(api_key=tavily_key),
-            ),
+        return cls.from_dict(
+            {
+                "llm": {
+                    "provider": os.environ.get("CODEBOX_LLM_PROVIDER", "openai") or "openai",
+                    "model": os.environ.get("CODEBOX_LLM_MODEL", ""),
+                    "api_key": os.environ.get("CODEBOX_LLM_API_KEY", ""),
+                    "base_url": os.environ.get("CODEBOX_LLM_BASE_URL") or None,
+                },
+                "recursion_limit": recursion_limit,
+                "tools": {
+                    "execute": {"timeout": execute_timeout},
+                    "web_search": {"api_key": os.environ.get("CODEBOX_TAVILY_API_KEY")},
+                },
+            }
         )

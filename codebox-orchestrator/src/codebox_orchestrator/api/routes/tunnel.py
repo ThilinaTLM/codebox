@@ -24,10 +24,6 @@ from codebox_orchestrator.project.dependencies import (
     get_project_context,
 )
 from codebox_orchestrator.tunnel.proxy import proxy_request, proxy_request_streaming
-from codebox_orchestrator.tunnel.registry import (
-    NoTunnelConnectionError,
-    TunnelDialError,
-)
 
 if TYPE_CHECKING:
     from codebox_orchestrator.box.application.services.box_query import BoxQueryService
@@ -120,12 +116,7 @@ async def list_files(
     await _require_box(box_id, ctx.project_id, request)
     registry = _get_tunnel_registry(request)
 
-    try:
-        stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
-    except NoTunnelConnectionError as exc:
-        raise HTTPException(503, "Tunnel not connected") from exc
-    except TunnelDialError as exc:
-        raise HTTPException(502, f"Tunnel dial error: {exc}") from exc
+    stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
 
     try:
         status, _headers, body = await proxy_request(
@@ -148,12 +139,7 @@ async def read_file(
     await _require_box(box_id, ctx.project_id, request)
     registry = _get_tunnel_registry(request)
 
-    try:
-        stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
-    except NoTunnelConnectionError as exc:
-        raise HTTPException(503, "Tunnel not connected") from exc
-    except TunnelDialError as exc:
-        raise HTTPException(502, f"Tunnel dial error: {exc}") from exc
+    stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
 
     try:
         status, _headers, body = await proxy_request(
@@ -177,12 +163,7 @@ async def download_file(
     await _require_box(box_id, ctx.project_id, request)
     registry = _get_tunnel_registry(request)
 
-    try:
-        stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
-    except NoTunnelConnectionError as exc:
-        raise HTTPException(503, "Tunnel not connected") from exc
-    except TunnelDialError as exc:
-        raise HTTPException(502, f"Tunnel dial error: {exc}") from exc
+    stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
 
     try:
         status, resp_headers, body_iter = await proxy_request_streaming(
@@ -219,12 +200,7 @@ async def write_file(
 
     body = await request.body()
 
-    try:
-        stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
-    except NoTunnelConnectionError as exc:
-        raise HTTPException(503, "Tunnel not connected") from exc
-    except TunnelDialError as exc:
-        raise HTTPException(502, f"Tunnel dial error: {exc}") from exc
+    stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
 
     try:
         status, _headers, resp_body = await proxy_request(
@@ -251,12 +227,7 @@ async def upload_file(
     await _require_box(box_id, ctx.project_id, request)
     registry = _get_tunnel_registry(request)
 
-    try:
-        stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
-    except NoTunnelConnectionError as exc:
-        raise HTTPException(503, "Tunnel not connected") from exc
-    except TunnelDialError as exc:
-        raise HTTPException(502, f"Tunnel dial error: {exc}") from exc
+    stream = await registry.open_stream(box_id, FILE_SERVER_PORT)
 
     # Build a simple multipart body for the sandbox file server
     file_content = await file.read()

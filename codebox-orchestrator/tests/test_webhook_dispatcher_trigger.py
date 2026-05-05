@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 
+from codebox_orchestrator.automation.application.box_spawner import AutomationBoxSpawner
 from codebox_orchestrator.automation.application.context_builders import (
     ContextBuilderRegistry,
 )
@@ -23,6 +24,7 @@ from codebox_orchestrator.automation.application.renderer import PromptRenderer
 from codebox_orchestrator.integration.github.application.webhook_dispatcher import (
     GitHubWebhookDispatcher,
 )
+from tests.helpers import FakeProfileService, FakeSettingsService
 
 # --- Fakes ---------------------------------------------------------------
 
@@ -178,26 +180,6 @@ class _RecordingCreateBox:
         return _View()
 
 
-class _FakeProfile:
-    provider = "anthropic"
-    model = "claude-3-5-sonnet-20241022"
-    api_key = "sk-test"  # pragma: allowlist secret
-    base_url: str | None = None
-
-
-class _FakeProfileService:
-    async def resolve_profile(self, profile_id: str, project_id: str):
-        return _FakeProfile()
-
-
-class _FakeSettingsService:
-    async def get_default_profile_id(self, project_id: str) -> str:
-        return "prof-default"
-
-    async def get_tavily_api_key(self, project_id: str) -> None:
-        return None
-
-
 # --- Payload helper ------------------------------------------------------
 
 
@@ -230,16 +212,19 @@ def _make_dispatcher(
 ]:
     repo = _FakeAutomationRepo(automations)
     create_box = _RecordingCreateBox()
+    spawner = AutomationBoxSpawner(
+        profile_service=FakeProfileService(),
+        settings_service=FakeSettingsService(),
+        renderer=PromptRenderer(),
+        create_box=create_box,
+    )
     dispatcher = GitHubWebhookDispatcher(
         api_client=_FakeApi(),
         github_repo=_FakeGitHubRepo(),
         automation_repo=repo,
         matcher=AutomationMatcher(),
-        renderer=PromptRenderer(),
         context_builder_registry=ContextBuilderRegistry.default(),
-        create_box=create_box,
-        profile_service=_FakeProfileService(),
-        settings_service=_FakeSettingsService(),
+        spawner=spawner,
         project_id="proj-1",
     )
     return dispatcher, repo, create_box
