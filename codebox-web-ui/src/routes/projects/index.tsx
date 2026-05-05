@@ -38,7 +38,13 @@ function ProjectsChooserPage() {
   const [createOpen, setCreateOpen] = useState(false)
 
   // Chooser only shows projects the user can actually open.
-  const accessible = (projects ?? []).filter((p) => p.status === "active")
+  // Platform admins see all active projects; regular users only see
+  // projects where they have an explicit role.
+  const accessible = isPlatformAdmin
+    ? (projects ?? []).filter((p) => p.status === "active")
+    : (projects ?? []).filter(
+        (p) => p.status === "active" && p.current_user_role != null,
+      )
 
   if (isLoading) {
     return (

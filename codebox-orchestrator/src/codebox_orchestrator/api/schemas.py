@@ -316,6 +316,7 @@ class ProjectResponse(BaseModel):
     status: str
     created_at: str
     updated_at: str
+    current_user_role: str | None = None
 
 
 class ProjectMemberCreate(BaseModel):

@@ -256,6 +256,8 @@ export interface Project {
   status: "active" | "archived" | "deleted"
   created_at: string
   updated_at: string
+  /** The current user's role in this project (null if not a member). */
+  current_user_role: "admin" | "contributor" | null
 }
 
 export interface ProjectUserSummary {

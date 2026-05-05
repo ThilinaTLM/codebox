@@ -7,6 +7,7 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons"
 import type { Project } from "@/net/http/types"
+import { useAuthStore } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { useProjects } from "@/net/query"
 import {
@@ -29,6 +30,8 @@ export function ProjectSwitcher({ activeSlug, collapsed }: ProjectSwitcherProps)
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { data: projects, isLoading } = useProjects()
+  const user = useAuthStore((s) => s.user)
+  const isPlatformAdmin = user?.user_type === "admin"
 
   const active = useMemo<Project | null>(() => {
     if (!projects || !activeSlug) return null
@@ -50,6 +53,7 @@ export function ProjectSwitcher({ activeSlug, collapsed }: ProjectSwitcherProps)
           projects={projects ?? []}
           isLoading={isLoading}
           activeSlug={activeSlug}
+          isPlatformAdmin={isPlatformAdmin}
           onSelect={(slug) => {
             setOpen(false)
             void navigate({
@@ -96,6 +100,7 @@ export function ProjectSwitcher({ activeSlug, collapsed }: ProjectSwitcherProps)
         projects={projects ?? []}
         isLoading={isLoading}
         activeSlug={activeSlug}
+        isPlatformAdmin={isPlatformAdmin}
         onSelect={(slug) => {
           setOpen(false)
           void navigate({
@@ -112,16 +117,24 @@ function ProjectSwitcherPopover({
   projects,
   isLoading,
   activeSlug,
+  isPlatformAdmin,
   onSelect,
 }: {
   projects: Array<Project>
   isLoading: boolean
   activeSlug: string | null
+  isPlatformAdmin: boolean
   onSelect: (slug: string) => void
 }) {
   // Filter archived projects out of the switcher — archived work belongs
   // in the platform inventory, not in an everyday chooser.
-  const selectable = projects.filter((p) => p.status === "active")
+  // Projects without an explicit role are excluded for non-admin users;
+  // platform admins always see all active projects regardless.
+  const selectable = isPlatformAdmin
+    ? projects.filter((p) => p.status === "active")
+    : projects.filter(
+        (p) => p.status === "active" && p.current_user_role != null,
+      )
 
   return (
     <PopoverContent

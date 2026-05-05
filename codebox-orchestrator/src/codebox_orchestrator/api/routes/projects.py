@@ -78,8 +78,10 @@ async def list_projects(
     user: UserInfo = Depends(get_current_user),
     service: ProjectService = Depends(_get_project_service),
 ) -> list[ProjectResponse]:
-    views = await service.list_projects(user.user_id, is_platform_admin=user.user_type == "admin")
-    return [ProjectResponse(**v.__dict__) for v in views]
+    pairs = await service.list_projects_with_role(
+        user.user_id, is_platform_admin=user.user_type == "admin"
+    )
+    return [ProjectResponse(**view.__dict__, current_user_role=role) for view, role in pairs]
 
 
 @router.get("/{slug}", summary="Get project", operation_id="get_project")

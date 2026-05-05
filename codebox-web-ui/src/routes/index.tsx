@@ -37,8 +37,13 @@ function RootIndex() {
 
     const list = projects ?? []
 
-    // Recent slug still valid → use it.
-    if (recentSlug && list.some((p) => p.slug === recentSlug && p.status === "active")) {
+    // Recent slug still valid → use it (must have an active enrollment).
+    if (
+      recentSlug &&
+      list.some(
+        (p) => p.slug === recentSlug && p.status === "active" && p.current_user_role != null,
+      )
+    ) {
       void navigate({
         to: "/projects/$projectSlug",
         params: { projectSlug: recentSlug },
@@ -52,7 +57,9 @@ function RootIndex() {
       clearRecent()
     }
 
-    const activeProjects = list.filter((p) => p.status === "active")
+    const activeProjects = list.filter(
+      (p) => p.status === "active" && p.current_user_role != null,
+    )
 
     if (activeProjects.length === 1) {
       void navigate({
