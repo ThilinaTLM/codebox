@@ -7,46 +7,10 @@ import { MediaPreview } from "./previews/MediaPreview"
 import { PdfPreview } from "./previews/PdfPreview"
 
 import { CodeboxLogoLoader } from "@/components/layout/CodeboxLogoLoader"
+import { getFileCategory } from "@/lib/file-categorization"
 import { api } from "@/net/http/api"
 import { useBoxFileContent } from "@/net/query"
 import { useActiveProjectSlug } from "@/hooks/useActiveProjectSlug"
-
-// ---------------------------------------------------------------------------
-// File type classification (shared with FilePreview)
-// ---------------------------------------------------------------------------
-
-type FileCategory =
-  | "image"
-  | "pdf"
-  | "video"
-  | "audio"
-  | "markdown"
-  | "code"
-  | "binary"
-
-const IMAGE_EXTENSIONS = new Set([
-  "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "bmp",
-])
-const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "ogg", "mov", "avi"])
-const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "flac", "aac", "m4a", "wma"])
-const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"])
-
-function getFileCategory(path: string, isBinary: boolean): FileCategory {
-  const ext = path.split(".").pop()?.toLowerCase() ?? ""
-  if (IMAGE_EXTENSIONS.has(ext)) return "image"
-  if (ext === "pdf") return "pdf"
-  if (VIDEO_EXTENSIONS.has(ext)) return "video"
-  if (AUDIO_EXTENSIONS.has(ext)) return "audio"
-  if (!isBinary) {
-    if (MARKDOWN_EXTENSIONS.has(ext)) return "markdown"
-    return "code"
-  }
-  return "binary"
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 interface FileViewerProps {
   boxId: string

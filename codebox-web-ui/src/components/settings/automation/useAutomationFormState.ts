@@ -22,6 +22,7 @@ import type {
   AutomationUpdate,
   AutomationWorkspaceMode,
 } from "@/net/http/types"
+import { diffPatch } from "@/lib/diff-patch"
 
 export type SectionId = "basics" | "repo" | "trigger" | "prompts"
 
@@ -374,42 +375,23 @@ export function useAutomationFormState({
 
   const toUpdatePayload = (original: Automation): AutomationUpdate => {
     const full = toCreatePayload()
-    const patch: AutomationUpdate = {}
-    if (full.name !== original.name) patch.name = full.name
-    if (full.description !== (original.description ?? null))
-      patch.description = full.description
-    if (full.enabled !== original.enabled) patch.enabled = full.enabled
-    if (full.trigger_repo !== original.trigger_repo)
-      patch.trigger_repo = full.trigger_repo
-    if (full.trigger_kind !== original.trigger_kind)
-      patch.trigger_kind = full.trigger_kind
-    if (
-      JSON.stringify(full.trigger_actions) !==
-      JSON.stringify(original.trigger_actions ?? null)
-    ) {
-      patch.trigger_actions = full.trigger_actions
+    const normalized = {
+      name: original.name,
+      description: original.description ?? null,
+      enabled: original.enabled,
+      trigger_repo: original.trigger_repo,
+      trigger_kind: original.trigger_kind,
+      trigger_actions: original.trigger_actions ?? null,
+      trigger_filters: original.trigger_filters ?? null,
+      schedule_cron: original.schedule_cron ?? null,
+      schedule_timezone: original.schedule_timezone ?? null,
+      workspace_mode: original.workspace_mode,
+      pinned_branch: original.pinned_branch ?? null,
+      system_prompt: original.system_prompt ?? null,
+      initial_prompt: original.initial_prompt,
+      llm_profile_id: original.llm_profile_id ?? null,
     }
-    if (
-      JSON.stringify(full.trigger_filters) !==
-      JSON.stringify(original.trigger_filters ?? null)
-    ) {
-      patch.trigger_filters = full.trigger_filters
-    }
-    if (full.schedule_cron !== (original.schedule_cron ?? null))
-      patch.schedule_cron = full.schedule_cron
-    if (full.schedule_timezone !== (original.schedule_timezone ?? null))
-      patch.schedule_timezone = full.schedule_timezone
-    if (full.workspace_mode !== original.workspace_mode)
-      patch.workspace_mode = full.workspace_mode
-    if (full.pinned_branch !== (original.pinned_branch ?? null))
-      patch.pinned_branch = full.pinned_branch
-    if (full.system_prompt !== (original.system_prompt ?? null))
-      patch.system_prompt = full.system_prompt
-    if (full.initial_prompt !== original.initial_prompt)
-      patch.initial_prompt = full.initial_prompt
-    if (full.llm_profile_id !== (original.llm_profile_id ?? null))
-      patch.llm_profile_id = full.llm_profile_id
-    return patch
+    return diffPatch(normalized, full) as AutomationUpdate
   }
 
   return {

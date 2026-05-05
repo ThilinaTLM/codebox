@@ -10,6 +10,7 @@ import { API_URL } from "@/lib/constants"
 import { useAuthStore } from "@/lib/auth"
 import { useConnectionStore } from "@/lib/connection"
 import { useProjectStore } from "@/lib/project"
+import { boxesKeys, projectsKeys } from "@/net/query"
 
 /**
  * Invalidate every project-scoped box list query. Project slug is not part of
@@ -32,7 +33,7 @@ function invalidateAllProjectBoxLists(qc: QueryClient): void {
 function findProjectSlug(qc: QueryClient, projectId?: string): string | undefined {
   if (!projectId) return undefined
 
-  const projects = qc.getQueryData<Array<Project>>(["projects"])
+  const projects = qc.getQueryData<Array<Project>>(projectsKeys.all())
   const fromList = projects?.find((p) => p.id === projectId)?.slug
   if (fromList) return fromList
 
@@ -57,7 +58,7 @@ function invalidateProjectBoxLists(qc: QueryClient, projectId?: string): void {
     invalidateAllProjectBoxLists(qc)
     return
   }
-  qc.invalidateQueries({ queryKey: ["projects", slug, "boxes"] })
+  qc.invalidateQueries({ queryKey: boxesKeys.all(slug) })
 }
 
 interface BoxStatusEvent {
@@ -128,9 +129,9 @@ function removeBoxFromCaches(
 }
 
 function invalidateProjectKeys(qc: QueryClient, slug?: string): void {
-  qc.invalidateQueries({ queryKey: ["projects"] })
+  qc.invalidateQueries({ queryKey: projectsKeys.all() })
   if (slug) {
-    qc.invalidateQueries({ queryKey: ["projects", slug] })
+    qc.invalidateQueries({ queryKey: projectsKeys.detail(slug) })
   }
 }
 
