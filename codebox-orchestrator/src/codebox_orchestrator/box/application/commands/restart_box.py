@@ -43,6 +43,7 @@ class RestartBoxHandler:
             {
                 "type": "box_status_changed",
                 "box_id": box_id,
+                "project_id": box.project_id,
                 "container_status": "starting",
             }
         )

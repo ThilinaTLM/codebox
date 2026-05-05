@@ -42,6 +42,8 @@ class DeleteBoxHandler:
             except Exception:
                 logger.debug("Failed to remove container for box %s", box_id, exc_info=True)
 
+        project_id = box.project_id if box else ""
+
         await self._box_repository.soft_delete(box_id)
         self._state_store.remove(box_id)
 
@@ -49,5 +51,6 @@ class DeleteBoxHandler:
             {
                 "type": "box_deleted",
                 "box_id": box_id,
+                "project_id": project_id,
             }
         )

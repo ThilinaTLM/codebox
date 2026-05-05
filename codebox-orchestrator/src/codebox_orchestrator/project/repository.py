@@ -86,6 +86,28 @@ class ProjectRepository:
             result = await session.execute(stmt)
             return list(result.scalars().all())
 
+    async def list_for_user_with_roles(
+        self,
+        user_id: str,
+        *,
+        include_archived: bool = False,
+        include_deleted: bool = False,
+    ) -> list[tuple[Project, str]]:
+        """Return projects visible to *user_id* along with their membership role."""
+        async with self._session_factory() as session:
+            stmt = (
+                select(Project, ProjectMember.role)
+                .join(ProjectMember, ProjectMember.project_id == Project.id)
+                .where(ProjectMember.user_id == user_id)
+                .order_by(Project.name)
+            )
+            if not include_deleted:
+                stmt = stmt.where(Project.status != ProjectStatus.DELETED)
+            if not include_archived:
+                stmt = stmt.where(Project.status == ProjectStatus.ACTIVE)
+            result = await session.execute(stmt)
+            return list(result.all())
+
     async def list_all(
         self,
         *,
@@ -101,6 +123,20 @@ class ProjectRepository:
             stmt = stmt.order_by(Project.name)
             result = await session.execute(stmt)
             return list(result.scalars().all())
+
+    async def list_all_with_role(
+        self,
+        role: str = "admin",
+        *,
+        include_archived: bool = True,
+        include_deleted: bool = False,
+    ) -> list[tuple[Project, str]]:
+        """Return all projects with a synthetic role (for platform admins)."""
+        projects = await self.list_all(
+            include_archived=include_archived,
+            include_deleted=include_deleted,
+        )
+        return [(p, role) for p in projects]
 
     async def update(
         self,

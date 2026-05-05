@@ -10,7 +10,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { TooltipProvider } from "../components/ui/tooltip"
 import appCss from "../styles.css?url"
 import { useAuthStore } from "@/lib/auth"
@@ -81,9 +81,22 @@ function GlobalStreamProvider({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const user = useAuthStore((s) => s.user)
   const location = useLocation()
   const navigate = useNavigate()
   const isLoginPage = location.pathname === "/login"
+  const hasClearedOnFirstAuth = useRef(false)
+
+  // Clear the query cache whenever the authenticated user changes so that
+  // one account's cached data (e.g. admin project list) never leaks to
+  // another account on the same browser session.
+  useEffect(() => {
+    if (!hasClearedOnFirstAuth.current) {
+      hasClearedOnFirstAuth.current = true
+      return
+    }
+    queryClient.clear()
+  }, [user?.id])
 
   // Validate the auth cookie is still valid on initial load.
   useEffect(() => {

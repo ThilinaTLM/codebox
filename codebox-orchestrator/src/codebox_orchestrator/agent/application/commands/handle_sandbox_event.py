@@ -56,12 +56,19 @@ class HandleBoxEventHandler:
     async def _apply_live_state(self, box_id: str, event: dict) -> None:
         kind = event.get("kind", "")
         payload = event.get("payload", {}) or {}
+        raw_project_id = event.get("project_id")
+        project_id = raw_project_id if isinstance(raw_project_id, str) else ""
         if kind == "state.changed":
             status = payload.get("activity", "")
             if status:
                 self._registry.update_live_state(box_id, "activity", status)
                 await self._publisher.publish_global_event(
-                    {"type": "box_status_changed", "box_id": box_id, "activity": status}
+                    {
+                        "type": "box_status_changed",
+                        "box_id": box_id,
+                        "project_id": project_id,
+                        "activity": status,
+                    }
                 )
         elif kind == "outcome.declared":
             status = payload.get("status", "")
@@ -72,6 +79,7 @@ class HandleBoxEventHandler:
                 {
                     "type": "box_status_changed",
                     "box_id": box_id,
+                    "project_id": project_id,
                     "box_outcome": status,
                     "box_outcome_message": message,
                 }
@@ -84,6 +92,7 @@ class HandleBoxEventHandler:
                 {
                     "type": "box_status_changed",
                     "box_id": box_id,
+                    "project_id": project_id,
                     "box_outcome": "unable_to_proceed",
                     "box_outcome_message": message,
                 }
@@ -91,10 +100,12 @@ class HandleBoxEventHandler:
 
     async def set_container_stopped(self, box_id: str, reason: str) -> None:
         self._registry.update_live_state(box_id, "activity", "idle")
+        project_id = await self._repository.get_project_id_for_box(box_id)
         await self._publisher.publish_global_event(
             {
                 "type": "box_status_changed",
                 "box_id": box_id,
+                "project_id": project_id or "",
                 "container_status": "stopped",
                 "container_stop_reason": reason,
             }

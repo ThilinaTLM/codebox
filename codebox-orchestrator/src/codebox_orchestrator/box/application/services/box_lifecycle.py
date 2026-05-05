@@ -131,7 +131,7 @@ class BoxLifecycleService:
             logger.info("Box %s was cancelled", box_id)
         except Exception as exc:
             logger.exception("Box %s failed", box_id)
-            await self._broadcast_error(box_id, str(exc))
+            await self._broadcast_error(box_id, str(exc), project_id=kwargs.get("project_id", ""))
         finally:
             self._running.pop(box_id, None)
 
@@ -302,14 +302,18 @@ class BoxLifecycleService:
             if self._send_message is None:
                 logger.error("send_message_fn is not wired; cannot auto-start box %s", box_id)
                 await self._broadcast_error(
-                    box_id, "Failed to start agent: send_message_fn unavailable"
+                    box_id,
+                    "Failed to start agent: send_message_fn unavailable",
+                    project_id=project_id,
                 )
                 return
             try:
                 await self._send_message(box_id, auto_start_prompt)
             except Exception as exc:
                 logger.exception("Failed to send auto-start prompt to box %s", box_id)
-                await self._broadcast_error(box_id, f"Failed to start agent: {exc}")
+                await self._broadcast_error(
+                    box_id, f"Failed to start agent: {exc}", project_id=project_id
+                )
                 return
 
         # Bootstrap is complete — stop forcing ``starting`` in the query
@@ -325,6 +329,7 @@ class BoxLifecycleService:
             {
                 "type": "box_status_changed",
                 "box_id": box_id,
+                "project_id": project_id,
                 "container_status": "running",
                 "grpc_connected": True,
             }
@@ -380,7 +385,7 @@ class BoxLifecycleService:
         for cmd in setup_commands:
             await self._send_exec_and_wait(box_id, cmd, 120.0)
 
-    async def _broadcast_error(self, box_id: str, error: str) -> None:
+    async def _broadcast_error(self, box_id: str, error: str, *, project_id: str = "") -> None:
         self._state_store.set_error(box_id, error)
         await self._publisher.publish_box_event(
             box_id,
@@ -395,6 +400,7 @@ class BoxLifecycleService:
             {
                 "type": "box_status_changed",
                 "box_id": box_id,
+                "project_id": project_id,
                 "container_status": "stopped",
                 "container_stop_reason": "container_error",
                 "error_detail": error,

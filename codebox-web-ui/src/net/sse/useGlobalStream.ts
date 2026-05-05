@@ -5,7 +5,7 @@ import {
   fetchEventSource,
 } from "@microsoft/fetch-event-source"
 import type { QueryClient } from "@tanstack/react-query"
-import type { Box } from "@/net/http/types"
+import type { Box, Project } from "@/net/http/types"
 import { API_URL } from "@/lib/constants"
 import { useAuthStore } from "@/lib/auth"
 import { useConnectionStore } from "@/lib/connection"
@@ -29,9 +29,41 @@ function invalidateAllProjectBoxLists(qc: QueryClient): void {
   })
 }
 
+function findProjectSlug(qc: QueryClient, projectId?: string): string | undefined {
+  if (!projectId) return undefined
+
+  const projects = qc.getQueryData<Array<Project>>(["projects"])
+  const fromList = projects?.find((p) => p.id === projectId)?.slug
+  if (fromList) return fromList
+
+  const projectQueries = qc.getQueryCache().findAll({
+    predicate: (query) => {
+      const key = query.queryKey
+      return Array.isArray(key) && key[0] === "projects" && key.length === 2
+    },
+  })
+
+  for (const query of projectQueries) {
+    const data = query.state.data as Project | undefined
+    if (data?.id === projectId) return data.slug
+  }
+
+  return undefined
+}
+
+function invalidateProjectBoxLists(qc: QueryClient, projectId?: string): void {
+  const slug = findProjectSlug(qc, projectId)
+  if (!slug) {
+    invalidateAllProjectBoxLists(qc)
+    return
+  }
+  qc.invalidateQueries({ queryKey: ["projects", slug, "boxes"] })
+}
+
 interface BoxStatusEvent {
   type: "box_status_changed"
   box_id: string
+  project_id?: string
   container_status?: Box["container_status"]
   activity?: Box["activity"]
   box_outcome?: Box["box_outcome"]
@@ -41,6 +73,7 @@ interface BoxStatusEvent {
 }
 
 function applyBoxStatusUpdate(qc: QueryClient, event: BoxStatusEvent): void {
+  const slug = findProjectSlug(qc, event.project_id)
   qc.setQueriesData<Box>(
     {
       predicate: (query) => {
@@ -48,6 +81,7 @@ function applyBoxStatusUpdate(qc: QueryClient, event: BoxStatusEvent): void {
         return (
           Array.isArray(key) &&
           key[0] === "projects" &&
+          (!slug || key[1] === slug) &&
           key[2] === "boxes" &&
           key[3] === event.box_id &&
           key.length === 4
@@ -69,22 +103,28 @@ function applyBoxStatusUpdate(qc: QueryClient, event: BoxStatusEvent): void {
       return { ...old, ...updates }
     }
   )
-  invalidateAllProjectBoxLists(qc)
+  invalidateProjectBoxLists(qc, event.project_id)
 }
 
-function removeBoxFromCaches(qc: QueryClient, boxId: string): void {
+function removeBoxFromCaches(
+  qc: QueryClient,
+  boxId: string,
+  projectId?: string
+): void {
+  const slug = findProjectSlug(qc, projectId)
   qc.removeQueries({
     predicate: (query) => {
       const key = query.queryKey
       return (
         Array.isArray(key) &&
         key[0] === "projects" &&
+        (!slug || key[1] === slug) &&
         key[2] === "boxes" &&
         key[3] === boxId
       )
     },
   })
-  invalidateAllProjectBoxLists(qc)
+  invalidateProjectBoxLists(qc, projectId)
 }
 
 function invalidateProjectKeys(qc: QueryClient, slug?: string): void {
@@ -145,10 +185,12 @@ export function useGlobalStream() {
           const eventType = event.type
 
           if (eventType === "box_created" || eventType === "box_deleted") {
+            const projectId =
+              typeof event.project_id === "string" ? event.project_id : undefined
             if (eventType === "box_deleted" && typeof event.box_id === "string") {
-              removeBoxFromCaches(qcRef.current, event.box_id)
+              removeBoxFromCaches(qcRef.current, event.box_id, projectId)
             } else {
-              invalidateAllProjectBoxLists(qcRef.current)
+              invalidateProjectBoxLists(qcRef.current, projectId)
             }
             return
           }

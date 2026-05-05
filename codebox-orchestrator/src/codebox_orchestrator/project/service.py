@@ -109,6 +109,20 @@ class ProjectService:
             projects = await self._repo.list_for_user(user_id)
         return [self._to_view(p) for p in projects]
 
+    async def list_projects_with_role(
+        self, user_id: str, *, is_platform_admin: bool = False
+    ) -> list[tuple[ProjectView, str]]:
+        """List visible projects along with the requesting user's role in each.
+
+        Platform admins receive ``"admin"`` for every project because they
+        have global access regardless of membership.
+        """
+        if is_platform_admin:
+            pairs = await self._repo.list_all_with_role(role="admin")
+        else:
+            pairs = await self._repo.list_for_user_with_roles(user_id)
+        return [(self._to_view(p), role) for p, role in pairs]
+
     async def update_project(
         self,
         project_id: str,
@@ -130,6 +144,9 @@ class ProjectService:
 
         updated = await self._repo.update(project_id, name=name, description=description)
         return self._to_view(updated) if updated else None
+
+    async def has_member(self, project_id: str, user_id: str) -> bool:
+        return await self._repo.get_member(project_id, user_id) is not None
 
     async def get_member(self, project_id: str, user_id: str) -> ProjectMemberView | None:
         row = await self._repo.get_member_with_user(project_id, user_id)

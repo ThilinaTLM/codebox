@@ -1,7 +1,7 @@
 """Server-Sent Events endpoints for real-time streaming.
 
 Per-box stream replays canonical persisted events, then switches to live streaming.
-Global stream pushes box lifecycle events to all connected clients.
+Global stream pushes project-scoped lifecycle events to authorized clients.
 """
 
 from __future__ import annotations
@@ -16,9 +16,11 @@ from fastapi.responses import StreamingResponse
 
 from codebox_orchestrator.api.dependencies import (
     get_global_broadcast,
+    get_project_service,
     get_query_service,
     get_relay,
 )
+from codebox_orchestrator.auth.dependencies import UserInfo, get_current_user
 from codebox_orchestrator.project.dependencies import (
     ProjectContext,
     get_project_context,
@@ -28,6 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from codebox_orchestrator.box.application.services.box_query import BoxQueryService
+    from codebox_orchestrator.project.service import ProjectService
     from codebox_orchestrator.shared.messaging.global_broadcast import GlobalBroadcastService
     from codebox_orchestrator.shared.messaging.relay import RelayService
 
@@ -77,10 +80,33 @@ async def _box_event_generator(
         relay.unsubscribe(box_id, queue)
 
 
+async def _can_receive_global_event(
+    event: dict[str, Any],
+    user: UserInfo,
+    project_service: ProjectService,
+) -> bool:
+    """Return whether *user* is allowed to receive a global lifecycle event."""
+    if user.user_type == "admin":
+        return True
+
+    project_id = event.get("project_id")
+    if not isinstance(project_id, str) or not project_id:
+        logger.warning(
+            "Dropping unscoped global event for non-admin user %s: %s",
+            user.user_id,
+            event.get("type"),
+        )
+        return False
+
+    return await project_service.has_member(project_id, user.user_id)
+
+
 async def _global_event_generator(
     global_broadcast: GlobalBroadcastService,
+    user: UserInfo,
+    project_service: ProjectService,
 ) -> AsyncGenerator[str, None]:
-    """Stream global box lifecycle events."""
+    """Stream global lifecycle events, filtered by project membership."""
     queue = global_broadcast.subscribe()
     try:
         while True:
@@ -88,6 +114,8 @@ async def _global_event_generator(
                 event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_INTERVAL)
             except TimeoutError:
                 yield ":\n\n"
+                continue
+            if not await _can_receive_global_event(event, user, project_service):
                 continue
             yield _sse_line(event)
     except asyncio.CancelledError:
@@ -133,10 +161,12 @@ async def box_stream(
 @router.get("/api/stream")
 async def global_stream(
     global_broadcast: GlobalBroadcastService = Depends(get_global_broadcast),
+    user: UserInfo = Depends(get_current_user),
+    project_service: ProjectService = Depends(get_project_service),
 ) -> StreamingResponse:
-    """SSE stream for platform-level box lifecycle events."""
+    """SSE stream for project-scoped lifecycle events."""
     return StreamingResponse(
-        _global_event_generator(global_broadcast),
+        _global_event_generator(global_broadcast, user, project_service),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

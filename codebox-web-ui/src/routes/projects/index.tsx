@@ -37,8 +37,15 @@ function ProjectsChooserPage() {
   const isPlatformAdmin = user?.user_type === "admin"
   const [createOpen, setCreateOpen] = useState(false)
 
-  // Chooser only shows projects the user can actually open.
-  const accessible = (projects ?? []).filter((p) => p.status === "active")
+  // Platform admins see all active projects; regular users only see
+  // projects where they have an explicit role. Use strict inequality (!==)
+  // so that `undefined` (field missing from old backend) still passes —
+  // only an explicit `null` (not a member) is rejected.
+  const accessible = isPlatformAdmin
+    ? (projects ?? []).filter((p) => p.status === "active")
+    : (projects ?? []).filter(
+        (p) => p.status === "active" && p.current_user_role !== null,
+      )
 
   if (isLoading) {
     return (
