@@ -70,7 +70,8 @@ async def create_project(
         description=body.description,
         creator_user_id=user.user_id,
     )
-    return ProjectResponse(**view.__dict__)
+    # Creator is automatically a project admin.
+    return ProjectResponse(**view.__dict__, current_user_role="admin")
 
 
 @router.get("", summary="List projects", operation_id="list_projects")
@@ -92,7 +93,7 @@ async def get_project(
     view = await service.get_project_by_id(ctx.project_id)
     if view is None:
         raise HTTPException(404, "Project not found")
-    return ProjectResponse(**view.__dict__)
+    return ProjectResponse(**view.__dict__, current_user_role=ctx.project_role)
 
 
 @router.patch("/{slug}", summary="Update project", operation_id="update_project")
@@ -108,7 +109,7 @@ async def update_project(
     view = await service.update_project(current.id, name=body.name, description=body.description)
     if view is None:
         raise HTTPException(404, "Project not found")
-    return ProjectResponse(**view.__dict__)
+    return ProjectResponse(**view.__dict__, current_user_role="admin")
 
 
 @router.post("/{slug}/archive", summary="Archive project", operation_id="archive_project")
@@ -124,7 +125,7 @@ async def archive_project(
     view = await lifecycle.archive(current.id)
     if view is None:
         raise HTTPException(404, "Project not found")
-    return ProjectResponse(**view.__dict__)
+    return ProjectResponse(**view.__dict__, current_user_role="admin")
 
 
 @router.post("/{slug}/restore", summary="Restore project", operation_id="restore_project")
@@ -140,7 +141,7 @@ async def restore_project(
     view = await lifecycle.restore(current.id)
     if view is None:
         raise HTTPException(404, "Project not found")
-    return ProjectResponse(**view.__dict__)
+    return ProjectResponse(**view.__dict__, current_user_role="admin")
 
 
 @router.delete("/{slug}", summary="Delete project", operation_id="delete_project")

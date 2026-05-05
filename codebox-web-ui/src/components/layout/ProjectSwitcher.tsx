@@ -130,10 +130,12 @@ function ProjectSwitcherPopover({
   // in the platform inventory, not in an everyday chooser.
   // Projects without an explicit role are excluded for non-admin users;
   // platform admins always see all active projects regardless.
+  // Use strict inequality (!==) so that `undefined` (field missing from
+  // old backend) still passes — only an explicit `null` is rejected.
   const selectable = isPlatformAdmin
     ? projects.filter((p) => p.status === "active")
     : projects.filter(
-        (p) => p.status === "active" && p.current_user_role != null,
+        (p) => p.status === "active" && p.current_user_role !== null,
       )
 
   return (
